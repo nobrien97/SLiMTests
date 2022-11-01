@@ -287,9 +287,9 @@ function (void) writeGenMap(void) {
 							 "chromosome", chromos,
 							 "position", pos);
 							 
-	
+	genMap = genMap.serialize("csv");
 							 
-	writeFile(outGenMap, genMap.serialize("csv"), append = F);
+	writeFile(outGenMap, genMap[1:(length(genMap)-1)], append = T);
 }
 
 function (float) getRecomDistances(void) {
@@ -321,7 +321,7 @@ function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
 	
 	
 	// Get additive effects for those alleles	
-	fx = paste(sim.generation, seed, modelindex, getFX(qtls, haplos));
+	fx = paste(sim.generation, seed, modelindex, getFX(qtls, haplos), sep=",");
 	
 	// Stick on generation and identifier data
 	haplos = cbind(rep(sim.generation, nrow(haplos)), 
@@ -332,7 +332,7 @@ function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
 	l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
 	
 	writeFile(outHaplo, l, append = T);
-	writeFile(outPed, ped[1:length(ped)], append = T); // Remove header
+	writeFile(outPed, ped[1:(length(ped)-1)], append = T); // Remove header
 	writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.generation, seed, modelindex, inds.phenotype, sep=",");

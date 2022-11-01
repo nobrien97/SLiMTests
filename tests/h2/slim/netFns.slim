@@ -362,9 +362,9 @@ function (void) writeGenMap(void) {
 							 "chromosome", chromos,
 							 "position", pos);
 							 
-	
+	genMap = genMap.serialize("csv");
 							 
-	writeFile(outGenMap, genMap.serialize("csv"), append = F);
+	writeFile(outGenMap, genMap[1:(length(genMap)-1)], append = T);
 }
 
 function (float) getRecomDistances(i$ loci_len) {
@@ -393,7 +393,7 @@ function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
 	
 	// Extract haplotypes and qtl effect sizes
 	haplos = matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T);
-	fx = paste(sim.generation, seed, modelindex, getFX(qtls, haplos));
+	fx = paste(sim.generation, seed, modelindex, getFX(qtls, haplos), sep=",");
 	
 	
 	// Stick on generation and identifier data
@@ -405,7 +405,7 @@ function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
 	l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
 	
 	writeFile(outHaplo, l, append = T);
-	writeFile(outPed, ped[1:length(ped)], append = T);
+	writeFile(outPed, ped[1:(length(ped)-1)], append = T);
 	writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.generation, seed, modelindex, inds.phenotype, sep=",");
