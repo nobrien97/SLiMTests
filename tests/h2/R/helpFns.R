@@ -1,0 +1,18 @@
+hapToGen <- function(haplos, ploidy = 2L) {
+  # Converts a matrix of haplotypes to a genotype matrix
+
+    # First make sure we have a proper ploidy for our haplotypes
+  stopifnot(nrow(haplos) %% ploidy == 0)
+  
+  res <- matrix(rep(0, nrow(haplos)%/%ploidy))
+  haplo_seq <- seq(from = 1, to = nrow(haplos), by = ploidy)
+  res <- haplos[haplo_seq,]
+  if (ploidy == 1) {
+    return(res)
+  }
+  for (i in 1:(ploidy-1)) {
+    res <- res + haplos[haplo_seq + i,]
+  }
+  row.names(res) <- NULL
+  return(res)
+}
