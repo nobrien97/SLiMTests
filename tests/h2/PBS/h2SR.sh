@@ -17,12 +17,12 @@ fi
 
 RSCRIPTNAME=$HOME/tests/h2/R/h2_singleshot.R
 
-echo "Running seedindex = $SEED...\n"
+echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 Rscript ${RSCRIPTNAME} ${SEED} ${MODELINDEX}
 
 
 DURATION=$SECONDS
-echo "Run seedindex = $SEED, finished!"
+echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"
 echo "$(($DURATION / 3600)) hours, $((($DURATION / 60) % 60)) minutes, and $(($DURATION % 60)) seconds elapsed."
 
 # Create file to show what we've already done if we get interrupted
