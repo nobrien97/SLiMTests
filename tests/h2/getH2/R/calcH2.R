@@ -33,12 +33,15 @@ if (!max(haplos)) {
                             VarD.SE = 0,
                             VarAA.SE = 0,
                             VarR.SE = 0,
-                            H2.A = 0,
-                            H2.D = 0,
-                            H2.AA = 0,
+                            H2.A.Estimate = 0,
+                            H2.A.SE = 0,
+                            H2.D.Estimate = 0,
+                            H2.D.SE = 0,
+                            H2.AA.Estimate = 0,
+                            H2.AA.SE = 0,
                             AIC = 0
                             )
-    write.table(result, paste0("/scratch/ht96/nb9894/h2/getH2/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)    q(save = "no")
+    write.table(result, paste0("/scratch/ht96/nb9894/h2/getH2/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)
     q(save = "no")
 }
 
@@ -87,12 +90,15 @@ if(!exists("Result.A_D_AA")) {
                             VarD.SE = 0,
                             VarAA.SE = 0,
                             VarR.SE = 0,
-                            H2.A = 0,
-                            H2.D = 0,
-                            H2.AA = 0,
+                            H2.A.Estimate = 0,
+                            H2.A.SE = 0,
+                            H2.D.Estimate = 0,
+                            H2.D.SE = 0,
+                            H2.AA.Estimate = 0,
+                            H2.AA.SE = 0,
                             AIC = 0
                             )
-    write.table(result, paste0("/scratch/ht96/nb9894/h2/getH2/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)    q(save = "no")
+    write.table(result, paste0("/scratch/ht96/nb9894/h2/getH2/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)
     q(save = "no")
 }
 

@@ -47,7 +47,7 @@ touch $HOME/tests/h2/getH2/done/${RUN}_${CHUNK}
 
 # Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
 # Chunks should consist of 2016 files
-if [ $(ls $HOME/tests/h2/getH2/done/*_${CHUNK} | wc -l) == 2016]; then
+if [ $(ls $HOME/tests/h2/getH2/done/*_${CHUNK} | wc -l) == 2016 ]; then
     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
     cat $SCRATCHPATH/*_${CHUNK}.csv >> $SCRATCHPATH/out_h2_${CHUNK}_done.csv
     rm $SCRATCHPATH/*_${CHUNK}.csv

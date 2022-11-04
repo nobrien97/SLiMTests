@@ -29,9 +29,9 @@ CMDS_PATH=$HOME/tests/h2/getH2/PBS/cmds.txt
 mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 172800
 
 # Combine output into a single file
-cd /scratch/ht96/nb9894/h2/getH2/
+cd /scratch/ht96/nb9894/h2/getH2
 
-cat ./out_h2_${CHUNK}_done.csv >> $SAVEDIR/out_h2.csv
+cat ./*_done.csv >> $SAVEDIR/out_h2.csv
 
 # Delete loose files with
 rm ./*_done.csv
