@@ -34,7 +34,7 @@ ans.ADE <- mmec(y~1,
                 data=pheno_dat)
 
 # Check that the mmec finished properly
-if (!exists(ans.ADE)) {
+if (!exists("ans.ADE")) {
   q(save = "no")
 }
 
