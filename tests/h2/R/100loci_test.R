@@ -108,14 +108,38 @@ Result_add.A_D_AA.Extract <- data.frame(gen = run_info_add[1],
 )
 Result_add.A_D_AA.Extract
 
-pheno_dat <- data.frame(y = phenos, 
-                        GCA1 = as.factor(ped$mother),
-                        GCA2 = as.factor(ped$father),
-                        SCA = as.factor(ped$id))
+# Pedigree approach
+pheno_dat <- data.frame(y = phenos_net, 
+                        GCA1 = as.factor(ped_net$mother),
+                        GCA2 = as.factor(ped_net$father),
+                        SCA = as.factor(ped_net$id))
 
 pheno_dat$idd <- as.numeric(pheno_dat$SCA)
 pheno_dat$ide <- as.numeric(pheno_dat$SCA)
 
+ans.ADE <- mmec(y~1,
+                random =~GCA1+GCA2+SCA,
+                rcov=~units,
+                data=pheno_dat)
+
+suma <- summary(ans.ADE)$varcomp
+Vgca <- sum(suma[1:2,1])
+Vsca <- suma[3,1]
+Ve <- suma[4,1]
+Va = 4*Vgca
+Vd = 4*Vsca
+Vg <- Va + Vd
+(H2 <- Vg / (Vg + (Ve)) )
+(h2 <- Va / (Vg + (Ve)) )
+
+
+pheno_dat <- data.frame(y = phenos_add, 
+                        GCA1 = as.factor(ped_add$mother),
+                        GCA2 = as.factor(ped_add$father),
+                        SCA = as.factor(ped_add$id))
+
+pheno_dat$idd <- as.numeric(pheno_dat$SCA)
+pheno_dat$ide <- as.numeric(pheno_dat$SCA)
 
 ans.ADE <- mmec(y~1,
                 random =~GCA1+GCA2+SCA,
