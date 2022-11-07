@@ -9,7 +9,7 @@ run_chunk <- paste(run, chunk, sep = "_")
 
 # Read data and add names
 ped <- read.csv(paste0("slim_ped_sbst_", run, ".csv"), header = F)[, -(1:3)]
-names(haplos) <- c("id", "mother", "father")
+names(ped) <- c("id", "mother", "father")
 phenos <- unlist(read.csv(paste0("slim_pheno_sbst_", run, ".csv"), header = F))
 names(phenos) <- NULL
 # From the phenos file, extract gen, seed, modelindex and remove them
@@ -18,7 +18,8 @@ run_info <- phenos[1:3]
 phenos <- phenos[-(1:3)]
 
 # Check to make sure there is variability
-if (var(phenos)) {
+if (!var(phenos)) {
+    sprintf("No variance in run %i, closing R...", run)
     q(save = "no")
 }
 
@@ -45,8 +46,8 @@ suma <- summary(ans.ADE)$varcomp
 Vgca <- sum(suma[1:2,1])
 Vsca <- suma[3,1]
 Ve <- suma[4,1]
-Va = 4*Vgca
-Vd = 4*Vsca
+Va <- 4*Vgca
+Vd <- 4*Vsca
 Vg <- Va + Vd
 H2 <- Vg / (Vg + (Ve))
 h2 <- Va / (Vg + (Ve))
@@ -69,4 +70,5 @@ result <- data.frame(       gen = run_info[1],
 rownames(result) <- NULL
 
 # Output file
+print(paste("Writing output for run_chunk:", run_chunk))
 write.table(result, paste0("/scratch/ht96/nb9894/h2/getH2_ped/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)

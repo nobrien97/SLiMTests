@@ -7,7 +7,6 @@ SECONDS=0
 
 GDATAPATH=/g/data/ht96/nb9894/h2
 SCRATCHPATH=/scratch/ht96/nb9894/h2/getH2_ped
-
 # Two arguments: 
 # run number (starts at 0)
 # chunk (starts at 1): 
