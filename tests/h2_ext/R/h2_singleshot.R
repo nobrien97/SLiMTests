@@ -36,5 +36,3 @@ slim_out <- system(sprintf("$HOME/SLiM/slim -s %s %s/slim/%s",
                               as.character(seeds$Seed[s]),
                               testDir,
                               model), intern=T)
-
-

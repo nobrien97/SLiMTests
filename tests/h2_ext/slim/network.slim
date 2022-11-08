@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/h2/slim/"); //"/mnt/c/GitHub/SLiMTests/tests/h2/slim/");
+	defineConstant("wd", "/home/564/nb9894/tests/h2_ext/slim/"); //"/mnt/c/GitHub/SLiMTests/tests/h2/slim/");
 	// Load functions from file
 	source(paste0(wd, "netFns.slim"));
 		setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -74,7 +74,7 @@ initialize() {
 	setCfgParam("outRel", paste0('slim_rel', identifier, '.csv')); // Output filepath for relatedness matrix
 	setCfgParam("outFX", paste0('slim_fx', identifier, '.csv')); // Output filepath for effect sizes associated with haplotypes
 
-	setCfgParam("moveDir", "/scratch/ht96/nb9894/h2/"); // Directory to move output to at end of simulation
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/h2_ext/"); // Directory to move output to at end of simulation
 
 	// Time tests
 	setCfgParam("outTime", paste0('slim_time', identifier, '.csv'));
