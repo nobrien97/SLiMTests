@@ -9,7 +9,7 @@ initialize() {
 		catn("Actual seed: " + asInteger(seed));
 	}
 	
-	defineConstant("wd",  "/mnt/c/GitHub/SLiMTests/tests/h2_hsfs/slim/"); //"/home/564/nb9894/tests/h2_hsfs/slim/");
+	defineConstant("wd", "/home/564/nb9894/tests/h2_hsfs/slim/"); //"/mnt/c/GitHub/SLiMTests/tests/h2_hsfs/slim/");
 	// Load functions from file
 	source(paste0(wd, "addFns.slim"));
 	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -18,7 +18,7 @@ initialize() {
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
-	setCfgParam("mu", 9.1528e-7); // Mutation rate averaged across five species from Table 1 Aston et al. 2017 
+	setCfgParam("mu", 9.1528e-6); // Mutation rate averaged across five species from Table 1 Aston et al. 2017 
 	setCfgParam("N", 5000 ); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
 	setCfgParam("N_dam", 20); // Number of dams per sire
@@ -42,9 +42,9 @@ initialize() {
 	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
 	
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 10); // Number of generations of stabilising selection burn in
-	setCfgParam("testTime", 100); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
-	setCfgParam("samplerate", c(10, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("burnTime", 50000); // Number of generations of stabilising selection burn in
+	setCfgParam("testTime", 2000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
+	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
 	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
 	setCfgParam("sampleLimits", c(0.1*samplerate, 5*samplerate)); // Set maximum and minimum sample rates to adjust between 
