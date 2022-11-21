@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/h2_ext/slim/"); //"/mnt/c/GitHub/SLiMTests/tests/h2/slim/");
+	defineConstant("wd", "/home/564/nb9894/tests/h2_hsfs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/h2_hsfs/slim/");
 	// Load functions from file
 	source(paste0(wd, "netFns.slim"));
 		setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -19,14 +19,17 @@ initialize() {
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
 	setCfgParam("mu", 9.1528e-6); // Mutation rate averaged across two samples of A. thaliana from Table 1 Aston et al. 2017, transformed to per locus by multiplying by 1346 (Xu et al. 2006) 
-	setCfgParam("N", 10000); // Population size
-	setCfgParam("N_samp", 500); // Sample size for haplotypes etc.
+	setCfgParam("N", 5000); // Population size
+	setCfgParam("N_sires", 5); // Number of sires for sampling
+	setCfgParam("N_dam", 20); // Number of dams per sire
+	setCfgParam("N_perdam", 10); // Number of offspring per dam
+	setCfgParam("N_samp", N_sires*N_dam*N_perdam); // Sample size for haplotypes etc.
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 0.5); // Whole genome recombination rate
-	setCfgParam("nloci", 8); // Number of U and E sites along the chromosome
+	setCfgParam("nloci", 998); // Number of U and E sites along the chromosome
 	setCfgParam("ueProp", 0.5); // Proportion of Ubiquitinylation regulators vs enhancers among the n loci
-	setCfgParam("genomelength", 100); // Loci across the genome - some are deleterious, others QTL, others neutral
+	setCfgParam("genomelength", 1000); // Loci across the genome - some are deleterious, others QTL, others neutral
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
 	setCfgParam("locisigma", 1.0); // Variance used for QTL effect pulls - the effect size distribution
 	setCfgParam("locidist", paste0("exp(rnorm(1,", locimu, ",", locisigma, "));"));
@@ -42,10 +45,10 @@ initialize() {
 	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
 	
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 100000); // Number of generations of neutral burn-in before the test period
+	setCfgParam("burnTime", 50000); // Number of generations of neutral burn-in before the test period
 	setCfgParam("testTime", 2000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
 	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
-	setCfgParam("testSampling", 20); // Sample rate during test period
+	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
 	setCfgParam("sampleLimits", c(0.1*samplerate, 5*samplerate)); // Set maximum and minimum sample rates to adjust between 
 	
@@ -74,7 +77,7 @@ initialize() {
 	setCfgParam("outRel", paste0('slim_rel', identifier, '.csv')); // Output filepath for relatedness matrix
 	setCfgParam("outFX", paste0('slim_fx', identifier, '.csv')); // Output filepath for effect sizes associated with haplotypes
 
-	setCfgParam("moveDir", "/scratch/ht96/nb9894/h2_ext/"); // Directory to move output to at end of simulation
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/h2_hsfs/"); // Directory to move output to at end of simulation
 
 	// Time tests
 	setCfgParam("outTime", paste0('slim_time', identifier, '.csv'));
@@ -86,7 +89,7 @@ initialize() {
 	defineConstant("expTheta", 4*N*mu);
 	defineConstant("expHe", expTheta/(1+expTheta));
 
-	
+	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(keepPedigrees=T);
 //	initializeTreeSeq();
 	initializeMutationRate(mu);
@@ -125,11 +128,6 @@ initialize() {
 	
 }
 
-1 first() {
-	assignQTLPositions();
-}
-
-
 mutation(m1) {
 	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
 	mut.setMutationType(sampleMutTypeFromSite(mut.position));
@@ -160,13 +158,71 @@ fitness(m6) {
 1 {
 	sim.addSubpop("p1", N);
 	assignQTLPositions();
+	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
 	// s2: Shift optimum, end the simulation and write/move output files 
 	sim.rescheduleScriptBlock(s1, start = 1, end = burnTime);
 	sim.rescheduleScriptBlock(s2, start = burnTime+1, end = burnTime + testTime);
+	
+	// Script blocks for reproduction callbacks: burn-in vs test period
+	sim.rescheduleScriptBlock(s3, start = 2, end = burnTime);
+	sim.rescheduleScriptBlock(s4, start = burnTime+1, end = burnTime + testTime);
 
 }
+
+// Burn-in under stabilising selection
+s3 reproduction() {
+	inds = p1.individuals;
+	fitness = p1.cachedFitness(NULL);
+	parent1 = sample(inds, N, replace = T, weights = fitness);
+	parent2 = sample(inds, N, replace = T, weights = fitness);
+	
+	for (i in seqLen(N))
+		p1.addCrossed(parent1[i], parent2[i]);
+	
+	self.active = 0;
+}
+// full-sib half-sib mating design: we want to keep variability around though,
+// so we still sample the rest of the population according to the regular rules
+s4 reproduction() {
+	// Only do the mating design a generation before we sample
+	if (!((sim.generation+1) % testSampling) | (sim.generation+1) == burnTime | (sim.generation+1) == (burnTime+testTime)) {
+		diff = N - N_samp;
+	} else {
+		diff = N;
+	}
+	
+	inds = p1.individuals;
+	fitness = p1.cachedFitness(NULL);
+	parent1 = sample(inds, diff, replace = T, weights = fitness);
+	parent2 = sample(inds, diff, replace = T, weights = fitness);
+	
+	for (i in seqLen(diff))
+		p1.addCrossed(parent1[i], parent2[i]);
+
+	
+	// Mating design for the rest of the offspring: 
+	// tag these offspring with 1 so we know they are part of the design
+	if (diff < N) {
+		sires = p1.sampleIndividuals(N_sires);
+		for (sire in sires) {
+			dams = p1.sampleIndividuals(N_dam, exclude = sire);
+			for (dam in dams) {
+				for (offspring in seqLen(N_perdam)) {
+					p1.addCrossed(sire, dam);
+				}
+			}
+		}
+	}
+	
+	self.active = 0;
+}
+
+early() {
+	p1.individuals[p1.individuals.age > 0].fitnessScaling = 0.0;
+}
+
 
 // Burn in
 s1 late() { 
@@ -188,6 +244,9 @@ s1 late() {
 		return;
 		
 	writeQuantGenOutput(p1, "burnin");
+	if (debug)
+		writeTimeData();
+
 	
 	// Check if we are sampling type 2 output this generation (alleles)
 	if (sim.generation % samplerate[1])
@@ -226,9 +285,10 @@ s2 late() {
 		system(paste0("mv ./", outGenMap, " ", moveDir));
 		system(paste0("mv ./", outFX, " ", moveDir));
 		
-
-		if (debug)
+		if (debug) {
+			writeTimeData();
 			system(paste0("mv ./", outTime, " ", moveDir));
+		}
 			
 		sim.simulationFinished();
 		return;
@@ -243,6 +303,9 @@ s2 late() {
 
 	writeQuantGenOutput(p1, "adaptation");
 	writeAlleleData();
+	
+	if (debug)
+		writeTimeData();
 
 }
 
