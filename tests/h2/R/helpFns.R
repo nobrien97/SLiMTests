@@ -16,3 +16,12 @@ hapToGen <- function(haplos, ploidy = 2L) {
   row.names(res) <- NULL
   return(res)
 }
+
+colVar <- function(m) {
+  # Calculates variances of columns in a matrix/dataframe
+  result <- double(ncol(m))
+  for (i in seq_len(ncol(m))) {
+    result[i] <- var(m[,i]) 
+  }
+  return(result)
+}

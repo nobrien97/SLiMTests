@@ -1,5 +1,26 @@
 library(AlphaSimR)
 
+haplo = rbind(c(1,1,0,1,0),
+              c(1,1,0,1,0),
+              c(0,1,1,0,0),
+              c(0,1,1,0,0))
+colnames(haplo) = letters[1:5]
+
+genMap = data.frame(markerName=letters[1:5],
+                    chromosome=c(1,1,1,2,2),
+                    position=c(0,0.5,1,0.15,0.4))
+
+ped = data.frame(id=c("a","b"),
+                 mother=c(0,0),
+                 father=c(0,0))
+
+founderPop = importHaplo(haplo=haplo, 
+                         genMap=genMap,
+                         ploidy=2L,
+                         ped=ped)
+
+
+
 haplos <- read.csv("~/Desktop/haplos.csv", header = F)
 names(haplos) <- paste0("q_", 1:ncol(haplos))
 ped <- read.csv("~/Desktop/ped.csv")

@@ -38,7 +38,7 @@ if (!exists("ans.ADE")) {
   q(save = "no")
 }
 
-if (length(ans.ADE != 26)) {
+if (length(ans.ADE) != 26) {
   q(save = "no")
 }
 
