@@ -5,46 +5,31 @@ se <- function(x) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_h2 <- read_csv("../data/out_h2.csv", col_names = F)
-
-# Cleanup: forgot about estimate/SE in data so need to separate column 15 into some more columns
-# First remove all the missing estimates - X15 == 0
-
-d_h2 %>% filter(X15 != "0") -> d_h2
-# separate col 15
-d_h2 %>% separate(X15, paste0("X", 15:18), ",") -> d_h2
-
-# Header:
-names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
-                 "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
-                 "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
-                 "H2.AA.SE", "AIC")
-
-# Remove duplicates
-d_h2 %>% distinct() -> d_h2
-
-# Remove NAs
-d_h2 %>% drop_na() -> d_h2
-
-# Convert last few columns to numeric
-d_h2[,15:18] <- sapply(d_h2[,15:18], as.numeric)
-
-# Recode modelindex to additive/network
-d_h2 %>% mutate(model = recode_factor(modelindex, `0`="Additive", `1`="Network")) -> d_h2
+d_h2 <- read_csv("../data/out_h2_filt.csv", col_names = T)
 
 # Remove weird values: negative variance, huge variance
 d_h2 %>% filter(VarA >= 0, VarA < 10,
                 VarD >= 0, VarAA >= 0,
                 VarR > 0, sum(VarA, VarD, VarAA, VarR) > 0) -> d_h2
 
-d_h2_sum <- d_h2 %>% 
+d_h2$VarA_scl <- scale(d_h2$VarA)
+d_h2$VarD_scl <- scale(d_h2$VarD)
+d_h2$VarAA_scl <- scale(d_h2$VarAA)
+
+d_h2_sum <- d_h2 %>%
   group_by(gen, model) %>% 
   summarise(meanH2A = mean(H2.A.Estimate),
             seH2A = se(H2.A.Estimate),
             meanH2D = mean(H2.D.Estimate), 
             seH2D = se(H2.D.Estimate),
             meanH2AA = mean(H2.AA.Estimate),
-            seH2AA = se(H2.AA.Estimate)
+            seH2AA = se(H2.AA.Estimate),
+            meanVarA = mean(VarA),
+            seVarA = se(VarA),
+            meanVarD = mean(VarD),
+            seVarD = se(VarD),
+            meanVarAA = mean(VarAA),
+            seVarAA = se(VarAA)
             )
 
 d_h2_sum$gen <- d_h2_sum$gen - 100000
@@ -91,15 +76,26 @@ ggplot(d_h2_sum %>% pivot_longer(
   aes(x = gen, y = prop, fill = varComp)) +
   scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
   facet_grid(.~model) +
-  geom_bar(position="fill", stat="identity", width = 1) +
+  geom_bar(position="fill", stat="identity", width = 20) +
   labs(x = "Generations after optimum shift", y = "Proportion of total phenotypic variance", 
        fill = "Variance component") +
   theme_bw() +
   theme(text = element_text(size = 20))
 
+ggplot(d_h2_sum %>% pivot_longer(
+  cols = c(meanVarA, meanVarD, meanVarAA),
+  names_to = "varComp", values_to = "var"),
+  aes(x = gen, y = var)) +
+  scale_color_viridis_d() +
+  facet_grid(varComp~model) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Variance") +
+  theme_bw() +
+  theme(text = element_text(size = 20))
+
 
 # Plot trait data over time
-d_qg <- read_csv("../../data/slim_qg.csv", col_names = F)
+d_qg <- read_csv("../data/slim_qg.csv", col_names = F)
 names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
                  "phenovar", "dist", "w", "deltaPheno", "deltaw")
 
@@ -109,7 +105,7 @@ d_h2 <- d_h2 %>% unite("id", gen:modelindex, remove = F)
 d_qg <- d_qg %>% unite("id", gen:modelindex, remove = F)
 
 d_qg <- d_qg[d_qg$id %in% d_h2$id,]
-d_qg %>% mutate(model = recode_factor(modelindex, `0`="Additive", `1`="Network")) -> d_qg
+d_qg <- d_qg %>% mutate(model = recode_factor(modelindex, `0` = "Additive", `1` = "Network"))
 
 d_qg <- d_qg %>% filter(phenomean < 10)
 
