@@ -15,13 +15,13 @@ if [ -f $TESTDIR/done/${FILENAME} ]; then
     exit 0
 fi
 
-# Get the correct seed from the file
+# Get the correct seed from the file: no header on this one, no need to adjust
 SEED_FILE=$TESTDIR/R/h2_hsfs_seeds.csv
 SEED_NUM=$(awk "NR==$SEED" $SEED_FILE)
 
 # Set the model path
 MODEL=hsfs_additive.slim
-if [ $MODELINDEX ]; then
+if [ "$MODELINDEX" -ne "0" ]; then
     MODEL=hsfs_network.slim
 fi
 
