@@ -58,6 +58,7 @@ cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
 cat ./slim_sampled_pheno* >> $SAVEDIR/slim_sampled_pheno.csv
 cat ./slim_genmap* >> $SAVEDIR/slim_genmap.csv
 cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
+cat ./slim_time* >> $SAVEDIR/slim_time.csv
 
 # Zip LD matrices
 /bin/zip -q -Z bzip2 $SAVEDIR/slim_ld.zip ./slim_ld* 
