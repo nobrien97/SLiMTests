@@ -19,7 +19,7 @@ initialize() {
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
 	setCfgParam("mu", 9.1528e-7); // Mutation rate averaged across five species from Table 1 Aston et al. 2017 
-	setCfgParam("N", 10000 ); // Population size
+	setCfgParam("N", 5000 ); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
 	setCfgParam("N_dam", 20); // Number of dams per sire
 	setCfgParam("N_perdam", 10); // Number of offspring per dam
@@ -36,16 +36,16 @@ initialize() {
 	setCfgParam("constraints", matrix(c(1.0, 0.0, 1.0,
 		5.0, 10.0, 1.0,
 		50.0, 100.0, 1.0), ncol = 3, byrow = T)); // Matrix of lambdas: neutral/deleterious/beneficial weights in columns, rows are low/medium/high sub rate
-	setCfgParam("width", 0.7);
+	setCfgParam("width", 0.05);
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!
 	setCfgParam("optBurn", 1); // Optimum during burn-in	
 	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
 	
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 1000); // Number of generations of stabilising selection burn in
-	setCfgParam("testTime", 2000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
-	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
-	setCfgParam("testSampling", 20); // Sample rate during test period
+	setCfgParam("burnTime", 10); // Number of generations of stabilising selection burn in
+	setCfgParam("testTime", 100); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
+	setCfgParam("samplerate", c(10, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
 	setCfgParam("sampleLimits", c(0.1*samplerate, 5*samplerate)); // Set maximum and minimum sample rates to adjust between 
 	
@@ -218,7 +218,6 @@ s1 late() {
 		writeLDmat(p1, T);
 		writeGenMap();
 		writeHaploPed(p1, N_samp);
-	
 	}
 	
 	
@@ -228,10 +227,14 @@ s1 late() {
 	
 	writeQuantGenOutput(p1, "burnin");
 	
+	if (debug)
+		writeTimeData();
+	
 	// Check if we are sampling type 2 output this generation (alleles)
 	if (sim.generation % samplerate[1])
 		return;
 	writeAlleleData();
+	
 
 }
 
@@ -245,6 +248,7 @@ s2 late() {
 	if (sim.generation == (burnTime + testTime)) {
 		// Write last output
 		writeQuantGenOutput(p1, "adaptation");
+		
 		
 		// Write LD output and pedigree/heritability stuff
 		writeLDmat(p1, F);
@@ -265,9 +269,10 @@ s2 late() {
 		system(paste0("mv ./", outGenMap, " ", moveDir));
 		system(paste0("mv ./", outFX, " ", moveDir));
 		
-		
-		if (debug)
+		if (debug) {
+			writeTimeData();
 			system(paste0("mv ./", outTime, " ", moveDir));
+		}
 		
 		sim.simulationFinished();
 		return;
@@ -278,8 +283,10 @@ s2 late() {
 		return;
 	
 	writeHaploPed(p1, N_samp);
-	
 	writeQuantGenOutput(p1, "adaptation");
 	writeAlleleData();
+	
+	if (debug)
+		writeTimeData();
 
 }
