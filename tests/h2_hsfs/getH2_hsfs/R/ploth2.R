@@ -5,7 +5,21 @@ se <- function(x) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_h2 <- read_csv("../data/out_h2_filt.csv", col_names = T)
+d_h2 <- read_csv("../data/out_h2.csv", col_names = F)
+
+names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
+                 "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
+                 "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
+                 "H2.AA.SE", "AIC")
+
+# Remove duplicates
+d_h2 %>% distinct() -> d_h2
+
+# Remove NAs
+d_h2 %>% drop_na() -> d_h2
+
+# Recode modelindex to additive/network
+d_h2 %>% mutate(model = recode_factor(modelindex, `0`="Additive", `1`="Network")) -> d_h2
 
 # Remove weird values: negative variance, huge variance
 d_h2 %>% filter(VarA >= 0, VarA < 10,
@@ -32,7 +46,7 @@ d_h2_sum <- d_h2 %>%
             seVarAA = se(VarAA)
             )
 
-d_h2_sum$gen <- d_h2_sum$gen - 100000
+d_h2_sum$gen <- d_h2_sum$gen - 50000
 
 # Distribution
 ggplot(d_h2, aes(x = H2.A.Estimate, fill = model)) +
@@ -76,7 +90,7 @@ ggplot(d_h2_sum %>% pivot_longer(
   aes(x = gen, y = prop, fill = varComp)) +
   scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
   facet_grid(.~model) +
-  geom_bar(position="fill", stat="identity", width = 20) +
+  geom_bar(position="fill", stat="identity", width = 50) +
   labs(x = "Generations after optimum shift", y = "Proportion of total phenotypic variance", 
        fill = "Variance component") +
   theme_bw() +
