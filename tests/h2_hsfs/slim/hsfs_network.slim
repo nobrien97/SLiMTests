@@ -174,7 +174,7 @@ fitness(m6) {
 // Burn-in under stabilising selection
 s3 reproduction() {
 	inds = p1.individuals;
-	fitness = p1.cachedFitness(NULL);
+	fitness = sim.getValue("fitness");
 	parent1 = sample(inds, N, replace = T, weights = fitness);
 	parent2 = sample(inds, N, replace = T, weights = fitness);
 	
@@ -219,10 +219,9 @@ s4 reproduction() {
 	self.active = 0;
 }
 
-early() {
-	p1.individuals[p1.individuals.age > 0].fitnessScaling = 0.0;
+survival() {
+	return (individual.age == 0);
 }
-
 
 // Burn in
 s1 late() { 

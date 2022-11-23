@@ -9,7 +9,7 @@ initialize() {
 		catn("Actual seed: " + asInteger(seed));
 	}
 	
-	defineConstant("wd", "/home/564/nb9894/tests/h2_hsfs/slim/"); //"/mnt/c/GitHub/SLiMTests/tests/h2_hsfs/slim/");
+	defineConstant("wd", "/home/564/nb9894/tests/h2_hsfs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/h2_hsfs/slim/");
 	// Load functions from file
 	source(paste0(wd, "addFns.slim"));
 	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -129,7 +129,7 @@ initialize() {
 // Burn-in under stabilising selection
 s3 reproduction() {
 	inds = p1.individuals;
-	fitness = p1.cachedFitness(NULL);
+	fitness = sim.getValue("fitness");
 	parent1 = sample(inds, N, replace = T, weights = fitness);
 	parent2 = sample(inds, N, replace = T, weights = fitness);
 	
@@ -149,7 +149,7 @@ s4 reproduction() {
 	}
 	
 	inds = p1.individuals;
-	fitness = p1.cachedFitness(NULL);
+	fitness = sim.getValue("fitness");
 	parent1 = sample(inds, diff, replace = T, weights = fitness);
 	parent2 = sample(inds, diff, replace = T, weights = fitness);
 	
@@ -175,8 +175,8 @@ s4 reproduction() {
 }
 
 
-early() {
-	p1.individuals[p1.individuals.age > 0].fitnessScaling = 0.0;
+survival() {
+	return (individual.age == 0);
 }
 
 
