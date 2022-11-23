@@ -131,7 +131,7 @@ d_qg_sum <- d_qg %>% group_by(gen, model) %>%
             meanDist = mean(dist),
             seDist = se(dist))
 
-d_qg_sum$gen <- d_qg_sum$gen - 100000
+d_qg_sum$gen <- d_qg_sum$gen - 50000
 
 ggplot(d_qg_sum, aes(gen, meanPheno, color = model)) +
   geom_line() +
