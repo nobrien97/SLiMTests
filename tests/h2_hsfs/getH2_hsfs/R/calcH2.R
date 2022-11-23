@@ -87,4 +87,4 @@ rownames(Result.A_D_AA.Extract) <- NULL
 
 # Output file
 print(paste0("Writing output for model ", run, "..."))
-write.table(Result.A_D_AA.Extract, paste0("/scratch/ht96/nb9894/h2_ext/getH2/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)
+write.table(Result.A_D_AA.Extract, paste0("/scratch/ht96/nb9894/h2_hsfs/getH2_hsfs/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)
