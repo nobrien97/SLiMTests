@@ -5,7 +5,7 @@ se <- function(x) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_h2 <- read_csv("../data/out_h2.csv", col_names = F)
+d_h2 <- read_csv("../data/new/out_h2.csv", col_names = F)
 
 names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
@@ -109,21 +109,13 @@ ggplot(d_h2_sum %>% pivot_longer(
 
 
 # Plot trait data over time
-d_qg <- read_csv("../data/slim_qg.csv", col_names = F)
+d_qg <- read_csv("../data/new/slim_qg.csv", col_names = F)
 names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
                  "phenovar", "dist", "w", "deltaPheno", "deltaw")
+d_com <- inner_join(d_h2, d_qg, by = c("gen", "seed", "modelindex"))
+d_com <- d_com %>% filter(phenomean < 10)
 
-# Only plot from data points that are in d_h2
-# Match by gen, seed, modelindex
-d_h2 <- d_h2 %>% unite("id", gen:modelindex, remove = F)
-d_qg <- d_qg %>% unite("id", gen:modelindex, remove = F)
-
-d_qg <- d_qg[d_qg$id %in% d_h2$id,]
-d_qg <- d_qg %>% mutate(model = recode_factor(modelindex, `0` = "Additive", `1` = "Network"))
-
-d_qg <- d_qg %>% filter(phenomean < 10)
-
-d_qg_sum <- d_qg %>% group_by(gen, model) %>%
+d_com_sum <- d_com %>% group_by(gen, model) %>%
   summarise(He = mean(meanH),
             seHe = se(meanH),
             meanPheno = mean(phenomean),
@@ -131,9 +123,9 @@ d_qg_sum <- d_qg %>% group_by(gen, model) %>%
             meanDist = mean(dist),
             seDist = se(dist))
 
-d_qg_sum$gen <- d_qg_sum$gen - 50000
+d_com_sum$gen <- d_com_sum$gen - 50000
 
-ggplot(d_qg_sum, aes(gen, meanPheno, color = model)) +
+ggplot(d_com_sum, aes(gen, meanPheno, color = model)) +
   geom_line() +
   scale_fill_discrete(guide = "none") +
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
@@ -141,3 +133,7 @@ ggplot(d_qg_sum, aes(gen, meanPheno, color = model)) +
   labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Model") +
   theme_bw() +
   theme(text = element_text(size=20))
+
+# plots of variance components per phenotype range
+ggplot(d_com_sum)
+
