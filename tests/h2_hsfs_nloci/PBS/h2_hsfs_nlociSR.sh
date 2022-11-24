@@ -31,7 +31,7 @@ fi
 
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # Run the model
-$HOME/SLiM/slim -s $SEED_NUM -d nloci=${MODEL_NUM[1]} -d width=${MODEL_NUM[2]} -d locisigma=${MODEL_NUM[3]} $TESTDIR/slim/$MODEL
+$HOME/SLiM/slim -s $SEED_NUM -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[1]} -d width=${MODEL_NUM[2]} -d locisigma=${MODEL_NUM[3]} $TESTDIR/slim/$MODEL
 
 
 DURATION=$SECONDS
