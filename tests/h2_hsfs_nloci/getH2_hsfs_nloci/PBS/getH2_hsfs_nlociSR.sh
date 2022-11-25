@@ -23,7 +23,7 @@ if [ -f $HOME/tests/h2_hsfs_nloci/getH2_hsfs_nloci/done/${RUN}_${CHUNK} ]; then
 fi
 
 # Get the correct range of lines from the big files
-## 29520 total models, 41 timepoints
+## 106272 total models, 41 timepoints by 2592 models
 
 N_SAMP=2000
 

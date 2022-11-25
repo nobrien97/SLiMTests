@@ -5,7 +5,7 @@ se <- function(x) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_h2 <- read_csv("../data/new/out_h2.csv", col_names = F)
+d_h2 <- read_csv("../data/out_h2.csv", col_names = F)
 
 names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
@@ -19,19 +19,19 @@ d_h2 %>% distinct() -> d_h2
 d_h2 %>% drop_na() -> d_h2
 
 # Recode modelindex to additive/network
-d_h2 %>% mutate(model = recode_factor(modelindex, `0`="Additive", `1`="Network")) -> d_h2
+d_h2 %>% mutate(model = if_else(as.logical(modelindex %% 2), "Additive", "Network")) -> d_h2
+d_h2$model <- as.factor(d_h2$model)
 
-# Remove weird values: negative variance, huge variance
-d_h2 %>% filter(VarA >= 0, VarA < 10,
-                VarD >= 0, VarAA >= 0,
-                VarR > 0, sum(VarA, VarD, VarAA, VarR) > 0) -> d_h2
+# Add our other variables
+combos <- read_delim("../../R/combos.csv", delim = " ", col_names = F)
+names(combos) <- c("model", "nloci", "width", "locisigma")
+d_h2 %>% mutate(nloci = combos$nloci[.$modelindex],
+                width = combos$width[.$modelindex],
+                sigma = combos$locisigma[.$modelindex]) -> d_h2
 
-d_h2$VarA_scl <- scale(d_h2$VarA)
-d_h2$VarD_scl <- scale(d_h2$VarD)
-d_h2$VarAA_scl <- scale(d_h2$VarAA)
 
 d_h2_sum <- d_h2 %>%
-  group_by(gen, model) %>% 
+  group_by(gen, modelindex) %>% 
   summarise(meanH2A = mean(H2.A.Estimate),
             seH2A = se(H2.A.Estimate),
             meanH2D = mean(H2.D.Estimate), 
@@ -51,6 +51,8 @@ d_h2_sum$gen <- d_h2_sum$gen - 50000
 # Distribution
 ggplot(d_h2, aes(x = H2.A.Estimate, fill = model)) +
   geom_density(alpha = 0.4)
+
+
 
 # Mean over time
 ggplot(d_h2_sum, aes(x = gen, y = meanH2A, color = model)) +
@@ -109,10 +111,12 @@ ggplot(d_h2_sum %>% pivot_longer(
 
 
 # Plot trait data over time
-d_qg <- read_csv("../data/new/slim_qg.csv", col_names = F)
+d_qg <- read_csv("../data/slim_qg.csv", col_names = F)
 names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
                  "phenovar", "dist", "w", "deltaPheno", "deltaw")
 d_com <- inner_join(d_h2, d_qg, by = c("gen", "seed", "modelindex"))
+write_csv(d_com, "d_h2_qg.csv")
+
 d_com <- d_com %>% filter(phenomean < 10)
 
 d_com_sum <- d_com %>% group_by(gen, model) %>%
@@ -136,4 +140,5 @@ ggplot(d_com_sum, aes(gen, meanPheno, color = model)) +
 
 # plots of variance components per phenotype range
 
+d_com %>% filter()
 

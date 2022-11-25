@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=5:00:00
-#PBS -l ncpus=10368
-#PBS -l mem=41040GB
+#PBS -l ncpus=20736
+#PBS -l mem=50000GB
 #PBS -l jobfs=86400GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
