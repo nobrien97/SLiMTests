@@ -121,7 +121,19 @@ d_com_sum <- d_com %>% group_by(gen, model) %>%
             meanPheno = mean(phenomean),
             sePheno = se(phenomean),
             meanDist = mean(dist),
-            seDist = se(dist))
+            seDist = se(dist),
+            meanH2A = mean(H2.A.Estimate),
+            seH2A = se(H2.A.Estimate),
+            meanH2D = mean(H2.D.Estimate), 
+            seH2D = se(H2.D.Estimate),
+            meanH2AA = mean(H2.AA.Estimate),
+            seH2AA = se(H2.AA.Estimate),
+            meanVarA = mean(VarA),
+            seVarA = se(VarA),
+            meanVarD = mean(VarD),
+            seVarD = se(VarD),
+            meanVarAA = mean(VarAA),
+            seVarAA = se(VarAA))
 
 d_com_sum$gen <- d_com_sum$gen - 50000
 
@@ -135,5 +147,15 @@ ggplot(d_com_sum, aes(gen, meanPheno, color = model)) +
   theme(text = element_text(size=20))
 
 # plots of variance components per phenotype range
-ggplot(d_com_sum)
-
+ggplot(d_com_sum %>% pivot_longer(
+  cols = c(meanH2A, meanH2D, meanH2AA),
+  names_to = "varComp", values_to = "prop") %>%
+    , 
+  aes(x = gen, y = prop, fill = varComp)) +
+  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
+  facet_grid(meanPheno~model) +
+  geom_bar(position="fill", stat="identity", width = 50) +
+  labs(x = "Generations after optimum shift", y = "Proportion of total phenotypic variance", 
+       fill = "Variance component") +
+  theme_bw() +
+  theme(text = element_text(size = 20))
