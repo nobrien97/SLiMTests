@@ -23,10 +23,11 @@ SEED_NUM=$(awk "NR==$SEED" $SEED_FILE)
 MODEL_FILE=$TESTDIR/R/combos.csv
 MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
 
-# Set the model path
+# Set the model path and update nloci to the correct number of loci (for networks there are 2 reserved K loci)
 MODEL=hsfs_additive.slim
 if [ "${MODEL_NUM[0]}" -ne "0" ]; then
     MODEL=hsfs_network.slim
+    MODEL_NUM[1]=$((MODEL_NUM[1]-2))
 fi
 
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
