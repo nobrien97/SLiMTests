@@ -31,7 +31,7 @@ d_h2 %>% mutate(nloci = combos$nloci[.$modelindex],
 
 
 d_h2_sum <- d_h2 %>%
-  group_by(gen, modelindex) %>% 
+  group_by(gen, model) %>% 
   summarise(meanH2A = mean(H2.A.Estimate),
             seH2A = se(H2.A.Estimate),
             meanH2D = mean(H2.D.Estimate), 
