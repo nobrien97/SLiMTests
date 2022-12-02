@@ -1,13 +1,12 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=5:00:00
-#PBS -l ncpus=10368
-#PBS -l mem=25000GB
-#PBS -l jobfs=43200GB
+#PBS -l ncpus=6240
+#PBS -l mem=10000GB
+#PBS -l jobfs=6240GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
 # This job uses a split version of slim_haplos for better speed
-# the original file has 301104000 lines!
 # To use, make sure you set up the right number of jobs for the number of input files (n-1, index starts at 0)
 # e.g. qsub -v NJOBS=7 $JOBNAME_split.sh
 

@@ -31,14 +31,14 @@ if [ -f $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done/${RUN}_* ]; then
 fi
 
 # Get the correct range of lines from the big files
-## 150552 total models
+## 98400 total models
 
 # Choose the correct file
 HAPLO_FILE=x0$HAPLO_NUM.csv
 
 N_SAMP=2000
 
-SUBSET_LEN=$((150552/8)) # Kinda hacky, can I directly get CMD_LEN from the main script?
+SUBSET_LEN=$((98400/8)) # Kinda hacky, can I directly get CMD_LEN from the main script?
 
 ## First get the min/max rows to read: offset by HAPLO_NUM
 MIN_HAPLO=$(((1+$RUN*$N_SAMP)-$HAPLO_NUM*$SUBSET_LEN*$N_SAMP))
@@ -58,8 +58,8 @@ Rscript ${RSCRIPTNAME} ${RUN} ${CHUNK}
 touch $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done/${RUN}_${CHUNK}
 
 # Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
-# Chunks should consist of 2091 files
-if [ $(ls $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done/*_${CHUNK} | wc -l) == 2091 ]; then
+# Chunks should consist of 2050 files
+if [ $(ls $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done/*_${CHUNK} | wc -l) == 2050 ]; then
     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
     cat $SCRATCHPATH/*_${CHUNK}.csv >> $SCRATCHPATH/out_h2_${CHUNK}_done.csv
     rm $SCRATCHPATH/*_${CHUNK}.csv
