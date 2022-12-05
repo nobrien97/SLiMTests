@@ -96,7 +96,7 @@ if [ $NJOB -lt $NJOBS ]; then
     NJOB=$(($NJOB+1))
     $ECHO "Submitting job number $NJOB in sequence of $NJOBS jobs"
     cd $PBS_O_WORKDIR
-    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./$JOBNAME_split.sh
+    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./$JOBNAME.sh
 else
     $ECHO "Finished last job in sequence of $NJOBS jobs"
 fi
