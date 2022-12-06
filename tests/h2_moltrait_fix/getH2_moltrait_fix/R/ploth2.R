@@ -342,13 +342,13 @@ ggsave("h2_stacked.png", plt_stk, width = 20, height = 5, bg = "white")
 
 
 # Plot trait data over time
-d_qg <- read_csv("../data/new/slim_qg.csv", col_names = F)
+d_qg <- read_csv("../data/slim_qg.csv", col_names = F)
 names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
-                 "phenovar", "dist", "w", "deltaPheno", "deltaw")
+                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
 d_com <- inner_join(d_h2, d_qg, by = c("gen", "seed", "modelindex"))
 d_com <- d_com %>% filter(phenomean < 10)
 
-d_com_sum <- d_com %>% group_by(gen, model) %>%
+d_com_sum <- d_com %>% group_by(gen, fixedEffect, nloci, sigma) %>%
   summarise(He = mean(meanH),
             seHe = se(meanH),
             meanPheno = mean(phenomean),
@@ -370,35 +370,29 @@ d_com_sum <- d_com %>% group_by(gen, model) %>%
 
 d_com_sum$gen <- d_com_sum$gen - 50000
 
-ggplot(d_com_sum, aes(gen, meanPheno, color = model)) +
+ggplot(d_com_sum %>% filter(nloci != 100), aes(gen, meanPheno, color = fixedEffect)) +
+  facet_grid(nloci~sigma) +
   geom_line() +
   scale_fill_discrete(guide = "none") +
+  scale_color_viridis_d() +
   geom_hline(yintercept = 2, linetype = "dashed") + 
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
-                  fill = model), color = NA, alpha = 0.2) +
-  labs(x = "Generations after optimum shift", y = "Mean of population\nmean phenotypes", color = "Model") +
+                  fill = fixedEffect), color = NA, alpha = 0.2) +
+  labs(x = "Generations after optimum shift", y = "Mean of population\nmean phenotypes", color = "Fixed\nmolecular\ntrait") +
   theme_bw() +
   theme(text = element_text(size=16))
 
 ggsave("pheno_time.png", height = 4, width = 6)
 
-# plots of variance components per phenotype range
-ggplot(d_com_sum %>% pivot_longer(
-  cols = c(meanH2A, meanH2D, meanH2AA),
-  names_to = "varComp", values_to = "prop") %>%
-    aes(x = gen, y = prop, fill = varComp)) +
-  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
-  facet_grid(meanPheno~model) +
-  geom_bar(position="fill", stat="identity", width = 50) +
-  labs(x = "Generations after optimum shift", y = "Proportion of total phenotypic variance", 
-       fill = "Variance component") +
-  theme_bw() +
-  theme(text = element_text(size = 20))
-
 
 # combined data: SFS
-d_com <- read_csv("../data/new/d_combined_after.csv")
-d_com %>% mutate(model = recode_factor(modelindex, `0`="Additive", `1`="Network"),
+#TODO: There's too much information to unpack here, need a metric to describe the
+# SFS, maybe just mean frequency? And similar deviation from model w/o fixed effect
+d_com <- read_csv("../data/d_combined_full.csv")
+d_com %>% mutate(fixedEffect = combos$model[.$modelindex],
+                        nloci = combos$nloci[.$modelindex],
+                        width = combos$width[.$modelindex],
+                        sigma = combos$locisigma[.$modelindex],
                  molTrait = recode_factor(mutType, `1`="Neutral", `2`="Del", `3`="\u03B1", `4`="\u03B2", `5`="KZ", `6`="KXZ")) -> d_com
 d_com$fixTime <- d_com$fixGen - d_com$originGen
 
@@ -408,6 +402,10 @@ d_com_end %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1))
                      h2AA = cut(H2.AA.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
                      fixTime = fixGen - originGen) -> d_com_end
 
+d_com_end$nloci <- d_com_end$nloci + 2
+d_com_end %>% mutate(fixedEffect = recode_factor(fixedEffect, `0`="aZ", `1`="bZ", `2`="KZ", `3`="KXZ")) -> d_com_end
+
+
 d_com_begin <- d_com %>% filter(gen < 51000)
 d_com_begin %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
                        h2D = cut(H2.D.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
@@ -416,15 +414,16 @@ d_com_begin %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1
 
 rm(d_com)
 
-ggplot(d_com_end %>% filter(modelindex == 1, !is.na(h2AA), !is.na(molTrait)) %>% group_by(h2AA, molTrait) %>%
+ggplot(d_com_end %>% filter(nloci == 10, sigma == 0.1, !is.na(h2AA), !is.na(molTrait)) %>% group_by(fixedEffect, h2AA, molTrait) %>%
          mutate(weight = 1 / n()), 
-       aes(x = Freq)) +
+       aes(x = Freq, fill = fixedEffect)) +
   facet_grid(h2AA~molTrait) +
-  geom_histogram(aes(weight = weight), bins = 40) +
+  geom_histogram(aes(weight = weight, fill = fixedEffect), bins = 40) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1),
                      sec.axis = sec_axis(~ . , name = TeX("$h^2_{AA}$"), breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ . , name = "Molecular trait", breaks = NULL, labels = NULL)) +
-  labs(y = "Relative frequency across replicates", x = "Allele frequency (p)") +
+  labs(y = "Relative frequency across replicates", x = "Allele frequency (p)",
+       fill = "Fixed\nmolecular\ntrait") +
   theme_bw() + theme(text = element_text(size = 16), panel.spacing = unit(1, "lines"))
 
 ggsave("h2AA_net.png", height = 6, width = 10)
