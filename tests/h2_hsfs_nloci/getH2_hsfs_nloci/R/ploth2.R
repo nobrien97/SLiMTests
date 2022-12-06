@@ -1,5 +1,6 @@
 # Plot heritability estimates
 library(tidyverse)
+library(gridExtra)
 
 se <- function(x) {
   return(sd(x)/sqrt(length(x)))
@@ -19,7 +20,7 @@ d_h2 %>% distinct() -> d_h2
 d_h2 %>% drop_na() -> d_h2
 
 # Recode modelindex to additive/network
-d_h2 %>% mutate(model = if_else(as.logical(modelindex %% 2), "Additive", "Network")) -> d_h2
+d_h2 %>% mutate(model = if_else(as.logical(modelindex %% 2), "Network", "Additive")) -> d_h2
 d_h2$model <- as.factor(d_h2$model)
 
 # Add our other variables
@@ -138,7 +139,36 @@ ggplot(d_com_sum, aes(gen, meanPheno, color = model)) +
   theme_bw() +
   theme(text = element_text(size=20))
 
-# plots of variance components per phenotype range
+# Mutation data
+d_com <- read_csv("../data/d_combined_after_small.csv")
 
-d_com %>% filter()
+# Plot SFS per h2 per group
+d_com <- d_com %>% filter(gen < 52000)
+d_com_end <- d_com %>% filter(gen > 51000)
+
+combos <- read_delim("../../R/combos.csv", delim = " ", col_names = F)
+names(combos) <- c("model", "nloci", "width", "locisigma")
+d_com_end %>% mutate(nloci = combos$nloci[.$modelindex],
+                width = combos$width[.$modelindex],
+                sigma = combos$locisigma[.$modelindex],
+                h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
+                h2D = cut(H2.D.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
+                h2AA = cut(H2.AA.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
+                fixTime = fixGen - originGen) -> d_com_end
+
+
+sfs_plots <- by(d_com_end, d_com_end$h2AA, function(sub){
+  ggplot(sub %>% group_by(model, mutType) %>%
+           mutate(weight = 1 / n()), 
+         aes(x = fixTime)) +
+    facet_grid(model~mutType) +
+    geom_histogram(aes(weight = weight), bins = 10) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    labs(y = "Relative frequency") +
+    ggtitle(sub$h2AA[[1]]) +
+    theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+})
+
+grid.arrange(grobs = sfs_plots, ncol = 2)
+
 
