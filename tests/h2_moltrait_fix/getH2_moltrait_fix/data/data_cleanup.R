@@ -1,6 +1,11 @@
 
 library(tidyverse)
 
+se <- function(x) {
+  return(sd(x)/sqrt(length(x)))
+}
+
+
 setwd("/g/data/ht96/nb9894/h2_moltrait_fix")
 # Read in data
 d_qg <- read_csv("slim_qg.csv", col_names = F)
@@ -41,3 +46,69 @@ d_combined_after <- d_combined_full %>% filter(gen >= 50000)
 nrow(d_combined_after)
 nrow(d_combined_full)
 data.table::fwrite(d_combined_after, "d_combined_after.csv")
+
+
+# Write summary data for mean frequencies
+d_com_end_ctrl <- read_csv("./h2_hsfs_nloci/d_combined_after.csv")
+
+d_com_end_ctrl %>% filter(gen > 51000, modelindex %% 2 == 0) -> d_com_end_ctrl
+d_com_end_ctrl %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1), include.lowest = T),
+                          h2D = cut(H2.D.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1), include.lowest = T),
+                          h2AA = cut(H2.AA.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1), include.lowest = T),
+                          fixTime = fixGen - originGen) -> d_com_end_ctrl
+
+combos <- read_delim("~/tests/h2_hsfs_nloci/R/combos.csv", delim = " ", col_names = F)
+names(combos) <- c("model", "nloci", "width", "locisigma")
+
+d_com_end_ctrl %>% mutate(nloci = combos$nloci[.$modelindex],
+                     width = combos$width[.$modelindex],
+                     sigma = combos$locisigma[.$modelindex],
+                     molTrait = recode_factor(mutType, `1`="Neutral", `2`="Del", `3`="\u03B1", `4`="\u03B2", `5`="KZ", `6`="KXZ")) -> d_com_end_ctrl
+
+d_com_ctrl_h2A_sum <- d_com_end_ctrl %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, molTrait, h2A) %>%
+  summarise(meanFreq = mean(Freq),
+            seFreq = se(Freq),
+            meanFX = mean(value), 
+            seFX = se(value)
+  )
+
+d_com_ctrl_h2D_sum <- d_com_end_ctrl %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, molTrait, h2D) %>%
+  summarise(meanFreq = mean(Freq),
+            seFreq = se(Freq),
+            meanFX = mean(value), 
+            seFX = se(value)
+  )
+
+d_com_ctrl_h2AA_sum <- d_com_end_ctrl %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, molTrait, h2AA) %>%
+  summarise(meanFreq = mean(Freq),
+            seFreq = se(Freq),
+            meanFX = mean(value), 
+            seFX = se(value)
+  )
+
+d_com_ctrl_sum <- d_com_end_ctrl %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, molTrait, h2A, h2D, h2AA) %>%
+  summarise(meanFreq = mean(Freq),
+            seFreq = se(Freq),
+            meanFX = mean(value), 
+            seFX = se(value)
+  )
+
+
+data.table::fwrite(d_com_ctrl_h2A_sum, "d_com_sum_h2A.csv")
+data.table::fwrite(d_com_ctrl_h2D_sum, "d_com_sum_h2D.csv")
+data.table::fwrite(d_com_ctrl_h2AA_sum, "d_com_sum_h2AA.csv")
+data.table::fwrite(d_com_ctrl_sum, "d_com_sum.csv")
+
+
