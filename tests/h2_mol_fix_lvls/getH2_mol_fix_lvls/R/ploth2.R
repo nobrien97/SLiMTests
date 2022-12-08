@@ -14,7 +14,7 @@ d_h2 <- read_csv("../data/out_h2.csv", col_names = F)
 names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
                  "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
-                 "H2.AA.SE", "AIC")
+                 "H2.AA.SE", "H2.R.Estimate", "H2.R.SE", "AIC")
 
 # Remove duplicates
 d_h2 %>% distinct() -> d_h2

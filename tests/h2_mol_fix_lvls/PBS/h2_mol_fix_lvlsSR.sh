@@ -21,12 +21,15 @@ SEED_FILE=$TESTDIR/R/${JOBNAME}_seeds.csv
 SEED_NUM=$(awk "NR==$SEED" $SEED_FILE)
 
 MODEL=hsfs_network.slim
-# Get the correct molecular trait value based on modelindex (0.5, 1, 1.5, or 2)
-MOLVAL=$(echo "(${MODELINDEX}+1)*0.5" | bc -l)
+
+# Get the correct modelindex from the file: put into array
+MODEL_FILE=$TESTDIR/R/combos.csv
+MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
+
 
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # Run the model
-$HOME/SLiM/slim -s $SEED_NUM -d modelindex=$MODELINDEX -d molTraitFix=${MODELINDEX} -d molVal=${MOLVAL} $TESTDIR/slim/$MODEL
+$HOME/SLiM/slim -s $SEED_NUM -d modelindex=$MODELINDEX -d molTraitFix=${MODEL_NUM[0]} -d molVal=${MODEL_NUM[1]} $TESTDIR/slim/$MODEL
 
 
 DURATION=$SECONDS
