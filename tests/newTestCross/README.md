@@ -1,0 +1,6 @@
+# New crossing design
+
+I found that the network model populations were behaving quite differently to how they did in my confirmation experiments for similar parameter combinations. This is could be due to one of several reasons. The first is the genome length being longer in these simulations, but I think that is unlikely. Another is the nonWF model having some difference in sampling, although the sampling method used is similar to a WF model. I think the most likely reason is the crossing process itself hampers adaptation considerably in network models by introducing a completely different genetic background. This might be why the burn-in looks the same (there is no heritability testing then).
+
+This means the cross-experiment population needs to be completely separate to the breeding population.
+To cross the populations, I'll create a new subpopulation, cloning a random sample of individuals and crossing them for a generation before measuring their phenotypes. This means that the sampled individuals will be completely separate from the selection environment.
