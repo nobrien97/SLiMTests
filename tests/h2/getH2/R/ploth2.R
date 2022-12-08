@@ -123,11 +123,13 @@ d_qg_sum <- d_qg %>% group_by(gen, model) %>%
 
 d_qg_sum$gen <- d_qg_sum$gen - 100000
 
-ggplot(d_qg_sum, aes(gen, meanPheno, color = model)) +
+ggplot(d_qg_sum %>% filter(gen >= 0), aes(gen, meanPheno, color = model)) +
   geom_line() +
   scale_fill_discrete(guide = "none") +
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
                   fill = model), color = NA, alpha = 0.2) +
   labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Model") +
   theme_bw() +
-  theme(text = element_text(size=20))
+  theme(text = element_text(size=16))
+
+ggsave("pheno_time.png", width = 8, height = 6)
