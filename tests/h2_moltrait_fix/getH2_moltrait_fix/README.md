@@ -43,6 +43,6 @@ With many loci, fixing $\beta_Z$ led to cases where there was very little $h^2_A
 The next figure plots the effect size of mutations according to heritability:
 ![](./R/h2_val_deviation.png)
 
-When there is a polygenic genetic architecture and $\beta_Z$ is fixed, high epistatic heritability is associated with small decreases in $\alpha_Z$ and $\K_{XZ}$. Decreases in $\alpha_Z$ alone is associated with high $h^2_D$. Low $h^2_{AA}$ is associated with small increases in the three unfixed molecular traits.
+When there is a polygenic genetic architecture and $\beta_Z$ is fixed, high epistatic heritability is associated with small decreases in $\alpha_Z$ and $K_{XZ}$. Decreases in $\alpha_Z$ alone is associated with high $h^2_D$. Low $h^2_{AA}$ is associated with small increases in the three unfixed molecular traits.
 
 
