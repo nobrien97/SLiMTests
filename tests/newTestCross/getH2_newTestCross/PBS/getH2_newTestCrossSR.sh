@@ -23,6 +23,7 @@ SCRATCHPATH=/scratch/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
 #        our line selection, which we use HAPLO_NUM for.
 RUN=$1
 CHUNK=$2
+HAPLO_NUM=$3
 
 if [ -f $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done/${RUN}_* ]; then
     echo "$RUN already done! Moving to next simulation."
@@ -32,14 +33,19 @@ fi
 # Get the correct range of lines from the big files
 ## 59040 total models
 
+# Choose the correct file
+HAPLO_FILE=x0$HAPLO_NUM.csv
+
 N_SAMP=2000
 
+SUBSET_LEN=$((59040/8)) # Kinda hacky, can I directly get CMD_LEN from the main script?
+
 ## First get the min/max rows to read: offset by HAPLO_NUM
-MIN_HAPLO=$((1+$RUN*$N_SAMP))
-MAX_HAPLO=$(((1+$RUN)*$N_SAMP))
+MIN_HAPLO=$(((1+$RUN*$N_SAMP)-$HAPLO_NUM*$SUBSET_LEN*$N_SAMP))
+MAX_HAPLO=$((((1+$RUN)*$N_SAMP)-$HAPLO_NUM*$SUBSET_LEN*$N_SAMP))
 
 # Save files
-tail -n "+$MIN_HAPLO" $GDATAPATH/slim_haplo.csv | head -n "$(($MAX_HAPLO-$MIN_HAPLO+1))" > slim_haplo_sbst_$RUN.csv
+tail -n "+$MIN_HAPLO" $GDATAPATH/$HAPLO_FILE | head -n "$(($MAX_HAPLO-$MIN_HAPLO+1))" > slim_haplo_sbst_$RUN.csv
 # tail -n "+$MIN_PED" $GDATAPATH/slim_pedigree.csv | head -n "$(($MAX_PED-$MIN_PED+1))" > slim_ped_sbst_$RUN.csv
 tail -n "+$(($RUN+1))" $GDATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
 

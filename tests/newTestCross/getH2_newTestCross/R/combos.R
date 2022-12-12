@@ -11,7 +11,8 @@ chunk <- 1:30
 cmd_df <- data.frame(
     filename = filename,
     run = run,
-    chunk = rep(chunk, each = 1968)
+    chunk = rep(chunk, each = 1968),
+    haplos = rep(0:7, each = 7380)
 )
 
 write.table(cmd_df, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/getH2_newTestCross/PBS/cmds.txt", sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)

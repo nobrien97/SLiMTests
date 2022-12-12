@@ -34,6 +34,10 @@ if [ X$NJOB == X ]; then
     mkdir /g/data/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
     mkdir $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done
 
+    # Go to /g/data/ and split the input into 8 pieces: 
+    cd /g/data/ht96/nb9894/$JOBNAME_PREFIX
+    split -d -l 14760000 slim_haplo.csv 
+
 fi
 
 # Quick terminate job sequence
