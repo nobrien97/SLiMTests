@@ -34,7 +34,7 @@ fi
 ## 59040 total models
 
 # Choose the correct file
-HAPLO_FILE=x0$HAPLO_NUM.csv
+HAPLO_FILE=x0$HAPLO_NUM
 
 N_SAMP=2000
 
