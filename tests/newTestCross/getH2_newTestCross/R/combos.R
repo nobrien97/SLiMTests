@@ -1,6 +1,9 @@
 # File name
 filename <- "./getH2_newTestCrossSR.sh"
 
+#  wc -l slim_haplo.csv -> 118080000/2000 haplotypes = 59040 samples
+
+
 # Run numbers to extract haplotypes
 run <- 0:59039
 
