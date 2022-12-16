@@ -683,5 +683,129 @@ plt_val
 ggsave("h2_val_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
 
 
+
+# Molecular trait value deviation
+d_com_ctrl_molTraitVal_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/d_com_sum_molTraitVal.csv")
+
+# Pivot longer
+d_com_end %>% pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "molTraitVal_name", 
+                                values_to = "molTraitVal_value") -> d_com_end
+
+
+
+# Add to main dataframe
+d_com_total <- inner_join(d_com_end, d_com_ctrl_molTraitVal_sum, by = c("nloci", "molTraitVal_name", "h2A", "h2D", "h2AA"))
+
+
+# We do want directionality, so not squared deviation
+d_com_total <- d_com_total %>% 
+  group_by(nloci, sigma, molTraitVal_name, fixedEffect) %>% 
+  mutate(devMolTraitVal = (molTraitVal_value - meanMolTraitVal))
+
+d_com_total$nloci <- d_com_total$nloci + 2
+
+d_com_total %>% 
+  mutate(fixedEffect = recode_factor(fixedEffect, 
+                                     `-1`="None", 
+                                     `0`="\u03B1", 
+                                     `1`="\u03B2", 
+                                     `2`="KZ", 
+                                     `3`="KXZ"),
+         molTraitVal_name = recode_factor(molTraitVal_name, 
+                                     "aZ"="\u03B1", 
+                                     "bZ"="\u03B2", 
+                                     "KZ"="KZ", 
+                                     "KXZ"="KXZ")) -> d_com_total
+
+
+d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
+  group_by(nloci, molTraitVal_name, fixedEffect, h2A) %>%
+  summarise(meanDevVal = mean(devMolTraitVal),
+            seDevVal = se(devMolTraitVal)
+  )
+
+
+# Now plot
+
+
+h2A_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
+         mutate(h2A = fct_relevel(h2A, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
+       aes(x = h2A, y = meanDevVal, fill = molTraitVal_name)) +
+  facet_grid(fixedEffect~nloci, scales = "free_x") +
+  scale_y_continuous(limits = y_lims) +
+  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
+  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
+  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
+  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
+  labs(x = TeX("Heritability ($h^2_{A}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+h2_leg <- get_legend(h2A_val)
+y.grob <- textGrob("Fixed molecular trait", 
+                   gp = gpar(fontsize = 16), rot=270)
+
+top.grob <- textGrob("Number of QTLs", 
+                     gp = gpar(fontsize = 16))
+
+g_h2A <- arrangeGrob(h2A_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+
+
+d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
+  group_by(nloci, molTraitVal_name, fixedEffect, h2D) %>%
+  summarise(meanDevVal = mean(devMolTraitVal),
+            seDevVal = se(devMolTraitVal)
+  )
+
+
+h2D_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
+                    mutate(h2D = fct_relevel(h2D, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
+                  aes(x = h2D, y = meanDevVal, fill = molTraitVal_name)) +
+  facet_grid(fixedEffect~nloci, scales = "free_x") +
+  scale_y_continuous(limits = y_lims) +
+  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
+  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
+  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
+  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
+  labs(x = TeX("Heritability ($h^2_{D}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+g_h2D <- arrangeGrob(h2D_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+
+d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
+  group_by(nloci, molTraitVal_name, fixedEffect, h2AA) %>%
+  summarise(meanDevVal = mean(devMolTraitVal),
+            seDevVal = se(devMolTraitVal)
+  )
+
+
+h2AA_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
+                    mutate(h2AA = fct_relevel(h2AA, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
+                  aes(x = h2AA, y = meanDevVal, fill = molTraitVal_name)) +
+  facet_grid(fixedEffect~nloci, scales = "free_x") +
+  scale_y_continuous(limits = y_lims) +
+  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
+  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
+  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
+  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
+  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+g_h2AA <- arrangeGrob(h2AA_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+plt_val <- plot_grid(g_h2A, g_h2D, g_h2AA, ncol = 3, labels = "AUTO")
+plt_val <- plot_grid(plt_val, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_val
+
+ggsave("h2_molTraitVal_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
+
+
+
 # Time to plot molecular trait landscapes
+
+
 
