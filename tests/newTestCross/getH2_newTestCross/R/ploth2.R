@@ -284,7 +284,7 @@ h2_stk_var0.1 <- ggplot(d_h2_sum %>% filter(nloci != 100, sigma == 0.1) %>%
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Fixed molecular trait", 
                                          breaks = NULL, labels = NULL)) +
   facet_grid(nloci~fixedEffect) +
-  geom_bar(position="fill", stat="identity", width = 50) +
+  geom_bar(position="stack", stat="identity", width = 50) +
   labs(x = "Generations after optimum shift", y = "Proportion of total\nphenotypic variance", 
        fill = "Variance component") +
   theme_bw() +
@@ -301,7 +301,7 @@ h2_stk_var1 <- ggplot(d_h2_sum %>% filter(nloci != 100, sigma == 1) %>%
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Fixed molecular trait", 
                                          breaks = NULL, labels = NULL)) +
   facet_grid(nloci~fixedEffect) +
-  geom_bar(position="fill", stat="identity", width = 50) +
+  geom_bar(position="stack", stat="identity", width = 50) +
   labs(x = "Generations after optimum shift", y = "Proportion of total\nphenotypic variance", 
        fill = "Variance component") +
   theme_bw() +
@@ -683,4 +683,5 @@ plt_val
 ggsave("h2_val_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
 
 
-# Time to plot molecuular trait landscapes
+# Time to plot molecular trait landscapes
+
