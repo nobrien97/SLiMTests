@@ -15,7 +15,7 @@ se <- function(x, na.rm = F) {
 # Colour palette
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
-d_h2 <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/out_h2.csv", col_names = F)
+d_h2 <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/out_h2_total.csv", col_names = F)
 
 names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR", 
                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
@@ -321,7 +321,7 @@ ggsave("h2_stacked.png", plt_stk, width = 20, height = 10, bg = "white")
 
 
 # Plot trait data over time
-d_qg <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/slim_qg.csv", col_names = F)
+d_qg <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/slim_qg_total.csv", col_names = F)
 names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
                  "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
 
@@ -364,7 +364,7 @@ pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 500
 ggsave("pheno_time.png", pheno_time, height = 9, width = 12)
 
 
-d_com <- inner_join(d_h2, d_qg, by = c("gen", "seed", "fixedEffect", "nloci", "sigma"))
+d_com <- full_join(d_h2, d_qg, by = c("gen", "seed", "fixedEffect", "nloci", "sigma"))
 d_com <- d_com %>% filter(phenomean < 10)
 
 d_com_sum <- d_com %>% group_by(gen, fixedEffect, nloci, sigma) %>%
@@ -373,23 +373,11 @@ d_com_sum <- d_com %>% group_by(gen, fixedEffect, nloci, sigma) %>%
             meanPheno = mean(phenomean),
             sePheno = se(phenomean),
             meanDist = mean(dist),
-            seDist = se(dist),
-            meanH2A = mean(H2.A.Estimate),
-            seH2A = se(H2.A.Estimate),
-            meanH2D = mean(H2.D.Estimate), 
-            seH2D = se(H2.D.Estimate),
-            meanH2AA = mean(H2.AA.Estimate),
-            seH2AA = se(H2.AA.Estimate),
-            meanVarA = mean(VarA),
-            seVarA = se(VarA),
-            meanVarD = mean(VarD),
-            seVarD = se(VarD),
-            meanVarAA = mean(VarAA),
-            seVarAA = se(VarAA))
+            seDist = se(dist))
 
 d_com_sum$gen <- d_com_sum$gen - 50000
 
-ggplot(d_com_sum %>% filter(nloci != 100), aes(gen, meanPheno, color = fixedEffect)) +
+ggplot(d_com_sum %>% filter(gen > -1000), aes(gen, meanPheno, color = fixedEffect)) +
   facet_grid(nloci~sigma) +
   geom_line() +
   scale_fill_viridis_d(guide = "none") +
@@ -407,7 +395,7 @@ ggsave("pheno_time.png", height = 4, width = 6)
 # combined data: SFS
 #TODO: There's too much information to unpack here, need a metric to describe the
 # SFS, maybe just mean frequency? And similar deviation from model w/o fixed effect
-d_com <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/d_combined_full.csv")
+d_com <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_combined_after.csv")
 d_com$fixTime <- d_com$fixGen - d_com$originGen
 
 d_com_end <- d_com %>% filter(gen > 51000)
@@ -422,6 +410,8 @@ d_com_end %>% mutate(fixedEffect = combos$model[.$modelindex],
                 nloci = combos$nloci[.$modelindex],
                 sigma = combos$locisigma[.$modelindex]) -> d_com_end
 
+d_com_end %>% mutate(fixedEffect = recode_factor(fixedEffect, `-1`="None", `0`="\u03B1", `1`="\u03B2", `2`="KZ", `3`="KXZ")) -> d_com_end
+d_com_end$nloci <- d_com_end$nloci + 2
 
 d_com_begin <- d_com %>% filter(gen < 51000)
 d_com_begin %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(0, 0.25, 0.5, 0.75, 1)),
@@ -490,8 +480,8 @@ h2D_freq
 
 
 # Deviations from control
-d_com_ctrl_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/d_com_sum.csv")
-
+d_com_ctrl_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_com_sum.csv")
+d_com_ctrl_sum$nloci <- d_com_ctrl_sum$nloci + 2
 # Add to main dataframe
 d_com_total <- inner_join(d_com_end, d_com_ctrl_sum, by = c("nloci", "molTrait", "h2A", "h2D", "h2AA"))
 
@@ -505,8 +495,6 @@ d_com_total <- d_com_total %>%
 d_com_total$molTrait <- factor(d_com_total$molTrait, ordered = T,
                                levels = c("\u03B1", "\u03B2", "KZ", "KXZ"))
 
-
-d_com_total$nloci <- d_com_total$nloci + 2
 
 d_com_total %>% 
   mutate(fixedEffect = recode_factor(fixedEffect, 
@@ -685,13 +673,14 @@ ggsave("h2_val_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
 
 
 # Molecular trait value deviation
-d_com_ctrl_molTraitVal_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/d_com_sum_molTraitVal.csv")
+d_com_ctrl_molTraitVal_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_com_sum_molTraitVal.csv")
 
 # Pivot longer
 d_com_end %>% pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "molTraitVal_name", 
                                 values_to = "molTraitVal_value") -> d_com_end
 
 
+d_com_ctrl_molTraitVal_sum$nloci <- d_com_ctrl_molTraitVal_sum$nloci + 2
 
 # Add to main dataframe
 d_com_total <- inner_join(d_com_end, d_com_ctrl_molTraitVal_sum, by = c("nloci", "molTraitVal_name", "h2A", "h2D", "h2AA"))
@@ -701,8 +690,6 @@ d_com_total <- inner_join(d_com_end, d_com_ctrl_molTraitVal_sum, by = c("nloci",
 d_com_total <- d_com_total %>% 
   group_by(nloci, sigma, molTraitVal_name, fixedEffect) %>% 
   mutate(devMolTraitVal = (molTraitVal_value - meanMolTraitVal))
-
-d_com_total$nloci <- d_com_total$nloci + 2
 
 d_com_total %>% 
   mutate(fixedEffect = recode_factor(fixedEffect, 
