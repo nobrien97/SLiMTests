@@ -24,6 +24,9 @@ SEED_ROWS=48
 #Repeat 48 times for each hypercube with a different SEED value
 #NIM parameter SEED integer range from 1 to ${SEED_ROWS} step 1
 
+# =============================================================================
+# Code for individual run
+# =============================================================================
 
 # Just checking that something did not go wrong with assignment of the J values.
 if [ -z "${NIMROD_VAR_LS}" ]; then
