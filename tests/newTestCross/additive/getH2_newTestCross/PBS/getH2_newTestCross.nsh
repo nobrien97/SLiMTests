@@ -41,8 +41,6 @@ fi
 echo "PBS_O_WORKDIR is ${PBS_O_WORKDIR}" 
 
 
-#!/bin/bash -l
-
 module load R/4.0.0
 
 cd $TMPDIR
