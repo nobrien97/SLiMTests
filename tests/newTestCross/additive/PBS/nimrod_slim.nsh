@@ -47,6 +47,10 @@ cd ${TMPDIR}
 
 SECONDS=0
 
+# Load the right gcc so we have access to libstdc++6
+
+module load gcc/8.5.0
+
 # Rename the first and second arguments passed to this single shot script for clarity 
 SEED=$NIMROD_VAR_SEED
 MODELINDEX=$NIMROD_VAR_LS
