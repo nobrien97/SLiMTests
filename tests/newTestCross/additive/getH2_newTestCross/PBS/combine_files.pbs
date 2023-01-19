@@ -1,0 +1,16 @@
+#!/bin/bash -l
+#Fix up Account String
+#PBS -A UQ-SCI-BiolSci
+#1 node, 24 cores, 120GB per node
+#PBS -l select=1:ncpus=24:mem=120GB
+#PBS -l walltime=01:00:00
+#PBS -N H2_COMBINE
+
+cd /scratch/user/uqnobri4/newTestCross/additive/getH2_newTestCross
+
+cat ./out_h2_* >> ./out_h2.csv
+
+# Delete loose files with
+rm ./*_done.csv
+
+
