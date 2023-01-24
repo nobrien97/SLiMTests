@@ -28,9 +28,53 @@ d_qg$seed <- as.factor(d_qg$seed)
 d_h2$seed <- as.factor(d_h2$seed)
 d_h2$modelindex <- as.factor(d_h2$modelindex)
 
+
+# Calculate selection gradients for R = B * VA
+# Will have to recalculate fitness from phenotype because I forgot to measure it...
+
+w <- 0.05
+opt <- 2
+fitnessGaussian <- function(phenotypes, optimum, width) {		
+	dists <- (phenotypes - optimum)^2
+	return(exp(-(dists * width))) 	
+}
+
+d_phenos <- read_csv(paste0(path, "slim_sampled_pheno.csv"), col_names = F)
+colnames(d_phenos) <- c("gen", "seed", "modelindex", "phenotype")
+
+pheno_combos <- distinct(d_phenos, gen, seed, modelindex)
+d_phenos$w <- fitnessGaussian(d_phenos$phenotype, opt, w)
+
+# Regress phenotype on fitness to estimate beta_zw
+library(gsg)
+library(mgcv)
+library(future)
+library(foreach)
+library(doParallel)
+
+cl <- makeCluster()
+registerDoParallel(cl, cores = availableCores())
+
+out <- vector("list", nrow(pheno_combos))
+
+foreach (i = 1:nrow(pheno_combos)) %dopar% {
+  dat <- d_phenos %>% filter(gen == pheno_combos[i]$gen & seed == pheno_combos[i]$seed & modelindex == pheno_combos[i]$modelindex)
+  LA <- gam(w ~ phenotype + I(phenotype^2, family = "gaussian", data = dat)
+  out[[i]] <- gam.gradients(mod=LA,phenotype="phenotype", se.method="n", standardize = F)$ests
+}
+
+stopCluster(cl)
+# Add to heritability data
+
+d_h2 <- inner_join(d_h2, out)
+d_h2$estR <- d_h2$H2.A.Estimate * d_h2$out
+
 # Combine the data frames
 d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex"))
 d_combined_full <- full_join(d_combined, d_h2, by = c("gen", "seed", "modelindex"))
+
+# Deviation of observed R to estimated R
+d_combined_full$devEstR <- c(0, d_combined_full[2:nrow(d_combined_full),"phenomean"] - d_combined_full$devEstR)
 
 # View the combined data and write to file
 head(d_combined_full) 
@@ -118,5 +162,3 @@ data.table::fwrite(d_com_ctrl_h2A_sum, "d_com_sum_h2A.csv")
 data.table::fwrite(d_com_ctrl_h2D_sum, "d_com_sum_h2D.csv")
 data.table::fwrite(d_com_ctrl_h2AA_sum, "d_com_sum_h2AA.csv")
 data.table::fwrite(d_com_ctrl_sum, "d_com_sum.csv")
-
-
