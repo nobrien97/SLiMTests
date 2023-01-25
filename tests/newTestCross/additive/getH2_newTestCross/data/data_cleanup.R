@@ -30,44 +30,48 @@ d_h2$modelindex <- as.factor(d_h2$modelindex)
 
 
 # Calculate selection gradients for R = B * VA
-# Will have to recalculate fitness from phenotype because I forgot to measure it...
-
-w <- 0.05
+# width here is w^2, so need to convert our 1/2w^2 to this format
+width_condensed <- 0.05
+width_sqrd <- 1/(width_condensed * 2)
 opt <- 2
-fitnessGaussian <- function(phenotypes, optimum, width) {		
-	dists <- (phenotypes - optimum)^2
-	return(exp(-(dists * width))) 	
-}
 
 d_phenos <- read_csv(paste0(path, "slim_sampled_pheno.csv"), col_names = F)
+d_phenos <- d_phenos %>% pivot_longer(cols = 4:ncol(d_phenos), names_to = NULL, values_to = "phenotype")
+
 colnames(d_phenos) <- c("gen", "seed", "modelindex", "phenotype")
 
-pheno_combos <- distinct(d_phenos, gen, seed, modelindex)
-d_phenos$w <- fitnessGaussian(d_phenos$phenotype, opt, w)
+d_phenos$modelindex <- as.factor(d_phenos$modelindex)
+d_phenos$seed <- as.factor(d_phenos$seed)
 
-# Regress phenotype on fitness to estimate beta_zw
-library(gsg)
-library(mgcv)
+
+pheno_combos <- distinct(d_phenos, gen, seed, modelindex)
+
+calcBeta <- function(S, mu, theta) {
+  return(-S * (mu - theta))
+}
+
+# Use Morrissey and Goudie 2022 to predict beta
 library(future)
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster()
-registerDoParallel(cl, cores = availableCores())
+cl <- makeCluster(future::availableCores())
+registerDoParallel(cl)
 
-out <- vector("list", nrow(pheno_combos))
+d_h2$beta <- NA
 
-foreach (i = 1:nrow(pheno_combos)) %dopar% {
-  dat <- d_phenos %>% filter(gen == pheno_combos[i]$gen & seed == pheno_combos[i]$seed & modelindex == pheno_combos[i]$modelindex)
-  LA <- gam(w ~ phenotype + I(phenotype^2, family = "gaussian", data = dat)
-  out[[i]] <- gam.gradients(mod=LA,phenotype="phenotype", se.method="n", standardize = F)$ests
-}
+d_h2_pheno <- inner_join(d_h2, d_phenos, c("gen", "seed", "modelindex"))
 
-stopCluster(cl)
-# Add to heritability data
+d_h2_pheno <- d_h2_pheno %>%
+  group_by(gen, seed, modelindex) %>%
+  mutate(S = 1/(width_sqrd + var(phenotype)),
+         beta = calcBeta(S, mean(phenotype), opt))
 
-d_h2 <- inner_join(d_h2, out)
-d_h2$estR <- d_h2$H2.A.Estimate * d_h2$out
+d_h2_pheno$estR <- d_h2$H2.A.Estimate * d_h2_pheno$beta
+
+d_h2_pheno <- d_h2_pheno %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  select(!phenotype)
 
 # Combine the data frames
 d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex"))
