@@ -12,6 +12,9 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
+# Filepath
+path <- "/mnt/d/SLiMTests/tests/newTestCross/additive/getH2_newTestCross/data/"
+
 # Colour palette
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
@@ -161,13 +164,14 @@ h2_avg <- ggplot(d_h2_sum_notime %>% pivot_longer(
   names_to = "varComp", values_to = "prop") %>%
     mutate(propSE = case_when(varComp == "meanH2A" ~ seH2A,
                               varComp == "meanH2D" ~ seH2D,
-                              varComp == "meanH2AA" ~ seH2AA)), 
+                              varComp == "meanH2AA" ~ seH2AA),
+           varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
   aes(x = nloci, y = prop, fill = varComp)) +
   facet_grid(.~sigma) +
   geom_col(position = position_dodge(0.9)) +
   geom_errorbar(aes(ymin = prop - propSE, ymax = prop + propSE), 
                 position = position_dodge(0.9), width = 0.3) +
-  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
   scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
   labs(x = "Number of loci", 
          y = "Proportion of total\nphenotypic variance (%)",
@@ -191,9 +195,10 @@ ggsave("h2_avg.png", plt_row_leg,  height = 6, width = 8, bg = "white")
 # stacked percent bar chart
 h2_stk_var <- ggplot(d_h2_sum %>% 
                           pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
-                                       names_to = "varComp", values_to = "prop"), 
+                                       names_to = "varComp", values_to = "prop") %>%
+                       mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
   aes(x = gen, y = prop, fill = varComp)) +
-  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
   scale_y_continuous(labels = scales::percent, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -242,28 +247,14 @@ pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 500
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
   scale_fill_manual(values = cc_ibm, guide = "none") +
-  scale_colour_manual(values = cc_ibm) +
+  scale_color_manual(values = cc_ibm, guide = guide_legend(override.aes = list(linewidth = 3))) +
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
                   fill = nloci), color = NA, alpha = 0.2) +
   labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Number of loci") +
   theme_bw() +
-  theme(text = element_text(size=20), panel.spacing = unit(1, "lines"))
+  theme(text = element_text(size=20), panel.spacing = unit(2, "lines"))
 pheno_time
 ggsave("pheno_time.png", pheno_time, height = 5, width = 10)
-
-
-d_com <- full_join(d_h2, d_qg, by = c("gen", "seed", "nloci", "sigma"))
-d_com <- d_com %>% filter(phenomean < 10)
-
-d_com_sum <- d_com %>% group_by(gen, nloci, sigma) %>%
-  summarise(He = mean(meanH),
-            seHe = se(meanH),
-            meanPheno = mean(phenomean),
-            sePheno = se(phenomean),
-            meanDist = mean(dist),
-            seDist = se(dist))
-
-d_com_sum$gen <- d_com_sum$gen - 50000
 
 # combined data: SFS
 #TODO: There's too much information to unpack here, need a metric to describe the
@@ -291,19 +282,30 @@ d_com_sum <- d_com_end %>%
   group_by(nloci, sigma, h2A) %>%
   summarise(meanFreq = mean(Freq),
             seFreq = se(Freq)
-            )
+            ) %>%
+  complete(h2A, fill = list(meanFreq = 0,
+                             seFreq = NA))
 
 # Plot mean frequency for each group: averaged across sigma
 h2A_freq <- ggplot(d_com_sum, 
        aes(x = h2A, y = meanFreq, fill = nloci)) +
   facet_grid(.~sigma) +
   scale_fill_manual(values = cc_ibm) +
+  ylim(0, 1) +
   geom_col(position = position_dodge(0.9, preserve = "single")) +
   geom_errorbar(aes(ymin = meanFreq - seFreq, ymax = meanFreq + seFreq), 
                  position = position_dodge(0.9, preserve = "single"), width = 0.3) +
-  labs(x = "Heritability", y = "Mean frequency", fill = "Number of\nloci") +
-  theme_bw() + theme(text = element_text(size = 16))
+  labs(x = TeX("Heritability ($h^2_A$)"), y = "Mean frequency", fill = "Number of loci") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
 h2A_freq
+
+h2_leg <- get_legend(h2A_freq)
+
+top.grob <- ggdraw() + draw_label("Mutational effect size variance", size = 16) +
+  theme(plot.margin = margin(0, 0, 0, 7))
+
+g_h2A <- arrangeGrob(h2A_freq + theme(legend.position = "none"))
+
 
 d_com_sum <- d_com_end %>%
   select(-c(fixGen, fixTime)) %>%
@@ -311,18 +313,24 @@ d_com_sum <- d_com_end %>%
   group_by(nloci, sigma, h2AA) %>%
   summarise(meanFreq = mean(Freq),
             seFreq = se(Freq)
-  )
+  ) %>%
+  complete(h2AA, fill = list(meanFreq = 0,
+                             seFreq = NA))
 
 h2AA_freq <- ggplot(d_com_sum, 
                    aes(x = h2AA, y = meanFreq, fill = nloci)) +
   facet_grid(.~sigma) +
   scale_fill_manual(values = cc_ibm) +
+  ylim(0, 1) +
   geom_col(position = position_dodge(0.9, preserve = "single")) +
   geom_errorbar(aes(ymin = meanFreq - seFreq, ymax = meanFreq + seFreq), 
                 position = position_dodge(0.9, preserve = "single"), width = 0.3) +
-  labs(x = "Heritability (AxA)", y = "Mean frequency", fill = "Number of\nloci") +
+  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Mean frequency", fill = "Number of\nloci") +
   theme_bw() + theme(text = element_text(size = 16))
 h2AA_freq
+
+g_h2AA <- arrangeGrob(h2AA_freq + theme(legend.position = "none"))
+
 
 d_com_sum <- d_com_end %>%
   select(-c(fixGen, fixTime)) %>%
@@ -330,335 +338,176 @@ d_com_sum <- d_com_end %>%
   group_by(nloci, sigma, h2D) %>%
   summarise(meanFreq = mean(Freq),
             seFreq = se(Freq)
-  )
+  ) %>%
+  complete(h2D, fill = list(meanFreq = 0,
+                             seFreq = NA))
 
 h2D_freq <- ggplot(d_com_sum, 
                     aes(x = h2D, y = meanFreq, fill = nloci)) +
-  facet_grid(.~sigma) +
+  facet_grid(.~sigma) +  
+  ylim(0, 1) +
   scale_fill_manual(values = cc_ibm) +
   geom_col(position = position_dodge(0.9, preserve = "single")) +
   geom_errorbar(aes(ymin = meanFreq - seFreq, ymax = meanFreq + seFreq), 
                 position = position_dodge(0.9, preserve = "single"), width = 0.3) +
-  labs(x = "Heritability (D)", y = "Mean frequency", fill = "Number of\nloci") +
+  labs(x = TeX("Heritability ($h^2_D$)"), y = "Mean frequency", fill = "Number of\nloci") +
   theme_bw() + theme(text = element_text(size = 16))
 h2D_freq
 
-
-
-# Deviations from control
-d_com_ctrl_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_com_sum.csv")
-d_com_ctrl_sum$nloci <- d_com_ctrl_sum$nloci + 2
-# Add to main dataframe
-d_com_total <- inner_join(d_com_end, d_com_ctrl_sum, by = c("nloci", "molTrait", "h2A", "h2D", "h2AA"))
-
-
-# We do want directionality, so not squared deviation
-d_com_total <- d_com_total %>% 
-  group_by(nloci, sigma, molTrait, fixedEffect) %>% 
-  mutate(devFreq = (Freq - meanFreq),
-         devFX = (value - meanFX))
-
-d_com_total$molTrait <- factor(d_com_total$molTrait, ordered = T,
-                               levels = c("\u03B1", "\u03B2", "KZ", "KXZ"))
-
-
-d_com_total %>% 
-  mutate(fixedEffect = recode_factor(fixedEffect, 
-                                     `-1`="None", 
-                                     `0`="\u03B1", 
-                                     `1`="\u03B2", 
-                                     `2`="KZ", 
-                                     `3`="KXZ", .ordered = T)) -> d_com_total
-
-# Plot each heritability
-y_lims <- c(-0.55, 1)
-
-# summarise
-d_freq_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2A) %>%
-  summarise(meanDevFreq = mean(devFreq),
-            seDevFreq = se(devFreq)
-  )
-
-
-h2A_freq <- ggplot(d_freq_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-         mutate(h2A = fct_relevel(h2A, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                   aes(x = h2A, y = meanDevFreq, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevFreq - seDevFreq, ymax = meanDevFreq + seDevFreq), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_A$)"), y = "Deviation in mean frequency", fill = "Molecular trait") +
-  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
-
-h2_leg <- get_legend(h2A_freq)
-y.grob <- textGrob("Fixed molecular trait", 
-                   gp = gpar(fontsize = 16), rot=270)
-
-top.grob <- textGrob("Number of QTLs", 
-                     gp = gpar(fontsize = 16))
-
-g_h2A <- arrangeGrob(h2A_freq + theme(legend.position = "none"), right = y.grob, top = top.grob)
-
-d_freq_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2D) %>%
-  summarise(meanDevFreq = mean(devFreq),
-            seDevFreq = se(devFreq)
-  )
-
-
-h2D_freq <- ggplot(d_freq_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-                     mutate(h2D = fct_relevel(h2D, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                   aes(x = h2D, y = meanDevFreq, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevFreq - seDevFreq, ymax = meanDevFreq + seDevFreq), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_D$)"), y = "Deviation in mean frequency", fill = "Molecular trait") +
-  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
-
-g_h2D <- arrangeGrob(h2D_freq + theme(legend.position = "none"), right = y.grob, top = top.grob)
-
-d_freq_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2AA) %>%
-  summarise(meanDevFreq = mean(devFreq),
-            seDevFreq = se(devFreq)
-  )
-
-
-h2AA_freq <- ggplot(d_freq_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-                     mutate(h2AA = fct_relevel(h2AA, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                   aes(x = h2AA, y = meanDevFreq, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevFreq - seDevFreq, ymax = meanDevFreq + seDevFreq), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Deviation in mean frequency", fill = "Molecular trait") +
-  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
-
-g_h2AA <- arrangeGrob(h2AA_freq + theme(legend.position = "none"), right = y.grob, top = top.grob)
+g_h2D <- arrangeGrob(h2D_freq + theme(legend.position = "none"))
 
 
 plt_freq <- plot_grid(g_h2A, g_h2D, g_h2AA, ncol = 3, labels = "AUTO")
-plt_freq <- plot_grid(plt_freq, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_freq <- plot_grid(top.grob, plt_freq, h2_leg, ncol = 1, rel_heights = c(.1, 1, .1))
 plt_freq
 
-ggsave("h2_freq_deviation.png", plt_freq,  height = 7, width = 20, bg = "white")
+ggsave("h2_freq.png", plt_freq,  height = 5, width = 24, bg = "white")
 
 # Effect size
 # Plot each heritability
-y_lims <- c(-3, 3)
+y_lims <- c(-0.05, 0.6)
 
 # summarise
-d_val_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2A) %>%
-  summarise(meanDevVal = mean(devFX),
-            seDevVal = se(devFX)
-  )
+d_val_sum_notime <- d_com_end %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, sigma, h2A) %>%
+  summarise(meanVal = mean(value),
+            seVal = se(value)
+  ) %>%
+  complete(h2A, fill = list(meanVal = 0,
+                            meanVal = NA))
 
-h2A_val <- ggplot(d_val_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-                     mutate(h2A = fct_relevel(h2A, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                   aes(x = h2A, y = meanDevVal, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
+h2A_val <- ggplot(d_val_sum_notime,
+                   aes(x = h2A, y = meanVal, fill = nloci)) +
+  facet_grid(.~sigma, scales = "free_x") +
   scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+  scale_fill_manual(values = cc_ibm) +
+  geom_col(position = position_dodge(0.9, preserve = "single")) +
+  geom_errorbar(aes(ymin = meanVal - seVal, ymax = meanVal + seVal), 
                 position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_A$)"), y = "Deviation in mean molecular effect", fill = "Molecular trait") +
+  labs(x = TeX("Heritability ($h^2_A$)"), y = "Mean molecular effect", fill = "Number of loci") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
 
 h2_leg <- get_legend(h2A_val)
-y.grob <- textGrob("Fixed molecular trait", 
-                   gp = gpar(fontsize = 16), rot=270)
 
-top.grob <- textGrob("Number of QTLs", 
-                     gp = gpar(fontsize = 16))
-
-g_h2A <- arrangeGrob(h2A_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+g_h2A <- arrangeGrob(h2A_val + theme(legend.position = "none"))
 
 
-d_val_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2D) %>%
-  summarise(meanDevVal = mean(devFX),
-            seDevVal = se(devFX)
-  )
+d_val_sum_notime <- d_com_end %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, sigma, h2D) %>%
+  summarise(meanVal = mean(value),
+            seVal = se(value)
+  ) %>%
+  complete(h2D, fill = list(meanVal = 0,
+                            meanVal = NA))
 
-h2D_val <- ggplot(d_val_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-                    mutate(h2D = fct_relevel(h2D, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                  aes(x = h2D, y = meanDevVal, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
+
+h2D_val <- ggplot(d_val_sum_notime, 
+                  aes(x = h2D, y = meanVal, fill = nloci)) +
+  facet_grid(.~sigma, scales = "free_x") +
   scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
+  scale_fill_manual(values = cc_ibm) +
+  geom_col(position = position_dodge(0.9, preserve = "single")) +
   geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+  geom_errorbar(aes(ymin = meanVal - seVal, ymax = meanVal + seVal), 
                 position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_D$)"), y = "Deviation in mean molecular effect", fill = "Molecular trait") +
+  labs(x = TeX("Heritability ($h^2_D$)"), y = "Mean molecular effect", fill = "Number of loci") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
 
-g_h2D <- arrangeGrob(h2D_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+g_h2D <- arrangeGrob(h2D_val + theme(legend.position = "none"))
 
-d_val_sum_notime <- d_com_total %>%
-  group_by(nloci, molTrait, fixedEffect, h2AA) %>%
-  summarise(meanDevVal = mean(devFX),
-            seDevVal = se(devFX)
-  )
+d_val_sum_notime <- d_com_end %>%
+  select(-c(fixGen, fixTime)) %>%
+  drop_na() %>%
+  group_by(nloci, sigma, h2AA) %>%
+  summarise(meanVal = mean(value),
+            seVal = se(value)
+  ) %>%
+  complete(h2AA, fill = list(meanVal = 0,
+                            meanVal = NA))
 
-h2AA_val <- ggplot(d_val_sum_notime %>% filter(fixedEffect != "None", nloci != 100) %>%
-                    mutate(h2AA = fct_relevel(h2AA, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")), 
-                  aes(x = h2AA, y = meanDevVal, fill = molTrait)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
+h2AA_val <- ggplot(d_val_sum_notime, 
+                  aes(x = h2AA, y = meanVal, fill = nloci)) +
+  facet_grid(.~sigma, scales = "free_x") +
   scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
+  scale_fill_manual(values = cc_ibm) +
+  geom_col(position = position_dodge(0.9, preserve = "single")) +
+  geom_errorbar(aes(ymin = meanVal - seVal, ymax = meanVal + seVal), 
                 position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Deviation in mean molecular effect", fill = "Molecular trait") +
+  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Mean molecular effect", fill = "Molecular trait") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
 
-g_h2AA <- arrangeGrob(h2AA_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+g_h2AA <- arrangeGrob(h2AA_val + theme(legend.position = "none"))
+
 
 plt_val <- plot_grid(g_h2A, g_h2D, g_h2AA, ncol = 3, labels = "AUTO")
-plt_val <- plot_grid(plt_val, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_val <- plot_grid(top.grob, plt_val, h2_leg, ncol = 1, rel_heights = c(.1, 1, .1))
 plt_val
 
-ggsave("h2_val_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
+ggsave("h2_val.png", plt_val,  height = 5, width = 24, bg = "white")
 
+# Now plot the response to selection per generation vs the prediction
+d_com_resp_h2A <- read_csv(paste0(path, "d_com_resp_h2A.csv"))
+d_com_resp_h2A <- d_com_resp_h2A %>%
+  mutate(expPheno = 1 + (expPheno/50)) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2A, fill = list(phenoValue = 0))
 
-
-# Molecular trait value deviation
-d_com_ctrl_molTraitVal_sum <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_com_sum_molTraitVal.csv")
-
-# Pivot longer
-d_com_end %>% pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "molTraitVal_name", 
-                                values_to = "molTraitVal_value") -> d_com_end
-
-
-d_com_ctrl_molTraitVal_sum$nloci <- d_com_ctrl_molTraitVal_sum$nloci + 2
-
-# Add to main dataframe
-d_com_total <- inner_join(d_com_end, d_com_ctrl_molTraitVal_sum, by = c("nloci", "molTraitVal_name", "h2A", "h2D", "h2AA"))
-
-
-# We do want directionality, so not squared deviation
-d_com_total <- d_com_total %>% 
-  group_by(nloci, sigma, molTraitVal_name, fixedEffect) %>% 
-  mutate(devMolTraitVal = (molTraitVal_value - meanMolTraitVal))
-
-d_com_total %>% 
-  mutate(fixedEffect = recode_factor(fixedEffect, 
-                                     `-1`="None", 
-                                     `0`="\u03B1", 
-                                     `1`="\u03B2", 
-                                     `2`="KZ", 
-                                     `3`="KXZ"),
-         molTraitVal_name = recode_factor(molTraitVal_name, 
-                                     "aZ"="\u03B1", 
-                                     "bZ"="\u03B2", 
-                                     "KZ"="KZ", 
-                                     "KXZ"="KXZ")) -> d_com_total
-
-
-d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
-  group_by(nloci, molTraitVal_name, fixedEffect, h2A) %>%
-  summarise(meanDevVal = mean(devMolTraitVal),
-            seDevVal = se(devMolTraitVal)
-  )
-
-
-# Now plot
-
-
-h2A_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
-         mutate(h2A = fct_relevel(h2A, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
-       aes(x = h2A, y = meanDevVal, fill = molTraitVal_name)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_{A}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+h2A_resp <- ggplot(d_com_resp_h2A %>% mutate(h2A = fct_relevel(h2A,
+                                                               "[0,0.25]", "(0.25, 0.5]", "(0.5,0.75]", "(0.75,1]")), 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2A) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
-
-h2_leg <- get_legend(h2A_val)
-y.grob <- textGrob("Fixed molecular trait", 
-                   gp = gpar(fontsize = 16), rot=270)
-
-top.grob <- textGrob("Number of QTLs", 
-                     gp = gpar(fontsize = 16))
-
-g_h2A <- arrangeGrob(h2A_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+h2A_resp
 
 
+d_com_resp_h2D <- read_csv(paste0(path, "d_com_resp_h2D.csv"))
+d_com_resp_h2D <- d_com_resp_h2D %>%
+  mutate(expPheno = 1 + (expPheno/50)) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2D, fill = list(phenoValue = 0))
 
-d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
-  group_by(nloci, molTraitVal_name, fixedEffect, h2D) %>%
-  summarise(meanDevVal = mean(devMolTraitVal),
-            seDevVal = se(devMolTraitVal)
-  )
-
-
-h2D_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
-                    mutate(h2D = fct_relevel(h2D, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
-                  aes(x = h2D, y = meanDevVal, fill = molTraitVal_name)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_{D}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+h2D_resp <- ggplot(d_com_resp_h2D %>% mutate(h2D = fct_relevel(h2D,
+                                                               "[0,0.25]", "(0.25, 0.5]", "(0.5,0.75]", "(0.75,1]")), 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2D) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+h2D_resp
 
-g_h2D <- arrangeGrob(h2D_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
+d_com_resp_h2AA <- read_csv(paste0(path, "d_com_resp_h2AA.csv"))
+d_com_resp_h2AA <- d_com_resp_h2AA %>%
+  mutate(expPheno = 1 + (expPheno/50)) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2AA, fill = list(phenoValue = 0))
 
-
-d_val_sum_notime <- d_com_total %>% filter(molTraitVal_value < 10) %>%
-  group_by(nloci, molTraitVal_name, fixedEffect, h2AA) %>%
-  summarise(meanDevVal = mean(devMolTraitVal),
-            seDevVal = se(devMolTraitVal)
-  )
-
-
-h2AA_val <- ggplot(d_val_sum_notime %>% filter(nloci != 100, fixedEffect != "None") %>%
-                    mutate(h2AA = fct_relevel(h2AA, "[0,0.25]", "(0.25,0.5]", "(0.5,0.75]", "(0.75,1]")),
-                  aes(x = h2AA, y = meanDevVal, fill = molTraitVal_name)) +
-  facet_grid(fixedEffect~nloci, scales = "free_x") +
-  scale_y_continuous(limits = y_lims) +
-  scale_x_discrete(labels = c(TeX("$<0.25$"), TeX("$<0.5$"), TeX("$<0.75$"), TeX(r"($\leq 1$)"))) +
-  scale_fill_viridis_d(drop = FALSE, labels = c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), TeX("$K_Z$"), TeX("$K_{XZ}$"))) +
-  geom_bar(position = position_dodge(0.9, preserve = "single"), stat="identity") +
-  geom_errorbar(aes(ymin = meanDevVal - seDevVal, ymax = meanDevVal + seDevVal), 
-                position = position_dodge(0.9, preserve = "single"), width = 0.3, linewidth = 0.25) +
-  labs(x = TeX("Heritability ($h^2_{AA}$)"), y = "Deviation in mean molecular trait value", fill = "Molecular trait") +
+h2AA_resp <- ggplot(d_com_resp_h2AA %>% mutate(h2AA = fct_relevel(h2AA,
+                                                               "[0,0.25]", "(0.25, 0.5]", "(0.5,0.75]", "(0.75,1]")), 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2AA) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
   theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
-
-g_h2AA <- arrangeGrob(h2AA_val + theme(legend.position = "none"), right = y.grob, top = top.grob)
-
-plt_val <- plot_grid(g_h2A, g_h2D, g_h2AA, ncol = 3, labels = "AUTO")
-plt_val <- plot_grid(plt_val, h2_leg, ncol = 1, rel_heights = c(1, .1))
-plt_val
-
-ggsave("h2_molTraitVal_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
-
-
-
-# Time to plot molecular trait landscapes
-
-
+h2AA_resp
 
