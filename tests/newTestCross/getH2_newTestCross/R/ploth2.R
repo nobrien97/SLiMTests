@@ -12,6 +12,9 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
+# Filepath
+path <- "/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/"
+
 # Colour palette
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
@@ -273,11 +276,12 @@ ggsave("h2_deviation.png", plt_row_leg,  height = 6, width = 8, bg = "white")
 
 ###################################################
 # stacked percent bar chart
-h2_stk_var0.1 <- ggplot(d_h2_sum %>% filter(nloci != 100, sigma == 0.1) %>% 
+h2_stk_var0.1 <- ggplot(d_h2_sum %>% filter(sigma == 0.1) %>% 
                           pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
-                                       names_to = "varComp", values_to = "prop"), 
+                                       names_to = "varComp", values_to = "prop") %>%
+                          mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
   aes(x = gen, y = prop, fill = varComp)) +
-  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
   scale_y_continuous(labels = scales::percent, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -290,11 +294,12 @@ h2_stk_var0.1 <- ggplot(d_h2_sum %>% filter(nloci != 100, sigma == 0.1) %>%
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
 
-h2_stk_var1 <- ggplot(d_h2_sum %>% filter(nloci != 100, sigma == 1) %>% 
+h2_stk_var1 <- ggplot(d_h2_sum %>% filter(sigma == 1) %>% 
                           pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
-                                       names_to = "varComp", values_to = "prop"), 
+                                       names_to = "varComp", values_to = "prop") %>%
+                        mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))),
                         aes(x = gen, y = prop, fill = varComp)) +
-  scale_fill_viridis_d(labels = c("Additive", "Epistatic (AxA)", "Dominant")) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
   scale_y_continuous(labels = scales::percent, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -318,6 +323,29 @@ plt_stk <- plot_grid(plt_stk, h2_leg, ncol = 1, rel_heights = c(1, .1))
 plt_stk
 
 ggsave("h2_stacked.png", plt_stk, width = 20, height = 10, bg = "white")
+
+# Now just the unfixed data
+h2_stk_var <- ggplot(d_h2_sum %>% filter(fixedEffect == "None") %>% 
+                          pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
+                                       names_to = "varComp", values_to = "prop") %>%
+                       mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
+                        aes(x = gen, y = prop, fill = varComp)) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
+  scale_y_continuous(labels = scales::percent, 
+                     sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect size variance", 
+                                         breaks = NULL, labels = NULL)) +
+  facet_grid(nloci~sigma) +
+  geom_bar(position="stack", stat="identity", width = 50) +
+  labs(x = "Generations after optimum shift", y = "Proportion of total\nphenotypic variance", 
+       fill = "Variance component") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
+h2_stk_var
+
+ggsave("h2_stacked_unfixed.png", h2_stk_var, width = 10, height = 8, bg = "white")
 
 
 # Plot trait data over time
@@ -362,6 +390,25 @@ pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 500
   theme(text = element_text(size=20), panel.spacing = unit(1, "lines"))
 
 ggsave("pheno_time.png", pheno_time, height = 9, width = 12)
+
+# Now with only unfixed models
+pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000, fixedEffect == "None") %>% mutate(gen = gen - 50000), 
+                     aes(gen, meanPheno, color = as.factor(nloci))) +
+  facet_grid(.~sigma) +
+  geom_line() +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_fill_manual(values = cc_ibm, guide = "none") +
+  scale_color_manual(values = cc_ibm, guide = guide_legend(override.aes = list(linewidth = 3))) +
+  geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
+                  fill = as.factor(nloci)), color = NA, alpha = 0.2) +
+  labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Number of loci") +
+  theme_bw() +
+  theme(text = element_text(size=20), panel.spacing = unit(2, "lines"))
+pheno_time
+ggsave("pheno_time_unfixed.png", pheno_time, height = 5, width = 10)
+
 
 
 d_com <- full_join(d_h2, d_qg, by = c("gen", "seed", "fixedEffect", "nloci", "sigma"))
@@ -789,6 +836,99 @@ plt_val <- plot_grid(plt_val, h2_leg, ncol = 1, rel_heights = c(1, .1))
 plt_val
 
 ggsave("h2_molTraitVal_deviation.png", plt_val,  height = 7, width = 20, bg = "white")
+
+# Now plot the response to selection per generation vs the prediction
+path <- "/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/"
+
+d_com_resp_h2A <- read_csv(paste0(path, "d_com_resp_h2A.csv"))
+d_com_resp_h2A <- d_com_resp_h2A %>%
+  #mutate(expPheno = expPheno/50) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2A, fill = list(phenoValue = 0)) %>%
+  mutate(h2A = fct_relevel(h2A, "≤0.5", ">0.5"))
+
+h2A_resp <- ggplot(d_com_resp_h2A, 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2A) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+h2_leg <- get_legend(h2A_resp)
+top.grob <- textGrob("Heritability", 
+                   gp = gpar(fontsize = 16))
+
+y.grob <- textGrob("Number of QTLs", 
+                     gp = gpar(fontsize = 16), rot=270)
+
+g_h2A <- arrangeGrob(h2A_resp + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+
+
+d_com_resp_h2D <- read_csv(paste0(path, "d_com_resp_h2D.csv"))
+d_com_resp_h2D <- d_com_resp_h2D %>%
+  #mutate(expPheno = expPheno/50) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2D, fill = list(phenoValue = 0)) %>%
+  mutate(h2D = fct_relevel(h2D, "≤0.5", ">0.5"))
+
+
+h2D_resp <- ggplot(d_com_resp_h2D, 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2D) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+g_h2D <- arrangeGrob(h2D_resp + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+
+d_com_resp_h2AA <- read_csv(paste0(path, "d_com_resp_h2AA.csv"))
+d_com_resp_h2AA <- d_com_resp_h2AA %>%
+  #mutate(expPheno = expPheno/50) %>% # This undoes the correction I did for there being 50 generations between samples
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000) %>%
+  complete(h2AA, fill = list(phenoValue = 0)) %>%
+  mutate(h2AA = fct_relevel(h2AA, "≤0.5", ">0.5"))
+
+
+h2AA_resp <- ggplot(d_com_resp_h2AA,
+                    aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~h2AA) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
+  theme_bw() + theme(text = element_text(size = 16), legend.position = "bottom")
+
+g_h2AA <- arrangeGrob(h2AA_resp + theme(legend.position = "none"), right = y.grob, top = top.grob)
+
+
+plt_resp <- plot_grid(g_h2A, g_h2D, g_h2AA, ncol = 3, labels = "AUTO")
+plt_resp <- plot_grid(plt_resp, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_resp
+
+ggsave("h2_R.png", plt_resp, height = 7, width = 20, bg = "white")
+
+# Plot only the additive one since the others don't really give us any more information
+top.grob <- textGrob(TeX("Heritability $(\\sigma^2_A)$"), 
+                     gp = gpar(fontsize = 16))
+g_h2A <- arrangeGrob(h2A_resp + theme(legend.position = "none"), right = y.grob, top = top.grob)
+plt_resp_A <- plot_grid(g_h2A, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_resp_A
+ggsave("h2_R_Add.png", plt_resp_A, height = 7, width = 8, bg = "white")
 
 
 
