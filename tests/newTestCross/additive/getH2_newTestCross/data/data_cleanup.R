@@ -96,10 +96,11 @@ nrow(d_combined_after)
 nrow(d_combined_full)
 data.table::fwrite(d_combined_after, paste0(path, "getH2_newTestCross/data/d_combined_after.csv"))
 
+if (!exists("d_combined_after"))
+  d_combined_after <- read_csv(paste0(path, "getH2_newTestCross/data/d_combined_after.csv"))
 
 combos <- read_delim("../../R/combos.csv", delim = " ", col_names = F)
 names(combos) <- c("nloci", "locisigma")
-#d_combined_after <- read_csv(paste0(path, "getH2_newTestCross/data/d_combined_after.csv"))
 d_combined_after %>% mutate(
                             nloci = combos$nloci[.$modelindex],
                             sigma = combos$locisigma[.$modelindex]) -> d_combined_after
@@ -179,6 +180,9 @@ d_com_ctrl_sum <- d_com_end_ctrl %>%
 
 # Response to selection
 d_com_resp_h2A <- d_com_end_ctrl %>%
+  mutate(h2A = fct_collapse(h2A,
+                             `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
+                             `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
   select(-c(fixGen, fixTime)) %>%
   drop_na() %>%
   group_by(gen, nloci, h2A) %>%
@@ -193,13 +197,15 @@ d_com_resp_h2A <- d_com_end_ctrl %>%
   ) %>%
   ungroup() %>%
   group_by(nloci, h2A) %>%
-  mutate(obsPheno = cumsum(meanDelta),
-         expPheno = cumsum(meanEstResp),
+  mutate(expPheno = lag(meanPheno) + meanEstResp,
          errPheno = cumsum(meanDeltaEst))
 
 data.table::fwrite(d_com_resp_h2A, paste0(path, "getH2_newTestCross/data/d_com_resp_h2A.csv"))
 
 d_com_resp_h2D <- d_com_end_ctrl %>%
+  mutate(h2D = fct_collapse(h2D,
+                             `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
+                             `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
   select(-c(fixGen, fixTime)) %>%
   drop_na() %>%
   group_by(gen, nloci, h2D) %>%
@@ -214,13 +220,15 @@ d_com_resp_h2D <- d_com_end_ctrl %>%
   ) %>%
   ungroup() %>%
   group_by(nloci, h2D) %>%
-  mutate(obsPheno = cumsum(meanDelta),
-         expPheno = cumsum(meanEstResp),
+  mutate(expPheno = lag(meanPheno) + meanEstResp,
          errPheno = cumsum(meanDeltaEst))
 
 data.table::fwrite(d_com_resp_h2D, paste0(path, "getH2_newTestCross/data/d_com_resp_h2D.csv"))
 
 d_com_resp_h2AA <- d_com_end_ctrl %>%
+  mutate(h2AA = fct_collapse(h2AA,
+                             `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
+                             `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
   select(-c(fixGen, fixTime)) %>%
   drop_na() %>%
   group_by(gen, nloci, h2AA) %>%
@@ -235,8 +243,7 @@ d_com_resp_h2AA <- d_com_end_ctrl %>%
   ) %>%
   ungroup() %>%
   group_by(nloci, h2AA) %>%
-  mutate(obsPheno = cumsum(meanDelta),
-         expPheno = cumsum(meanEstResp),
+  mutate(expPheno = lag(meanPheno) + meanEstResp,
          errPheno = cumsum(meanDeltaEst))
 
 data.table::fwrite(d_com_resp_h2AA, paste0(path, "getH2_newTestCross/data/d_com_resp_h2AA.csv"))
