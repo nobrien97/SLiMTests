@@ -5,3 +5,4 @@
 *.e*
 *.o*
 tests/h2_hsfs/getH2_hsfs/data/data_cleanup.R
+*.RDS
