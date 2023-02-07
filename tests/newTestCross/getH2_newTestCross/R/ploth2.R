@@ -396,6 +396,7 @@ pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000, fixedEffect == "None") %>%
                      aes(gen, meanPheno, color = as.factor(nloci))) +
   facet_grid(.~sigma) +
   geom_line() +
+  ylim(0, 2.5) +
   geom_hline(yintercept = 2, linetype = "dashed") +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
@@ -403,10 +404,12 @@ pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000, fixedEffect == "None") %>%
   scale_color_manual(values = cc_ibm, guide = guide_legend(override.aes = list(linewidth = 3))) +
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
                   fill = as.factor(nloci)), color = NA, alpha = 0.2) +
-  labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Number of loci") +
+  labs(x = "Generations after optimum shift", y = TeX("$\\mu_{\\bar{z}}$"), color = "Number of loci") +
   theme_bw() +
-  theme(text = element_text(size=20), panel.spacing = unit(2, "lines"))
+  theme(text = element_text(size=20), panel.spacing = unit(2, "lines"), legend.position = "bottom")
 pheno_time
+
+saveRDS(pheno_time, paste0(path, "pheno_time_unfixed.RDS"))
 ggsave("pheno_time_unfixed.png", pheno_time, height = 5, width = 10)
 
 
