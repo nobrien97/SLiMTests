@@ -183,7 +183,7 @@ function (void) writeAlleleData(void) {
 	// This is because writeFile() automatically adds a \n character, so we'd end up with an extra empty line if we do write that way
 	
 	condict = sim.getValue("con_dict");
-	genom = sim.subpopulations.genomes;
+	genom = p1.genomes; // We don't want to count mutations in the staging area genomes in frequencies
 	
 	for (mut in muts) {
 		mutFreq = mean(genom.containsMutations(mut));
