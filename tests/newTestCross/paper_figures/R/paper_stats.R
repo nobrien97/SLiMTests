@@ -72,3 +72,63 @@ plot(ggpredict(mod_gam), facets = T)
 pred_gam <- predict_gam(mod_gam)
 saveRDS(pred_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/pred_gam.RDS")
 saveRDS(mod_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/mod_gam.RDS")
+
+
+# Mutations
+d_muts_add <- read_csv(paste0(path_add, "d_combined_after.csv"))
+d_muts_add$model <- "Additive"
+
+d_muts_add %>% mutate(nloci = combos_add$nloci[.$modelindex],
+                    sigma = combos_add$locisigma[.$modelindex]) -> d_muts_add
+
+
+d_muts_net <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_combined_after.csv")
+d_muts_net$model <- "NAR"
+
+
+d_muts_net %>% 
+  mutate(fixedEffect = combos_net$model[.$modelindex],
+                    nloci = combos_net$nloci[.$modelindex] + 2,
+                    sigma = combos_net$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_muts_net
+
+
+d_muts <- bind_rows(d_muts_add, d_muts_net)
+rm(d_muts_add, d_muts_net)
+
+d_muts <- d_muts %>%
+  mutate(seed = as_factor(seed),
+         modelindex = as_factor(modelindex),
+         model = as_factor(model),
+         nloci = as_factor(nloci),
+         sigma = as_factor(sigma),
+         fixedEffect = as_factor(fixedEffect))
+
+saveRDS(d_muts, "/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
+
+# GAM on allele frequency spectrum at gen 1950
+# Load in data from paper_figures.R
+d_freqs <- readRDS("d_freqs.RDS")
+
+# normalised count ~ freq + nloci + locisigma + model + c
+d_freqs_sbst <- d_freqs %>% filter(gen == 51950)
+
+mod_gam <- gam(freqBinCount ~ s(Freq, k = 4) + model * nloci * sigma, 
+               data = d_freqs_sbst, family = betar(), method = "REML")
+summary(mod_gam)
+plot(mod_gam)
+gam.check(mod_gam)
+concurvity(mod_gam)
+
+# Test against a linear model
+mod_lm <- gam(freqBinCount ~ Freq * model * nloci * sigma, data = d_freqs_sbst, method = "REML")
+summary(mod_lm)
+
+# GAM fits better
+AIC(mod_gam); AIC(mod_lm)
+summary(mod_gam)$sp.criterion; summary(mod_lm)$sp.criterion
+
+plot(ggpredict(mod_gam), facets = T)
+pred_gam <- predict_gam(mod_gam)
+saveRDS(pred_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/pred_gam_freq.RDS")
+saveRDS(mod_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/mod_gam_freq.RDS")
