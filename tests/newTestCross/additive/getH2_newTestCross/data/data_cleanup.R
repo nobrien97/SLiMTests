@@ -29,12 +29,16 @@ head(d_qg)
 head(d_h2)
 
 # Factorise seed and modelindex
-d_muts$seed <- as.factor(d_muts$seed)
-d_muts$modelindex <- as.factor(d_muts$modelindex)
-d_qg$modelindex <- as.factor(d_qg$modelindex)
-d_qg$seed <- as.factor(d_qg$seed)
-d_h2$seed <- as.factor(d_h2$seed)
-d_h2$modelindex <- as.factor(d_h2$modelindex)
+d_muts <- d_muts %>%
+  mutate(seed = as_factor(seed),
+         modelindex = as_factor(modelindex))
+d_qg <- d_qg %>%
+  mutate(seed = as_factor(seed),
+         modelindex = as_factor(modelindex))
+d_h2 <- d_h2 %>%
+  mutate(seed = as_factor(seed),
+         modelindex = as_factor(modelindex))
+
 
 
 # Calculate selection gradients for R = B * VA
@@ -49,37 +53,34 @@ d_phenos <- d_phenos %>% pivot_longer(cols = 4:ncol(d_phenos), names_to = NULL, 
 
 colnames(d_phenos) <- c("gen", "seed", "modelindex", "phenotype")
 
-d_phenos$modelindex <- as.factor(d_phenos$modelindex)
-d_phenos$seed <- as.factor(d_phenos$seed)
+d_phenos <- d_phenos %>%
+  mutate(modelindex = as_factor(modelindex),
+         seed = as_factor(seed))
 
-
-pheno_combos <- distinct(d_phenos, gen, seed, modelindex)
 
 calcBeta <- function(S, mu, theta) {
   return(-S * (mu - theta))
 }
 
 # Use Morrissey and Goudie 2022 to predict beta
-d_h2$beta <- NA
 
-d_h2_pheno <- inner_join(d_h2, d_phenos, c("gen", "seed", "modelindex"))
-
-d_h2_pheno <- d_h2_pheno %>%
+d_phenos <- d_phenos %>%
   group_by(gen, seed, modelindex) %>%
-  mutate(S = 1/(width_sqrd + var(phenotype)),
-         beta = calcBeta(S, mean(phenotype), opt))
+  summarise(S = 1/(width_sqrd + var(phenotype)),
+            beta = calcBeta(S, mean(phenotype), opt))
 
-d_h2_pheno$estR <- (d_h2$H2.A.Estimate * d_h2_pheno$beta) * TIME_BETWEEN_SAMPLES
+d_h2 <- full_join(d_h2, d_phenos, by = c("gen", "seed", "modelindex"))
+d_h2$estR <- (d_h2$H2.A.Estimate * d_h2$beta) * TIME_BETWEEN_SAMPLES
 
-d_h2_pheno <- d_h2_pheno %>%
-  distinct(gen, seed, modelindex, .keep_all = T) %>%
-  select(!phenotype)
+d_h2 <- d_h2 %>%
+  filter(!is.na(AIC)) %>%
+  distinct(.keep_all = T)
 
 # Combine the data frames
 d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex"))
 rm(d_muts, d_qg)
-d_combined <- full_join(d_combined, d_h2_pheno, by = c("gen", "seed", "modelindex"))
-rm(d_h2_pheno)
+d_combined <- full_join(d_combined, d_h2, by = c("gen", "seed", "modelindex"))
+rm(d_h2)
 # Deviation of observed R to estimated R
 d_combined$devEstR <- d_combined$deltaPheno - d_combined$estR
 
