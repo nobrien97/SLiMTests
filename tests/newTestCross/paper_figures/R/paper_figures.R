@@ -64,6 +64,7 @@ library(gganimate)
 library(transformr)
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
 
+d_com %>% filter(phenomean < 10) -> d_com
 # Split the data set into a list of groups - each is a collection of allele frequencies
 d_com %>%
   mutate(Freq_bin = cut(Freq,
@@ -107,7 +108,7 @@ plt_freqs
 plt_freqs <- plt_freqs + transition_states(gen) +
   labs(title = "Generation: {closest_state}")
 
-animate(plt_freqs, nframes = 40, duration = 40, width = 720, height = 720, renderer = av_renderer())
+animate(plt_freqs, nframes = 40, duration = 20, width = 720, height = 720, renderer = av_renderer())
 anim_save("freq_sfs.mp4", last_animation())
 
 # Plot just the last generation
@@ -129,3 +130,65 @@ plt_freqs <- ggplot(d_freqs %>% filter(gen == 1950),
 plt_freqs
 ggsave("sfs_end.png", plt_freqs, width = 7, height = 6, bg = "white")
 
+# Allelic effects
+
+# First add a molTrait value for the NAR models
+d_com %>%
+  mutate(molTrait = recode_factor(mutType, 
+                                  `1`="Neutral", `2`="Del", `3`="\u03B1", `4`="\u03B2", 
+                                  `5`="KZ", `6`="KXZ")) -> d_com
+
+# Lets see the total distribution to see how big these values get
+d_com %>% filter(model == "NAR", gen == 51950, Freq == 1) %>%
+  ggplot(aes(x = log(value), fill = molTrait)) + 
+  geom_histogram(bins = 100)
+
+d_com %>% filter(model == "Additive", gen == 51950) %>%
+  ggplot(aes(x = value)) + # Need to log twice because the value is exponentiated twice in this dataset... whoops
+  geom_histogram(bins = 50)
+
+# Split the data set into a list of groups - each is a collection of allelic effects
+MIN_VAL <- min(log(d_com[d_com$model == "NAR",]$value))
+MAX_VAL <- max(log(d_com[d_com$model == "NAR",]$value))
+d_com %>% filter(model == "NAR") %>%
+  mutate(value = log(value)) %>%
+  mutate(val_bin = cut(value,
+                        breaks = seq(from = MIN_VAL, to = MAX_VAL, by = 0.05))) %>% # categorise freq
+  group_by(gen, seed, nloci, sigma) %>%
+  mutate(binCount = n()) %>%
+  group_by(gen, seed, molTrait, nloci, sigma, val_bin) %>%
+  mutate(valBinCount = n()/binCount) %>% # Get the number in each bin - normalise!
+  ungroup(seed) -> d_values_NAR
+
+# Save data for stats
+saveRDS(d_values_NAR, "d_values_NAR.RDS")
+
+d_values_NAR <- readRDS("d_values_NAR.RDS")
+
+# Summarise for plots
+VALUE_BIN_SEQ <- seq(from = MIN_VAL, to = MAX_VAL, by = 0.05)
+
+d_values_NAR %>%
+  group_by(gen, molTrait, nloci, sigma, val_bin) %>%
+  summarise(meanValBinCount = mean(valBinCount),
+            seValBinCount = se(valBinCount)) %>%
+  ungroup() %>%
+  mutate(value = VALUE_BIN_SEQ[as.numeric(val_bin)], # convert freq back to continuous
+         gen = as.integer(gen - 50000)) -> d_values_NAR
+
+
+ggplot(d_values_NAR %>% filter(gen == 1950), 
+                    aes(x = value, y = meanValBinCount, color = molTrait)) +
+  facet_grid(nloci~sigma) +
+  geom_line() +
+  scale_fill_manual(values = cc_ibm, guide = "none") +
+  geom_ribbon(aes(ymin = (meanValBinCount - seValBinCount), ymax = (meanValBinCount + seValBinCount), 
+                  fill = molTrait), color = NA, alpha = 0.2) +
+  scale_y_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                                           breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                                           breaks = NULL, labels = NULL)) +
+  labs(x = "Allelic effect", y = "Normalized count", color = "Molecular trait") +
+  theme_bw() +
+  theme(text=element_text(size=16), legend.position = "bottom", panel.spacing.x = unit(1, "lines"))
+plt_freqs
