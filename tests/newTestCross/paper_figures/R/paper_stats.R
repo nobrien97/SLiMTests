@@ -49,11 +49,11 @@ d_qg <- d_qg %>%
 # Using GAMs to fit out phenotype-time model
 # u_z ~ gen + nloci + locisigma + c
 d_qg_sbst <- d_qg %>% filter(fixedEffect == -1 | is.na(fixedEffect),
-                             gen >= 50000,
+                             gen >= 49500,
                              phenomean < 10)
 
 mod_gam <- gam(phenomean ~ s(gen, k = 12) + model * nloci * sigma, 
-               data = d_qg_sbst, family = scat(link = "identity"), method = "REML")
+               data = d_qg_sbst, family = scat, method = "REML")
 summary(mod_gam)
 plot(mod_gam)
 gam.check(mod_gam)

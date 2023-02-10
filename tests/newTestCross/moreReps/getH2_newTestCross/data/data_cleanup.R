@@ -120,10 +120,11 @@ d_combined[800000,] %>% as_tibble() %>% print(width=Inf)
 data.table::fwrite(d_combined, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_full.csv"))
 
 # Write only the data after burn-in
-d_combined_after <- d_combined %>% filter(gen >= 50000)                                                                       
+d_combined_after <- d_combined %>% filter(gen >= 49500)                                                                       
 nrow(d_combined_after)
 nrow(d_combined_full)
 data.table::fwrite(d_combined_after, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.csv"))
+saveRDS(d_combined_after, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.RDS"))
 
 d_combined_after <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.csv"))
 
