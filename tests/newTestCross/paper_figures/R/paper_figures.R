@@ -23,7 +23,16 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
 d_com %>% filter(phenomean < 10) -> d_com
 
+# Some simulations ended up with populations accumulating massive alpha 
+# values/really small beta values which are difficult to overcome
+# in this case there is unlikely to be any phenotypic variance, meaning
+# no h2 estimate. This was extremely common in the sigma = 0.1, nloci = 1000 case
+# to the point where it masked the response of the cases where this didn't happen
 d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  filter(aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+         KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)
+         ) %>% 
   summarise(He = mean(meanH),
             seHe = se(meanH),
             meanPheno = mean(phenomean),
@@ -44,7 +53,7 @@ pheno_time <- ggplot(d_qg_sum %>% mutate(gen = gen - 50000),
   scale_colour_manual(values = cc_ibm[c(1,3)]) +
   geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
                   fill = model), color = NA, alpha = 0.2) +
-  labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Fixed effect") +
+  labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Model") +
   theme_bw() +
   theme(text = element_text(size=20), panel.spacing = unit(1, "lines"), legend.position = "bottom")
 pheno_time
@@ -279,7 +288,6 @@ plt_val <- plot_grid(plt_val_add, plt_val_NAR,
 ggsave("val_end.png", plt_val, width = 7, height = 10, bg = "white")
 
 # Mean effect and freq over time
-library(ggh4x)
 d_com %>%
   filter(model == "NAR") %>%
   mutate(gen = gen - 50000,
@@ -329,7 +337,8 @@ plt_meanVal_NAR <- plot_grid(plt_meanVal_NAR_s01 +
                                 breaks = NULL, labels = NULL)) +
             labs(y = "") +
             theme(legend.position = "none"),
-          ncol = 2)
+          ncol = 2,
+          rel_widths = c(1.1, 1))
 
 top.grob <- textGrob("Mutational effect size variance", 
                      gp = gpar(fontsize = 16))
@@ -373,7 +382,7 @@ plt_meanVal <- plot_grid(plt_meanVal_add,
                          labels = "AUTO")
 plt_meanVal
 
-ggsave("meanVal.png", plt_meanVal, width = 10, height = 8, bg = "white")
+ggsave("meanVal.png", plt_meanVal, width = 10, height = 10, bg = "white")
 
 # Mean allele frequency
 plt_meanFreq_NAR <- ggplot(d_meanfreq_NAR, 
@@ -416,3 +425,158 @@ plt_meanFreq <- plot_grid(plt_meanFreq_add,
 plt_meanFreq
 
 ggsave("meanFreq.png", plt_meanFreq, width = 7, height = 10, bg = "white")
+
+# Heritability and predictions
+###################################################
+d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
+  drop_na(AIC) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  filter(aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+         KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)
+  ) %>% 
+  filter(VarA >= 0, VarA < 10,
+         VarD >= 0, VarAA >= 0,
+         VarR > 0, sum(VarA, VarD, VarAA, VarR) > 0) %>%
+  mutate(gen = gen - 50000) %>%
+  summarise(He = mean(meanH),
+            seHe = se(meanH),
+            meanPheno = mean(phenomean),
+            sePheno = se(phenomean),
+            meanDist = mean(dist),
+            seDist = se(dist),
+            meanH2A = mean(H2.A.Estimate),
+            seH2A = se(H2.A.Estimate),
+            meanH2D = mean(H2.D.Estimate), 
+            seH2D = se(H2.D.Estimate),
+            meanH2AA = mean(H2.AA.Estimate),
+            seH2AA = se(H2.AA.Estimate))
+
+# stacked percent bar chart
+plt_h2_add <- ggplot(d_qg_sum %>% filter(model == "Additive") %>%
+                          pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
+                                       names_to = "varComp", values_to = "prop") %>%
+                          mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
+                        aes(x = gen, y = prop, fill = varComp)) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  facet_grid(nloci~sigma) +
+  geom_bar(position="stack", stat="identity", width = 50) +
+  labs(x = "Generations after optimum shift", y = "Proportion of total\nphenotypic variance", 
+       fill = "Variance component") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom", 
+        strip.background.y = element_blank(),
+        strip.text.y = element_blank())
+
+plt_h2_NAR <- ggplot(d_qg_sum %>% filter(model == "NAR") %>%
+                       pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
+                                    names_to = "varComp", values_to = "prop") %>%
+                       mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
+                     aes(x = gen, y = prop, fill = varComp)) +
+  scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
+  scale_y_continuous(labels = scales::percent, 
+                     sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  facet_grid(nloci~sigma) +
+  geom_bar(position="stack", stat="identity", width = 50) +
+  labs(x = "Generations after optimum shift", y = "Proportion of total\nphenotypic variance", 
+       fill = "Variance component") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
+h2_leg <- get_legend(plt_h2_add)
+
+plt_h2 <- plot_grid(plt_h2_add + theme(legend.position = "none") + labs(x = NULL),
+                     plt_h2_NAR + theme(legend.position = "none") + labs(y = NULL, x = NULL),
+                     ncol = 2,
+                     labels = "AUTO")
+
+x.grob <- textGrob("Generations after optimum shift", 
+                   gp = gpar(fontsize = 16))
+
+g <- arrangeGrob(plt_h2, bottom = x.grob)
+
+plt_h2 <- plot_grid(g, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_h2
+
+# Predicted responses
+d_resp <- d_com %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  filter(!(is.na(AIC) & gen >= 50000)) %>%
+  group_by(gen, model, nloci, sigma) %>%
+  summarise(meanPheno = mean(phenomean),
+            sePheno = se(phenomean),
+            meanEstResp = mean(estR),
+            seEstResp = se(estR),
+            meanDelta = mean(deltaPheno),
+            seDelta = se(deltaPheno),
+            meanDeltaEst = mean(devEstR),
+            seDeltaEst = se(devEstR)
+  ) %>%
+  ungroup() %>%
+  group_by(model, nloci, sigma) %>%
+  mutate(expPheno = lag(meanPheno) + meanEstResp,
+         errPheno = cumsum(meanDeltaEst)) %>%
+  pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
+  mutate(phenoType = recode_factor(phenoType,
+                                   "expPheno" = "Estimated",
+                                   "meanPheno" = "Observed"),
+         gen = gen - 50000)
+
+plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"), 
+                   aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~sigma) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  scale_y_continuous(limits = c(-0.15, 6)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"),
+        strip.background.y = element_blank(),
+        strip.text.y = element_blank())
+
+plt_resp_NAR <- ggplot(d_resp %>% filter(model == "NAR"), 
+                       aes(x = gen, y = phenoValue, colour = phenoType)) +
+  facet_grid(nloci~sigma) +
+  scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  geom_line() +
+  scale_y_continuous(limits = c(-0.15, 6), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+
+h2_leg <- get_legend(plt_resp_NAR)
+
+plt_resp <- plot_grid(plt_resp_add + theme(legend.position = "none") + labs(x = NULL),
+                     plt_resp_NAR + theme(legend.position = "none") + labs(y = NULL, x = NULL),
+                     ncol = 2,
+                     labels = c("C", "D"))
+
+x.grob <- textGrob("Generations after optimum shift", 
+                   gp = gpar(fontsize = 16))
+
+g <- arrangeGrob(plt_resp, bottom = x.grob)
+
+plt_resp <- plot_grid(g, h2_leg, ncol = 1, rel_heights = c(1, .1))
+plt_resp
+
+plt_h2_resp <- plot_grid(plt_h2,
+                         plt_resp,
+                         nrow = 2)
+
+plt_h2_resp
+ggsave("h2_resp.png", plt_h2_resp, width = 16, height = 16, bg = "white")
+
