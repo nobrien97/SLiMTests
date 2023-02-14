@@ -8,37 +8,37 @@ library(latex2exp)
 path_add <- "/mnt/d/SLiMTests/tests/newTestCross/additive/"
 path_net <- "/mnt/d/SLiMTests/tests/newTestCross/getH2_newTestCross/data/"
 
-d_qg_add <- read_csv(paste0(path_add, "slim_qg.csv"), col_names = F)
-names(d_qg_add) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
-                 "phenovar", "dist", "w", "deltaPheno", "deltaw")
-d_qg_add$model <- "Additive"
-
 combos_add <- read_delim("/mnt/c/GitHub/SLiMTests/tests/newTestCross/additive/R/combos.csv", delim = " ", col_names = F)
 names(combos_add) <- c("nloci", "locisigma")
 d_qg_add %>% mutate(nloci = combos_add$nloci[.$modelindex],
                 sigma = combos_add$locisigma[.$modelindex]) -> d_qg_add
 
 
-d_qg_net <- read_csv(paste0(path_net, "slim_qg_total.csv"), col_names = F)
-names(d_qg_net) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
-                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
-d_qg_net$model <- "NAR"
-
 combos_net <- read_delim("/mnt/c/GitHub/SLiMTests/tests/newTestCross/R/combos.csv", delim = " ", col_names = F)
 names(combos_net) <- c("model", "nloci", "locisigma")
-d_qg_net %>% mutate(fixedEffect = combos_net$model[.$modelindex],
-                nloci = combos_net$nloci[.$modelindex],
-                sigma = combos_net$locisigma[.$modelindex]) -> d_qg_net
 
-# Recode fixedEffect to mol trait name
-d_qg_net %>% mutate(fixedEffect = recode_factor(fixedEffect, `-1`="None", `0`="\u03B1", `1`="\u03B2", `2`="KZ", `3`="KXZ")) -> d_h2
+d_muts_add <- read_csv(paste0(path_add, "d_combined_after.csv"))
+d_muts_add$model <- "Additive"
 
-d_qg_net$nloci <- d_qg_net$nloci + 2
+d_muts_add %>% mutate(nloci = combos_add$nloci[.$modelindex],
+                      sigma = combos_add$locisigma[.$modelindex]) -> d_muts_add
 
-d_qg <- bind_rows(d_qg_add, d_qg_net)
-rm(d_qg_add, d_qg_net)
 
-d_qg <- d_qg %>%
+d_muts_net <- read_csv("/mnt/d/SLiMTests/tests/newTestCross/moreReps/getH2_newTestCross/data/d_combined_after.csv")
+d_muts_net$model <- "NAR"
+
+
+d_muts_net %>% 
+  mutate(fixedEffect = combos_net$model[.$modelindex],
+         nloci = combos_net$nloci[.$modelindex] + 2,
+         sigma = combos_net$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_muts_net
+
+
+d_muts <- bind_rows(d_muts_add, d_muts_net)
+rm(d_muts_add, d_muts_net)
+
+d_muts <- d_muts %>%
   mutate(seed = as_factor(seed),
          modelindex = as_factor(modelindex),
          model = as_factor(model),
@@ -48,9 +48,15 @@ d_qg <- d_qg %>%
 
 # Using GAMs to fit out phenotype-time model
 # u_z ~ gen + nloci + locisigma + c
-d_qg_sbst <- d_qg %>% filter(fixedEffect == -1 | is.na(fixedEffect),
+d_qg_sbst <- d_muts %>% filter(fixedEffect == -1 | is.na(fixedEffect),
                              gen >= 49500,
-                             phenomean < 10)
+                             phenomean < 10,
+                             abs(estR) < 5,
+                             aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+                             KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ))  %>%
+  distinct(gen, seed, modelindex, .keep_all = T)
+  
+
 
 mod_gam <- gam(phenomean ~ s(gen, k = 12) + model * nloci * sigma, 
                data = d_qg_sbst, family = scat, method = "REML")
@@ -62,6 +68,7 @@ concurvity(mod_gam)
 # Test against a linear model
 mod_lm <- gam(phenomean ~ gen + model * nloci * sigma, data = d_qg_sbst, method = "REML")
 summary(mod_lm)
+
 
 # GAM fits better
 AIC(mod_gam); AIC(mod_lm)

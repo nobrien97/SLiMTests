@@ -21,7 +21,7 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
 # Pheno time add/net
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
-d_com %>% filter(phenomean < 10) -> d_com
+d_com %>% filter(phenomean < 10, abs(estR) < 5) -> d_com
 
 # Some simulations ended up with populations accumulating massive alpha 
 # values/really small beta values which are difficult to overcome
@@ -88,7 +88,7 @@ library(gganimate)
 library(transformr)
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
 
-d_com %>% filter(phenomean < 10) -> d_com
+d_com %>% filter(phenomean < 10, abs(estR) < 5) -> d_com
 # Split the data set into a list of groups - each is a collection of allele frequencies
 d_com %>%
   mutate(Freq_bin = cut(Freq,
@@ -97,7 +97,7 @@ d_com %>%
   mutate(binCount = n()) %>%
   group_by(gen, seed, model, nloci, sigma, Freq_bin) %>%
   mutate(freqBinCount = n()/binCount) %>% # Get the number in each bin - normalise!
-  ungroup(seed) -> d_freqs
+  ungroup() -> d_freqs
 
 # Save data for stats
 saveRDS(d_freqs, "d_freqs.RDS")
@@ -108,6 +108,8 @@ d_freqs %>%
   summarise(meanFreqBinCount = mean(freqBinCount),
             seFreqBinCount = se(freqBinCount)) %>%
   ungroup() %>%
+  complete(gen, model, nloci, sigma, Freq_bin, 
+           fill = list(meanFreqBinCount = 0)) %>%
   mutate(Freq = as.numeric(Freq_bin) * 0.05, # convert freq back to continuous
          gen = as.integer(gen - 50000)) -> d_freqs 
 
@@ -508,14 +510,14 @@ d_resp <- d_com %>%
   distinct(gen, seed, modelindex, .keep_all = T) %>%
   filter(!(is.na(AIC) & gen >= 50000)) %>%
   group_by(gen, model, nloci, sigma) %>%
-  summarise(meanPheno = mean(phenomean),
-            sePheno = se(phenomean),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
+  summarise(meanPheno = mean(phenomean, na.rm = T),
+            sePheno = se(phenomean, na.rm = T),
+            meanEstResp = mean(estR, na.rm = T),
+            seEstResp = se(estR, na.rm = T),
+            meanDelta = mean(deltaPheno, na.rm = T),
+            seDelta = se(deltaPheno, na.rm = T),
+            meanDeltaEst = mean(devEstR, na.rm = T),
+            seDeltaEst = se(devEstR, na.rm = T)
   ) %>%
   ungroup() %>%
   group_by(model, nloci, sigma) %>%
@@ -532,7 +534,7 @@ plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"),
   facet_grid(nloci~sigma) +
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
   geom_line() +
-  scale_y_continuous(limits = c(-0.15, 6)) +
+  scale_y_continuous(limits = c(0.5, 4)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
   labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
@@ -541,14 +543,15 @@ plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"),
         legend.position = "bottom",
         panel.spacing = unit(1, "lines"),
         strip.background.y = element_blank(),
-        strip.text.y = element_blank())
+        strip.text.y = element_blank(),
+        plot.margin = margin(5.5, 12, 5.5, 5.5))
 
 plt_resp_NAR <- ggplot(d_resp %>% filter(model == "NAR"), 
                        aes(x = gen, y = phenoValue, colour = phenoType)) +
   facet_grid(nloci~sigma) +
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
   geom_line() +
-  scale_y_continuous(limits = c(-0.15, 6), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+  scale_y_continuous(limits = c(0.5, 4), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +

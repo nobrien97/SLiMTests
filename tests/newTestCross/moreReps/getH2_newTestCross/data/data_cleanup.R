@@ -1,4 +1,3 @@
-
 library(tidyverse)
 
 se <- function(x, na.rm = F) {
@@ -84,7 +83,7 @@ d_phenos <- d_phenos %>%
          beta = calcBeta(S, mean(phenotype), opt))
 
 d_h2 <- full_join(d_h2, d_phenos, by = c("gen", "seed", "modelindex"))
-d_h2$estR <- (d_h2$H2.A.Estimate * d_h2$beta) * TIME_BETWEEN_SAMPLES
+d_h2$estR <- (d_h2$VarA * d_h2$beta) * TIME_BETWEEN_SAMPLES
 
 d_h2 <- d_h2 %>%
   filter(!is.na(AIC)) %>%
