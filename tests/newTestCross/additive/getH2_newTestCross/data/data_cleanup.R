@@ -99,6 +99,7 @@ nrow(d_combined_after)
 nrow(d_combined_full)
 data.table::fwrite(d_combined_after, paste0(path, "getH2_newTestCross/data/d_combined_after.csv"))
 saveRDS(d_combined_after, paste0(path, "getH2_newTestCross/data/d_combined_after.RDS"))
+d_combined_after_add <- readRDS(paste0(path, "getH2_newTestCross/data/d_combined_after.RDS"))
 
 if (!exists("d_combined_after"))
   d_combined_after <- read_csv(paste0(path, "getH2_newTestCross/data/d_combined_after.csv"))

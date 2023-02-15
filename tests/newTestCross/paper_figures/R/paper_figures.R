@@ -21,7 +21,7 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
 # Pheno time add/net
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
-d_com %>% filter(phenomean < 10, abs(estR) < 5) -> d_com
+d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR)) -> d_com
 
 # Some simulations ended up with populations accumulating massive alpha 
 # values/really small beta values which are difficult to overcome
@@ -88,7 +88,7 @@ library(gganimate)
 library(transformr)
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
 
-d_com %>% filter(phenomean < 10, abs(estR) < 5) -> d_com
+d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR)) -> d_com
 # Split the data set into a list of groups - each is a collection of allele frequencies
 d_com %>%
   mutate(Freq_bin = cut(Freq,
@@ -134,7 +134,7 @@ plt_freqs
 plt_freqs <- plt_freqs + transition_states(gen) +
   labs(title = "Generation: {closest_state}")
 
-animate(plt_freqs, nframes = 40, duration = 20, width = 720, height = 720, renderer = av_renderer())
+animate(plt_freqs, nframes = 40, duration = 20, width = 720, height = 720, renderer = ffmpeg_renderer())
 anim_save("freq_sfs.mp4", last_animation())
 
 # Plot just the last generation
@@ -144,8 +144,8 @@ plt_freqs <- ggplot(d_freqs %>% filter(gen == 1950),
   geom_line() +
   scale_fill_manual(values = cc_ibm[c(1, 3)], guide = "none") +
   scale_color_manual(values = cc_ibm[c(1, 3)]) +
-  geom_ribbon(aes(ymin = (meanFreqBinCount - seFreqBinCount), ymax = (meanFreqBinCount + seFreqBinCount), 
-                  fill = model), color = NA, alpha = 0.2) +
+  geom_errorbar(aes(ymin = (meanFreqBinCount - seFreqBinCount), ymax = (meanFreqBinCount + seFreqBinCount), 
+                    color = model)) +
   scale_y_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                                            breaks = NULL, labels = NULL)) +
   scale_x_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
@@ -170,8 +170,21 @@ d_com %>% filter(model == "NAR", gen == 51950, Freq == 1) %>%
   geom_histogram(bins = 100)
 
 d_com %>% filter(model == "Additive", gen == 51950) %>%
-  ggplot(aes(x = value)) + # Need to log twice because the value is exponentiated twice in this dataset... whoops
+  ggplot(aes(x = value)) +
   geom_histogram(bins = 50)
+
+
+# summary
+d_com %>% filter(gen == 51950) %>%
+  mutate(value = case_when(model == "NAR" ~ log(value),
+                           model == "Additive" ~ value)) %>%
+  group_by(model, molTrait, nloci, sigma) %>%
+  summarise(meanVal = mean(value),
+            seVal = se(value)) -> d_meanStats
+  
+# export table to latex
+library(stargazer)
+stargazer(as.data.frame(d_meanStats), summary = FALSE)
 
 # Split the data set into a list of groups - each is a collection of allelic effects
 MIN_VAL <- min(log(d_com[d_com$model == "NAR",]$value))
@@ -333,6 +346,7 @@ plt_meanVal_NAR_s1
 plt_meanVal_NAR <- plot_grid(plt_meanVal_NAR_s01 +
             theme(strip.background.y = element_blank(),
                   strip.text.y = element_blank(),
+                  plot.margin = margin(5.5, 12, 5.5, 5.5),
                   legend.position = "none"), 
           plt_meanVal_NAR_s1 + scale_y_continuous(
             sec.axis = sec_axis(~ ., name = "Number of QTLs", 
