@@ -139,3 +139,56 @@ plot(ggpredict(mod_gam), facets = T)
 pred_gam <- predict_gam(mod_gam)
 saveRDS(pred_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/pred_gam_freq.RDS")
 saveRDS(mod_gam, "/mnt/c/GitHub/SLiMTests/tests/newTestCross/paper_figures/R/mod_gam_freq.RDS")
+
+# Various stats
+## Comparing average additive variance
+d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
+d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR)) -> d_com
+
+# Average h2 
+d_com %>% filter(!is.na(AIC)) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  group_by(model) %>%
+  summarise(meanH2A = mean(H2.A.Estimate),
+            seH2A = se(H2.A.Estimate),
+            meanH2D = mean(H2.D.Estimate),
+            seH2D = se(H2.D.Estimate),
+            meanH2AA = mean(H2.AA.Estimate),
+            seH2AA = se(H2.AA.Estimate)) -> d_com_h2_table
+
+d_com %>% filter(!is.na(AIC)) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  group_by(model, nloci, sigma) %>%
+  summarise(meanH2A = mean(H2.A.Estimate),
+            seH2A = se(H2.A.Estimate),
+            meanH2D = mean(H2.D.Estimate),
+            seH2D = se(H2.D.Estimate),
+            meanH2AA = mean(H2.AA.Estimate),
+            seH2AA = se(H2.AA.Estimate)) -> d_com_h2_table
+
+stargazer(as.data.frame(d_com_h2_table), summary = F, rownames = F)
+
+# Mean deviation between observed and expected phenotypic response
+d_com %>% filter(abs(estR) < 5) %>%
+  filter(!(is.na(AIC) & gen >= 50000)) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  group_by(gen, model) %>%
+  mutate(expPheno = lag(phenomean, default = 0) + lag(estR, default = 0)) %>%
+  mutate(devEstR = sqrt((expPheno - phenomean)^2)) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  summarise(meanDev = mean(devEstR),
+            seDev = se(devEstR)) -> d_com_resp_dev_table
+
+d_com %>% filter(abs(estR) < 5) %>%
+  filter(!(is.na(AIC) & gen >= 50000)) %>%
+  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  group_by(gen, model, nloci, sigma) %>%
+  mutate(expPheno = lag(phenomean, default = 0) + lag(estR, default = 0)) %>%
+  mutate(devEstR = sqrt((expPheno - phenomean)^2)) %>%
+  ungroup() %>%
+  group_by(model, nloci, sigma) %>%
+  summarise(meanDev = mean(devEstR),
+            seDev = se(devEstR)) -> d_com_resp_dev_table
+
+stargazer(as.data.frame(d_com_resp_dev_table), summary = F, rownames = F)

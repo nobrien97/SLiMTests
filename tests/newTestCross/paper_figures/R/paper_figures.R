@@ -313,6 +313,9 @@ d_com %>%
             meanFreq = mean(Freq),
             seFreq = se(Freq)) -> d_meanfreq_NAR
 
+# Summary
+View(d_meanfreq_NAR %>% filter(gen == 0 | gen == 100, nloci == 10, sigma == 0.1))
+
 
 plt_meanVal_NAR_s01 <- ggplot(d_meanfreq_NAR %>% filter(sigma == 0.1), 
                       aes(x = gen, y = meanValue, color = molTrait)) +
@@ -523,32 +526,37 @@ plt_h2
 d_resp <- d_com %>%
   distinct(gen, seed, modelindex, .keep_all = T) %>%
   filter(!(is.na(AIC) & gen >= 50000)) %>%
+  group_by(gen, seed, model, nloci, sigma) %>%
+  mutate(expPheno = lag(phenomean, default = 0) + lag(estR, default = 0)) %>%
+  ungroup() %>%
   group_by(gen, model, nloci, sigma) %>%
   summarise(meanPheno = mean(phenomean, na.rm = T),
             sePheno = se(phenomean, na.rm = T),
-            meanEstResp = mean(estR, na.rm = T),
-            seEstResp = se(estR, na.rm = T),
-            meanDelta = mean(deltaPheno, na.rm = T),
-            seDelta = se(deltaPheno, na.rm = T),
-            meanDeltaEst = mean(devEstR, na.rm = T),
-            seDeltaEst = se(devEstR, na.rm = T)
+            seExpPheno = se(expPheno, na.rm = T),
+            expPheno = mean(expPheno, na.rm = T)
   ) %>%
+  mutate(expPheno = case_when(gen == 49500 ~ meanPheno,
+                              .default = expPheno)) %>%
   ungroup() %>%
   group_by(model, nloci, sigma) %>%
-  mutate(expPheno = lag(meanPheno) + meanEstResp,
-         errPheno = cumsum(meanDeltaEst)) %>%
   pivot_longer(c(meanPheno, expPheno), names_to = "phenoType", values_to = "phenoValue") %>%
   mutate(phenoType = recode_factor(phenoType,
                                    "expPheno" = "Estimated",
                                    "meanPheno" = "Observed"),
-         gen = gen - 50000)
+         gen = gen - 50000,
+         sePhenoValue = case_when(phenoType == "Estimated" ~ seExpPheno,
+                                  phenoType == "Observed" ~ sePheno)) %>%
+  ungroup()
 
 plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"), 
                    aes(x = gen, y = phenoValue, colour = phenoType)) +
   facet_grid(nloci~sigma) +
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  scale_fill_manual(values = c(cc_ibm[1], cc_ibm[4]), guide = "none") +
   geom_line() +
-  scale_y_continuous(limits = c(0.5, 4)) +
+  geom_ribbon(aes(ymin = phenoValue + sePhenoValue, ymax = phenoValue + sePhenoValue,
+                  fill = phenoType), color = NA, alpha = 0.2) +
+  scale_y_continuous() +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
   labs(x = "Generations after optimum shift", y = "Mean trait value", colour = "Trait value origin") +
@@ -564,8 +572,11 @@ plt_resp_NAR <- ggplot(d_resp %>% filter(model == "NAR"),
                        aes(x = gen, y = phenoValue, colour = phenoType)) +
   facet_grid(nloci~sigma) +
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
+  scale_fill_manual(values = c(cc_ibm[1], cc_ibm[4]), guide = "none") +
   geom_line() +
-  scale_y_continuous(limits = c(0.5, 4), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+  geom_ribbon(aes(ymin = phenoValue + sePhenoValue, ymax = phenoValue + sePhenoValue,
+              fill = phenoType), color = NA, alpha = 0.2) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
