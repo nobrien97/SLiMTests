@@ -21,22 +21,29 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
 # Pheno time add/net
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
-d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR)) -> d_com
-
 # Some simulations ended up with populations accumulating massive alpha 
 # values/really small beta values which are difficult to overcome
 # in this case there is unlikely to be any phenotypic variance, meaning
 # no h2 estimate. This was extremely common in the sigma = 0.1, nloci = 1000 case
 # to the point where it masked the response of the cases where this didn't happen
+d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR),
+                 !(is.na(AIC) & gen >= 50000),
+                 aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+                 KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)) -> d_com
+
+# Filter out crazy variances
+d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
+       (VarD >= 0 & VarD < 10) | is.na(VarD),
+       (VarAA >= 0 & VarAA < 10) | is.na(VarAA),
+       (VarR >= 0) | is.na(VarR)) -> d_com
+
 d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
   distinct(gen, seed, modelindex, .keep_all = T) %>%
-  filter(aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
-         KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)
-         ) %>% 
   summarise(He = mean(meanH),
             seHe = se(meanH),
             meanPheno = mean(phenomean),
             sePheno = se(phenomean),
+            ci95Pheno = qnorm(0.975)*sePheno,
             meanDist = mean(dist),
             seDist = se(dist))
 
@@ -51,7 +58,7 @@ pheno_time <- ggplot(d_qg_sum %>% mutate(gen = gen - 50000),
                                          breaks = NULL, labels = NULL)) +
   scale_fill_manual(values = cc_ibm[c(1,3)], guide = "none") +
   scale_colour_manual(values = cc_ibm[c(1,3)]) +
-  geom_ribbon(aes(ymin = (meanPheno - sePheno), ymax = (meanPheno + sePheno), 
+  geom_ribbon(aes(ymin = (meanPheno - ci95Pheno), ymax = (meanPheno + ci95Pheno), 
                   fill = model), color = NA, alpha = 0.2) +
   labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", color = "Model") +
   theme_bw() +
@@ -86,9 +93,6 @@ ggsave("pheno_GAM.png", width = 8, height = 6, bg = "white")
 # SFS: Calculate the mean allele frequency over time: means per frequency bin
 library(gganimate)
 library(transformr)
-d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
-
-d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR)) -> d_com
 # Split the data set into a list of groups - each is a collection of allele frequencies
 d_com %>%
   mutate(Freq_bin = cut(Freq,
@@ -106,7 +110,8 @@ saveRDS(d_freqs, "d_freqs.RDS")
 d_freqs %>%
   group_by(gen, model, nloci, sigma, Freq_bin) %>%
   summarise(meanFreqBinCount = mean(freqBinCount),
-            seFreqBinCount = se(freqBinCount)) %>%
+            seFreqBinCount = se(freqBinCount),
+            ci95FreqBinCount = qnorm(0.975)*seFreqBinCount) %>%
   ungroup() %>%
   complete(gen, model, nloci, sigma, Freq_bin, 
            fill = list(meanFreqBinCount = 0)) %>%
@@ -117,9 +122,10 @@ plt_freqs <- ggplot(d_freqs %>% filter(gen < 2000),
        aes(x = Freq, y = meanFreqBinCount, color = model)) +
   facet_grid(nloci~sigma) +
   geom_line() +
+  geom_errorbar(aes(ymin = (meanFreqBinCount - ci95FreqBinCount), ymax = (meanFreqBinCount + ci95FreqBinCount), 
+                    color = model)) +
   scale_fill_manual(values = cc_ibm[c(1, 3)], guide = "none") +
   scale_color_manual(values = cc_ibm[c(1, 3)]) +
-  
   scale_y_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
@@ -144,7 +150,7 @@ plt_freqs <- ggplot(d_freqs %>% filter(gen == 1950),
   geom_line() +
   scale_fill_manual(values = cc_ibm[c(1, 3)], guide = "none") +
   scale_color_manual(values = cc_ibm[c(1, 3)]) +
-  geom_errorbar(aes(ymin = (meanFreqBinCount - seFreqBinCount), ymax = (meanFreqBinCount + seFreqBinCount), 
+  geom_errorbar(aes(ymin = (meanFreqBinCount - ci95FreqBinCount), ymax = (meanFreqBinCount + ci95FreqBinCount), 
                     color = model)) +
   scale_y_continuous(limits = c(0, 1), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                                            breaks = NULL, labels = NULL)) +
@@ -180,11 +186,12 @@ d_com %>% filter(gen == 51950) %>%
                            model == "Additive" ~ value)) %>%
   group_by(model, molTrait, nloci, sigma) %>%
   summarise(meanVal = mean(value),
-            seVal = se(value)) -> d_meanStats
+            seVal = se(value),
+            ci95Val = qnorm(0.975)*seVal) -> d_meanStats
   
 # export table to latex
 library(stargazer)
-stargazer(as.data.frame(d_meanStats), summary = FALSE)
+stargazer(as.data.frame(d_meanStats), summary = FALSE, rownames = F)
 
 # Split the data set into a list of groups - each is a collection of allelic effects
 MIN_VAL <- min(log(d_com[d_com$model == "NAR",]$value))
@@ -215,6 +222,7 @@ d_values_NAR %>%
   group_by(gen, molTrait, nloci, sigma, val_bin) %>%
   summarise(meanValBinCount = mean(valBinCount),
             seValBinCount = se(valBinCount),
+            ci95ValBinCount = qnorm(0.975)*seValBinCount,
             value = mean(VALUE_BIN_SEQ[as.numeric(val_bin)])) %>%
   ungroup() %>%
   mutate(gen = as.integer(gen - 50000)) -> d_values_NAR
@@ -233,7 +241,7 @@ plt_val_NAR <- ggplot(d_values_NAR %>% filter(gen == 1950),
   geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
   scale_fill_manual(values = cc_ibm, guide = "none") +
-  geom_ribbon(aes(ymin = (meanValBinCount - seValBinCount), ymax = (meanValBinCount + seValBinCount), 
+  geom_ribbon(aes(ymin = (meanValBinCount - ci95ValBinCount), ymax = (meanValBinCount + ci95ValBinCount), 
                   fill = molTrait), color = NA, alpha = 0.2) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                                            breaks = NULL, labels = NULL)) +
@@ -274,6 +282,7 @@ d_values_add %>%
   group_by(gen, nloci, sigma, val_bin) %>%
   summarise(meanValBinCount = mean(valBinCount),
             seValBinCount = se(valBinCount),
+            ci95ValBinCount = qnorm(0.975)*se(valBinCount),
             value = mean(VALUE_BIN_SEQ[as.numeric(val_bin)])) %>%
   ungroup() %>%
   mutate(gen = as.integer(gen - 50000)) -> d_values_add
@@ -310,8 +319,10 @@ d_com %>%
   group_by(gen, molTrait, nloci, sigma) %>%
   summarise(meanValue = mean(value),
             seValue = se(value),
+            ci95Value = qnorm(0.975)*seValue,
             meanFreq = mean(Freq),
-            seFreq = se(Freq)) -> d_meanfreq_NAR
+            seFreq = se(Freq),
+            ci95Freq = qnorm(0.975)*seFreq) -> d_meanfreq_NAR
 
 # Summary
 View(d_meanfreq_NAR %>% filter(gen == 0 | gen == 100, nloci == 10, sigma == 0.1))
@@ -323,7 +334,7 @@ plt_meanVal_NAR_s01 <- ggplot(d_meanfreq_NAR %>% filter(sigma == 0.1),
   geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
   scale_fill_manual(values = cc_ibm, guide = "none") +
-  geom_ribbon(aes(ymin = (meanValue - seValue), ymax = (meanValue + seValue), 
+  geom_ribbon(aes(ymin = (meanValue - ci95Value), ymax = (meanValue + ci95Value), 
                   fill = molTrait), color = NA, alpha = 0.2) +
   labs(x = NULL, y = "Mean mutational effect", color = "Molecular trait") +
   theme_bw() +
@@ -339,7 +350,7 @@ plt_meanVal_NAR_s1 <- ggplot(d_meanfreq_NAR %>% filter(sigma == 1),
   geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
   scale_fill_manual(values = cc_ibm, guide = "none") +
-  geom_ribbon(aes(ymin = (meanValue - seValue), ymax = (meanValue + seValue), 
+  geom_ribbon(aes(ymin = (meanValue - ci95Value), ymax = (meanValue + ci95Value), 
                   fill = molTrait), color = NA, alpha = 0.2) +
   labs(x = NULL, y = "Mean mutational effect", color = "Molecular trait") +
   theme_bw() +
@@ -376,14 +387,16 @@ d_com %>%
   group_by(gen, nloci, sigma) %>%
   summarise(meanValue = mean(value),
             seValue = se(value),
+            ci95Value = qnorm(0.975)*seValue,
             meanFreq = mean(Freq),
-            seFreq = se(Freq)) -> d_meanfreq_add
+            seFreq = se(Freq),
+            ci95Freq = qnorm(0.975)*seFreq) -> d_meanfreq_add
 
 plt_meanVal_add <- ggplot(d_meanfreq_add, 
                               aes(x = gen, y = meanValue)) +
   facet_grid(nloci~sigma) +
   geom_line() +
-  geom_ribbon(aes(ymin = (meanValue - seValue), ymax = (meanValue + seValue)), 
+  geom_ribbon(aes(ymin = (meanValue - ci95Value), ymax = (meanValue + ci95Value)), 
               color = NA, alpha = 0.2) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                                               breaks = NULL, labels = NULL)) +
@@ -410,7 +423,7 @@ plt_meanFreq_NAR <- ggplot(d_meanfreq_NAR,
   geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
   scale_fill_manual(values = cc_ibm, guide = "none") +
-  geom_ribbon(aes(ymin = (meanFreq - seFreq), ymax = (meanFreq + seFreq), 
+  geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq), 
                   fill = molTrait), color = NA, alpha = 0.2) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -425,7 +438,7 @@ plt_meanFreq_add <- ggplot(d_meanfreq_add,
                            aes(x = gen, y = meanFreq)) +
   facet_grid(nloci~sigma) +
   geom_line() +
-  geom_ribbon(aes(ymin = (meanFreq - seFreq), ymax = (meanFreq + seFreq)), 
+  geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq)), 
               color = NA, alpha = 0.2) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -450,12 +463,6 @@ ggsave("meanFreq.png", plt_meanFreq, width = 7, height = 10, bg = "white")
 d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
   drop_na(AIC) %>%
   distinct(gen, seed, modelindex, .keep_all = T) %>%
-  filter(aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
-         KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)
-  ) %>% 
-  filter(VarA >= 0, VarA < 10,
-         VarD >= 0, VarAA >= 0,
-         VarR > 0, sum(VarA, VarD, VarAA, VarR) > 0) %>%
   mutate(gen = gen - 50000) %>%
   summarise(He = mean(meanH),
             seHe = se(meanH),
@@ -465,18 +472,25 @@ d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
             seDist = se(dist),
             meanH2A = mean(H2.A.Estimate),
             seH2A = se(H2.A.Estimate),
+            ci95H2A = qnorm(0.975)*seH2A,
             meanH2D = mean(H2.D.Estimate), 
             seH2D = se(H2.D.Estimate),
+            ci95H2D = qnorm(0.975)*seH2D,
             meanH2AA = mean(H2.AA.Estimate),
-            seH2AA = se(H2.AA.Estimate))
+            seH2AA = se(H2.AA.Estimate),
+            ci95H2AA = qnorm(0.975)*seH2AA) %>%
+  pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
+               names_to = "varComp", values_to = "prop") %>%
+  mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA")),
+         propCI95 = case_when(varComp == "meanH2A" ~ ci95H2A,
+                              varComp == "meanH2D" ~ ci95H2D,
+                              varComp == "meanH2AA" ~ ci95H2AA))
 
 # stacked percent bar chart
-plt_h2_add <- ggplot(d_qg_sum %>% filter(model == "Additive") %>%
-                          pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
-                                       names_to = "varComp", values_to = "prop") %>%
-                          mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
+plt_h2_add <- ggplot(d_qg_sum %>% filter(model == "Additive"),
                         aes(x = gen, y = prop, fill = varComp)) +
   scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
+  scale_color_viridis_d(guide = "none") +
   scale_y_continuous(labels = scales::percent) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
@@ -489,10 +503,7 @@ plt_h2_add <- ggplot(d_qg_sum %>% filter(model == "Additive") %>%
         strip.background.y = element_blank(),
         strip.text.y = element_blank())
 
-plt_h2_NAR <- ggplot(d_qg_sum %>% filter(model == "NAR") %>%
-                       pivot_longer(cols = c(meanH2A, meanH2D, meanH2AA),
-                                    names_to = "varComp", values_to = "prop") %>%
-                       mutate(varComp = factor(varComp, c("meanH2A", "meanH2D", "meanH2AA"))), 
+plt_h2_NAR <- ggplot(d_qg_sum %>% filter(model == "NAR"),
                      aes(x = gen, y = prop, fill = varComp)) +
   scale_fill_viridis_d(labels = c("Additive", "Dominant", "Epistatic (AxA)")) +
   scale_y_continuous(labels = scales::percent, 
@@ -525,15 +536,16 @@ plt_h2
 # Predicted responses
 d_resp <- d_com %>%
   distinct(gen, seed, modelindex, .keep_all = T) %>%
-  filter(!(is.na(AIC) & gen >= 50000)) %>%
-  group_by(gen, seed, model, nloci, sigma) %>%
+  group_by(gen, model, nloci, sigma) %>%
   mutate(expPheno = lag(phenomean, default = 0) + lag(estR, default = 0)) %>%
   ungroup() %>%
   group_by(gen, model, nloci, sigma) %>%
-  summarise(meanPheno = mean(phenomean, na.rm = T),
-            sePheno = se(phenomean, na.rm = T),
-            seExpPheno = se(expPheno, na.rm = T),
-            expPheno = mean(expPheno, na.rm = T)
+  summarise(meanPheno = mean(phenomean),
+            sePheno = se(phenomean),
+            ci95Pheno = qnorm(0.975)*sePheno,
+            seExpPheno = se(expPheno),
+            ci95ExpPheno = qnorm(0.975)*seExpPheno,
+            expPheno = mean(expPheno)
   ) %>%
   mutate(expPheno = case_when(gen == 49500 ~ meanPheno,
                               .default = expPheno)) %>%
@@ -545,7 +557,9 @@ d_resp <- d_com %>%
                                    "meanPheno" = "Observed"),
          gen = gen - 50000,
          sePhenoValue = case_when(phenoType == "Estimated" ~ seExpPheno,
-                                  phenoType == "Observed" ~ sePheno)) %>%
+                                  phenoType == "Observed" ~ sePheno),
+         ci95PhenoValue = case_when(phenoType == "Estimated" ~ ci95ExpPheno,
+                                  phenoType == "Observed" ~ ci95Pheno)) %>%
   ungroup()
 
 plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"), 
@@ -554,8 +568,9 @@ plt_resp_add <- ggplot(d_resp %>% filter(model == "Additive"),
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
   scale_fill_manual(values = c(cc_ibm[1], cc_ibm[4]), guide = "none") +
   geom_line() +
-  geom_ribbon(aes(ymin = phenoValue + sePhenoValue, ymax = phenoValue + sePhenoValue,
+  geom_ribbon(aes(ymin = phenoValue - ci95PhenoValue, ymax = phenoValue + ci95PhenoValue,
                   fill = phenoType), color = NA, alpha = 0.2) +
+  coord_cartesian(ylim = c(-0.1, 3.5)) +
   scale_y_continuous() +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
@@ -574,8 +589,9 @@ plt_resp_NAR <- ggplot(d_resp %>% filter(model == "NAR"),
   scale_colour_manual(values = c(cc_ibm[1], cc_ibm[4])) +
   scale_fill_manual(values = c(cc_ibm[1], cc_ibm[4]), guide = "none") +
   geom_line() +
-  geom_ribbon(aes(ymin = phenoValue + sePhenoValue, ymax = phenoValue + sePhenoValue,
-              fill = phenoType), color = NA, alpha = 0.2) +
+  geom_ribbon(aes(ymin = phenoValue - ci95PhenoValue, ymax = phenoValue + ci95PhenoValue,
+              fill = phenoType), colour = NA, alpha = 0.2) +
+  coord_cartesian(ylim = c(-0.1, 3.5)) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
