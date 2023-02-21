@@ -425,7 +425,8 @@ plt_meanFreq_NAR <- ggplot(d_meanfreq_NAR,
   scale_fill_manual(values = cc_ibm, guide = "none") +
   geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq), 
                   fill = molTrait), color = NA, alpha = 0.2) +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+  scale_y_continuous(limits = c(-0.2398877, 1.0654877), 
+                     sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
@@ -440,7 +441,7 @@ plt_meanFreq_add <- ggplot(d_meanfreq_add,
   geom_line() +
   geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq)), 
               color = NA, alpha = 0.2) +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+  scale_y_continuous(limits = c(-0.2398877, 1.0654877), sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
@@ -624,3 +625,92 @@ plt_h2_resp <- plot_grid(plt_h2,
 plt_h2_resp
 ggsave("h2_resp.png", plt_h2_resp, width = 16, height = 16, bg = "white")
 
+# Allele age?
+
+# https://stackoverflow.com/a/24241954
+scientific_label <- function(l) {
+  # turn in to character string in scientific notation
+  l <- format(l, scientific = TRUE)
+  l <- gsub("0e\\+00", "0", l)
+  # quote the part before the exponent to keep all the digits
+  l <- gsub("^(.*)e", "'\\1'e", l)
+  # turn the 'e+' into plotmath format
+  l <- gsub("e", "%*%10^", l)
+  
+  # return this as an expression
+  parse(text=l)
+}
+
+
+d_com %>% 
+  filter(model == "NAR") %>%
+  group_by(gen, molTrait, nloci, sigma) %>%
+  mutate(alleleAge = gen - originGen,
+         gen = gen - 50000) %>%
+  summarise(meanAge = mean(alleleAge),
+            ci95Age = qnorm(0.975) * se(alleleAge)) -> d_age_NAR
+
+plt_age_NAR <- ggplot(d_age_NAR, aes(x = gen, y = meanAge, colour = molTrait)) +
+  facet_grid(nloci~sigma) +
+  scale_color_manual(values = cc_ibm, labels = mutType_names) +
+  scale_fill_manual(values = cc_ibm, guide = "none") +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanAge - ci95Age, ymax = meanAge + ci95Age,
+                  fill = molTrait), colour = NA, alpha = 0.2) +
+  scale_y_continuous(limits = c(-9609.96, 46877.33), labels = scientific_label,
+    sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations after optimum shift", y = "Mean allele age", colour = "Molecular trait") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+  
+
+d_com %>% 
+  filter(model == "Additive") %>%
+  group_by(gen, nloci, sigma) %>%
+  mutate(alleleAge = gen - originGen,
+         gen = gen - 50000) %>%
+  summarise(meanAge = mean(alleleAge),
+            ci95Age = qnorm(0.975) * se(alleleAge)) -> d_age_add
+
+plt_age_add <- ggplot(d_age_add, aes(x = gen, y = meanAge)) +
+  facet_grid(nloci~sigma) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanAge - ci95Age, ymax = meanAge + ci95Age), 
+              alpha = 0.2) +
+  scale_y_continuous(limits = c(-9609.96, 46877.33), labels = scientific_label,
+                     sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations after optimum shift", y = "Mean allele age") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+plt_age_add
+
+
+plt_age <- plot_grid(plt_age_add, plt_age_NAR, ncol = 1, labels = "AUTO")
+plt_age
+
+ggsave("meanAlleleAge.png", plt_age, width = 8, height = 10)
+
+
+# Eigenvector of molecular traits
+library(ggfortify)
+
+d_com %>%
+  filter(model == "NAR", gen == 51950, nloci == 100, sigma == 1) -> d_test
+
+d_test %>%
+  select(aZ, bZ, KZ, KXZ) %>%
+  prcomp(., scale = T) -> pca_test
+
+d_test %>%
+  pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "moltrait_name", values_to = "moltrait_value") %>%
+  autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse(colour = moltrait_name)

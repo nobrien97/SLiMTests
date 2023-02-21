@@ -129,11 +129,12 @@ d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
 # Using GAMs to fit out phenotype-time model
 # u_z ~ gen + nloci + locisigma + c
 d_qg_sbst <- d_com %>% filter(gen >= 49500)  %>%
-  mutate(nloci = as.numeric(nloci),
-         sigma = as.numeric(nloci)) %>%
   distinct(gen, seed, modelindex, .keep_all = T)
 
-
+# Check autocorrelation
+d_qg_sbst %>% group_by(gen, seed, nloci, sigma) %>% 
+  summarise(meanPheno = mean(phenomean)) %>% 
+  ACF(meanPheno) %>% autoplot()
 
 mod_gam <- gam(phenomean ~ s(gen, k = 20) + nloci * sigma * model, 
                data = d_qg_sbst, family = scat, method = "REML")
