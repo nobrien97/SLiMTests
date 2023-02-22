@@ -6,33 +6,126 @@ se <- function(x, na.rm = F) {
   
   return(sd(x)/sqrt(length(x)))
 }
-
-
-path <- "/mnt/d/SLiMTests/tests/newTestCross/"
+# Running on HPC for RAM reasons
+path <- "/g/data/ht96/nb9894/newTestCross/"
+setwd(path)
 
 # Read in data
-d_qg_old <- read_csv(paste0(path, "getH2_newTestCross/data/slim_qg.csv"), col_names = F)
-d_qg_new <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/slim_qg_new.csv"), col_names = F)
-d_h2_old <- read_csv(paste0(path, "getH2_newTestCross/data/out_h2.csv"), col_names = F)
-d_h2_new <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/out_h2_new.csv"), col_names = F)
 
-d_muts_old <- read_csv(paste0(path, "getH2_newTestCross/data/slim_muts.csv"), col_names = F)
-d_muts_new <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/slim_muts.csv"), col_names = F)  
+# combos
+d_combos_net_fixed <- read_delim("~/tests/newTestCross/R/combos.csv", delim = " ", col_names = F)
+names(d_combos_net_fixed) <- c("model", "nloci", "locisigma")
 
-d_qg <- rbind(d_qg_old, d_qg_new)
-d_h2 <- rbind(d_h2_old, d_h2_new)
-d_muts <- rbind(d_muts_old, d_muts_new)
+d_combos_net <- read_delim("~/tests/newTestCross/moreReps2/R/combos.csv", delim = " ", col_names = F)
+names(d_combos_net) <- c("nloci", "locisigma")
 
-rm(d_qg_old, d_qg_new, d_h2_old, d_h2_new, d_muts_new, d_muts_old)
 
-names(d_h2) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR",
+d_qg_old <- read_csv(paste0(path, "slim_qg.csv"), col_names = F)
+d_qg_new <- read_csv(paste0(path, "moreReps/slim_qg.csv"), col_names = F)
+names(d_qg_old) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
+                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
+names(d_qg_new) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
+                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
+# filter off any of the fixed molecular trait ones, since the newest dataset lacks those
+d_qg_old %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_qg_old
+
+
+d_qg_new %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_qg_new
+
+
+d_qg_newest <- read_csv(paste0(path, "moreReps2/slim_qg.csv"), col_names = F)
+names(d_qg_newest) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
+                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
+                  
+d_qg_newest %>% 
+  mutate(fixedEffect = -1,
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) -> d_qg_newest
+
+
+d_h2_old <- read_csv(paste0(path, "getH2_newTestCross/out_h2.csv"), col_names = F)
+d_h2_new <- read_csv(paste0(path, "moreReps/getH2_newTestCross/out_h2_new.csv"), col_names = F)
+names(d_h2_old) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR",
                   "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
                   "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
                   "H2.AA.SE", "H2.R.Estimate", "H2.R.SE", "AIC")
-names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
-                 "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
-names(d_muts) <- c("gen", "seed", "modelindex", "mutType", "mutID", "position", 
+names(d_h2_new) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR",
+                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
+                  "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
+                  "H2.AA.SE", "H2.R.Estimate", "H2.R.SE", "AIC")
+
+d_h2_old %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_h2_old
+
+
+d_h2_new %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_h2_new
+
+
+d_h2_newest <- read_csv(paste0(path, "moreReps2/getH2_newTestCross/out_h2.csv"), col_names = F)
+names(d_h2_newest) <- c("gen", "seed", "modelindex", "VarA", "VarD", "VarAA", "VarR",
+                  "VarA.SE", "VarD.SE", "VarAA.SE", "VarR.SE", "H2.A.Estimate", 
+                  "H2.A.SE", "H2.D.Estimate", "H2.D.SE", "H2.AA.Estimate", 
+                  "H2.AA.SE", "H2.R.Estimate", "H2.R.SE", "AIC")
+d_h2_newest %>% 
+  mutate(fixedEffect = -1,
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) -> d_h2_newest
+
+
+d_muts_old <- read_csv(paste0(path, "slim_muts.csv"), col_names = F)
+names(d_muts_old) <- c("gen", "seed", "modelindex", "mutType", "mutID", "position", 
+                   "constraint", "originGen", "value", "chi", "Freq", "mutCount", "fixGen")    
+d_muts_old %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_muts_old
+
+d_muts_new <- read_csv(paste0(path, "moreReps/slim_muts.csv"), col_names = F)  
+names(d_muts_new) <- c("gen", "seed", "modelindex", "mutType", "mutID", "position", 
                    "constraint", "originGen", "value", "chi", "Freq", "mutCount", "fixGen")                                                                                                                   
+
+d_muts_new %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_muts_new
+
+
+# Newest doesn't fix any molecular traits and has a different combos.csv
+d_muts_newest <- read_csv(paste0(path, "moreReps2/slim_muts.csv"), col_names = F)  
+names(d_muts_newest) <- c("gen", "seed", "modelindex", "mutType", "mutID", "position", 
+                   "constraint", "originGen", "value", "chi", "Freq", "mutCount", "fixGen")                                                                                                                   
+
+
+d_muts_newest %>% 
+  mutate(fixedEffect = -1,
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) -> d_muts_newest
+
+
+
+d_qg <- rbind(d_qg_old, d_qg_new, d_qg_newest)
+d_h2 <- rbind(d_h2_old, d_h2_new, d_h2_newest)
+d_muts <- rbind(d_muts_old, d_muts_new, d_muts_newest)
+
+rm(d_qg_old, d_qg_new, d_qg_newest, d_h2_old, d_h2_new, d_h2_newest, d_muts_new, d_muts_old, d_muts_newest)
+
 head(d_muts)
 head(d_qg)
 head(d_h2)
@@ -49,27 +142,51 @@ d_h2 <- d_h2 %>%
          modelindex = as_factor(modelindex))
 
 
+
+d_phenos_old <- read_csv(paste0(path, "slim_sampled_pheno.csv"), col_names = F)
+d_phenos_old %>% pivot_longer(cols = 4:ncol(d_phenos_old), names_to = NULL, values_to = "phenotype") -> d_phenos_old
+colnames(d_phenos_old) <- c("gen", "seed", "modelindex", "phenotype")
+
+d_phenos_old %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_phenos_old
+
+
+d_phenos_new <- read_csv(paste0(path, "moreReps/slim_sampled_pheno.csv"), col_names = F)
+d_phenos_new %>% pivot_longer(cols = 4:ncol(d_phenos_new), names_to = NULL, values_to = "phenotype") -> d_phenos_new
+colnames(d_phenos_new) <- c("gen", "seed", "modelindex", "phenotype")
+
+d_phenos_new %>% 
+  mutate(fixedEffect = d_combos_net_fixed$model[.$modelindex],
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) %>%
+  filter(fixedEffect == -1) -> d_phenos_new
+
+
+d_phenos_newest <- read_csv(paste0(path, "moreReps2/slim_sampled_pheno.csv"), col_names = F)
+d_phenos_newest %>% pivot_longer(cols = 4:ncol(d_phenos_newest), names_to = NULL, values_to = "phenotype") -> d_phenos_newest
+colnames(d_phenos_newest) <- c("gen", "seed", "modelindex", "phenotype")
+d_phenos_newest %>% 
+  mutate(fixedEffect = -1,
+         nloci = d_combos_net_fixed$nloci[.$modelindex] + 2,
+         sigma = d_combos_net_fixed$locisigma[.$modelindex]) -> d_phenos_newest
+
+
+d_phenos <- rbind(d_phenos_old, d_phenos_new, d_phenos_newest)
+rm(d_phenos_new, d_phenos_old, d_phenos_newest)
+
+d_phenos <- d_phenos %>%
+  mutate(modelindex = as_factor(modelindex),
+         seed = as_factor(seed))
+
 # Calculate selection gradients for R = B * VA
 # width here is w^2, so need to convert our 1/2w^2 to this format
 width_condensed <- 0.05
 width_sqrd <- 1/(width_condensed * 2)
 opt <- 2
 TIME_BETWEEN_SAMPLES <- 50 # 50 generations between each sample
-
-d_phenos_new <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/slim_sampled_pheno.csv"), col_names = F)
-d_phenos_old <- read_csv(paste0(path, "getH2_newTestCross/data/slim_sampled_pheno.csv"), col_names = F)
-d_phenos <- rbind(d_phenos_old, d_phenos_new)
-d_phenos <- d_phenos %>% pivot_longer(cols = 4:ncol(d_phenos), names_to = NULL, values_to = "phenotype")
-rm(d_phenos_new, d_phenos_old)
-
-colnames(d_phenos) <- c("gen", "seed", "modelindex", "phenotype")
-
-# d_phenos <- distinct(d_phenos, gen, seed, modelindex, .keep_all = T)
-
-d_phenos <- d_phenos %>%
-  mutate(modelindex = as_factor(modelindex),
-         seed = as_factor(seed))
-
 
 calcBeta <- function(S, mu, theta) {
   return(-S * (mu - theta))
@@ -78,16 +195,21 @@ calcBeta <- function(S, mu, theta) {
 # Use Morrissey and Goudie 2022 to predict beta
 
 d_phenos <- d_phenos %>%
-  group_by(gen, seed, modelindex) %>%
+  group_by(gen, seed, nloci, sigma) %>%
   summarise(S = 1/(width_sqrd + var(phenotype)),
          beta = calcBeta(S, mean(phenotype), opt))
 
-d_h2 <- full_join(d_h2, d_phenos, by = c("gen", "seed", "modelindex"))
+d_h2 <- full_join(d_h2, d_phenos, by = c("gen", "seed", "nloci", "sigma"))
 d_h2$estR <- (d_h2$VarA * d_h2$beta) * TIME_BETWEEN_SAMPLES
 
 d_h2 <- d_h2 %>%
   filter(!is.na(AIC)) %>%
   distinct(.keep_all = T)
+
+if (!dir.exists("./checkpoint"))
+{
+  dir.create("checkpoint")
+}
 
 saveRDS(d_h2, "./checkpoint/d_h2.RDS")
 saveRDS(d_muts, "./checkpoint/d_muts.RDS")
@@ -97,215 +219,81 @@ d_h2 <- readRDS("./checkpoint/d_h2.RDS")
 d_muts <- readRDS("./checkpoint/d_muts.RDS")
 d_qg <- readRDS("./checkpoint/d_qg.RDS")
 
-# Combine the data frames
-d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex"))
+# Combine the data frames, remove the unneeded variables
+d_h2 <- d_h2 %>% select(!c(fixedEffect, modelindex))
+d_muts <- d_muts %>% select(!c(fixedEffect, modelindex))
+d_qg <- d_qg %>% select(!c(fixedEffect, modelindex))
+
+d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "nloci", "sigma"))
 rm(d_muts, d_qg)
-d_combined <- full_join(d_combined, d_h2, by = c("gen", "seed", "modelindex"))
+d_combined <- full_join(d_combined, d_h2, by = c("gen", "seed", "nloci", "sigma"))
 rm(d_h2)
-
-saveRDS(d_combined, "./checkpoint/d_combined.RDS")
-
-d_combined <- readRDS("./checkpoint/d_combined.RDS")
-
 # Deviation of observed R to estimated R
 d_combined$devEstR <- d_combined$deltaPheno - d_combined$estR
 
+saveRDS(d_combined, paste0(path, "moreReps2/d_combined.RDS"))
 
-# View the combined data and write to file
-head(d_combined) 
-colnames(d_combined)
-d_combined[1,] %>% as_tibble() %>% print(width=Inf)
-d_combined[800000,] %>% as_tibble() %>% print(width=Inf)
-data.table::fwrite(d_combined, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_full.csv"))
+d_combined <- readRDS("./checkpoint/d_combined.RDS")
+
+
 
 # Write only the data after burn-in
-d_combined_after <- d_combined %>% filter(gen >= 49500)                                                                       
+d_combined_after <- d_combined %>% filter(gen >= 49500)
 nrow(d_combined_after)
-nrow(d_combined_full)
-data.table::fwrite(d_combined_after, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.csv"))
-saveRDS(d_combined_after, paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.RDS"))
+nrow(d_combined)
 
-d_combined_after <- read_csv(paste0(path, "moreReps/getH2_newTestCross/data/d_combined_after.csv"))
+rm(d_combined)
 
-combos <- read_delim("../../R/combos.csv", delim = " ", col_names = F)
-names(combos) <- c("model", "nloci", "locisigma")
+# d_combined_after <- read_csv(paste0(path, "moreReps2/getH2_newTestCross/data/d_combined_after.csv"))
 
-d_combined_after %>% mutate(fixedEffect = combos$model[.$modelindex],
-                nloci = combos$nloci[.$modelindex] + 2,
-                sigma = combos$locisigma[.$modelindex]) -> d_combined_after
+saveRDS(d_combined_after, paste0(path, "moreReps2/d_combined_after.RDS"))
+d_combined_after <- readRDS(paste0(path, "moreReps2/d_combined_after.RDS"))
 
+# Combine with additive
+path_add <- paste0(path, "additive/")
 
-# Write summary data for mean frequencies, effect sizes, and estimated responses to selection
-labs <- c("[0,0.25]", "(0.25, 0.5]", "(0.5,0.75]", "(0.75,1]")
-d_combined_after %>% mutate(h2A = cut(H2.A.Estimate, breaks = c(-Inf, 0.25, 0.5, 0.75, Inf), labels = labs, include.lowest = T, ordered_result = T),
-                            h2D = cut(H2.D.Estimate, breaks = c(-Inf, 0.25, 0.5, 0.75, Inf), labels = labs, include.lowest = T, ordered_result = T),
-                            h2AA = cut(H2.AA.Estimate, breaks = c(-Inf, 0.25, 0.5, 0.75, Inf), labels = labs, include.lowest = T, ordered_result = T),
-                            fixTime = fixGen - originGen) -> d_com_end_ctrl
+combos_add <- read_delim(paste0(path_add, "combos.csv"), delim = " ", col_names = F)
+names(combos_add) <- c("nloci", "locisigma")
 
 
-d_com_end_ctrl %>% mutate(nloci = combos$nloci[.$modelindex] + 2,
-                          sigma = combos$locisigma[.$modelindex],
-                          molTrait = recode_factor(mutType, `1`="Neutral", `2`="Del", `3`="\u03B1", `4`="\u03B2", `5`="KZ", `6`="KXZ")) -> d_com_end_ctrl
+d_com_add <- read_csv(paste0(path_add, "d_combined_after.csv"))
+d_com_add$model <- "Additive"
+d_combined_after$model <- "NAR"
+
+d_com_add %>% mutate(fixedEffect = -1,
+                    nloci = combos_add$nloci[.$modelindex],
+                    sigma = combos_add$locisigma[.$modelindex]) -> d_com_add
+
+d_com_add %>% select(-c(fixedEffect, modelindex)) -> d_com_add
+
+d_com_add <- d_com_add %>%
+  mutate(seed = as_factor(seed),
+         model = as_factor(model),
+         nloci = as_factor(nloci),
+         sigma = as_factor(sigma))
+
+d_combined_after <- d_combined_after %>%
+  mutate(seed = as_factor(seed),
+         model = as_factor(model),
+         nloci = as_factor(nloci),
+         sigma = as_factor(sigma))
 
 
-d_com_ctrl_h2A_sum <- d_com_end_ctrl %>%
-  select(-c(fixGen, fixTime)) %>%
-  drop_na() %>%
-  group_by(nloci, sigma, molTrait, h2A) %>%
-  summarise(meanFreq = mean(Freq),
-            seFreq = se(Freq),
-            meanFX = mean(value), 
-            seFX = se(value),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  )
+d_com <- bind_rows(d_combined_after, d_com_add)
+rm(d_combined_after, d_com_add)
 
-d_com_ctrl_h2D_sum <- d_com_end_ctrl %>%
-  select(-c(fixGen, fixTime)) %>%
-  drop_na() %>%
-  group_by(nloci, sigma, molTrait, h2D) %>%
-  summarise(meanFreq = mean(Freq),
-            seFreq = se(Freq),
-            meanFX = mean(value), 
-            seFX = se(value),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  )
+saveRDS(d_com, paste0(path, "d_com_add+net_after.RDS"))
 
-d_com_ctrl_h2AA_sum <- d_com_end_ctrl %>%
-  select(-c(fixGen, fixTime)) %>%
-  drop_na() %>%
-  group_by(nloci, sigma, molTrait, h2AA) %>%
-  summarise(meanFreq = mean(Freq),
-            seFreq = se(Freq),
-            meanFX = mean(value), 
-            seFX = se(value),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  )
+d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR),
+                 !(is.na(AIC) & gen >= 50000),
+                 aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+                 KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)) -> d_com
 
-# include stuff for molecular trait
+# Filter out crazy variances
+d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
+                 (VarD >= 0 & VarD < 10) | is.na(VarD),
+                 (VarAA >= 0 & VarAA < 10) | is.na(VarAA),
+                 (VarR >= 0) | is.na(VarR)) -> d_com
 
-# d_com_end_ctrl %>% pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "molTraitVal_name", 
-#                             values_to = "molTraitVal_value") -> d_com_end_ctrl_molTraitVal
+saveRDS(d_com, paste0(path, "d_com_add+net_after_prefiltered.RDS"))
 
-d_com_ctrl_sum <- d_com_end_ctrl %>%
-  select(-c(fixGen, fixTime)) %>%
-  drop_na() %>%
-  group_by(nloci, sigma, molTrait, h2A, h2D, h2AA) %>%
-  summarise(meanFreq = mean(Freq),
-            seFreq = se(Freq),
-            meanFX = mean(value), 
-            seFX = se(value),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  )
-
-# d_com_ctrl_molTraitVal_sum <- d_com_end_ctrl_molTraitVal %>%
-#   select(-c(fixGen, fixTime)) %>%
-#   drop_na() %>%
-#   group_by(nloci, sigma, molTraitVal_name, h2A, h2D, h2AA) %>%
-#   summarise(meanMolTraitVal = mean(molTraitVal_value),
-#             seMolTraitVal = se(molTraitVal_value)
-#   )
-# data.table::fwrite(d_com_ctrl_molTraitVal_sum, paste0(path, "moreReps/getH2_newTestCross/data/d_com_sum_molTraitVal.csv"))
-
-# Response to selection
-path <- "/mnt/d/SLiMTests/tests/newTestCross/"
-
-d_com_resp_h2A <- d_com_end_ctrl %>%
-  mutate(h2A = fct_collapse(h2A,
-               `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
-               `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
-  select(-c(fixGen, fixTime)) %>%
-  filter(phenomean < 10, fixedEffect == -1) %>%
-  drop_na() %>%
-  group_by(gen, nloci, h2A) %>%
-  summarise(meanPheno = mean(phenomean),
-            sePheno = se(phenomean),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  ) %>%
-  ungroup() %>%
-  group_by(nloci, h2A) %>%
-  mutate(expPheno = lag(meanPheno) + meanEstResp,
-         errPheno = cumsum(meanDeltaEst))
-
-data.table::fwrite(d_com_resp_h2A, paste0(path, "moreReps/getH2_newTestCross/data/d_com_resp_h2A.csv"))
-
-d_com_resp_h2D <- d_com_end_ctrl %>%
-  mutate(h2D = fct_collapse(h2D,
-                            `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
-                            `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
-  select(-c(fixGen, fixTime)) %>%
-  filter(phenomean < 10, fixedEffect == -1) %>%
-  drop_na() %>%
-  group_by(gen, nloci, h2D) %>%
-  summarise(meanPheno = mean(phenomean),
-            sePheno = se(phenomean),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  ) %>%
-  ungroup() %>%
-  group_by(nloci, h2D) %>%
-  mutate(expPheno = lag(meanPheno) + meanEstResp,
-         errPheno = cumsum(meanDeltaEst))
-
-data.table::fwrite(d_com_resp_h2D, paste0(path, "moreReps/getH2_newTestCross/data/d_com_resp_h2D.csv"))
-
-d_com_resp_h2AA <- d_com_end_ctrl %>%
-  mutate(h2AA = fct_collapse(h2AA,
-                            `≤0.5` = c("[0,0.25]", "(0.25, 0.5]"),
-                            `>0.5` = c("(0.5,0.75]", "(0.75,1]"))) %>%
-  select(-c(fixGen, fixTime)) %>%
-  filter(phenomean < 10, fixedEffect == -1) %>%
-  drop_na() %>%
-  group_by(gen, nloci, h2AA) %>%
-  summarise(meanPheno = mean(phenomean),
-            sePheno = se(phenomean),
-            meanEstResp = mean(estR),
-            seEstResp = se(estR),
-            meanDelta = mean(deltaPheno),
-            seDelta = se(deltaPheno),
-            meanDeltaEst = mean(devEstR),
-            seDeltaEst = se(devEstR)
-  ) %>%
-  ungroup() %>%
-  group_by(nloci, h2AA) %>%
-  mutate(expPheno = lag(meanPheno) + meanEstResp,
-         errPheno = cumsum(meanDeltaEst))
-
-data.table::fwrite(d_com_resp_h2AA, paste0(path, "moreReps/getH2_newTestCross/data/d_com_resp_h2AA.csv"))
-
-
-
-data.table::fwrite(d_com_ctrl_h2A_sum, paste0(path, "moreReps/getH2_newTestCross/data/d_com_sum_h2A.csv"))
-data.table::fwrite(d_com_ctrl_h2D_sum, paste0(path, "moreReps/getH2_newTestCross/data/d_com_sum_h2D.csv"))
-data.table::fwrite(d_com_ctrl_h2AA_sum, paste0(path, "moreReps/getH2_newTestCross/data/d_com_sum_h2AA.csv"))
-data.table::fwrite(d_com_ctrl_sum, paste0(path, "moreReps/getH2_newTestCross/data/d_com_sum.csv"))
-
-  
