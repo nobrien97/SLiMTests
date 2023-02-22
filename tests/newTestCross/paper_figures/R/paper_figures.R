@@ -20,7 +20,11 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
 
 # Pheno time add/net
-d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
+# d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
+# including moreReps2 data
+d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/moreReps2/getH2_newTestCross/data/d_com_add+net_after_prefiltered.RDS")
+
+
 # Some simulations ended up with populations accumulating massive alpha 
 # values/really small beta values which are difficult to overcome
 # in this case there is unlikely to be any phenotypic variance, meaning
@@ -38,7 +42,7 @@ d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
        (VarR >= 0) | is.na(VarR)) -> d_com
 
 d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
-  distinct(gen, seed, modelindex, .keep_all = T) %>%
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
   summarise(He = mean(meanH),
             seHe = se(meanH),
             meanPheno = mean(phenomean),
@@ -713,4 +717,4 @@ d_test %>%
 
 d_test %>%
   pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "moltrait_name", values_to = "moltrait_value") %>%
-  autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse(colour = moltrait_name)
+  autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse()
