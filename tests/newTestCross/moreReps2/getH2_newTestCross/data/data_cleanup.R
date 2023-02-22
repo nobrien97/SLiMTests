@@ -279,7 +279,7 @@ d_combined_after <- d_combined_after %>%
          sigma = as_factor(sigma))
 
 
-d_com <- bind_rows(d_combined_after, d_com_add)
+d_com <- bind_rows(d_com_add, d_combined_after)
 rm(d_combined_after, d_com_add)
 
 saveRDS(d_com, paste0(path, "d_com_add+net_after.RDS"))
