@@ -284,16 +284,88 @@ rm(d_combined_after, d_com_add)
 
 saveRDS(d_com, paste0(path, "d_com_add+net_after.RDS"))
 
-d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR),
-                 !(is.na(AIC) & gen >= 50000),
-                 aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
-                 KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)) -> d_com
+# Have a look at the data
+library(scattermore)
 
-# Filter out crazy variances
-d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
-                 (VarD >= 0 & VarD < 10) | is.na(VarD),
-                 (VarAA >= 0 & VarAA < 10) | is.na(VarAA),
-                 (VarR >= 0) | is.na(VarR)) -> d_com
+d_com %>%
+  group_by(model, nloci, sigma) %>%
+  drop_na(estR) %>%
+  summarise(meanR = mean(estR),
+          seR = se(estR),
+          medianR = median(estR),
+          IQRR = IQR(estR),
+          minR = min(estR),
+          maxR = max(estR)) -> d_range_estR
+
+# Drop the outliers using Mahalanobis distance - 
+# https://www.r-bloggers.com/2017/12/combined-outlier-detection-with-dplyr-and-ruler/
+library(robustbase)
+
+alpha <- .001
+cutoff <- (qchisq(p = 1 - alpha, df = 9))
+
+d_com_filtered <- d_com %>%
+  drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) 
+
+dist_dat <- d_com_filtered %>% 
+              select(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR)
+
+mcddat <- covMcd(dist_dat)
+
+d_com_filtered$md <- mahalanobis(dist_dat, mcddat$center, mcddat$cov)
+
+d_com_filtered %>% filter(md < cutoff) -> d_com_filtered
+
+# glue back on the gen == 49500 entries
+d_com %>% mutate(md = 0) -> d_com
+d_com_filtered <- rbind(d_com %>% filter(gen == 49500), d_com_filtered)
+
+saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
+
+ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
+
+ggsave("estR_MCD_dist.png", plt_dist, width = 10, height = 10)
+
+
+
+d_com %>%
+  drop_na(estR) %>%
+  filter(between(estR,
+          quantile(estR, 0.025), quantile(estR, 0.975))) -> d_com_top95
+
+d_com_top95 %>%
+  group_by(model, nloci, sigma) %>%
+  drop_na(estR) %>%
+  summarise(meanR = mean(estR),
+          seR = se(estR),
+          medianR = median(estR),
+          IQRR = IQR(estR),
+          minR = min(estR),
+          maxR = max(estR)) -> d_range_estR
+
+saveRDS(d_com_top95, "d_com_add+net_after_prefiltered.RDS")
+
+
+ggplot(d_com_top95, aes(x = nloci, y = estR, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
+
+ggsave("estR_dist.png", plt_dist, width = 10, height = 10)
+
+
+# Too much removed
+# d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR),
+#                  !(is.na(AIC) & gen >= 50000),
+#                  aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
+#                  KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)) -> d_com
+
+# # Filter out crazy variances
+# d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
+#                  (VarD >= 0 & VarD < 10) | is.na(VarD),
+#                  (VarAA >= 0 & VarAA < 10) | is.na(VarAA),
+#                  (VarR >= 0) | is.na(VarR)) -> d_com
 
 saveRDS(d_com, paste0(path, "d_com_add+net_after_prefiltered.RDS"))
 
