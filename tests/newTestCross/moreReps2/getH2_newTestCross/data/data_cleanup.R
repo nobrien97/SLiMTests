@@ -285,7 +285,7 @@ rm(d_combined_after, d_com_add)
 saveRDS(d_com, paste0(path, "d_com_add+net_after.RDS"))
 
 # Have a look at the data
-library(scattermore)
+d_com <- readRDS("d_com_add+net_after.RDS")
 
 d_com %>%
   group_by(model, nloci, sigma) %>%
@@ -305,16 +305,32 @@ alpha <- .001
 cutoff <- (qchisq(p = 1 - alpha, df = 9))
 
 d_com_filtered <- d_com %>%
-  drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) 
+  drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) %>%
+  filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1)
 
 dist_dat <- d_com_filtered %>% 
-              select(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR)
+              select(model, nloci, sigma, phenomean, estR)
 
-mcddat <- covMcd(dist_dat)
 
-d_com_filtered$md <- mahalanobis(dist_dat, mcddat$center, mcddat$cov)
+mcddat <- by(dist_dat, list(dist_dat$model, dist_dat$nloci, dist_dat$sigma), 
+          function(x)
+          {
+            y <- x %>% select(!c(model, nloci, sigma))
+            centerCov <- covMcd(y)
+            y_len <- nrow(y)
+            c(
+              model = rep(x$model, y_len),
+              nloci = rep(x$nloci, y_len),
+              sigma = rep(x$sigma, y_len),
+              md = mahalanobis(y, centerCov$center, centerCov$cov)
+            )
+          })
 
-d_com_filtered %>% filter(md < cutoff) -> d_com_filtered
+df_md <- do.call(rbind, mcddat)
+
+d_com_filtered_md <- inner_join(d_com_filtered, df_md, by = c("model", "nloci", "sigma"))
+
+d_com_filtered_md %>% filter(md < cutoff) -> d_com_filtered
 
 # glue back on the gen == 49500 entries
 d_com %>% mutate(md = 0) -> d_com
@@ -327,6 +343,50 @@ ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
   geom_boxplot() -> plt_dist
 
 ggsave("estR_MCD_dist.png", plt_dist, width = 10, height = 10)
+
+
+# IQR 1.5
+
+d_com_filtered <- d_com %>%
+  drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) %>%
+  filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1)
+
+d_com_filtered %>% filter(model == "Additive", sigma == 0.1, nloci == 10) %>%
+  mutate(IQR(estR)) -> test
+
+d_com_filtered %>%
+  group_by(model, sigma, nloci) %>%
+  mutate(IQRestR = IQR(estR),
+         IQRpheno = IQR(phenomean),
+         outlier_estR_upper = quantile(estR, probs=c( .75), na.rm = FALSE)+1.5*IQRestR,
+         outlier_estR_lower = quantile(estR, probs=c( .25), na.rm = FALSE)-1.5*IQRestR,
+         outlier_pheno_upper = quantile(phenomean, probs=c( .75), na.rm = FALSE)+1.5*IQRpheno,
+         outlier_pheno_lower = quantile(phenomean, probs=c( .25), na.rm = FALSE)-1.5*IQRpheno
+        ) %>%
+  filter(outlier_estR_lower <= estR & outlier_estR_upper > estR,
+         outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean) -> d_com_filtered
+
+ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
+
+ggsave("IQR_estR_dist.png", plt_dist, width = 10, height = 10)
+
+ggplot(d_com_filtered, aes(x = nloci, y = phenomean, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
+
+ggsave("IQR_pheno_dist.png", plt_dist, width = 10, height = 10)
+
+# Combine with end of burn-in and remove IQR values
+d_com_filtered <- rbind(d_com %>% filter(gen == 49500), d_com_filtered %>% select(!c(49:54)))
+
+# filter again to get rid of wacky phenomeans in gen == 49500
+d_com_filtered %>%
+  filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1,
+         phenomean < 5) -> d_com_filtered
+
+saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
 
 
 
