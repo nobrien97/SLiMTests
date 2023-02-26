@@ -8,7 +8,7 @@ SEED=$1
 MODELINDEX=$2
 FILENAME=${SEED}_${MODELINDEX}
 JOBNAME=newTestCross
-TESTDIR=$HOME/tests/$JOBNAME/moreReps2
+TESTDIR=$HOME/tests/$JOBNAME/equalK
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."
