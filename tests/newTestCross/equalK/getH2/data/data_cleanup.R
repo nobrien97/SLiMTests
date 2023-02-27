@@ -355,7 +355,7 @@ d_com_filtered %>% filter(model == "Additive", sigma == 0.1, nloci == 10) %>%
   mutate(IQR(estR)) -> test
 
 d_com_filtered %>%
-  group_by(seed, model, sigma, nloci) %>%
+  group_by(model, sigma, nloci) %>%
   mutate(IQRestR = IQR(estR),
          IQRpheno = IQR(phenomean),
          outlier_estR_upper = quantile(estR, probs=c( .75), na.rm = FALSE)+1.5*IQRestR,
@@ -363,8 +363,8 @@ d_com_filtered %>%
          outlier_pheno_upper = quantile(phenomean, probs=c( .75), na.rm = FALSE)+1.5*IQRpheno,
          outlier_pheno_lower = quantile(phenomean, probs=c( .25), na.rm = FALSE)-1.5*IQRpheno
         ) %>%
-  filter(any(outlier_estR_lower <= estR & outlier_estR_upper > estR),
-         any(outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean)) -> d_com_filtered
+  filter(outlier_estR_lower <= estR & outlier_estR_upper > estR,
+         outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean) -> d_com_filtered
 
 ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
   facet_grid(.~sigma) +
@@ -429,126 +429,3 @@ ggsave("estR_dist.png", plt_dist, width = 10, height = 10)
 
 saveRDS(d_com, paste0(path, "d_com_add+net_after_prefiltered.RDS"))
 
-
-
-
-# Sample some populations and track them, don't care about h2, need all the data. 
-# So we have to reprocess...
-
-# NAR
-d_muts <- readRDS("./checkpoint/d_muts.RDS")
-d_qg <- readRDS("./checkpoint/d_qg.RDS")
-
-# Combine the data frames, remove the unneeded variables
-d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "nloci", "sigma"))
-rm(d_muts, d_qg)
-d_com <- d_combined %>% filter(gen >= 49500)
-rm(d_combined)
-
-d_com <- d_combined %>% select(!c(fixedEffect, modelindex))
-d_com$model <- "NAR"
-
-# Additive
-path_add <- paste0(path, "additive/")
-# Read in data
-d_qg <- read_csv(paste0(path_add, "slim_qg.csv"), col_names = F)
-d_muts <- read_csv(paste0(path_add, "slim_muts.csv"), col_names = F)                                        
-names(d_qg) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
-                 "phenovar", "dist", "w", "deltaPheno", "deltaw")
-names(d_muts) <- c("gen", "seed", "modelindex", "mutType", "mutID", "position", 
-                   "constraint", "originGen", "value", "chi", "Freq", "mutCount", "fixGen")
-                                                                                                                   
-# Factorise seed and modelindex
-d_muts <- d_muts %>%
-  mutate(seed = as_factor(seed),
-         modelindex = as_factor(modelindex))
-d_qg <- d_qg %>%
-  mutate(seed = as_factor(seed),
-         modelindex = as_factor(modelindex))
-
-d_combined_add <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex"))
-rm(d_muts, d_qg)
-
-combos <- read_delim(paste0(path_add, "combos.csv"), delim = " ", col_names = F)
-names(combos) <- c("nloci", "locisigma")
-
-d_combined_add %>% mutate(
-                            nloci = combos$nloci[.$modelindex],
-                            sigma = combos$locisigma[.$modelindex]) -> d_combined_add
-d_combined_add <- d_combined_add %>% select(!modelindex) %>% filter(gen >= 49500)
-
-d_combined_add <- d_combined_add %>% mutate(aZ = NA, bZ = NA, KZ = NA, KXZ = NA, model = "Additive")
-
-d_com_both <- rbind(d_combined_add, d_com)
-
-# Remove outlier replicates - if they have an outlier at any point we need to remove the whole replicate 
-d_com_both %>%
-  group_by(seed, model, sigma, nloci) %>%
-  mutate(IQRpheno = IQR(phenomean),
-         outlier_pheno_upper = quantile(phenomean, probs=c( .75), na.rm = FALSE)+1.5*IQRpheno,
-         outlier_pheno_lower = quantile(phenomean, probs=c( .25), na.rm = FALSE)-1.5*IQRpheno
-        ) %>%
-  filter(all(outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean)) -> d_com_filtered
-
-d_com_filtered %>%
- mutate(nloci = as_factor(nloci),
-        sigma = as_factor(sigma)) -> d_com_filtered
-
-d_com_filtered$nloci <- factor(d_com_filtered$nloci, levels = c(10, 100, 1000))
-d_com_filtered$sigma <- factor(d_com_filtered$sigma, levels = c(0.1, 1))
-
-
-ggplot(d_com_filtered, aes(x = nloci, y = phenomean, colour = model)) +
-  facet_grid(.~sigma) +
-  geom_boxplot() -> plt_dist
-
-ggsave("IQR_pheno_dist2.png", plt_dist, width = 10, height = 10)
-
-
-# Filter data into group of those who made it to the optimum: the groups where 
-# any of the phenotypes means are within (1.9, 2.1) after generation 51800
-
-d_com_adapted <- d_com_filtered %>% 
-  group_by(seed, model, nloci, sigma) %>%
-  filter(any(gen > 51800 & phenomean > 1.9 & phenomean < 2.1)) %>%
-  ungroup()
-
-# Filter data into group of those who didn't make it: the groups where 
-# any of the phenotypes means aren't within (1.9, 2.1) at any time
-d_com_maladapted <- d_com_filtered %>% 
-  group_by(seed, model, nloci, sigma) %>%
-  filter(all(phenomean <= 1.9 | phenomean >= 2.1)) %>%
-  ungroup()
-
-# Filter data into group of those who made it and then kept moving: the groups where 
-# any of the phenotypes means are within (1.9, 2.1) sometime before generation 51800
-d_com_wasadapted <- d_com_filtered %>% 
-  group_by(seed, model, nloci, sigma) %>%
-  filter(any(gen < 51800 & phenomean > 1.9 & phenomean < 2.1) & 
-  !any(gen > 51800 & phenomean > 1.9 & phenomean < 2.1)) %>%
-  ungroup()
-
-saveRDS(d_com_adapted, "d_com_prefiltered_adapted.RDS")
-saveRDS(d_com_maladapted, "d_com_prefiltered_maladapted.RDS")
-saveRDS(d_com_wasadapted, "d_com_prefiltered_wasadapted.RDS")
-
-# Randomly sample three populations from each group so we can track them
-seed <- sample(1:.Machine$integer.max, 1)
-# Sampled seed: 1849510312
-set.seed(seed)
-d_com_adapted_eg <- d_com_adapted %>% 
-  group_by(model, nloci, sigma) %>%
-  filter(seed %in% sample(unique(seed), min(length(unique(seed)), 3)))
-
-d_com_maladapted_eg <- d_com_maladapted %>% 
-  group_by(model, nloci, sigma) %>%
-  filter(seed %in% sample(unique(seed), min(length(unique(seed)), 3)))
-
-d_com_wasadapted_eg <- d_com_wasadapted %>% 
-  group_by(model, nloci, sigma) %>%
-  filter(seed %in% sample(unique(seed), min(length(unique(seed)), 3)))
-
-
-saveRDS(d_com_adapted_eg, "d_com_prefiltered_adapted_eg.RDS")
-saveRDS(d_com_maladapted_eg, "d_com_prefiltered_maladapted_eg.RDS")
-saveRDS(d_com_wasadapted_eg, "d_com_prefiltered_wasadapted_eg.RDS")

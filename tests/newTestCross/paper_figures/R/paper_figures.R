@@ -718,3 +718,71 @@ d_test %>%
 d_test %>%
   pivot_longer(c(aZ, bZ, KZ, KXZ), names_to = "moltrait_name", values_to = "moltrait_value") %>%
   autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse()
+
+# Eigenvector of pheno/moltrait/freq/value
+
+
+# Data for groups that have/haven't adapted
+path_both <- "/mnt/d/SLiMTests/tests/newTestCross/moreReps2/getH2_newTestCross/data/"
+
+d_com_adapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_adapted_eg.RDS"))
+d_com_maladapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_maladapted_eg.RDS"))
+d_com_wasadapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_wasadapted_eg.RDS"))
+
+d_com_adapted_eg <- d_com_adapted_eg %>% mutate(nloci = as_factor(nloci),
+                                                sigma = as_factor(sigma))
+d_com_adapted_eg$nloci <- factor(d_com_adapted_eg$nloci, levels = c(10, 100, 1000))
+
+d_com_maladapted_eg <- d_com_maladapted_eg %>% mutate(nloci = as_factor(nloci),
+                                                sigma = as_factor(sigma))
+d_com_maladapted_eg$nloci <- factor(d_com_maladapted_eg$nloci, levels = c(10, 100, 1000))
+
+d_com_wasadapted_eg <- d_com_wasadapted_eg %>% mutate(nloci = as_factor(nloci),
+                                                sigma = as_factor(sigma))
+d_com_wasadapted_eg$nloci <- factor(d_com_wasadapted_eg$nloci, levels = c(10, 100, 1000))
+
+
+d_com_adapted_eg %>%
+  filter(gen >= 49500) %>%
+  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  facet_grid(model~sigma) +
+  geom_line() +
+  scale_color_manual(values = cc_ibm) +
+  scale_linetype(guide = "none") +
+  labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+
+d_com_maladapted_eg %>%
+  filter(gen >= 49500) %>%
+  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  facet_grid(model~sigma) +
+  geom_line() +
+  scale_color_manual(values = cc_ibm) +
+  coord_cartesian(ylim = c(0, 2.5)) +
+  scale_linetype(guide = "none") +
+  labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+
+d_com_wasadapted_eg %>%
+  filter(gen >= 49500) %>%
+  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  facet_grid(model~sigma) +
+  geom_line() +
+  scale_color_manual(values = cc_ibm) +
+  scale_linetype(guide = "none") +
+  labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), 
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+
+  
