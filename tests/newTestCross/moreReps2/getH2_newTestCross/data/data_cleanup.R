@@ -351,9 +351,6 @@ d_com_filtered <- d_com %>%
   drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) %>%
   filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1)
 
-d_com_filtered %>% filter(model == "Additive", sigma == 0.1, nloci == 10) %>%
-  mutate(IQR(estR)) -> test
-
 d_com_filtered %>%
   group_by(seed, model, sigma, nloci) %>%
   mutate(IQRestR = IQR(estR),
@@ -372,7 +369,8 @@ ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
 
 ggsave("IQR_estR_dist.png", plt_dist, width = 10, height = 10)
 
-ggplot(d_com_filtered, aes(x = nloci, y = phenomean, colour = model)) +
+ggplot(d_com_filtered %>% mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = phenomean, colour = model)) +
   facet_grid(.~sigma) +
   geom_boxplot() -> plt_dist
 
@@ -440,12 +438,13 @@ d_muts <- readRDS("./checkpoint/d_muts.RDS")
 d_qg <- readRDS("./checkpoint/d_qg.RDS")
 
 # Combine the data frames, remove the unneeded variables
-d_combined <- inner_join(d_muts, d_qg, by = c("gen", "seed", "nloci", "sigma"))
+d_com <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex", "fixedEffect", "nloci", "sigma"))
 rm(d_muts, d_qg)
-d_com <- d_combined %>% filter(gen >= 49500)
-rm(d_combined)
 
-d_com <- d_combined %>% select(!c(fixedEffect, modelindex))
+#d_com <- d_combined %>% filter(gen >= 49500)
+#rm(d_combined)
+
+d_com <- d_com %>% select(!c(fixedEffect, modelindex))
 d_com$model <- "NAR"
 
 # Additive
@@ -475,7 +474,7 @@ names(combos) <- c("nloci", "locisigma")
 d_combined_add %>% mutate(
                             nloci = combos$nloci[.$modelindex],
                             sigma = combos$locisigma[.$modelindex]) -> d_combined_add
-d_combined_add <- d_combined_add %>% select(!modelindex) %>% filter(gen >= 49500)
+d_combined_add <- d_combined_add %>% select(!modelindex) #%>% filter(gen >= 49500)
 
 d_combined_add <- d_combined_add %>% mutate(aZ = NA, bZ = NA, KZ = NA, KXZ = NA, model = "Additive")
 
@@ -483,12 +482,13 @@ d_com_both <- rbind(d_combined_add, d_com)
 
 # Remove outlier replicates - if they have an outlier at any point we need to remove the whole replicate 
 d_com_both %>%
-  group_by(seed, model, sigma, nloci) %>%
+  group_by(seed, model, nloci, sigma) %>%
   mutate(IQRpheno = IQR(phenomean),
          outlier_pheno_upper = quantile(phenomean, probs=c( .75), na.rm = FALSE)+1.5*IQRpheno,
-         outlier_pheno_lower = quantile(phenomean, probs=c( .25), na.rm = FALSE)-1.5*IQRpheno
+         outlier_pheno_lower = quantile(phenomean, probs=c( .25), na.rm = FALSE)-1.5*IQRpheno,
+         outlier = phenomean < outlier_pheno_lower | phenomean > outlier_pheno_upper
         ) %>%
-  filter(all(outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean)) -> d_com_filtered
+  filter(!outlier) -> d_com_filtered
 
 d_com_filtered %>%
  mutate(nloci = as_factor(nloci),
@@ -498,11 +498,12 @@ d_com_filtered$nloci <- factor(d_com_filtered$nloci, levels = c(10, 100, 1000))
 d_com_filtered$sigma <- factor(d_com_filtered$sigma, levels = c(0.1, 1))
 
 
-ggplot(d_com_filtered, aes(x = nloci, y = phenomean, colour = model)) +
+ggplot(d_com_filtered %>% mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = phenomean, colour = model)) +
   facet_grid(.~sigma) +
   geom_boxplot() -> plt_dist
 
-ggsave("IQR_pheno_dist2.png", plt_dist, width = 10, height = 10)
+ggsave("IQR_pheno_dist.png", plt_dist, width = 10, height = 10)
 
 
 # Filter data into group of those who made it to the optimum: the groups where 
@@ -510,23 +511,19 @@ ggsave("IQR_pheno_dist2.png", plt_dist, width = 10, height = 10)
 
 d_com_adapted <- d_com_filtered %>% 
   group_by(seed, model, nloci, sigma) %>%
-  filter(any(gen > 51800 & phenomean > 1.9 & phenomean < 2.1)) %>%
+  filter(all(xor(gen >= 51950 & between(phenomean, 1.9, 2.1), gen < 51950))) %>%
   ungroup()
 
 # Filter data into group of those who didn't make it: the groups where 
 # any of the phenotypes means aren't within (1.9, 2.1) at any time
 d_com_maladapted <- d_com_filtered %>% 
   group_by(seed, model, nloci, sigma) %>%
-  filter(all(phenomean <= 1.9 | phenomean >= 2.1)) %>%
+  filter(!any(between(phenomean, 1.9, 2.1))) %>%
   ungroup()
 
 # Filter data into group of those who made it and then kept moving: the groups where 
 # any of the phenotypes means are within (1.9, 2.1) sometime before generation 51800
-d_com_wasadapted <- d_com_filtered %>% 
-  group_by(seed, model, nloci, sigma) %>%
-  filter(any(gen < 51800 & phenomean > 1.9 & phenomean < 2.1) & 
-  !any(gen > 51800 & phenomean > 1.9 & phenomean < 2.1)) %>%
-  ungroup()
+d_com_wasadapted <- anti_join(d_com_filtered, rbind(d_com_adapted, d_com_maladapted))
 
 saveRDS(d_com_adapted, "d_com_prefiltered_adapted.RDS")
 saveRDS(d_com_maladapted, "d_com_prefiltered_maladapted.RDS")
@@ -536,6 +533,7 @@ saveRDS(d_com_wasadapted, "d_com_prefiltered_wasadapted.RDS")
 seed <- sample(1:.Machine$integer.max, 1)
 # Sampled seed: 1849510312
 set.seed(seed)
+set.seed(1849510312)
 d_com_adapted_eg <- d_com_adapted %>% 
   group_by(model, nloci, sigma) %>%
   filter(seed %in% sample(unique(seed), min(length(unique(seed)), 3)))

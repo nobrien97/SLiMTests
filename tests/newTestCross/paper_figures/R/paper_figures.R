@@ -729,27 +729,25 @@ d_com_adapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_adapted_eg.RDS"
 d_com_maladapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_maladapted_eg.RDS"))
 d_com_wasadapted_eg <- readRDS(paste0(path_both, "d_com_prefiltered_wasadapted_eg.RDS"))
 
-d_com_adapted_eg <- d_com_adapted_eg %>% mutate(nloci = as_factor(nloci),
-                                                sigma = as_factor(sigma))
-d_com_adapted_eg$nloci <- factor(d_com_adapted_eg$nloci, levels = c(10, 100, 1000))
-
-d_com_maladapted_eg <- d_com_maladapted_eg %>% mutate(nloci = as_factor(nloci),
-                                                sigma = as_factor(sigma))
-d_com_maladapted_eg$nloci <- factor(d_com_maladapted_eg$nloci, levels = c(10, 100, 1000))
-
-d_com_wasadapted_eg <- d_com_wasadapted_eg %>% mutate(nloci = as_factor(nloci),
-                                                sigma = as_factor(sigma))
-d_com_wasadapted_eg$nloci <- factor(d_com_wasadapted_eg$nloci, levels = c(10, 100, 1000))
-
+d_com_adapted_eg %>% 
+  filter(model == "NAR", nloci == 10, sigma == 0.1) %>%
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  View(.)
+  mutate(outlier = phenomean > outlier_pheno_upper | phenomean < outlier_pheno_lower) %>% 
+  select(outlier)
 
 d_com_adapted_eg %>%
   filter(gen >= 49500) %>%
-  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
-  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  #mutate(seed = as.character(seed)) %>%
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, group = seed)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  annotate('ribbon', x = c(-Inf, Inf), ymin = 1.9, ymax = 2.1, alpha = 0.2) +
   facet_grid(model~sigma) +
+  #coord_cartesian(ylim = c(0, 2.5)) +
   geom_line() +
   scale_color_manual(values = cc_ibm) +
-  scale_linetype(guide = "none") +
+  geom_point(size = 0.25) +
   labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
   theme_bw() + 
   theme(text = element_text(size = 16), 
@@ -758,13 +756,15 @@ d_com_adapted_eg %>%
 
 d_com_maladapted_eg %>%
   filter(gen >= 49500) %>%
-  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
-  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, group = seed)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  annotate('ribbon', x = c(-Inf, Inf), ymin = 1.9, ymax = 2.1, alpha = 0.2) +
   facet_grid(model~sigma) +
   geom_line() +
   scale_color_manual(values = cc_ibm) +
   coord_cartesian(ylim = c(0, 2.5)) +
-  scale_linetype(guide = "none") +
+  geom_point(size = 0.25) +
   labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
   theme_bw() + 
   theme(text = element_text(size = 16), 
@@ -773,16 +773,20 @@ d_com_maladapted_eg %>%
 
 d_com_wasadapted_eg %>%
   filter(gen >= 49500) %>%
-  distinct(gen, seed, nloci, sigma, .keep_all = T) %>%
-  ggplot(aes(x = gen, y = phenomean, color = nloci, linetype = seed)) +
+  mutate(seed = as.character(seed)) %>%
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  ggplot(aes(x = gen, y = phenomean, color = nloci, group = seed)) +
   facet_grid(model~sigma) +
   geom_line() +
+  geom_point(size = 0.25) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  annotate('ribbon', x = c(-Inf, Inf), ymin = 1.9, ymax = 2.1, alpha = 0.2) +
   scale_color_manual(values = cc_ibm) +
-  scale_linetype(guide = "none") +
   labs(x = "Generations after optimum shift", y = "Mean population phenotype") +
   theme_bw() + 
   theme(text = element_text(size = 16), 
         legend.position = "bottom",
         panel.spacing = unit(1, "lines"))
 
-  
+View(d_com_adapted_eg %>% filter (gen >= 49500, model == "NAR", sigma == 0.1) %>% 
+       distinct(gen, seed, model, nloci, sigma, .keep_all = T))
