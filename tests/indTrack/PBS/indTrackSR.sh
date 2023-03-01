@@ -19,7 +19,7 @@ MODEL_FILE=$TESTDIR/R/combos.csv
 MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
 
 MODEL=indTrack_add.slim
-if [ "${MODEL_NUM[0]}" -ne "Additive" ]; then
+if [[ "${MODEL_NUM[0]}" != "Additive" ]]; then
     MODEL=indTrack_net.slim
     MODEL_NUM[1]=$((MODEL_NUM[1]-2))
 fi

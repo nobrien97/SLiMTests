@@ -264,7 +264,7 @@ function (void) writeIndAlleleOutput(o<Individual> inds) {
 		muts = ind.genomes.mutations;
 		subs = sim.substitutions;
 		ind_id = ind.index;
-		dist = abs(ind.phenotype - sim.getValue("optimum"));
+		dist = (sim.generation > burnTime) ? abs(mean(p1.individuals.phenotype) - sim.getValue("optimum")) else 0.0;
 
 		for (mut in muts) {
 			mutType = mut.mutationType.id;
