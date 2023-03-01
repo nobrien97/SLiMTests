@@ -437,13 +437,14 @@ saveRDS(d_com, paste0(path, "d_com_add+net_after_prefiltered.RDS"))
 d_muts <- readRDS("./checkpoint/d_muts.RDS")
 d_qg <- readRDS("./checkpoint/d_qg.RDS")
 
-# Combine the data frames, remove the unneeded variables
+# Combine the data frames
 d_com <- inner_join(d_muts, d_qg, by = c("gen", "seed", "modelindex", "fixedEffect", "nloci", "sigma"))
 rm(d_muts, d_qg)
 
 #d_com <- d_combined %>% filter(gen >= 49500)
 #rm(d_combined)
 
+# Remove unneeded variables
 d_com <- d_com %>% select(!c(fixedEffect, modelindex))
 d_com$model <- "NAR"
 
@@ -482,6 +483,7 @@ d_com_both <- rbind(d_combined_add, d_com)
 
 # Remove outlier replicates - if they have an outlier at any point we need to remove the whole replicate 
 d_com_both %>%
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
   group_by(seed, model, nloci, sigma) %>%
   mutate(IQRpheno = IQR(phenomean),
          outlier_pheno_upper = quantile(phenomean, probs=c( .75), na.rm = FALSE)+1.5*IQRpheno,
@@ -490,9 +492,10 @@ d_com_both %>%
         ) %>%
   filter(!outlier) -> d_com_filtered
 
-d_com_filtered %>%
- mutate(nloci = as_factor(nloci),
-        sigma = as_factor(sigma)) -> d_com_filtered
+
+# d_com_filtered %>%
+#  mutate(nloci = as_factor(nloci),
+        # sigma = as_factor(sigma)) -> d_com_filtered
 
 d_com_filtered$nloci <- factor(d_com_filtered$nloci, levels = c(10, 100, 1000))
 d_com_filtered$sigma <- factor(d_com_filtered$sigma, levels = c(0.1, 1))
@@ -505,25 +508,42 @@ ggplot(d_com_filtered %>% mutate(nloci = as_factor(nloci), sigma = as_factor(sig
 
 ggsave("IQR_pheno_dist.png", plt_dist, width = 10, height = 10)
 
+saveRDS(d_com_filtered, "d_com_prefiltered.RDS")
+
 
 # Filter data into group of those who made it to the optimum: the groups where 
 # any of the phenotypes means are within (1.9, 2.1) after generation 51800
 
-d_com_adapted <- d_com_filtered %>% 
+d_com_adapted <- d_com_filtered %>%
   group_by(seed, model, nloci, sigma) %>%
-  filter(all(xor(gen >= 51950 & between(phenomean, 1.9, 2.1), gen < 51950))) %>%
+  filter(any(gen > 51800)) %>%
+  filter(any(gen >= 51800 & between(phenomean, 1.9, 2.1))) %>%
   ungroup()
 
 # Filter data into group of those who didn't make it: the groups where 
 # any of the phenotypes means aren't within (1.9, 2.1) at any time
 d_com_maladapted <- d_com_filtered %>% 
   group_by(seed, model, nloci, sigma) %>%
-  filter(!any(between(phenomean, 1.9, 2.1))) %>%
+  filter(any(gen > 51800)) %>%
+  filter(all(phenomean < 1.9 | phenomean > 2.1)) %>%
   ungroup()
 
 # Filter data into group of those who made it and then kept moving: the groups where 
 # any of the phenotypes means are within (1.9, 2.1) sometime before generation 51800
-d_com_wasadapted <- anti_join(d_com_filtered, rbind(d_com_adapted, d_com_maladapted))
+# also check that the last value isn't in (1.9, 2.1)
+d_com_wasadapted <- anti_join(
+  d_com_filtered %>% group_by(seed, model, nloci, sigma) %>%
+  filter(any(gen > 51800)), 
+  rbind(d_com_adapted, d_com_maladapted), by = c("seed", "model", "nloci", "sigma"))
+
+d_com_wasadapted <- d_com_filtered %>%
+  group_by(seed, model, nloci, sigma) %>%
+  filter(any(gen > 51800)) %>%
+  filter(all( (gen < 51800 & (phenomean >= 1.9 & phenomean <= 2.1)) | 
+    (gen >= 51800 & (phenomean < 1.9 | phenomean > 2.1)))) %>%
+  ungroup()
+
+
 
 saveRDS(d_com_adapted, "d_com_prefiltered_adapted.RDS")
 saveRDS(d_com_maladapted, "d_com_prefiltered_maladapted.RDS")
