@@ -257,12 +257,20 @@ names(combos_add) <- c("nloci", "locisigma")
 
 
 d_com_add <- read_csv(paste0(path_add, "d_combined_after.csv"))
+
+# read in more reps data
+d_com_add2 <- readRDS(paste0(path_add, "moreReps/d_combined_after.RDS"))
+d_com_add <- rbind(d_com_add, d_com_add2)
+rm(d_com_add2)
+
 d_com_add$model <- "Additive"
 d_combined_after$model <- "NAR"
 
+d_com_add$modelindex <- as.numeric(d_com_add$modelindex)
+
 d_com_add %>% mutate(fixedEffect = -1,
-                    nloci = combos_add$nloci[.$modelindex],
-                    sigma = combos_add$locisigma[.$modelindex]) -> d_com_add
+                    nloci = combos_add$nloci[modelindex],
+                    sigma = combos_add$locisigma[modelindex]) -> d_com_add
 
 d_com_add %>% select(-c(fixedEffect, modelindex)) -> d_com_add
 
@@ -299,50 +307,50 @@ d_com %>%
 
 # Drop the outliers using Mahalanobis distance - 
 # https://www.r-bloggers.com/2017/12/combined-outlier-detection-with-dplyr-and-ruler/
-library(robustbase)
+# library(robustbase)
 
-alpha <- .001
-cutoff <- (qchisq(p = 1 - alpha, df = 9))
+# alpha <- .001
+# cutoff <- (qchisq(p = 1 - alpha, df = 9))
 
-d_com_filtered <- d_com %>%
-  drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) %>%
-  filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1)
+# d_com_filtered <- d_com %>%
+#   drop_na(meanH, value, Freq, phenomean, w, VarA, VarD, VarAA, estR) %>%
+#   filter(H2.A.Estimate <= 1, H2.D.Estimate <= 1, H2.AA.Estimate <= 1)
 
-dist_dat <- d_com_filtered %>% 
-              select(model, nloci, sigma, phenomean, estR)
+# dist_dat <- d_com_filtered %>% 
+#               select(model, nloci, sigma, phenomean, estR)
 
 
-mcddat <- by(dist_dat, list(dist_dat$model, dist_dat$nloci, dist_dat$sigma), 
-          function(x)
-          {
-            y <- x %>% select(!c(model, nloci, sigma))
-            centerCov <- covMcd(y)
-            y_len <- nrow(y)
-            c(
-              model = rep(x$model, y_len),
-              nloci = rep(x$nloci, y_len),
-              sigma = rep(x$sigma, y_len),
-              md = mahalanobis(y, centerCov$center, centerCov$cov)
-            )
-          })
+# mcddat <- by(dist_dat, list(dist_dat$model, dist_dat$nloci, dist_dat$sigma), 
+#           function(x)
+#           {
+#             y <- x %>% select(!c(model, nloci, sigma))
+#             centerCov <- covMcd(y)
+#             y_len <- nrow(y)
+#             c(
+#               model = rep(x$model, y_len),
+#               nloci = rep(x$nloci, y_len),
+#               sigma = rep(x$sigma, y_len),
+#               md = mahalanobis(y, centerCov$center, centerCov$cov)
+#             )
+#           })
 
-df_md <- do.call(rbind, mcddat)
+# df_md <- do.call(rbind, mcddat)
 
-d_com_filtered_md <- inner_join(d_com_filtered, df_md, by = c("model", "nloci", "sigma"))
+# d_com_filtered_md <- inner_join(d_com_filtered, df_md, by = c("model", "nloci", "sigma"))
 
-d_com_filtered_md %>% filter(md < cutoff) -> d_com_filtered
+# d_com_filtered_md %>% filter(md < cutoff) -> d_com_filtered
 
-# glue back on the gen == 49500 entries
-d_com %>% mutate(md = 0) -> d_com
-d_com_filtered <- rbind(d_com %>% filter(gen == 49500), d_com_filtered)
+# # glue back on the gen == 49500 entries
+# d_com %>% mutate(md = 0) -> d_com
+# d_com_filtered <- rbind(d_com %>% filter(gen == 49500), d_com_filtered)
 
-saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
+# saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
 
-ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
-  facet_grid(.~sigma) +
-  geom_boxplot() -> plt_dist
+# ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
+#   facet_grid(.~sigma) +
+#   geom_boxplot() -> plt_dist
 
-ggsave("estR_MCD_dist.png", plt_dist, width = 10, height = 10)
+# ggsave("estR_MCD_dist.png", plt_dist, width = 10, height = 10)
 
 
 # IQR 1.5
