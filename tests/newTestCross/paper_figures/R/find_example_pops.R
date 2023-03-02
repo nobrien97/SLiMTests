@@ -85,6 +85,9 @@ View(d_com_adapted_eg %>% filter (gen >= 49500, model == "NAR") %>%
        distinct(gen, seed, model, nloci, sigma, .keep_all = T))
 
 d_com_adapted <- readRDS(paste0(path_both, "d_com_prefiltered_adapted.RDS"))
+
+
+
 View(d_com_adapted %>% filter(model == "NAR"))
 
 d_com <- readRDS(paste0(path_both, "d_com_prefiltered.RDS"))
@@ -124,3 +127,5 @@ d_com_wasadapted_eg %>%
   arrange(model, nloci, sigma) -> wasadapted_seeds
 
 write_csv(wasadapted_seeds, paste0(path_ind, "wasadapted_seeds.csv"))
+
+View(d_com_adapted_eg %>% filter(seed == 820056205))
