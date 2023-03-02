@@ -720,4 +720,20 @@ d_test %>%
   autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse()
 
 # Eigenvector of pheno/moltrait/freq/value
+library(ggfortify)
+d_com_adapted <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/moreReps2/getH2_newTestCross/data/d_comh2_prefiltered_adapted.RDS")
+d_com_adapted %>% distinct(gen, seed, model, nloci, sigma, .keep_all = T) -> d_com_adapted
 
+pca_adapted <- prcomp(d_com_adapted %>%
+                        select(phenomean, Freq, value), scale = T)
+
+pca_plt <- autoplot(pca_adapted, data = d_com_adapted, colour = 'nloci', size = 'sigma')
+ggsave("adapted_phenoValFreq_pca.png", pca_plt, width = 8, height = 8)
+
+library(factoextra)
+library(FactoMineR)
+
+res.pca <- PCA(d_com_adapted %>% select(phenomean, Freq, value), scale.unit = T, graph = F)
+fviz_eig(res.pca, addlabels = TRUE)
+var <- get_pca_var(res.pca)
+head(var$contrib)
