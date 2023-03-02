@@ -371,7 +371,10 @@ d_com_filtered %>%
   filter(any(outlier_estR_lower <= estR & outlier_estR_upper > estR),
          any(outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean)) -> d_com_filtered
 
-ggplot(d_com_filtered, aes(x = nloci, y = estR, colour = model)) +
+d_com_filtered <- readRDS("d_com_add+net_after_prefiltered.RDS")
+
+ggplot(d_com_filtered %>% mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = estR, colour = model)) +
   facet_grid(.~sigma) +
   geom_boxplot() -> plt_dist
 
@@ -394,47 +397,62 @@ d_com_filtered %>%
 
 saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
 
+# Split into adapted/maladapted subgroups
 
+d_com_adapted <- d_com_filtered %>%
+  group_by(seed, model, nloci, sigma) %>%
+  mutate(adapted = between(phenomean, 1.9, 2.1)) %>%
+  filter(!(gen == 51950 & adapted == F)) %>%
+  filter(any(gen == 51950)) %>%
+  ungroup()
 
-d_com %>%
-  drop_na(estR) %>%
-  filter(between(estR,
-          quantile(estR, 0.025), quantile(estR, 0.975))) -> d_com_top95
-
-d_com_top95 %>%
-  group_by(model, nloci, sigma) %>%
-  drop_na(estR) %>%
-  summarise(meanR = mean(estR),
-          seR = se(estR),
-          medianR = median(estR),
-          IQRR = IQR(estR),
-          minR = min(estR),
-          maxR = max(estR)) -> d_range_estR
-
-saveRDS(d_com_top95, "d_com_add+net_after_prefiltered.RDS")
-
-
-ggplot(d_com_top95, aes(x = nloci, y = estR, colour = model)) +
+# Check they are adapted
+ggplot(d_com_adapted %>% 
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  filter(gen == 51950) %>%
+  mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = phenomean, colour = model)) +
   facet_grid(.~sigma) +
   geom_boxplot() -> plt_dist
 
-ggsave("estR_dist.png", plt_dist, width = 10, height = 10)
+ggsave("adapted_pheno_dist.png", plt_dist, width = 10, height = 10)
 
 
-# Too much removed
-# d_com %>% filter(phenomean < 10, abs(estR) < 5 | is.na(estR),
-#                  !(is.na(AIC) & gen >= 50000),
-#                  aZ < 100 | is.na(aZ), bZ < 100 | is.na(bZ), 
-#                  KZ < 100 | is.na(KZ), KXZ < 100 | is.na(KXZ)) -> d_com
+# Filter data into group of those who didn't make it: the groups where 
+# any of the phenotypes means aren't within (1.9, 2.1) at any time
+d_com_maladapted <- d_com_filtered %>% 
+  group_by(seed, model, nloci, sigma) %>%
+  mutate(adapted = between(phenomean, 1.9, 2.1)) %>%
+  filter(any(gen > 51800)) %>%
+  filter(all(adapted == F)) %>%
+  ungroup()
 
-# # Filter out crazy variances
-# d_com %>% filter((VarA >= 0 & VarA < 10) | is.na(VarA),
-#                  (VarD >= 0 & VarD < 10) | is.na(VarD),
-#                  (VarAA >= 0 & VarAA < 10) | is.na(VarAA),
-#                  (VarR >= 0) | is.na(VarR)) -> d_com
+# Check they are all maladapted
+ggplot(d_com_maladapted %>% 
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = phenomean, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
 
-saveRDS(d_com, paste0(path, "d_com_add+net_after_prefiltered.RDS"))
+ggsave("maladapted_pheno_dist.png", plt_dist, width = 10, height = 10)
 
+# Filter data into group of those who made it and then kept moving: the groups where 
+# any of the phenotypes means are within (1.9, 2.1) sometime before generation 51800
+# also check that the last value isn't in (1.9, 2.1)
+d_com_wasadapted <- d_com_filtered %>%
+  group_by(seed, model, nloci, sigma) %>%
+  mutate(adapted = between(phenomean, 1.9, 2.1)) %>%
+  filter(any(gen > 51800)) %>%
+  filter(all( (gen < 51800 & adapted | gen < 51800 & !adapted | 
+    (gen >= 51800 & !adapted)))) %>%
+  ungroup()
+
+
+
+saveRDS(d_com_adapted, "d_comh2_prefiltered_adapted.RDS")
+saveRDS(d_com_maladapted, "d_comh2_prefiltered_maladapted.RDS")
+saveRDS(d_com_wasadapted, "d_comh2_prefiltered_wasadapted.RDS")
 
 
 
@@ -527,6 +545,18 @@ d_com_adapted <- d_com_filtered %>%
   filter(any(gen > 51800)) %>%
   filter(any(gen >= 51800 & between(phenomean, 1.9, 2.1))) %>%
   ungroup()
+
+# Check they are adapted
+ggplot(d_com_adapted %>% 
+  distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
+  filter(gen > 51800) %>%
+  mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
+  aes(x = nloci, y = phenomean, colour = model)) +
+  facet_grid(.~sigma) +
+  geom_boxplot() -> plt_dist
+
+ggsave("adapted_pheno_dist.png", plt_dist, width = 10, height = 10)
+
 
 # Filter data into group of those who didn't make it: the groups where 
 # any of the phenotypes means aren't within (1.9, 2.1) at any time
