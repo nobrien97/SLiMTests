@@ -10,7 +10,7 @@ wasadapted <- read_csv(paste0(path, "wasadapted_seeds.csv"))
 
 combos <- rbind(adapted, maladapted, wasadapted)
 combos$model <- as.character(combos$model)
-combos$seed <- as.character(combos$seed)
+combos$seed <- as.numeric(combos$seed)
 write.table(combos, paste0(path, "combos.csv"), row.names = F, col.names = F)
 
 
