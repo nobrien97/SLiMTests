@@ -85,7 +85,7 @@ cd /scratch/ht96/nb9894/$JOBNAME/
 
 cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
 cat ./slim_indMut* >> $SAVEDIR/slim_indMut.csv
-cat ./slim_popstate* >> $SAVEDIR/slim_popstate.bin
+cat ./slim_popstate* >> $SAVEDIR/
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete
