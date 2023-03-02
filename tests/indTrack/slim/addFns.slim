@@ -159,7 +159,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 
 	Mfile = paste(sim.generation, asString(seed), modelindex, meanH, VA, phenomean, phenovar, dist, w, deltaPheno, deltaw, sep=",");
 
-	//writeFile(outQG, Mfile, append = T);
+	writeFile(outQG, Mfile, append = T);
 
 }
 
