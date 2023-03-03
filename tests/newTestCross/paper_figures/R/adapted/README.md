@@ -18,6 +18,7 @@ Here are figures of the adapted response to selection vs the average response of
 
 ## Mutational effect distribution after adaptation
 A - Additive models
+
 B - NAR models
 
 ### Adapted
@@ -28,6 +29,7 @@ B - NAR models
 
 ## Mean frequency over time
 A - Additive models
+
 B - NAR models
 
 ### Adapted
@@ -38,6 +40,7 @@ B - NAR models
 
 ## Mean mutational effect over time
 A - Additive models
+
 B - NAR models
 
 ### Adapted
@@ -48,8 +51,11 @@ B - NAR models
 
 ## Mean heritability and predicted response over time
 A, C - Additive models
+
 B, D - NAR models
+
 A, B - Proportions of phenotypic variance explained by additive, dominance, and AxA epistatic variance
+
 C, D - Obsered mean phenotypic trajectories vs estimated responses to selection according to the Lande equation
 
 ### Adapted
