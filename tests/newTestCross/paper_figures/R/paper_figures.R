@@ -720,9 +720,8 @@ d_test %>%
   autoplot(pca_test, data = ., colour = 'moltrait_name') + stat_ellipse()
 
 # Eigenvector of pheno/moltrait/freq/value
-library(ggfortify)
 d_com_adapted <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/moreReps2/getH2_newTestCross/data/d_comh2_prefiltered_adapted.RDS")
-d_com_adapted %>% distinct(gen, seed, model, nloci, sigma, .keep_all = T) -> d_com_adapted
+d_com_adapted %>% filter(sigma == 1, nloci == 100) -> d_com_adapted
 
 pca_adapted <- prcomp(d_com_adapted %>%
                         select(phenomean, Freq, value), scale = T)
@@ -737,3 +736,51 @@ res.pca <- PCA(d_com_adapted %>% select(phenomean, Freq, value), scale.unit = T,
 fviz_eig(res.pca, addlabels = TRUE)
 var <- get_pca_var(res.pca)
 head(var$contrib)
+
+
+# https://tem11010.github.io/Plotting-PCAs/
+d_com_adapted$pc1 <- res.pca$ind$coord[, 1]
+d_com_adapted$pc2 <- res.pca$ind$coord[, 2]
+pca.vars <- res.pca$var$coord %>% data.frame
+pca.vars$vars <- rownames(pca.vars)
+pca.vars 
+
+ggplot(d_com_adapted %>%
+         mutate(gen = gen - 50000), aes(x = pc1, y = pc2, colour = gen)) +
+  facet_grid(nloci~sigma) +
+  scale_colour_gradient(low = cc_ibm[1], high = cc_ibm[4]) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_point(alpha = 0.2) +
+  labs(x = "PC 1 (37.00%)", y = "PC 2 (32.54%", colour = "Generations\nafter\noptimum\nshift") +
+  theme_bw() +
+  theme(text = element_text(size = 10))
+
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+  r = diameter / 2
+  tt <- seq(0,2*pi,length.out = npoints)
+  xx <- center[1] + r * cos(tt)
+  yy <- center[2] + r * sin(tt)
+  return(data.frame(x = xx, y = yy))
+}
+
+circ <- circleFun(c(0,0),2,npoints = 500)
+
+ggplot() +
+  geom_path(data = circ, aes(x, y), lty = 2, color = "grey", alpha = 0.7) +
+  geom_hline(yintercept = 0, lty = 2, color = "grey", alpha = 0.7) +
+  geom_vline(xintercept = 0, lty = 2, color = "grey", alpha = 0.7) +
+  geom_segment(data = pca.vars, aes(x = 0, xend = Dim.1, y = 0, yend = Dim.2),
+               arrow = arrow(length = unit(0.025, "npc"), type = "open"),
+               lwd = 1) +
+  geom_text(data = pca.vars,
+            aes(x = Dim.1 * 1.15, y = Dim.2 * 1.15,
+                label = c("Mean phenotype", "Mean allele frequency", "Mean allelic effect size")),
+                check_overlap = F, size = 3) +
+  labs(x = "PC 1", y = "PC 2") +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        panel.border = element_rect(fill = "transparent"),
+        text = element_text(size = 10))
+  

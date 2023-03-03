@@ -20,7 +20,7 @@ cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 # Pheno time add/net
 # d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/addNetCombined/d_com_add+net_after.RDS")
 # including moreReps2 data
-d_com <- readRDS("./d_com_add+net_after_prefiltered.RDS")
+d_com_adapted <- readRDS("./d_comh2_prefiltered_adapted.RDS")
 
 d_qg_sum <- d_com %>% group_by(gen, model, nloci, sigma) %>%
   distinct(gen, seed, model, nloci, sigma, .keep_all = T) %>%
@@ -1327,4 +1327,76 @@ plt_h2_resp <- plot_grid(plt_h2,
 plt_h2_resp
 ggsave("h2_resp_adapted.png", plt_h2_resp, width = 16, height = 16, bg = "white")
 
+# PCA of pheno/moltrait/freq/value
+library(FactoMineR)
+library(factoextra)
+library(cowplot)
+d_com_adapted <- readRDS("./d_comh2_prefiltered_adapted.RDS")
 
+
+res.pca <- PCA(d_com_adapted %>% select(phenomean, Freq, value), scale.unit = T, graph = F)
+
+# https://tem11010.github.io/Plotting-PCAs/
+d_com_adapted$pc1 <- res.pca$ind$coord[, 1]
+d_com_adapted$pc2 <- res.pca$ind$coord[, 2]
+pca.vars <- res.pca$var$coord %>% data.frame
+pca.vars$vars <- rownames(pca.vars)
+pca.vars 
+
+plt_pca_NAR <- ggplot(d_com_adapted %>%
+        filter(model == "NAR") %>%
+        mutate(gen = gen - 50000), aes(x = pc1, y = pc2, colour = gen)) +
+  facet_grid(nloci~sigma) +
+  scale_colour_gradient(low = cc_ibm[1], high = cc_ibm[4]) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_point(alpha = 0.2) +
+  labs(x = "PC 1 (37.00%)", y = "PC 2 (32.54%", colour = "Generations\nafter\noptimum\nshift") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+plt_pca_add <- ggplot(d_com_adapted %>%
+        filter(model == "Additive") %>%
+        mutate(gen = gen - 50000), aes(x = pc1, y = pc2, colour = gen)) +
+  facet_grid(nloci~sigma) +
+  scale_colour_gradient(low = cc_ibm[1], high = cc_ibm[4]) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_point(alpha = 0.2) +
+  labs(x = "PC 1 (37.00%)", y = "PC 2 (32.54%", colour = "Generations\nafter\noptimum\nshift") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+plt_pca <- plot_grid(plt_pca_add,
+          plt_pca_NAR, ncol = 1)
+
+ggsave("pca.png", plt_pca, width = 10, height = 16)
+
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+  r = diameter / 2
+  tt <- seq(0,2*pi,length.out = npoints)
+  xx <- center[1] + r * cos(tt)
+  yy <- center[2] + r * sin(tt)
+  return(data.frame(x = xx, y = yy))
+}
+
+circ <- circleFun(c(0,0),2,npoints = 500)
+
+ggplot() +
+  geom_path(data = circ, aes(x, y), lty = 2, color = "grey", alpha = 0.7) +
+  geom_hline(yintercept = 0, lty = 2, color = "grey", alpha = 0.7) +
+  geom_vline(xintercept = 0, lty = 2, color = "grey", alpha = 0.7) +
+  geom_segment(data = pca.vars, aes(x = 0, xend = Dim.1, y = 0, yend = Dim.2),
+               arrow = arrow(length = unit(0.025, "npc"), type = "open"),
+               lwd = 1) +
+  geom_text(data = pca.vars,
+            aes(x = Dim.1 * 1.15, y = Dim.2 * 1.15,
+                label = c("Mean phenotype", "Mean allele frequency", "Mean allelic effect size")),
+                check_overlap = F, size = 3) +
+  labs(x = "PC 1", y = "PC 2") +
+  coord_equal() +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        panel.border = element_rect(fill = "transparent"),
+        text = element_text(size = 10))
+  
