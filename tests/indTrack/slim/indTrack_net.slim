@@ -299,7 +299,6 @@ s2 late() {
 		// Move output to scratch storage
 		/*
 		system(paste0("mv ./", outPositions, " ", moveDir));
-		system(paste0("mv ./", outQG, " ", moveDir));
 		system(paste0("mv ./", outOpt, " ", moveDir));
 		system(paste0("mv ./", outMuts, " ", moveDir));
 		system(paste0("mv ./", outDict, " ", moveDir));
@@ -314,6 +313,7 @@ s2 late() {
 		system(paste0("mv ./", outGenMap, " ", moveDir));
 		system(paste0("mv ./", outFX, " ", moveDir));
 		*/
+		system(paste0("mv ./", outQG, " ", moveDir));
 		system(paste0("mv ./", outInd, " ", moveDir));
 		system(paste0("mv ./", outMutsInd, " ", moveDir));
 		system(paste0("mv ./", outPopState, " ", moveDir));
