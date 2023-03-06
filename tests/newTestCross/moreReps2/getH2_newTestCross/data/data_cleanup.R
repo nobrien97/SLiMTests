@@ -371,7 +371,6 @@ d_com_filtered %>%
   filter(any(outlier_estR_lower <= estR & outlier_estR_upper > estR),
          any(outlier_pheno_lower <= phenomean & outlier_pheno_upper > phenomean)) -> d_com_filtered
 
-d_com_filtered <- readRDS("d_com_add+net_after_prefiltered.RDS")
 
 ggplot(d_com_filtered %>% mutate(nloci = as_factor(nloci), sigma = as_factor(sigma)), 
   aes(x = nloci, y = estR, colour = model)) +
@@ -396,6 +395,7 @@ d_com_filtered %>%
          phenomean < 5) -> d_com_filtered
 
 saveRDS(d_com_filtered, "d_com_add+net_after_prefiltered.RDS")
+d_com_filtered <- readRDS("d_com_add+net_after_prefiltered.RDS")
 
 # Split into adapted/maladapted subgroups
 
@@ -608,3 +608,26 @@ d_com_wasadapted_eg <- d_com_wasadapted %>%
 saveRDS(d_com_adapted_eg, "d_com_prefiltered_adapted_eg.RDS")
 saveRDS(d_com_maladapted_eg, "d_com_prefiltered_maladapted_eg.RDS")
 saveRDS(d_com_wasadapted_eg, "d_com_prefiltered_wasadapted_eg.RDS")
+
+d_com_eg <- read_table("~/tests/indTrack/R/combos.csv", col_names = F)
+names(d_com_eg) <- c("model", "nloci", "sigma", "seed")
+
+d_com_eg %>% 
+  mutate(model = as_factor(model), 
+         model = recode_factor(model, "\"Additive\"" = "Additive", "\"NAR\"" = "NAR")) -> d_com_eg
+
+d_com_eg %>%
+  ungroup() %>%
+  mutate(seed = as_factor(seed),
+         nloci = as_factor(nloci),
+         sigma = as_factor(sigma),
+         id = fct_cross(seed, model, nloci, sigma)) -> d_com_eg
+
+d_com_filtered %>%
+  ungroup() %>%
+  mutate(id = fct_cross(seed, model, nloci, sigma)) %>%
+  filter(id %in% d_com_eg$id) -> d_com_match
+
+d_com_match %>% distinct(gen, id, .keep_all = T) -> d_com_match
+
+saveRDS(d_com_match, "d_com_match.RDS")
