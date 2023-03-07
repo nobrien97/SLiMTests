@@ -50,7 +50,7 @@ d_new %>%
 
 sampled_seeds <- d_new_adapted %>% filter(gen > 49500, phenomean < 5, model == "NAR") %>%
   group_by(nloci, sigma) %>% 
-  select(seed) %>%
+  select(seed, modelindex) %>%
   sample_n(1)
 
 d_new_adapted %>% filter(gen > 49500, phenomean < 5, model == "NAR") %>%
@@ -58,7 +58,7 @@ d_new_adapted %>% filter(gen > 49500, phenomean < 5, model == "NAR") %>%
 ggplot(aes(x = gen, y = phenomean, group = seed, colour = seed)) +
   facet_grid(nloci~sigma) +
   geom_line() +
-  gghighlight(seed %in% sampled_seeds$seed, calculate_per_facet = T, use_direct_label = F) +
+  gghighlight(modelindex %in% sampled_seeds$modelindex, calculate_per_facet = T, use_direct_label = F) +
   scale_colour_manual(values = rep(cc_ibm[3], 4), guide = "none") +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -105,6 +105,7 @@ ggplot(d_indPheno %>% filter(gen > 49500, modelindex == 69) %>%
   labs(x = "Generations post-optimum shift", y = "Phenotypic value", colour = "Individual") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_indpheno
+plt_indpheno
 
 ggsave("pheno_inds_adapted.png", plt_indpheno, width = 8, height = 8)
 
@@ -121,6 +122,7 @@ ggplot(d_indPheno %>% filter(gen > 49500, modelindex == 69) %>%
   labs(x = "Generations post-optimum shift", y = TeX("$\\alpha_Z$"), colour = "Individual") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_indaZ
+plt_indaZ
 
 ggsave("aZ_inds_adapted.png", plt_indaZ, width = 8, height = 8)
 
@@ -154,7 +156,75 @@ mutType_names <- c(
 )
 
 
-ggplot(d_ind_com %>% filter(gen > 49500, modelindex == 69, mutType > 1, ind == 8) %>% 
+ggplot(d_ind_com %>% filter(gen >= 49500, modelindex == 69, mutType > 1, ind == 8) %>% 
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = log(value), colour = as.factor(mutType))) +
+  facet_grid(nloci~sigma) +
+  scale_colour_manual(values = cc_ibm, labels = mutType_names) +
+  geom_point() +
+  #geom_boxplot(notch = FALSE, alpha = 0.2, outlier.size = 0.1) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = "Molecular effect size", colour = "Molecular trait") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_indmuts
+plt_indmuts
+
+ggsave("pheno_indMuts_adapted.png", plt_indmuts, width = 8, height = 8)
+
+# look at the other highlighted examples
+ggplot(d_indPheno %>% filter(gen >= 49500, modelindex %in% sampled_seeds$modelindex) %>%
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = pheno, colour = ind, group = ind)) +
+  facet_grid(nloci~sigma) +
+  geom_line() +
+  scale_colour_manual(values = cc_10cols) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = "Phenotypic value", colour = "Individual") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_indpheno
+plt_indpheno
+
+ggsave("pheno_inds_adapted.png", plt_indpheno, width = 8, height = 8)
+
+# Heritability
+ggplot(d_new_adapted %>% filter(gen > 49500, modelindex %in% sampled_seeds$modelindex) %>%
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = meanH)) +
+  facet_grid(nloci~sigma) +
+  geom_line() +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = "Phenotypic value", colour = "Individual") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_meanH
+plt_meanH
+
+ggplot(d_indPheno %>% filter(gen > 49500, modelindex %in% sampled_seeds$modelindex) %>%
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = aZ, colour = ind, group = ind)) +
+  facet_grid(nloci~sigma, scales = "free") +
+  geom_line() +
+  scale_colour_manual(values = cc_10cols) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = TeX("$\\alpha_Z$"), colour = "Individual") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_indaZ
+plt_indaZ
+
+ggsave("aZ_inds_adapted.png", plt_indaZ, width = 8, height = 8)
+
+ggplot(d_ind_com %>% filter(gen >= 49500, modelindex == 28, mutType > 1, ind == 5) %>% 
          mutate(gen = gen - 50000), 
        aes(x = gen, y = log(value), colour = as.factor(mutType))) +
   facet_grid(nloci~sigma) +
