@@ -14,6 +14,7 @@ ggplot(d_match, aes(x = gen, y = phenomean, colour = model, group = seed)) +
   geom_line()
 
 d_new <- read_csv("/mnt/d/SLiMTests/tests/indTrack/slim_qg.csv", col_names = F)
+d_new <- read_csv("/mnt/c/GitHub/SLiMTests/tests/indTrack/R/slim_qg.csv", col_names = F)
 
 names(d_new) <- c("gen", "seed", "modelindex", "meanH", "VA", "phenomean", 
                   "phenovar", "dist", "w", "deltaPheno", "deltaw", "aZ", "bZ", "KZ", "KXZ")
@@ -48,9 +49,13 @@ d_new %>%
   filter(all(phenomean < 1.9 | phenomean > 2.1)) %>%
   ungroup() -> d_new_maladapted
 
+seed <- sample(1:.Machine$integer.max, 1)
+set.seed(seed)
+# 1263390450
+
 sampled_seeds <- d_new_adapted %>% filter(gen > 49500, phenomean < 5, model == "NAR") %>%
   group_by(nloci, sigma) %>% 
-  select(seed, modelindex) %>%
+  select(nloci, sigma, seed, modelindex) %>%
   sample_n(1)
 
 d_new_adapted %>% filter(gen > 49500, phenomean < 5, model == "NAR") %>%
@@ -80,6 +85,8 @@ ggplot(d_new_maladapted %>% filter(gen > 49500, phenomean < 5), aes(x = gen, y =
 
 
 d_indPheno <- read_csv("/mnt/d/SLiMTests/tests/indTrack/slim_indPheno.csv", col_names = F)
+d_indPheno <- read_csv("/mnt/c/GitHub/SLiMTests/tests/indTrack/R/slim_indPheno.csv", col_names = F)
+
 names(d_indPheno) <- c("gen", "seed", "modelindex", "ind", "pheno", "aZ", "bZ", "KZ", "KXZ")
 
 d_indPheno %>% mutate(model = d_com_eg$model[.$modelindex],
@@ -128,6 +135,9 @@ ggsave("aZ_inds_adapted.png", plt_indaZ, width = 8, height = 8)
 
 # Mutation data
 d_indMuts <- read_csv("/mnt/d/SLiMTests/tests/indTrack/slim_indMut.csv", col_names = F)
+d_indMuts <- read_csv("/mnt/c/GitHub/SLiMTests/tests/indTrack/R/slim_indMut.csv", col_names = F)
+
+
 
 names(d_indMuts) <- c("gen", "seed", "modelindex", "ind", "mutType", 
                       "mutid", "pos", "constraint", "originGen", "value", "chi", "fixGen")
@@ -147,6 +157,9 @@ d_indMuts %>%
 d_ind_com <- inner_join(d_indMuts, d_indPheno, by = c("gen", "seed", "modelindex", "model", "nloci", "sigma", "ind"))
 
 saveRDS(d_ind_com, "/mnt/d/SLiMTests/tests/indTrack/d_ind_com.RDS")
+saveRDS(d_ind_com, "/mnt/c/GitHub/SLiMTests/tests/indTrack/R/d_ind_com.RDS")
+
+
 
 mutType_names <- c(
   TeX("$\\alpha_Z$"),
@@ -174,12 +187,19 @@ plt_indmuts
 
 ggsave("pheno_indMuts_adapted.png", plt_indmuts, width = 8, height = 8)
 
+
+d_ind_com %>% mutate(ind_mod = paste(modelindex, ind, sep = "_")) -> d_ind_com
+d_indPheno %>% mutate(ind_mod = paste(modelindex, ind, sep = "_")) -> d_indPheno
+
+chosen_inds <- c("66_6", "69_8", "71_9", "73_7")
+
 # look at the other highlighted examples
 ggplot(d_indPheno %>% filter(gen >= 49500, modelindex %in% sampled_seeds$modelindex) %>%
          mutate(gen = gen - 50000), 
-       aes(x = gen, y = pheno, colour = ind, group = ind)) +
+       aes(x = gen, y = pheno, group = as.factor(gen))) +
   facet_grid(nloci~sigma) +
-  geom_line() +
+  geom_boxplot() +
+  #gghighlight(ind_mod %in% chosen_inds, calculate_per_facet = T) +
   scale_colour_manual(values = cc_10cols) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
@@ -190,9 +210,9 @@ ggplot(d_indPheno %>% filter(gen >= 49500, modelindex %in% sampled_seeds$modelin
   theme(text = element_text(size = 16)) -> plt_indpheno
 plt_indpheno
 
-ggsave("pheno_inds_adapted.png", plt_indpheno, width = 8, height = 8)
+ggsave("pheno_inds_adapted_total.png", plt_indpheno, width = 8, height = 8)
 
-# Heritability
+# Heterozygosity
 ggplot(d_new_adapted %>% filter(gen > 49500, modelindex %in% sampled_seeds$modelindex) %>%
          mutate(gen = gen - 50000), 
        aes(x = gen, y = meanH)) +
@@ -207,30 +227,34 @@ ggplot(d_new_adapted %>% filter(gen > 49500, modelindex %in% sampled_seeds$model
   theme(text = element_text(size = 16)) -> plt_meanH
 plt_meanH
 
-ggplot(d_indPheno %>% filter(gen > 49500, modelindex %in% sampled_seeds$modelindex) %>%
+ggsave("meanH_adapted.png", plt_meanH, width = 8, height = 8)
+
+
+ggplot(d_indPheno %>% filter(gen >= 49500, modelindex %in% sampled_seeds$modelindex) %>%
+         pivot_longer(cols = c(aZ, bZ, KZ, KXZ), names_to = "molTrait", values_to = "molTraitVal") %>%
          mutate(gen = gen - 50000), 
-       aes(x = gen, y = aZ, colour = ind, group = ind)) +
+       aes(x = gen, y = molTraitVal, colour = molTrait, group = interaction(as.factor(gen), molTrait))) +
   facet_grid(nloci~sigma, scales = "free") +
-  geom_line() +
-  scale_colour_manual(values = cc_10cols) +
+  geom_boxplot(outlier.size = 0.5) +
+  scale_colour_manual(values = cc_ibm, labels = mutType_names) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                          breaks = NULL, labels = NULL)) +
-  labs(x = "Generations post-optimum shift", y = TeX("$\\alpha_Z$"), colour = "Individual") +
+  labs(x = "Generations post-optimum shift", y = "Molecular trait value", colour = "Molecular trait") +
   theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_indaZ
-plt_indaZ
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_indMol
+plt_indMol
 
-ggsave("aZ_inds_adapted.png", plt_indaZ, width = 8, height = 8)
+ggsave("molTrait_inds_adapted.png", plt_indMol, width = 8, height = 8)
 
-ggplot(d_ind_com %>% filter(gen >= 49500, modelindex == 28, mutType > 1, ind == 5) %>% 
+ggplot(d_ind_com %>% filter(gen >= 49500, modelindex == 73, mutType > 1, ind == 7) %>% 
          mutate(gen = gen - 50000), 
        aes(x = gen, y = log(value), colour = as.factor(mutType))) +
   facet_grid(nloci~sigma) +
   scale_colour_manual(values = cc_ibm, labels = mutType_names) +
   geom_point() +
-  #geom_boxplot(notch = FALSE, alpha = 0.2, outlier.size = 0.1) +
+  #geom_boxplot(aes(x = as.factor(gen)), notch = FALSE, alpha = 0.2, outlier.size = 0.1) +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
   scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
@@ -241,3 +265,6 @@ ggplot(d_ind_com %>% filter(gen >= 49500, modelindex == 28, mutType > 1, ind == 
 plt_indmuts
 
 ggsave("pheno_indMuts_adapted.png", plt_indmuts, width = 8, height = 8)
+
+
+
