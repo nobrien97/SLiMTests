@@ -376,6 +376,9 @@ ggsave("fviz.png", fig, bg = "white")
 var <- get_pca_var(res.pca)
 head(var$contrib)
 
+library(mmtable2)
+
+var$contrib %>% mmtable(cells = value)
 
 # https://tem11010.github.io/Plotting-PCAs/
 d_isAdapted$pc1 <- res.pca$ind$coord[, 1]
