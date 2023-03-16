@@ -309,3 +309,64 @@ ggsave("moltrait_pca_adapted_facet_equalK.png", plt_isAdapted_pca +
                                                 breaks = NULL, labels = NULL)), 
        width = 10, height = 10)
 
+
+# Eigenvector of pheno/moltrait/freq/value
+d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/equalK/d_com_prefiltered.RDS")
+d_com %>% ungroup() %>% mutate(isAdapted = between(phenomean, 1.9, 2.1),
+                 alleleAge = gen - originGen,
+                 ) -> d_isAdapted
+
+
+res.pca <- PCA(d_isAdapted %>% 
+                 select(S, beta, Freq, value), 
+               scale.unit = T, graph = F)
+fviz_eig(res.pca, addlabels = TRUE)
+ggsave("scree_phenofreq.png", bg = "white")
+var <- get_pca_var(res.pca)
+var$contrib
+
+
+# https://tem11010.github.io/Plotting-PCAs/
+d_isAdapted$pc1 <- res.pca$ind$coord[, 1]
+d_isAdapted$pc2 <- res.pca$ind$coord[, 2]
+pca.vars <- res.pca$var$coord %>% data.frame
+pca.vars$vars <- rownames(pca.vars)
+pca.vars 
+
+ggplot(d_isAdapted %>%
+         mutate(gen = gen - 50000), aes(x = pc1, y = pc2, colour = isAdapted)) +
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_point(shape = 1, size = 2) +
+  scale_colour_manual(values = c(cc_ibm[3], cc_ibm[1])) +
+  labs(x = sprintf("PC 1 (%.2f%%)", res.pca$eig[1,2]), y = sprintf("PC 2 (%.2f%%)", res.pca$eig[2,2]), colour = "Is adapted?") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_isAdapted_pca
+
+ggsave("phenofreq_pca_adapted.png", plt_isAdapted_pca, width = 10, height = 10)
+ggsave("phenofreq_pca_adapted_facet_equalK.png", plt_isAdapted_pca + 
+         facet_grid(nloci~sigma) +
+         scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                                breaks = NULL, labels = NULL)) +
+         scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                                breaks = NULL, labels = NULL)), 
+       width = 10, height = 10)
+
+# just freq vs effect surface
+ggplot(d_isAdapted %>%
+         mutate(gen = gen - 50000), aes(x = Freq, y = scale(value), colour = isAdapted)) +
+  #geom_bin_2d() +
+  geom_point(shape = 1, size = 2) +
+  scale_colour_manual(values = c(cc_ibm[3], cc_ibm[1])) +
+  labs(x = "Allele frequency", y = "Allelic effect size", colour = "Is adapted?") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_isAdapted_valfreq
+
+ggsave("phenofreq_adapted.png", plt_isAdapted_valfreq, width = 10, height = 10)
+ggsave("phenofreq_adapted_facet_equalK.png", plt_isAdapted_valfreq + 
+         facet_grid(nloci~sigma) +
+         scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                                breaks = NULL, labels = NULL)) +
+         scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                                breaks = NULL, labels = NULL)), 
+       width = 10, height = 10)
