@@ -303,15 +303,15 @@ s2 late() {
 		system(paste0("mv ./", outOpt, " ", moveDir));
 		system(paste0("mv ./", outMuts, " ", moveDir));
 		system(paste0("mv ./", outDict, " ", moveDir));
-		system(paste0("mv ./", outLD[0], " ", moveDir));
-		system(paste0("mv ./", outLD[1], " ", moveDir));
+		//system(paste0("mv ./", outLD[0], " ", moveDir));
+		//system(paste0("mv ./", outLD[1], " ", moveDir));
 		//system(paste0("mv ./", outPed, " ", moveDir));
 		//system(paste0("mv ./", outHaplo, " ", moveDir));
-		system(paste0("mv ./", outPhenoSample, " ", moveDir));
-		system(paste0("mv ./", outMolSample, " ", moveDir));
+		//system(paste0("mv ./", outPhenoSample, " ", moveDir));
+		//system(paste0("mv ./", outMolSample, " ", moveDir));
 		//		system(paste0("mv ./", outRel, " ", moveDir));
-		system(paste0("mv ./", outGenMap, " ", moveDir));
-		system(paste0("mv ./", outFX, " ", moveDir));
+		//system(paste0("mv ./", outGenMap, " ", moveDir));
+		//system(paste0("mv ./", outFX, " ", moveDir));
 		system(paste0("mv ./", outQG, " ", moveDir));
 		system(paste0("mv ./", outInd, " ", moveDir));
 		//system(paste0("mv ./", outMutsInd, " ", moveDir));
@@ -319,11 +319,12 @@ s2 late() {
 
 
 
-		
+		/*
 		if (debug) {
 			writeTimeData();
 			system(paste0("mv ./", outTime, " ", moveDir));
 		}
+		*/
 		
 		sim.simulationFinished();
 		return;

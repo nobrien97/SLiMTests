@@ -11,7 +11,7 @@ library(tidyverse)
 
 combos <- read_csv("combos.csv")
 combos$nloci <- round(combos$nloci)
-write.table(combos %>% select(-1), "combos.csv", row.names = F)
+write.table(combos %>% select(-1), "combos.csv", row.names = F, col.names = F)
 
 seed <- 1:48
 

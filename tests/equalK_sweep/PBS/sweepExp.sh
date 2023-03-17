@@ -88,20 +88,14 @@ cat ./slim_qg* >> $SAVEDIR/slim_qg.csv
 cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
 cat ./slim_muts* >> $SAVEDIR/slim_muts.csv
 cat ./slim_dict* >> $SAVEDIR/slim_dict.csv
-cat ./slim_pedigree* >> $SAVEDIR/slim_pedigree.csv
-cat ./slim_sampled_pheno* >> $SAVEDIR/slim_sampled_pheno.csv
-cat ./slim_sampled_moltrait* >> $SAVEDIR/slim_sampled_moltrait.csv
-cat ./slim_genmap* >> $SAVEDIR/slim_genmap.csv
-cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
-cat ./slim_time* >> $SAVEDIR/slim_time.csv
 cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
+
 
 mkdir -p $SAVEDIR/popstates
 mv ./slim_popstate* $SAVEDIR/popstates
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete
-rm *.tsv
 
 # 
 # Check the exit status
