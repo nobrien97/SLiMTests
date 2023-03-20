@@ -6,6 +6,9 @@ library(ggh4x)
 library(cowplot)
 library(grid)
 library(gridExtra)
+library(factoextra)
+library(FactoMineR)
+
 
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
@@ -268,8 +271,6 @@ d_indPheno %>%
   mutate(seed = as_factor(seed)) -> d_isAdapted
 
 
-library(factoextra)
-library(FactoMineR)
 
 res.pca <- PCA(d_isAdapted %>% select(aZ, bZ, KZ, KXZ), scale.unit = T, graph = F)
 fviz_eig(res.pca, addlabels = TRUE)
