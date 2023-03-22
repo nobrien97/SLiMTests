@@ -8,6 +8,7 @@ library(grid)
 library(gridExtra)
 library(factoextra)
 library(FactoMineR)
+library(gganimate)
 
 
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
@@ -266,7 +267,7 @@ ggsave("probAdapted.png", plt_pAdapted, width = 5, height = 5)
 
 # Probability of adaptation by molecular trait
 d_indPheno %>%
-  filter(gen >= 51800, aZ < 10, bZ < 10, KZ < 10, KXZ < 10) %>%
+  filter(aZ < 10, bZ < 10, KZ < 10, KXZ < 10) %>%
   mutate(isAdapted = between(phenotype, 1.9, 2.1)) %>%
   mutate(seed = as_factor(seed)) -> d_isAdapted
 
@@ -310,6 +311,24 @@ ggsave("moltrait_pca_adapted_facet_equalK.png", plt_isAdapted_pca +
                                                 breaks = NULL, labels = NULL)), 
        width = 10, height = 10)
 
+plt_isAdapted_pca <- plt_isAdapted_pca + transition_states(gen) +
+  labs(title = "Generation: {closest_state}")
+
+animate(plt_isAdapted_pca, nframes = 41, duration = 10, width = 720, height = 720, renderer = ffmpeg_renderer())
+anim_save("moltrait_pca.mp4", last_animation())
+
+plt_isAdapted_pca <- plt_isAdapted_pca + 
+  facet_grid(nloci~sigma) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  transition_states(gen) +
+  labs(title = "Generation: {closest_state}")
+
+animate(plt_isAdapted_pca, nframes = 5, duration = 5, width = 720, height = 720, renderer = ffmpeg_renderer())
+anim_save("moltrait_facet_pca.mp4", last_animation())
+
 
 # Eigenvector of pheno/moltrait/freq/value
 d_com <- readRDS("/mnt/d/SLiMTests/tests/newTestCross/equalK/d_com_prefiltered.RDS")
@@ -352,6 +371,25 @@ ggsave("phenofreq_pca_adapted_facet_equalK.png", plt_isAdapted_pca +
          scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
                                                 breaks = NULL, labels = NULL)), 
        width = 10, height = 10)
+
+anim <- plt_isAdapted_pca + transition_states(gen) +
+  labs(title = "Generation: {closest_state}")
+
+animate(anim, nframes = 41, duration = 10, width = 720, height = 720, renderer = ffmpeg_renderer())
+anim_save("freqvalue_pca.mp4", last_animation())
+
+anim <- plt_isAdapted_pca + 
+  facet_grid(nloci~sigma) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  transition_states(gen) +
+  labs(title = "Generation: {closest_state}")
+
+animate(anim, nframes = 41, duration = 10, width = 720, height = 720, renderer = ffmpeg_renderer())
+anim_save("freqvalue_facet_pca.mp4", last_animation())
+
 
 # just freq vs effect surface
 ggplot(d_isAdapted %>%
