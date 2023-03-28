@@ -208,6 +208,132 @@ d_new %>% filter(gen >= 49500) %>%
   group_by(nloci, sigma) %>%
   summarise(adaptTime = mean(adaptTime), initRespTime = mean(initRespTime)) -> d_new_adapttime
 
+library(lattice)
+library(latticeExtra)
+
+grid_adapt_time <- levelplot(adaptTime ~ nloci*sigma, d_new_adapttime %>% 
+                               mutate(adaptTime = adaptTime - 50000) %>% 
+                 select(nloci, sigma, adaptTime), 
+                 col.regions = paletteer_c("viridis::viridis", 100, -1),
+                 panel = panel.levelplot.points, 
+                 xlab = list(label = "Number of loci", cex = 1.2), 
+                 ylab = list(label = "Mutational effect variance", cex = 1.2), 
+                 colorkey = list(space = "bottom",
+                                 title = "Time to initial response (generations)",
+                                 labels = list(cex = 1.2)),
+                 par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                 scales = list(tck = c(1, 0),
+                               cex = 1.2,
+                               x = list(at = c(200, 400, 600, 800, 1000)),
+                               y = list(at = c(0.0, 0.5, 1.0, 1.5, 2.0))), 
+                 pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_adapt_time <- 
+  contourplot(
+    adaptTime ~ nloci*sigma, d_new_adapttime %>% 
+      mutate(adaptTime = adaptTime - 50000) %>% 
+      select(nloci, sigma, adaptTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_adaptTime <- grid_adapt_time + contours_adapt_time
+plt_adaptTime
+
+grid_resp_time <- levelplot(initRespTime ~ nloci*sigma, d_new_adapttime %>% 
+                               mutate(initRespTime = initRespTime - 50000) %>% 
+                               select(nloci, sigma, initRespTime), 
+                             col.regions = paletteer_c("viridis::viridis", 100, -1),
+                             panel = panel.levelplot.points, 
+                             xlab = list(label = "Number of loci", cex = 1.2), 
+                            ylab = list(label = "Mutational effect variance", cex = 1.2), 
+                             colorkey = list(space = "bottom",
+                                             title = "Time to initial response (generations)",
+                                             labels = list(cex = 1.2)),
+                             par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                             scales = list(tck = c(1, 0),
+                                           cex = 1.2,
+                                           x = list(at = c(200, 400, 600, 800, 1000)),
+                                           y = list(at = c(0.0, 0.5, 1.0, 1.5, 2.0))), 
+                            pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_resp_time <- 
+  contourplot(
+    initRespTime ~ nloci*sigma, d_new_adapttime %>% 
+      mutate(initRespTime = initRespTime - 50000) %>% 
+      select(nloci, sigma, initRespTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_respTime <- grid_resp_time + contours_resp_time
+plt_respTime
+
+plot_grid(plt_respTime, plt_adaptTime, ncol = 2, labels = "AUTO")
+ggsave("phenoRespTimeLattice.png", width = 15, height = 8, bg = "white")
+
+# size effects
+d_com <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/d_combined_after.RDS")
+
+d_com %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  group_by(seed, nloci, sigma, mutType) %>%
+  mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1)) %>%
+  # get mean freq/value of mutations segregating in models at the adaptation time
+  filter(gen == adaptTime) %>%
+  mutate(meanFreq = mean(Freq), meanValue = mean(value)) %>%
+  ungroup() %>%
+  filter(adaptTime != -1) %>%
+  group_by(nloci, sigma, mutType) %>%
+  summarise(adaptTime = mean(adaptTime),
+            meanFreq = mean(Freq), meanValue = mean(value)) %>% ungroup() -> d_com_adapttime
+
+grid_adapt_time <- levelplot(adaptTime ~ meanFreq*meanValue | nloci, d_com_adapttime %>% 
+                               mutate(adaptTime = adaptTime - 50000) %>% 
+                               select(nloci, meanValue, adaptTime), 
+                             col.regions = paletteer_c("viridis::viridis", 100, -1),
+                             panel = panel.levelplot.points, 
+                             xlab = list(label = "Number of loci", cex = 1.2), 
+                             ylab = list(label = "Mean effect size", cex = 1.2), 
+                             colorkey = list(space = "bottom",
+                                             title = "Time to initial response (generations)",
+                                             labels = list(cex = 1.2)),
+                             par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                             scales = list(tck = c(1, 0),
+                                           cex = 1.2,
+                                           x = list(at = c(200, 400, 600, 800, 1000)),
+                                           y = list(at = c(0.0, 0.5, 1.0, 1.5, 2.0))), 
+                             pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_adapt_time <- 
+  contourplot(
+    adaptTime ~ nloci*sigma, d_new_adapttime %>% 
+      mutate(adaptTime = adaptTime - 50000) %>% 
+      select(nloci, sigma, adaptTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_adaptTime <- grid_adapt_time + contours_adapt_time
+plt_adaptTime
+
+
+
+ggplot(d_new_adapttime %>% mutate(adaptTime = adaptTime - 50000),
+       aes(x = nloci, y = sigma, fill = adaptTime)) +
+  geom_tile() +
+  scale_fill_paletteer_c("viridis::viridis", direction = -1) +
+  #geom_contour(colour = "white") +
+  labs(x = "Number of loci", y = "Mutational effect variance", fill = "Time to reach\nthe optimum") +
+  theme_bw() +
+  guides(fill = guide_colourbar(barwidth = 10)) +
+  theme(text = element_text(size = 20), legend.position = "bottom")
+
+
 d_adapted_interp <- dpinterp(d_new_adapttime %>% mutate(adaptTime = adaptTime - 50000), 
                              "nloci", "sigma", "adaptTime")
 
