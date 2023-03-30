@@ -11,12 +11,19 @@ library(FactoMineR)
 library(gganimate)
 library(akima)
 library(paletteer)
+library(lattice)
+library(latticeExtra)
+
 
 se <- function(x, na.rm = F) {
   if (na.rm)
     x <- x[!is.na(x)]
   
   return(sd(x)/sqrt(length(x)))
+}
+
+CI <- function(x, quantile = 0.975, na.rm = F) {
+  return(qnorm(quantile) * se(x, na.rm))
 }
 
 # interpolation for heatmaps
@@ -206,10 +213,11 @@ d_new %>% filter(gen >= 49500) %>%
   ungroup() %>%
   filter(adaptTime != -1, initRespTime != -1) %>%
   group_by(nloci, sigma) %>%
-  summarise(adaptTime = mean(adaptTime), initRespTime = mean(initRespTime)) -> d_new_adapttime
+  summarise(adaptTime = mean(adaptTime), 
+            CIAdaptTime = CI(adaptTime),
+            initRespTime = mean(initRespTime),
+            CIInitRespTime = CI(initRespTime)) -> d_new_adapttime
 
-library(lattice)
-library(latticeExtra)
 
 grid_adapt_time <- levelplot(adaptTime ~ nloci*sigma, d_new_adapttime %>% 
                                mutate(adaptTime = adaptTime - 50000) %>% 
@@ -219,7 +227,7 @@ grid_adapt_time <- levelplot(adaptTime ~ nloci*sigma, d_new_adapttime %>%
                  xlab = list(label = "Number of loci", cex = 1.2), 
                  ylab = list(label = "Mutational effect variance", cex = 1.2), 
                  colorkey = list(space = "bottom",
-                                 title = "Time to initial response (generations)",
+                                 title = "Time to adaptation (generations)",
                                  labels = list(cex = 1.2)),
                  par.settings = list(layout.heights = list(xlab.key.padding = 4)),
                  scales = list(tck = c(1, 0),
@@ -284,16 +292,69 @@ d_com %>%
   mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1)) %>%
   # get mean freq/value of mutations segregating in models at the adaptation time
   filter(gen == adaptTime) %>%
-  mutate(meanFreq = mean(Freq), meanValue = mean(value)) %>%
+  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
   ungroup() %>%
   filter(adaptTime != -1) %>%
   group_by(nloci, sigma, mutType) %>%
-  summarise(adaptTime = mean(adaptTime),
-            meanFreq = mean(Freq), meanValue = mean(value)) %>% ungroup() -> d_com_adapttime
+  summarise(CIAdaptTime = CI(adaptTime),
+            adaptTime = mean(adaptTime),
+            meanFreq = mean(Freq), 
+            CIMeanFreq = CI(Freq),
+            meanValue = mean(value),
+            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
 
-grid_adapt_time <- levelplot(adaptTime ~ meanFreq*meanValue | nloci, d_com_adapttime %>% 
+grid_adapt_time <- levelplot(adaptTime ~ nloci*meanValue, d_com_adapttime %>% 
                                mutate(adaptTime = adaptTime - 50000) %>% 
-                               select(nloci, meanValue, adaptTime), 
+                               select(nloci, meanValue, meanFreq, adaptTime), 
+                             col.regions = paletteer_c("viridis::viridis", 100, -1),
+                             panel = panel.levelplot.points, 
+                             xlab = list(label = "Number of loci", cex = 1.2), 
+                             ylab = list(label = "Mean effect size", cex = 1.2), 
+                             colorkey = list(space = "bottom",
+                                             title = "Time to adaptation (generations)",
+                                             labels = list(cex = 1.2)),
+                             par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                             scales = list(tck = c(1, 0),
+                                           cex = 1.2,
+                                           x = list(at = c(200, 400, 600, 800, 1000)),
+                                           y = list(at = c(-0.5, -0.25, 0.0, 0.25, 0.5))), 
+                             pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_adapt_time <- 
+  contourplot(
+    adaptTime ~ nloci*meanValue, d_com_adapttime %>% 
+      mutate(adaptTime = adaptTime - 50000) %>% 
+      select(nloci, meanValue, meanFreq, adaptTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_adaptTime <- grid_adapt_time + contours_adapt_time
+plt_adaptTime
+
+
+d_com %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  group_by(seed, nloci, sigma, mutType) %>%
+  mutate(initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]), -1)) %>%
+  # get mean freq/value of mutations segregating in models at the adaptation time
+  filter(gen == initRespTime) %>%
+  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
+  ungroup() %>%
+  filter(initRespTime != -1) %>%
+  group_by(nloci, sigma, mutType) %>%
+  summarise(CIInitRespTime = CI(initRespTime),
+            initRespTime = mean(initRespTime),
+            meanFreq = mean(Freq),
+            CIMeanFreq = CI(Freq),
+            meanValue = mean(value),
+            CIMeanalue = CI(value)) %>% ungroup() -> d_com_adapttime
+
+grid_resp_time <- levelplot(initRespTime ~ nloci*meanValue, d_com_adapttime %>% 
+                               mutate(initRespTime = initRespTime - 50000) %>% 
+                               select(nloci, meanValue, meanFreq, initRespTime), 
                              col.regions = paletteer_c("viridis::viridis", 100, -1),
                              panel = panel.levelplot.points, 
                              xlab = list(label = "Number of loci", cex = 1.2), 
@@ -304,16 +365,67 @@ grid_adapt_time <- levelplot(adaptTime ~ meanFreq*meanValue | nloci, d_com_adapt
                              par.settings = list(layout.heights = list(xlab.key.padding = 4)),
                              scales = list(tck = c(1, 0),
                                            cex = 1.2,
-                                           x = list(at = c(200, 400, 600, 800, 1000)),
-                                           y = list(at = c(0.0, 0.5, 1.0, 1.5, 2.0))), 
-                             pretty = T) + 
+                                           x = list(at = c(200, 400, 600, 800, 1000))), 
+                             pretty = T, ylim = c(-0.86, 0.36)) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_resp_time <- 
+  contourplot(
+    initRespTime ~ nloci*meanValue, d_com_adapttime %>% 
+      mutate(initRespTime = initRespTime - 50000) %>% 
+      select(nloci, meanValue, meanFreq, initRespTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_respTime <- grid_resp_time + contours_resp_time
+plt_respTime
+
+plot_grid(plt_respTime, plt_adaptTime, ncol = 2, labels = "AUTO")
+ggsave("respTimeFX.png", width = 15, height = 8, bg = "white")
+
+# frequency by effect size
+
+d_com %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  group_by(seed, nloci, sigma, mutType) %>%
+  mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1)) %>%
+  # get mean freq/value of mutations segregating in models at the adaptation time
+  filter(gen == adaptTime) %>%
+  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
+  ungroup() %>%
+  filter(adaptTime != -1) %>%
+  group_by(nloci, sigma, mutType) %>%
+  summarise(CIAdaptTime = CI(adaptTime),
+            adaptTime = mean(adaptTime),
+            meanFreq = mean(Freq), 
+            CIMeanFreq = CI(Freq),
+            meanValue = mean(value),
+            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
+
+grid_adapt_time <- levelplot(adaptTime ~ meanFreq*meanValue, d_com_adapttime %>% 
+                               mutate(adaptTime = adaptTime - 50000) %>% 
+                               select(meanValue, meanFreq, adaptTime), 
+                             col.regions = paletteer_c("viridis::viridis", 100, -1),
+                             panel = panel.levelplot.points, 
+                             xlab = list(label = "Mean frequency", cex = 1.2), 
+                             ylab = list(label = "Mean effect size", cex = 1.2), 
+                             colorkey = list(space = "bottom",
+                                             title = "Time to adaptation (generations)",
+                                             labels = list(cex = 1.2)),
+                             par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                             scales = list(tck = c(1, 0),
+                                           cex = 1.2,
+                                           y = list(at = c(-0.5, -0.25, 0.0, 0.25, 0.5))), 
+                             pretty = T, xlim = c(0.05, 0.47)) + 
   layer_(panel.2dsmoother(..., n = 200))
 
 contours_adapt_time <- 
   contourplot(
-    adaptTime ~ nloci*sigma, d_new_adapttime %>% 
+    adaptTime ~ meanFreq*meanValue, d_com_adapttime %>% 
       mutate(adaptTime = adaptTime - 50000) %>% 
-      select(nloci, sigma, adaptTime), 
+      select(meanValue, meanFreq, adaptTime), 
     panel=panel.2dsmoother, col = "white",
     labels = list(col = "white",
                   cex = 1.2))
@@ -321,54 +433,64 @@ contours_adapt_time <-
 plt_adaptTime <- grid_adapt_time + contours_adapt_time
 plt_adaptTime
 
+write_csv(d_com_adapttime %>% mutate(adaptTime = adaptTime - 50000), "d_adaptedTime.csv")
 
 
-ggplot(d_new_adapttime %>% mutate(adaptTime = adaptTime - 50000),
-       aes(x = nloci, y = sigma, fill = adaptTime)) +
-  geom_tile() +
-  scale_fill_paletteer_c("viridis::viridis", direction = -1) +
-  #geom_contour(colour = "white") +
-  labs(x = "Number of loci", y = "Mutational effect variance", fill = "Time to reach\nthe optimum") +
-  theme_bw() +
-  guides(fill = guide_colourbar(barwidth = 10)) +
-  theme(text = element_text(size = 20), legend.position = "bottom")
+d_com %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  group_by(seed, nloci, sigma, mutType) %>%
+  mutate(initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]), -1)) %>%
+  # get mean freq/value of mutations segregating in models at the adaptation time
+  filter(gen == initRespTime) %>%
+  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
+  ungroup() %>%
+  filter(initRespTime != -1) %>%
+  group_by(nloci, sigma, mutType) %>%
+  summarise(CIInitRespTime = CI(initRespTime),
+            initRespTime = mean(initRespTime),
+            meanFreq = mean(Freq),
+            CIMeanFreq = CI(Freq),
+            meanValue = mean(value),
+            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
+
+grid_resp_time <- levelplot(initRespTime ~ meanFreq*meanValue, d_com_adapttime %>% 
+                              mutate(initRespTime = initRespTime - 50000) %>% 
+                              select(meanValue, meanFreq, initRespTime), 
+                            col.regions = paletteer_c("viridis::viridis", 100, -1),
+                            panel = panel.levelplot.points, 
+                            xlab = list(label = "Mean frequency", cex = 1.2), 
+                            ylab = list(label = "Mean effect size", cex = 1.2), 
+                            colorkey = list(space = "bottom",
+                                            title = "Time to initial response (generations)",
+                                            labels = list(cex = 1.2)),
+                            par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                            scales = list(tck = c(1, 0),
+                                          cex = 1.2,
+                                          x = list(at = c(0.1, 0.2, 0.3, 0.4))), 
+                            pretty = T, xlim = c(0.05, 0.47)) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_resp_time <- 
+  contourplot(
+    initRespTime ~ meanFreq*meanValue, d_com_adapttime %>% 
+      mutate(initRespTime = initRespTime - 50000) %>% 
+      select(meanValue, meanFreq, initRespTime), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_respTime <- grid_resp_time + contours_resp_time
+plt_respTime
+
+write_csv(d_com_adapttime %>% mutate(initRespTime = initRespTime - 50000), "d_initRespTime.csv")
 
 
-d_adapted_interp <- dpinterp(d_new_adapttime %>% mutate(adaptTime = adaptTime - 50000), 
-                             "nloci", "sigma", "adaptTime")
+plot_grid(plt_respTime, plt_adaptTime, ncol = 2, labels = "AUTO")
+ggsave("respTimeFreqFX.png", width = 15, height = 8, bg = "white")
 
 
-ggplot(d_adapted_interp,
-       aes(x = x, y = y, z = z, fill = z)) +
-  geom_raster() +
-  scale_fill_paletteer_c("viridis::viridis", direction = -1, na.value = NA) +
-  geom_contour(colour = "white") +
-  labs(x = "Number of loci", y = "Mutational effect variance", fill = "Time to reach\nthe optimum") +
-  theme_bw() +
-  guides(fill = guide_colourbar(barwidth = 10)) +
-  theme(text = element_text(size = 20), legend.position = "bottom") -> plt_adapted_time
 
-d_adapting_interp <- dpinterp(d_new_adapttime %>% mutate(initRespTime = initRespTime - 50000), 
-                             "nloci", "sigma", "initRespTime")
-
-ggplot(d_adapting_interp,
-       aes(x = x, y = y, z = z, fill = z)) +
-  geom_raster() +
-  scale_fill_paletteer_c("viridis::viridis", direction = -1, na.value = NA) +
-  geom_contour(colour = "white") +
-  labs(x = "Number of loci", y = "Mutational effect variance", fill = "Time to initial\nresponse") +
-  theme_bw() +
-  guides(fill = guide_colourbar(barwidth = 10)) +
-  theme(text = element_text(size = 20), legend.position = "bottom") -> plt_resp_time
-
-library(plotly)
-plot_ly(z = as.matrix(d_adapted_interp),
-        type = "surface")
-
-
-plt_adapted_time <- plot_grid(plt_resp_time, plt_adapted_time, ncol = 2, labels = "AUTO")
-plt_adapted_time
-ggsave("phenoRespTime.png", plt_adapted_time, width = 15, height = 10)
 
 # Mean allele frequency
 d_com <- readRDS("d_combined_after.RDS")
@@ -399,11 +521,9 @@ d_com_adapted %>%
          value = value) %>%
   group_by(gen, molTrait, nloci_cat, sigma_cat) %>%
   summarise(meanValue = mean(value),
-            seValue = se(value),
-            ci95Value = qnorm(0.975)*seValue,
+            ci95Value = CI(value),
             meanFreq = mean(Freq),
-            seFreq = se(Freq),
-            ci95Freq = qnorm(0.975)*seFreq) -> d_meanfreq
+            ci95Freq = CI(Freq)) -> d_meanfreq
 
 mutType_names <- c(
   TeX("$\\alpha_Z$"),
