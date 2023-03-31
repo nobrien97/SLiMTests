@@ -37,24 +37,6 @@ dpinterp <- function(df, x, y, z) {
   interp2xyz(interp_df, data.frame=TRUE)
 }
 
-genInterpByGroup <- function(df, x, y, z, group) {
-  require(dplyr)
-  nGroups <- nrow(df %>% ungroup() %>% distinct(!!sym(group)))
-  result <- data.frame(x = double(1600*nGroups), 
-                       y = double(1600*nGroups), 
-                       z = double(1600*nGroups))
-  result[[group]] <- double(1600*nGroups)
-  
-  for (i in 1:nGroups) {
-    curdf <- dpinterp(df %>% filter(!!sym(group) == i), x, y, z)
-    curdf[[group]] <- i
-    result[(((i-1)*1600)+1):(i*1600),] <- curdf
-  }
-  return(result)
-}
-# https://stackoverflow.com/a/5665644/13586824
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
-
 
 # Running on HPC for RAM reasons
 path <- "/g/data/ht96/nb9894/equalK_sweep/"
@@ -138,38 +120,6 @@ if (!dir.exists("./pheno_anim"))
   dir.create("./pheno_anim")
 }
 
-d_new <- d_new %>% mutate(nloci_01 = range01(nloci), sigma_01 = range01(sigma))
-
-
-d_pheno_surface <- d_new %>% group_by(gen) %>%
-                      do(dpinterp(.))
-
-pheno_time <- ggplot(d_pheno_surface %>% drop_na() %>% 
-                       filter(gen > 49000) %>% mutate(gen = gen - 50000),
-       aes(x = x, y = y, fill = z, z = z, group = z)) +
-  geom_tile() +
-  stat_contour() +
-  scale_colour_viridis_c() +
-  labs(x = "Number of loci", y = "Mutational effect variance", 
-    fill = "Phenotypic\nmean") +
-  theme_bw() +
-  theme(text = element_text(size=36), legend.key.size = unit(2, 'cm'))
-
-
-pheno_time <- pheno_time + transition_states(gen) +
-  labs(title = "Generations post-optimum shift: {closest_state}")
-
-# Save to compile on my machine
-saveRDS(pheno_time, "/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_time_anim.RDS")
-d_pheno_surface <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/d_pheno_surface.RDS")
-
-pheno_time <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_time_anim.RDS")
-outpath <- "/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_anim"
-animate(pheno_time, nframes = 42, duration = 10, width = 1920, height = 1920, 
-  renderer = file_renderer(dir = outpath))
-
-
-
 pheno_time <- ggplot(d_new %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
        aes(x = nloci, y = sigma, colour = phenomean)) +
   geom_jitter(size = 10) +
@@ -186,21 +136,19 @@ pheno_time <- pheno_time + transition_states(gen) +
 animate(pheno_time, nframes = 42, duration = 10, width = 1920, height = 1920, 
   renderer = file_renderer(dir = "./pheno_anim"))
 
-
-pheno_time <- ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
-       aes(x = gen, y = meanPheno, colour = nloci)) +
+# Single population
+sample_num <- 1
+pheno_time_single <- ggplot(d_new %>% filter(seed %in% sampled_seeds$seed[sample_num],
+                                             modelindex %in% sampled_seeds$modelindex[sample_num]) %>% 
+                       mutate(gen = gen - 50000),
+                     aes(x = gen, y = phenomean)) +
   geom_line() +
-  geom_hline(yintercept = 2, linetype = "dashed") +
-  scale_fill_viridis_c(guide = "none") +
-  scale_colour_viridis_c() +
-  #geom_ribbon(aes(ymin = (meanPheno - ciPheno), ymax = (meanPheno + ciPheno), 
-  #  fill = nloci), color = NA, alpha = 0.2) +
-  labs(x = "Generations after optimum shift", y = "Mean of population mean phenotypes", 
-    colour = "Number of loci", linewidth = "Mutational effect variance") +
+  labs(x = "Generations post-optimum shift", y = "Trait value") +
   theme_bw() +
-  theme(text = element_text(size=20), panel.spacing = unit(1, "lines"))
+  theme(text = element_text(size=20))
+pheno_time_single
 
-ggsave("pheno_time.png", pheno_time, height = 9, width = 12)
+
 
 # time to optimum
 d_new %>% filter(gen >= 49500) %>%
@@ -282,8 +230,101 @@ plt_respTime
 plot_grid(plt_respTime, plt_adaptTime, ncol = 2, labels = "AUTO")
 ggsave("phenoRespTimeLattice.png", width = 15, height = 8, bg = "white")
 
+# single population
+d_new %>% filter(gen >= 49500, seed %in% sampled_seeds$seed[sample_num],
+                 modelindex %in% sampled_seeds$modelindex[sample_num]) %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]) - 50000, -1),
+         initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]) - 50000, -1)) -> d_adapttime_single
+
+
 # size effects
 d_com <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/d_combined_after.RDS")
+
+# single population
+
+d_com %>%
+  filter(gen >= 49500, seed %in% sampled_seeds$seed[sample_num],
+         modelindex %in% sampled_seeds$modelindex[sample_num]) %>%
+  mutate(isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.2, 1.9)) %>%
+  mutate(gen = gen - 50000, 
+         molTrait = recode_factor(mutType,
+                                  `1`="Neutral", `2`="Del", `3`="$$\\alpha_Z$$", `4`="$$\\beta_Z$$", 
+                                  `5`="$$K_Z$$", `6`="$$K_{XZ}$$"),
+         adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1),
+         initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]), -1))-> d_com_single
+
+
+mutType_names <- c(
+  TeX("$\\alpha_Z$"),
+  TeX("$\\beta_Z$"),
+  TeX("$K_Z$"),
+  TeX("$K_{XZ}$")
+)
+
+plt_meanVal_single <- levelplot(phenomean ~ Freq*value, d_com_single %>% 
+                               select(value, Freq, phenomean), 
+                             col.regions = paletteer_c("viridis::viridis", 100, -1),
+                             panel = panel.levelplot.points, 
+                             xlab = list(label = "Frequency", cex = 1.2), 
+                             ylab = list(label = "Effect size", cex = 1.2), 
+                             colorkey = list(space = "bottom",
+                                             title = "Phenotype mean",
+                                             labels = list(cex = 1.2)),
+                             par.settings = list(layout.heights = list(xlab.key.padding = 4)),
+                             scales = list(tck = c(1, 0),
+                                           cex = 1.2),
+                                           #x = list(at = c(200, 400, 600, 800, 1000)),
+                                           #y = list(at = c(-0.5, -0.25, 0.0, 0.25, 0.5))), 
+                             pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+
+contours_adapt_time <- 
+  contourplot(
+    phenomean ~ Freq*value, d_com_single %>% 
+      select(value, Freq, phenomean), 
+    panel=panel.2dsmoother, col = "white",
+    labels = list(col = "white",
+                  cex = 1.2))
+
+plt_adaptTime <- plt_meanVal_single + contours_adapt_time
+plt_adaptTime
+
+
+plt_meanVal_single <- ggplot(d_com_single, 
+                             aes(x = gen, y = value, color = molTrait)) +
+  geom_boxplot() +
+  scale_color_manual(values = cc_ibm, labels = mutType_names) +
+  labs(x = "Generations post-optimum shift", y = "Mutational effect", color = "Molecular component") +
+  theme_bw() +
+  theme(text=element_text(size=16), legend.position = "bottom", panel.spacing.x = unit(1, "lines"))
+plt_meanVal_single
+
+ggsave("meanVal.png", plt_meanVal, width = 14, height = 10, bg = "white")
+
+
+plt_meanFreq <- ggplot(d_meanfreq, 
+                       aes(x = gen, y = meanFreq, color = molTrait)) +
+  facet_grid(nloci_cat~sigma_cat) +
+  geom_line() +
+  scale_color_manual(values = cc_ibm, labels = mutType_names) +
+  scale_fill_manual(values = cc_ibm, guide = "none") +
+  geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq), 
+                  fill = molTrait), color = NA, alpha = 0.2) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  
+  labs(x = "Generations post-optimum shift", y = "Mean frequency", color = "Molecular component") +
+  theme_bw() +
+  theme(text=element_text(size=16), legend.position = "bottom", panel.spacing.x = unit(1, "lines"))
+plt_meanVal
+
+ggsave("meanFreq.png", plt_meanFreq, width = 14, height = 10, bg = "white")
+
 
 d_com %>%
   mutate(isAdapted = between(phenomean, 1.9, 2.1),
