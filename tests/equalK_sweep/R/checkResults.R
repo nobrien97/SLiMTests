@@ -47,8 +47,6 @@ setwd(path)
 
 cc_ibm <- c("#648fff", "#785ef0", "#dc267f", "#fe6100", "#ffb000", "#000000")
 
-cc_10cols <- c("#e60049", "#0bb4ff", "#50e991", "#e6d800", "#9b19f5", "#ffa300", "#dc0ab4", "#b3d4ff", "#00bfa0", "#012749")
-
 d_new <- readRDS(paste0(path, "checkpoint/d_qg.RDS"))
 
 d_new <- readRDS(paste0(local_path, "checkpoint/d_qg.RDS"))
@@ -120,6 +118,35 @@ if (!dir.exists("./pheno_anim"))
   dir.create("./pheno_anim")
 }
 
+d_pheno_surface <- d_new %>% group_by(gen) %>%
+                      do(dpinterp(.))
+
+pheno_time <- ggplot(d_pheno_surface %>% drop_na() %>% 
+                       filter(gen > 49000) %>% mutate(gen = gen - 50000),
+       aes(x = x, y = y, fill = z, z = z, group = z)) +
+  geom_tile() +
+  stat_contour() +
+  scale_colour_viridis_c() +
+  labs(x = "Number of loci", y = "Mutational effect variance", 
+    fill = "Phenotypic\nmean") +
+  theme_bw() +
+  theme(text = element_text(size=36), legend.key.size = unit(2, 'cm'))
+
+
+pheno_time <- pheno_time + transition_states(gen) +
+  labs(title = "Generations post-optimum shift: {closest_state}")
+
+# Save to compile on my machine
+saveRDS(pheno_time, "/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_time_anim.RDS")
+d_pheno_surface <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/d_pheno_surface.RDS")
+
+pheno_time <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_time_anim.RDS")
+outpath <- "/mnt/d/SLiMTests/tests/equalK_sweep/data/pheno_anim"
+animate(pheno_time, nframes = 42, duration = 10, width = 1920, height = 1920, 
+  renderer = file_renderer(dir = outpath))
+
+
+
 pheno_time <- ggplot(d_new %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
        aes(x = nloci, y = sigma, colour = phenomean)) +
   geom_jitter(size = 10) +
@@ -165,6 +192,8 @@ d_new %>% filter(gen >= 49500) %>%
             CIAdaptTime = CI(adaptTime),
             initRespTime = mean(initRespTime),
             CIInitRespTime = CI(initRespTime)) -> d_new_adapttime
+
+saveRDS(d_new_adapttime, "d_nloci_sigma_lattice.RDS")
 
 
 grid_adapt_time <- levelplot(adaptTime ~ nloci*sigma, d_new_adapttime %>% 
@@ -344,6 +373,11 @@ d_com %>%
             meanValue = mean(value),
             CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
 
+saveRDS(d_com_adapttime, "d_mut_fx_adapted_lattice.RDS")
+
+
+d_com_adapttime <- readRDS("../data/d_mut_fx_adapted_lattice.RDS")
+
 grid_adapt_time <- levelplot(adaptTime ~ nloci*meanValue, d_com_adapttime %>% 
                                mutate(adaptTime = adaptTime - 50000) %>% 
                                select(nloci, meanValue, meanFreq, adaptTime), 
@@ -391,7 +425,11 @@ d_com %>%
             meanFreq = mean(Freq),
             CIMeanFreq = CI(Freq),
             meanValue = mean(value),
-            CIMeanalue = CI(value)) %>% ungroup() -> d_com_adapttime
+            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
+
+saveRDS(d_com_adapttime, "d_muts_fx_initresp_lattice.RDS")
+
+d_com_adapttime <- readRDS("../data/d_muts_fx_initresp_lattice.RDS")
 
 grid_resp_time <- levelplot(initRespTime ~ nloci*meanValue, d_com_adapttime %>% 
                                mutate(initRespTime = initRespTime - 50000) %>% 
@@ -427,23 +465,7 @@ ggsave("respTimeFX.png", width = 15, height = 8, bg = "white")
 
 # frequency by effect size
 
-d_com %>%
-  mutate(isAdapted = between(phenomean, 1.9, 2.1),
-         isAdapting = between(phenomean, 1.2, 1.9)) %>%
-  group_by(seed, nloci, sigma, mutType) %>%
-  mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1)) %>%
-  # get mean freq/value of mutations segregating in models at the adaptation time
-  filter(gen == adaptTime) %>%
-  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
-  ungroup() %>%
-  filter(adaptTime != -1) %>%
-  group_by(nloci, sigma, mutType) %>%
-  summarise(CIAdaptTime = CI(adaptTime),
-            adaptTime = mean(adaptTime),
-            meanFreq = mean(Freq), 
-            CIMeanFreq = CI(Freq),
-            meanValue = mean(value),
-            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
+d_com_adapttime <- readRDS("../data/d_mut_fx_adapted_lattice.RDS")
 
 grid_adapt_time <- levelplot(adaptTime ~ meanFreq*meanValue, d_com_adapttime %>% 
                                mutate(adaptTime = adaptTime - 50000) %>% 
@@ -477,23 +499,7 @@ plt_adaptTime
 write_csv(d_com_adapttime %>% mutate(adaptTime = adaptTime - 50000), "d_adaptedTime.csv")
 
 
-d_com %>%
-  mutate(isAdapted = between(phenomean, 1.9, 2.1),
-         isAdapting = between(phenomean, 1.2, 1.9)) %>%
-  group_by(seed, nloci, sigma, mutType) %>%
-  mutate(initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]), -1)) %>%
-  # get mean freq/value of mutations segregating in models at the adaptation time
-  filter(gen == initRespTime) %>%
-  mutate(meanFreq = mean(Freq), meanValue = mean(abs(value))) %>%
-  ungroup() %>%
-  filter(initRespTime != -1) %>%
-  group_by(nloci, sigma, mutType) %>%
-  summarise(CIInitRespTime = CI(initRespTime),
-            initRespTime = mean(initRespTime),
-            meanFreq = mean(Freq),
-            CIMeanFreq = CI(Freq),
-            meanValue = mean(value),
-            CIMeanValue = CI(value)) %>% ungroup() -> d_com_adapttime
+d_com_adapttime <- readRDS("../data/d_muts_fx_initresp_lattice.RDS")
 
 grid_resp_time <- levelplot(initRespTime ~ meanFreq*meanValue, d_com_adapttime %>% 
                               mutate(initRespTime = initRespTime - 50000) %>% 
