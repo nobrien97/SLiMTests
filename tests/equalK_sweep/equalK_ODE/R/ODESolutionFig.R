@@ -6,7 +6,6 @@ library(future)
 library(doParallel)
 library(foreach)
 
-local_path <- "/mnt/d/SLiMTests/tests/equalK_sweep/data/"
 
 
 d_new <- readRDS(paste0(local_path, "checkpoint/d_qg.RDS"))
