@@ -23,10 +23,12 @@ state <- c(Z = 0)
 times <- seq(0, 10, by = 0.1)
 len_row <- nrow(d_new) * length(times)
 
-solution <- data.frame(gen = integer(len_row), 
+solution <- data.frame(gen = integer(len_row),
+                       seed = integer(len_row),
+                       modelindex = integer(len_row),
                        nloci = integer(len_row), 
                        sigma = integer(len_row), 
-                       id = integer(len_row), 
+                       phenomean = integer(len_row), 
                        time = integer(len_row), 
                        Z = integer(len_row))
 
@@ -38,10 +40,10 @@ for(i in 1:nrow(d_new)) {
   res <- ode(state, times, nar, params, "rk4") %>%
     as.data.frame() %>%
     as_tibble() %>%
-    mutate(gen = d_new$gen[i],
+    mutate(gen = d_new$gen[i], seed = d_new$seed[i], modelindex = d_new$modelindex[i],
            nloci = d_new$nloci[i], sigma = d_new$sigma[i],
-           id = d_new$id[i]) %>%
-    select(gen, nloci, sigma, id, time, Z)
+           phenomean = d_new$phenomean[i]) %>%
+    select(gen, seed, modelindex, nloci, sigma, phenomean, time, Z)
   
   solution[((i-1)*101+1):(i*101),] <- res
 }
