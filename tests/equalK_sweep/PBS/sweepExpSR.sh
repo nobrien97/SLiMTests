@@ -32,7 +32,6 @@ echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # Run the model
 $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} $TESTDIR/slim/$MODEL
 
-
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"
 echo "$(($DURATION / 3600)) hours, $((($DURATION / 60) % 60)) minutes, and $(($DURATION % 60)) seconds elapsed."
