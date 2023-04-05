@@ -67,6 +67,13 @@ d_new %>%
          seed = as_factor(seed)) %>%
   ungroup() -> d_new_adapted
 
+# get adapted indpheno
+d_indPheno <- readRDS(paste0(local_path, "checkpoint/d_indPheno.RDS"))
+d_indPheno <- d_indPheno %>% 
+  mutate(id = as_factor(paste(seed, modelindex, sep = "_"))) %>%
+  filter(id %in% d_new_adapted$id, gen > 49000)
+
+saveRDS(d_indPheno, paste0(local_path, "checkpoint/d_indPheno_adapted.RDS"))
 
 d_new %>%
   group_by(seed, nloci, sigma) %>%
@@ -86,6 +93,8 @@ sampled_seeds <- d_new_adapted %>% filter(gen > 49500, phenomean < 5) %>%
   select(nloci, sigma, seed, modelindex, id) %>%
   sample_n(1)
 
+d_eg <- d_new_adapted %>% filter(seed %in% sampled_seeds$seed[1], 
+                                 modelindex %in% sampled_seeds$modelindex[1])
 d_qg_sum <- d_new %>% group_by(gen, nloci_cat, sigma_cat) %>%
   summarise(He = mean(meanH),
             ciHe = qnorm(0.975) * se(meanH),
@@ -293,7 +302,8 @@ mutType_names <- c(
   TeX("$K_{XZ}$")
 )
 
-plt_meanVal_single <- levelplot(phenomean ~ Freq*value, d_com_single %>% 
+plt_meanVal_single <- levelplot(phenomean ~ Freq*value, d_com_single %>%
+                                  filter(mutType == 3) %>%
                                select(value, Freq, phenomean), 
                              col.regions = paletteer_c("viridis::viridis", 100, -1),
                              panel = panel.levelplot.points, 
@@ -313,6 +323,7 @@ plt_meanVal_single <- levelplot(phenomean ~ Freq*value, d_com_single %>%
 contours_adapt_time <- 
   contourplot(
     phenomean ~ Freq*value, d_com_single %>% 
+      filter(mutType == 3) %>%
       select(value, Freq, phenomean), 
     panel=panel.2dsmoother, col = "white",
     labels = list(col = "white",
@@ -323,36 +334,29 @@ plt_adaptTime
 
 
 plt_meanVal_single <- ggplot(d_com_single, 
-                             aes(x = gen, y = value, color = molTrait)) +
-  geom_boxplot() +
+                             aes(x = gen, y = value, color = molTrait, group = mutID)) +
+  geom_point() +
+  geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
   labs(x = "Generations post-optimum shift", y = "Mutational effect", color = "Molecular component") +
   theme_bw() +
   theme(text=element_text(size=16), legend.position = "bottom", panel.spacing.x = unit(1, "lines"))
 plt_meanVal_single
 
-ggsave("meanVal.png", plt_meanVal, width = 14, height = 10, bg = "white")
+ggsave("meanVal.png", plt_meanVal_single, width = 14, height = 10, bg = "white")
 
 
-plt_meanFreq <- ggplot(d_meanfreq, 
-                       aes(x = gen, y = meanFreq, color = molTrait)) +
-  facet_grid(nloci_cat~sigma_cat) +
+plt_meanFreq_single <- ggplot(d_com_single, 
+                       aes(x = gen, y = Freq, color = molTrait, group = mutID)) +
+  geom_point() +
   geom_line() +
   scale_color_manual(values = cc_ibm, labels = mutType_names) +
-  scale_fill_manual(values = cc_ibm, guide = "none") +
-  geom_ribbon(aes(ymin = (meanFreq - ci95Freq), ymax = (meanFreq + ci95Freq), 
-                  fill = molTrait), color = NA, alpha = 0.2) +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
-                                         breaks = NULL, labels = NULL)) +
-  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
-                                         breaks = NULL, labels = NULL)) +
-  
   labs(x = "Generations post-optimum shift", y = "Mean frequency", color = "Molecular component") +
   theme_bw() +
   theme(text=element_text(size=16), legend.position = "bottom", panel.spacing.x = unit(1, "lines"))
-plt_meanVal
+plt_meanFreq_single
 
-ggsave("meanFreq.png", plt_meanFreq, width = 14, height = 10, bg = "white")
+ggsave("meanFreq.png", plt_meanFreq_single, width = 14, height = 10, bg = "white")
 
 
 d_com %>%
