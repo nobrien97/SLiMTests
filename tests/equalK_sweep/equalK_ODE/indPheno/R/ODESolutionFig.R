@@ -32,7 +32,8 @@ sampled_seeds <- d_ode %>%
 
 d_sample <- d_ode %>% filter(seed %in% sampled_seeds$seed[1], 
                              modelindex %in% sampled_seeds$modelindex[1]) %>%
-                        mutate(idx = interaction(ind, id))
+                        mutate(idx = interaction(ind, id),
+                               X = as.integer((time > Xstart & time <= Xstop)))
 
 highlight_ids <- sampled_seeds %>%
   group_by(nloci_cat, sigma_cat) %>%
@@ -54,15 +55,39 @@ plt_ode <- ggplot(d_sample %>%
   theme_bw() +
   theme(text = element_text(size=36), panel.spacing.x = unit(1, "lines"))
 
-saveRDS(plt_ode, "testpltode.RDS")
-plt_ode <- readRDS("testpltode.RDS")
-
 plt_ode <- plt_ode + transition_states(gen, wrap = F) +
   labs(title = "Generation: {closest_state}")
 
 anim <- animate(plt_ode, nframes = 42, duration = 10, width = 1920, height = 1920,
         renderer = ffmpeg_renderer())
 anim_save("ode_time_test.mp4", anim)
+
+
+# plot phase diagram
+Xstart <- 1
+Xstop <- 6
+
+plt_phase <- ggplot(d_sample %>%
+                      mutate(gen = gen - 50000, time = time/10), 
+                    aes(x = X, y = Z, colour = idx, group = idx)) + 
+  geom_segment(aes(x = lag(X), y = lag(Z), xend = X, yend = Z), 
+               arrow = arrow(length = unit(0.25, "cm"))) +
+  scale_colour_manual(values = rep(cc_ibm[3], 11), guide = "none") +
+  gghighlight(idx %in% highlight_ids$idx,
+              calculate_per_facet = T, use_direct_label = F) +
+  xlab("X") + 
+  ylab("Z") + 
+  theme_bw() +
+  theme(text = element_text(size=36), panel.spacing.x = unit(1, "lines"))
+
+plt_phase <- plt_phase + transition_states(gen, wrap = F) +
+  labs(title = "Generation: {closest_state}")
+
+anim <- animate(plt_phase, nframes = 42, duration = 10, width = 1920, height = 1920,
+                renderer = ffmpeg_renderer())
+anim_save("ode_phase_test.mp4", anim)
+
+
 
 # sample 10 from each nloci/sigma group and plot
 sampled_seeds <- d_ode %>%
@@ -72,7 +97,8 @@ sampled_seeds <- d_ode %>%
 
 d_sample <- d_ode %>% filter(seed %in% sampled_seeds$seed, 
                              modelindex %in% sampled_seeds$modelindex) %>%
-  mutate(idx = interaction(ind, id))
+  mutate(idx = interaction(ind, id),
+         X = as.integer((time > Xstart & time <= Xstop)))
 
 highlight_ids <- sampled_seeds %>%
   group_by(nloci_cat, sigma_cat) %>%
@@ -92,7 +118,11 @@ plt_ode_total <- ggplot(d_sample %>%
   geom_line() +
   scale_colour_manual(values = rep(cc_ibm[3], 11), guide = "none") +
   coord_cartesian(ylim = c(0, max_y)) +
-  scale_x_continuous(labels = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = c(0, 0.25, 0.5, 0.75, 1), 
+                     sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
   gghighlight(idx %in% highlight_ids$idx,
               calculate_per_facet = T, use_direct_label = F) +
   labs(x = "Developmental time", y = "Z expression") +
@@ -105,3 +135,34 @@ plt_ode_total <- plt_ode_total + transition_states(gen) +
 anim <- animate(plt_ode_total, nframes = 42, duration = 10, width = 1920, height = 1920,
         renderer = ffmpeg_renderer())
 anim_save("ode_time_total.mp4", anim)
+
+# phase diagram
+
+plt_phase_total <- ggplot(d_sample %>%
+                      mutate(gen = gen - 50000, time = time/10), 
+                    aes(x = X, y = Z, colour = idx, group = idx)) +
+  facet_grid(nloci_cat~sigma_cat) +
+  coord_cartesian(ylim = c(0, max_y)) +
+  scale_colour_manual(values = rep(cc_ibm[3], 11), guide = "none") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = c(0, 0.25, 0.5, 0.75, 1), 
+                     sec.axis = sec_axis(~ ., name = "Mutational effect variance", 
+                                         breaks = NULL, labels = NULL)) +
+  geom_segment(aes(x = lag(X), y = lag(Z), xend = X, yend = Z), 
+               arrow = arrow(length = unit(0.25, "cm"))) +
+  gghighlight(idx %in% highlight_ids$idx,
+              calculate_per_facet = T, use_direct_label = F) +
+  xlab("X") + 
+  ylab("Z") + 
+  theme_bw() +
+  theme(text = element_text(size=36), panel.spacing.x = unit(1, "lines"))
+
+plt_phase_total <- plt_phase_total + transition_states(gen, wrap = F) +
+  labs(title = "Generation: {closest_state}")
+
+anim <- animate(plt_phase_total, nframes = 42, duration = 10, width = 1920, height = 1920,
+                renderer = ffmpeg_renderer())
+anim_save("ode_phase_total.mp4", anim)
+
+

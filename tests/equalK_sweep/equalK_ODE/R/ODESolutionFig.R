@@ -16,8 +16,25 @@ d_ode$nloci_cat <- cut(d_ode$nloci,
 d_ode$sigma_cat <- cut(d_ode$sigma,
                        breaks=c(-Inf, 0.05, 0.5, 1, Inf))
 
-d_ode <- d_ode %>% mutate(id = paste(seed, modelindex, sep = "_"))
 
+
+d_ode <- d_ode %>% 
+  mutate(id = paste(seed, modelindex, sep = "_"))
+
+d_ode <- d_ode %>%
+  group_by(gen, seed, modelindex) %>%
+  mutate(diff_bottom = min(.$Z[.$X == 1]) - min(.$Z[.$X == 0]),
+         diff_top = max(.$Z[.$X == 1]) - max(.$Z[.$X == 0]),
+         len_left = max(.$Z[.$X == 0]) - min(.$Z[.$X == 0]),
+         len_right = max(.$Z[.$X == 1]) - min(.$Z[.$X == 1]),
+         bottom_left_angle = 90 - atan2(diff_bottom, 1) * (180 / pi),
+         top_right_angle = atan2(1, diff_top) * (180 / pi),
+         bottom_right_angle = 90 + atan2(diff_bottom, 1) * (180 / pi),
+         top_left_angle = 90 + (90 - top_right_angle)
+         )
+
+
+# measure lengths/angles of sides
 seed <- sample(1:.Machine$integer.max, 1)
 set.seed(seed)
 # 18799215
@@ -29,7 +46,8 @@ sampled_seeds <- d_ode %>%
   sample_n(1)
 
 d_sample <- d_ode %>% filter(seed %in% sampled_seeds$seed[1], 
-                                 modelindex %in% sampled_seeds$modelindex[1])
+                                 modelindex %in% sampled_seeds$modelindex[1]) %>%
+  mutate(X = as.integer((time > Xstart & time <= Xstop)))
 
 
 ggplot(d_sample %>% mutate(gen = gen - 50000), aes(x = time, y = Z)) +
@@ -45,8 +63,28 @@ animate(plt_ode, nframes = 42, duration = 10, width = 720, height = 720,
         renderer = ffmpeg_renderer())
 anim_save("ode_time.mp4", last_animation())
 
-# sample 10 from each nloci/sigma group and plot
+# plot phase diagram
+Xstart <- 1
+Xstop <- 6
 
+plt_phase <- ggplot(d_sample %>% filter(gen == 50000) %>%
+                      mutate(gen = gen - 50000, time = time/10), 
+                    aes(x = X, y = Z)) + 
+  geom_segment(aes(x = lag(X), y = lag(Z), xend = X, yend = Z), 
+               arrow = arrow(length = unit(0.25, "cm"))) +
+  xlab("X") + 
+  ylab("Z") + 
+  theme_bw() +
+  theme(text = element_text(size=36), panel.spacing.x = unit(1, "lines"))
+
+plt_phase <- plt_phase + transition_states(gen, wrap = F) +
+  labs(title = "Generation: {closest_state}")
+
+anim <- animate(plt_phase, nframes = 42, duration = 10, width = 1920, height = 1920,
+                renderer = ffmpeg_renderer())
+anim_save("ode_meanphase_test.mp4", anim)
+
+# sample 10 from each nloci/sigma group and plot
 sampled_seeds <- d_ode %>%
   group_by(nloci_cat, sigma_cat) %>%
   select(nloci, sigma, seed, modelindex, id) %>%
@@ -88,3 +126,6 @@ plt_ode_total <- plt_ode_total + transition_states(gen, wrap = F) +
 animate(plt_ode_total, nframes = 42, duration = 10, width = 1920, height = 1920, 
         renderer = ffmpeg_renderer())
 anim_save("ode_time_total.mp4", last_animation())
+
+
+# Measure angle between 
