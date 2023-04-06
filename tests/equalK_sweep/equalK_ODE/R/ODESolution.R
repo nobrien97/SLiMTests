@@ -29,7 +29,8 @@ solution <- data.frame(gen = integer(len_row),
                        nloci = integer(len_row), 
                        sigma = integer(len_row), 
                        phenomean = integer(len_row), 
-                       time = integer(len_row), 
+                       time = integer(len_row),
+                       X = integer(len_row), 
                        Z = integer(len_row))
 
 for(i in 1:nrow(d_new)) {
@@ -42,10 +43,23 @@ for(i in 1:nrow(d_new)) {
     as_tibble() %>%
     mutate(gen = d_new$gen[i], seed = d_new$seed[i], modelindex = d_new$modelindex[i],
            nloci = d_new$nloci[i], sigma = d_new$sigma[i],
-           phenomean = d_new$phenomean[i]) %>%
-    select(gen, seed, modelindex, nloci, sigma, phenomean, time, Z)
+           phenomean = d_new$phenomean[i],
+           X = as.integer((time > Xstart & time <= Xstop))) %>%
+    select(gen, seed, modelindex, nloci, sigma, phenomean, time, X, Z)
   
   solution[((i-1)*101+1):(i*101),] <- res
 }
+
+solution <- solution %>%
+  group_by(gen, seed, modelindex) %>%
+  mutate(diff_bottom = min(.$Z[.$X == 1]) - min(.$Z[.$X == 0]),
+         diff_top = max(.$Z[.$X == 1]) - max(.$Z[.$X == 0]),
+         len_left = max(.$Z[.$X == 0]) - min(.$Z[.$X == 0]),
+         len_right = max(.$Z[.$X == 1]) - min(.$Z[.$X == 1]),
+         bottom_left_angle = 90 - atan2(diff_bottom, 1) * (180 / pi),
+         top_right_angle = atan2(1, diff_top) * (180 / pi),
+         bottom_right_angle = 90 + atan2(diff_bottom, 1) * (180 / pi),
+         top_left_angle = 90 + (90 - top_right_angle)
+         )
 
 write.table(solution, paste0("ode_", run, ".csv"), sep = ",", col.names = F, row.names = F)
