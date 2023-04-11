@@ -6,7 +6,6 @@ args <- commandArgs(trailingOnly = T)
 run <- as.numeric(args[1])
 
 d_new <- readRDS("/g/data/ht96/nb9894/equalK_sweep/d_new_adapted.RDS")
-
 # Get appropriate subset - 42 timepoints
 d_new <- d_new[((run-1)*42+1):(run*42),]
 
@@ -22,6 +21,9 @@ nar <- function(t, state, parameters) {
 state <- c(Z = 0)
 times <- seq(0, 10, by = 0.1)
 len_row <- nrow(d_new) * length(times)
+
+Xstart <- 1
+Xstop <- 6
 
 solution <- data.frame(gen = integer(len_row),
                        seed = integer(len_row),
@@ -51,11 +53,11 @@ for(i in 1:nrow(d_new)) {
 }
 
 solution <- solution %>%
-  group_by(gen, seed, modelindex) %>%
-  mutate(diff_bottom = min(.$Z[.$X == 1]) - min(.$Z[.$X == 0]),
-         diff_top = max(.$Z[.$X == 1]) - max(.$Z[.$X == 0]),
-         len_left = max(.$Z[.$X == 0]) - min(.$Z[.$X == 0]),
-         len_right = max(.$Z[.$X == 1]) - min(.$Z[.$X == 1]),
+  group_by(gen, seed, modelindex, nloci, sigma) %>%
+  mutate(diff_bottom = min(Z[X == 1]) - min(Z[X == 0]),
+         diff_top = max(Z[X == 1]) - max(Z[X == 0]),
+         len_left = max(Z[X == 0]) - min(Z[X == 0]),
+         len_right = max(Z[X == 1]) - min(Z[X == 1]),
          bottom_left_angle = 90 - atan2(diff_bottom, 1) * (180 / pi),
          top_right_angle = atan2(1, diff_top) * (180 / pi),
          bottom_right_angle = 90 + atan2(diff_bottom, 1) * (180 / pi),

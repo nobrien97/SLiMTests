@@ -56,11 +56,11 @@ for(i in 1:nrow(d_new)) {
 }
 
 solution <- solution %>%
-  group_by(gen, seed, modelindex) %>%
-  mutate(diff_bottom = min(.$Z[.$X == 1]) - min(.$Z[.$X == 0]),
-         diff_top = max(.$Z[.$X == 1]) - max(.$Z[.$X == 0]),
-         len_left = max(.$Z[.$X == 0]) - min(.$Z[.$X == 0]),
-         len_right = max(.$Z[.$X == 1]) - min(.$Z[.$X == 1]),
+  group_by(gen, seed, modelindex, nloci, sigma, ind) %>%
+  mutate(diff_bottom = min(Z[X == 1]) - min(Z[X == 0]),
+         diff_top = max(Z[X == 1]) - max(Z[X == 0]),
+         len_left = max(Z[X == 0]) - min(Z[X == 0]),
+         len_right = max(Z[X == 1]) - min(Z[X == 1]),
          bottom_left_angle = 90 - atan2(diff_bottom, 1) * (180 / pi),
          top_right_angle = atan2(1, diff_top) * (180 / pi),
          bottom_right_angle = 90 + atan2(diff_bottom, 1) * (180 / pi),
