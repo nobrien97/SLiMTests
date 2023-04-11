@@ -166,3 +166,27 @@ anim <- animate(plt_phase_total, nframes = 42, duration = 10, width = 1920, heig
 anim_save("ode_phase_total.mp4", anim)
 
 
+# Make table of phase diagram with molecular trait and phenotype values
+# NOTE: this is for individual level phase diagrams - 10 individuals per timepoint/model/seed
+d_ode_phasemeasures <- d_ode %>% select(gen, seed, modelindex, nloci, sigma, ind, phenotype,
+                                        len_left, len_right, bottom_left_angle, bottom_right_angle,
+                                        top_right_angle, top_left_angle) %>% 
+  distinct(gen, seed, modelindex, ind, nloci, sigma, .keep_all = T) %>%
+  mutate(seed = as_factor(seed), modelindex = as_factor(modelindex), ind = as_factor(ind))
+
+d_indPheno <- readRDS("/g/data/ht96/nb9894/equalK_sweep/checkpoint/d_indPheno_adapted.RDS")
+
+d_indPheno <- d_indPheno %>%
+  select(gen, seed, modelindex, nloci, sigma, ind, aZ, bZ, KZ, KXZ)
+
+d_ode_phasemeasures <- inner_join(d_ode_phasemeasures, d_indPheno, 
+                                   by = c("gen", "seed", "modelindex", "nloci", "sigma", "ind"))
+
+d_ode_phasemeasures <- d_ode_phasemeasures %>%
+  select(gen, seed, modelindex, nloci, sigma, ind, aZ, bZ, KZ, KXZ, len_left, 
+         len_right, bottom_left_angle, bottom_right_angle,
+         top_right_angle, top_left_angle, phenotype)
+
+saveRDS(d_ode_phasemeasures, "d_phaseDiagramMeasures.RDS")
+write_csv(d_ode_phasemeasures, "d_phaseDiagramMeasures.csv")
+
