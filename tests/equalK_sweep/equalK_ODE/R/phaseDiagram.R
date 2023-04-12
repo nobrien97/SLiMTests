@@ -1,5 +1,6 @@
 library(deSolve)
 library(phaseR)
+library(tidyverse)
 
 # Function to calculate the derivatives of X and Z
 nar_ode <- function(t, state, parameters) {
