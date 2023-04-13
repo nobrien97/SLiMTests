@@ -210,4 +210,33 @@ ggsave("molTrait_landscape_singleWalk.png", pair_mat, width = 11, height = 8)
 
 ggpairs(d_ode_phasemeasures, columns = c(6:9))
 
+# Why is KZ so big?
+d_com <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/d_combined_after.RDS")
+d_com$id <- as.factor(paste(d_com$seed, d_com$modelindex, sep = "_"))
+d_com_sampled <- d_com %>% filter(id %in% sampled_id)
+View(d_com_sampled %>% filter(mutType == 5))
+View(d_com_sampled %>% filter(mutType == 5, id == "13_32", gen == 49500))
+d_com_sampled %>% filter(mutType == 6, id == "13_32", gen == 49500) %>% summarise(value = sum(value))
 
+# How often is KZ bigger than the other values?
+d_ode_phasemeasures %>% 
+  mutate(KZ_bigger = (2 * KZ > aZ) & (2 * KZ > bZ), (2 * KZ > KXZ)) %>%
+  group_by(gen) %>%
+  summarise(mean(KZ_bigger)) -> KZ_bigger
+
+# Lets look at that over burn-in
+d_qg <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/checkpoint/d_qg.RDS")
+d_qg %>%
+  group_by(seed, nloci, sigma) %>%
+  filter(any(gen >= 51800 & between(phenomean, 1.9, 2.1))) %>%
+  mutate(phenoCI = qnorm(0.975) * phenovar/sqrt(5000),
+         seed = as_factor(seed)) %>%
+  ungroup() -> d_qg
+
+d_qg %>% mutate(KZ_bigger = (2 * KZ > aZ) & (2 * KZ > bZ), (2 * KZ > KXZ)) %>%
+  group_by(gen) %>%
+  summarise(mean(KZ_bigger)) -> KZ_bigger
+
+plot(KZ_bigger$gen, KZ_bigger$`mean(KZ_bigger)`, type = "b")
+
+# Evidence for KXZ neutral evolution between 0 - 1
