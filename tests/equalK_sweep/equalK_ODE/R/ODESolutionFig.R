@@ -228,7 +228,7 @@ d_ode_phasemeasures <- d_ode_phasemeasures %>%
          KXZ99 = quantile(KXZ, 0.99)) %>%
   filter(aZ <= aZ99 & bZ <= bZ99, KZ <= KZ99, KXZ <= KXZ99)
 
-res.pca <- PCA(d_ode_phasemeasures %>% select(10:15), scale.unit = T, graph = F)
+res.pca <- PCA(d_ode_phasemeasures %>% select(c(10:12, 14)), scale.unit = T, graph = F)
 fviz <- fviz_eig(res.pca, addlabels = TRUE)
 fviz
 ggsave("fviz_ode_shape.png", fviz, bg = "white")
@@ -236,7 +236,7 @@ var <- get_pca_var(res.pca)
 var$contrib
 
 # make dataframe to plot pca
-d_pca <- d_ode_phasemeasures %>% select(-c(10:15, 17:20))
+d_pca <- d_ode_phasemeasures %>% select(-c(10:12, 14, 17:20))
 
 d_pca$pc1 <- res.pca$ind$coord[, 1]
 d_pca$pc2 <- res.pca$ind$coord[, 2]
