@@ -22,6 +22,7 @@ state <- c(Z = 0)
 times <- seq(0, 10, by = 0.1)
 
 KZ_vals = 10^c(seq(from = -5, to = 1, by = 1))
+KZ_vals = c(1, 5.8991e+29)
 out <- data.frame(
   KZ = numeric(length(KZ_vals)),
   Z = numeric(length(KZ_vals)))
