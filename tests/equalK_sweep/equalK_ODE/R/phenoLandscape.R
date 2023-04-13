@@ -193,12 +193,12 @@ d_pheno <- d_ode_phasemeasures %>%
 library(cowplot)
 
 molTrait_names <- c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), 
-                    TeX("$K_Z$"), TeX("$K_{XZ}$"), TeX("Z"))
+                    TeX("$K_{XZ}$"), TeX("$K_Z$"), TeX("Z"))
 
 ggplot(d_pheno %>% filter(gen > 49000, id %in% sampled_id) %>% mutate(gen = gen - 50000),
        aes(x = gen, y = value, colour = trait)) +
   geom_line() +
-  scale_colour_paletteer_d("ggsci::nrc_npg", 1) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", 1, labels = molTrait_names) +
   geom_point() +
   labs(x = "Generations post-optimum shift", y = "Mean trait/\ncomponent value",
        colour = "Trait/component") +
