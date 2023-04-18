@@ -1,13 +1,16 @@
 # plot molecular components vs phenotype w/ samples overlaid 
 # as points connected by arrows (for time)
 library(tidyverse)
-library(gganimate)
 library(latex2exp)
 library(lattice)
 library(latticeExtra)
 library(paletteer)
 library(reshape2)
 library(scales)
+
+library(GGally)
+library(ggarrow)
+library(ggnewscale)
 
 # Load data
 d_ode_phasemeasures <- readRDS("d_phaseDiagramMeasures.RDS")
@@ -21,58 +24,21 @@ molTraitRange <- list(aZ = quantile(d_ode_phasemeasures$aZ, c(0.01, 0.99)),
                       KXZ = quantile(d_ode_phasemeasures$KXZ, c(0.01, 0.99)))
 
 # Filter data
-d_ode_phasemeasures <- d_ode_phasemeasures %>% 
-  filter(aZ >= molTraitRange$aZ[1] & aZ <= molTraitRange$aZ[2],
-         bZ >= molTraitRange$bZ[1] & bZ <= molTraitRange$bZ[2],
-         KZ >= molTraitRange$KZ[1] & KZ <= molTraitRange$KZ[2],
-         KXZ >= molTraitRange$KXZ[1] & KXZ <= molTraitRange$KXZ[2])
+# d_ode_phasemeasures <- d_ode_phasemeasures %>% 
+#   filter(aZ >= molTraitRange$aZ[1] & aZ <= molTraitRange$aZ[2],
+#          bZ >= molTraitRange$bZ[1] & bZ <= molTraitRange$bZ[2],
+#          KZ >= molTraitRange$KZ[1] & KZ <= molTraitRange$KZ[2],
+#          KXZ >= molTraitRange$KXZ[1] & KXZ <= molTraitRange$KXZ[2])
 
-# Get sequences between that range
-molTraitSeq <- lapply(molTraitRange, function(x) {
-  seq(from = x[1], to = x[2], length.out = 30)
-})
-
-# Generate data frame of mol trait combos
-d_molTrait <- expand.grid(molTraitSeq)
-write.table(d_molTrait, "./samples.csv", sep = ",", row.names = FALSE,
-            col.names = FALSE, quote = FALSE)
-
-# Use ODE Landscaper
-width <- 0.05
-optimum <- 2
-threads <- 12
-system(sprintf("ODELandscaper -i ./samples.csv -o ./landscape.csv -w %f -p %f -t %i",
-               width, optimum, threads))
-
-d_landscape <- read_csv("./landscape.csv", col_names = F, col_types = "d")
-names(d_landscape) <- c("fitness", "pheno", "aZ", "bZ", "KZ", "KXZ")
-
-d_landscape$pheno_rescaled <- ifelse(d_landscape$pheno > 3, 4, d_landscape$pheno)
 d_ode_phasemeasures$pheno_rescaled <- ifelse(d_ode_phasemeasures$phenomean > 3, 4, 
                                              d_ode_phasemeasures$phenomean)
 
-# Plot the landscape
-ggplot(d_landscape, aes(x = aZbZ, y = KZKXZ, fill = pheno_rescaled)) +
-  geom_tile() +
-  geom_segment(data = d_ode_phasemeasures %>% filter(id %in% sample(.$id, 1)), 
-               mapping = aes(x = lag(aZbZ), y = lag(KZKXZ), xend = aZbZ, yend = KZKXZ, 
-                                        group = id), 
-               arrow = arrow(length = unit(0.25, "cm")), color = "white") + 
-  scale_fill_gradientn(colors = c("#4B0055", "#FDE333", "#009F94"), values = rescale(c(0, 2, 4)),
-                         limits = c(0, 4),
-                       labels = c(seq(0, 3, 1), TeX("$\\geq 3$")),
-                       breaks = seq(0, 4, 1)
-                       ) +
-  labs(x = TeX("$\\alpha_Z + \\beta_Z$"), y = TeX("$K_Z + K_{XZ}$"), fill = "Phenotype (Z)") +
-  theme_bw()
-
-library(GGally)
-library(ggarrow)
 
 # Line width for time - scale gens
 d_ode_phasemeasures$gen_width <- rescale(d_ode_phasemeasures$gen, to = c(0.001, 1))
 
 sampled_id <- sample(d_ode_phasemeasures$id, 1)
+
 # Choose one with a huge KZ
 sampled_id <- d_ode_phasemeasures[order(d_ode_phasemeasures$KZ, decreasing = T),]$id[1]
 
@@ -84,17 +50,19 @@ d_ode_phasemeasures2 <- d_ode_phasemeasures
 d_ode_phasemeasures <- d_ode_phasemeasures2
 d_ode_phasemeasures <- d_ode_phasemeasures %>% filter(id %in% sampled_id)
 
-# plot qg
-d_qg$id <- as.factor(paste(d_qg$seed, d_qg$modelindex, sep = "_"))
-d_qg$pheno_rescaled <- ifelse(d_qg$phenomean > 3, 4, d_qg$phenomean)
-d_qg$gen_width <- rescale(d_qg$gen, to = c(0.001, 1))
+# one with a low nloci and sigma
+d_ode_phasemeasures <- d_ode_phasemeasures %>% filter(id == "35_30")
 
-d_ode_phasemeasures <- d_qg %>% filter(id %in% sampled_id)
+# # plot qg
+# d_qg$id <- as.factor(paste(d_qg$seed, d_qg$modelindex, sep = "_"))
+# d_qg$pheno_rescaled <- ifelse(d_qg$phenomean > 3, 4, d_qg$phenomean)
+# d_qg$gen_width <- rescale(d_qg$gen, to = c(0.001, 1))
+# 
+# d_ode_phasemeasures <- d_qg %>% filter(id %in% sampled_id)
 
-library(ggnewscale)
 
 plotPairwiseScatter <- function(x, y, labels) {
-  ggplot(d_ode_phasemeasures, aes(x = .data[[x]], y = .data[[y]], colour = pheno_rescaled)) +
+  ggplot(d_ode_phasemeasures %>% mutate(KZ = log10(KZ)), aes(x = .data[[x]], y = .data[[y]], colour = pheno_rescaled)) +
     geom_point() +
     scale_colour_gradientn(colors = cc, values = rescale(c(0, 2, 4)),
                            limits = c(0, 4),
@@ -104,7 +72,7 @@ plotPairwiseScatter <- function(x, y, labels) {
     labs(colour = "Phenotype (Z)") +
     
     new_scale_colour() +
-    geom_arrow_segment(data = d_ode_phasemeasures %>% filter(id %in% sampled_id), 
+    geom_arrow_segment(data = d_ode_phasemeasures %>% mutate(KZ = log10(KZ)) %>% filter(id %in% sampled_id), 
                        mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]), 
                                      xend = .data[[x]], yend = .data[[y]], 
                                      group = id, linewidth_head = gen_width, 
@@ -147,14 +115,14 @@ plot_list <- list(ggally_densityDiag(d_ode_phasemeasures, mapping = aes(x = aZ))
                   ggally_densityDiag(d_ode_phasemeasures, mapping = aes(x = KXZ)))
 
 xlabs <- c(TeX("$\\alpha_Z$", output = "character"), TeX("$\\beta_Z$", output = "character"), 
-           TeX("$K_Z$", output = "character"), TeX("$K_{XZ}$", output = "character"))
+           TeX("$log_{10}(K_Z)$", output = "character"), TeX("$K_{XZ}$", output = "character"))
 
 ggmatrix(plot_list, nrow = 4, ncol = 4, xAxisLabels = xlabs, yAxisLabels = xlabs,
          progress = T, byrow = T, labeller = "label_parsed", 
          legend = grab_legend(plot_list[[5]])) + theme_bw() + 
   theme(legend.position = "bottom") -> pair_mat
 
-ggsave("molTrait_landscape_singleWalk2.png", pair_mat, width = 11, height = 8)
+ggsave("molTrait_landscape_singleWalk_largesigma_smallnloci.png", pair_mat, width = 11, height = 8)
 
 ggpairs(d_ode_phasemeasures, columns = c(6:9))
 
@@ -187,13 +155,13 @@ d_qg %>% mutate(KZ_bigger = (2 * KZ > aZ) & (2 * KZ > bZ), (2 * KZ > KXZ)) %>%
 
 plot(KZ_bigger$gen, KZ_bigger$`mean(KZ_bigger)`, type = "b")
 
-d_pheno <- d_ode_phasemeasures %>%
+d_pheno <- d_ode_phasemeasures %>% mutate(KZ = log10(KZ)) %>%
   pivot_longer(cols = c(phenomean, aZ, bZ, KZ, KXZ), names_to = "trait", values_to = "value")
 
 library(cowplot)
 
 molTrait_names <- c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), 
-                    TeX("$K_{XZ}$"), TeX("$K_Z$"), TeX("Z"))
+                    TeX("$K_{XZ}$"), TeX("$log_{10}(K_Z)$"), TeX("Z"))
 
 ggplot(d_pheno %>% filter(gen > 49000, id %in% sampled_id) %>% mutate(gen = gen - 50000),
        aes(x = gen, y = value, colour = trait)) +
@@ -207,8 +175,6 @@ ggplot(d_pheno %>% filter(gen > 49000, id %in% sampled_id) %>% mutate(gen = gen 
 
 plot_grid(singlewalk2_pheno + coord_cartesian(ylim = c(0, 3)) + theme(legend.position = "none"), 
           singlewalk2_pheno + 
-            coord_cartesian(ylim = c(min(d_ode_phasemeasures$KZ), 
-                                     max(d_ode_phasemeasures$KZ))) + 
             guides(colour = "none"),
           nrow = 2) -> pheno_grid
 

@@ -23,16 +23,17 @@ times <- seq(0, 10, by = 0.1)
 
 KZ_vals = 10^c(seq(from = -5, to = 1, by = 1))
 KZ_vals = c(1, 5.8991e+29)
+KZ_vals = 1.39553e+38
 out <- data.frame(
   KZ = numeric(length(KZ_vals)),
   Z = numeric(length(KZ_vals)))
 
 for (i in seq_along(KZ_vals)) {
   params <- c(Xstart = 1, Xstop = 6, 			
-              aZ = 3.62633, bZ = 0.706658,
-              nXZ = 8, nZ = 8, KXZ = 0.930639,
+              aZ = 2.60680, bZ = 0.967909,
+              nXZ = 8, nZ = 8, KXZ = 3.08655e-08,
               KZ = KZ_vals[i])
-  solution <- ode(state, times, Freya, params, "rk4") %>%
+  solution <- ode(state, times, NARODE, params, "rk4") %>%
     as.data.frame() %>%
     as_tibble() %>%
     mutate(X = ifelse(time >= params["Xstart"] & time <= params["Xstop"], 1, 0)) %>%
