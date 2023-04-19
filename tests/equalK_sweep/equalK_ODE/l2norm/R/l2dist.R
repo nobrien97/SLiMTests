@@ -1,57 +1,196 @@
 library(tidyverse)
+library(FactoMineR)
 library(factoextra)
+library(ggnewscale)
+library(paletteer)
+library(cowplot)
+library(latex2exp)
 
 d_qg <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/checkpoint/d_qg.RDS")
 
 d_qg$id <- paste(d_qg$seed, d_qg$modelindex, sep = "_")
 
+# Plot all the phenotype curves - we need to cluster these responses
+d_pheno <- d_qg %>% mutate(KZ = log10(KZ)) %>%
+  pivot_longer(cols = c(phenomean, aZ, bZ, KZ, KXZ), names_to = "trait", values_to = "value")
+
+molTrait_names <- c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"), 
+                    TeX("$K_{XZ}$"), TeX("$log_{10}(K_Z)$"), TeX("Z"))
+
+ggplot(d_pheno %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
+       aes(x = gen, y = value, colour = trait, group = id)) +
+  geom_line() +
+  scale_colour_paletteer_d("ggsci::nrc_npg", 1, labels = molTrait_names) +
+  labs(x = "Generations post-optimum shift", y = "Mean trait/\ncomponent value",
+       colour = "Trait/component") +
+  theme_bw() + 
+  coord_cartesian(ylim = c(0, 3)) +
+  theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
+singlewalk2_pheno
+
+ggplot(d_qg %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
+       aes(x = gen, y = phenomean, group = id)) +
+  geom_line() +
+  scale_
+labs(x = "Generations post-optimum shift", y = "Mean phenotype") +
+  theme_bw()
+
+
+
 # scale variables
 d_qg_scaled <- d_qg %>% mutate_at(c("aZ", "bZ", "KZ", "KXZ"), ~(scale(.) %>% as.vector()))
 
-res <- numeric(length(unique(d_qg$id)))
+# First we need to pivot_wider so each simulation has a series of phenotype values for time
+d_qg_wide <- d_qg %>% filter(gen > 49000) %>% 
+  pivot_wider(names_from = gen, values_from = phenomean, values_fill = 0) %>%
+  group_by(id) %>%
+  mutate(across(`49500`:`52000`, sum)) %>%
+  distinct(id, .keep_all = T) %>%
+  select(`49500`:`52000`) %>% ungroup()
+
+res <- numeric(length(unique(d_qg_wide$id)))
 
 for (i in seq_along(res)) {
   # Get appropriate subset to construct a 140x4 matrix
-  d_new <- d_qg[((i-1)*140+1):(i*140),] 
-  id <- d_new[1, 18]
+  d_new <- d_qg_wide[i,]
+  id <- d_new$id
   # calculate l2 norm
-  res[i] <- norm(as.matrix(d_new %>% select(aZ, bZ, KZ, KXZ)))
+  res[i] <- norm(as.matrix(d_new %>% select(-id)))
   names(res)[i] <- as.character(id)
 }
 
 res2 <- as.matrix(res)
 
+# Do PCA instead
+res.pca <- PCA(d_qg_wide %>% select(-id), ncp = 2, graph = F)
+fviz <- fviz_eig(res.pca, addlabels = TRUE)
+ggsave("fviz_ode_shape.png", fviz, bg = "white")
+var <- get_pca_var(res.pca)
+head(var$contrib)
+
+res2 <- data.frame(id = d_qg_wide$id,
+                   pc1 = res.pca$ind$coord[, 1],
+                   pc2 = res.pca$ind$coord[, 2])
+
+pca.vars <- res.pca$var$coord %>% data.frame
+pca.vars$vars <- rownames(pca.vars)
+
+
 # calculate distance matrix - log10 scale because we have those 
 # giant distances from KZ
 # problem: KZ is contributing a lot to the distance, much more so than the other components
 # even though it doesn't contribute very much to the trait value when it's large
-distmat <- dist(log10(res2))
+distmat <- dist(res2 %>% select(-id))
 
 # calculate hierarchical cluster
 clust <- hclust(distmat, method = "ward.D2")
 plot(clust)
-rect.hclust(clust, k = 4, border = "blue")
+rect.hclust(clust, k = 3, border = "blue")
 
 # optimal clusters
-fviz_nbclust(log10(res2), FUN = hcut, method = "wss")
-ggsave("molTraitGen_elbow.png")
+fviz_nbclust(res2 %>% select(-id), FUN = hcut, method = "wss")
+ggsave("phenoGen_elbow.png")
 
-fviz_nbclust(log10(res2), FUN = hcut, method = "silhouette")
-ggsave("molTraitGen_silhouette.png")
+fviz_nbclust(res2 %>% select(-id), FUN = hcut, method = "silhouette")
+ggsave("phenoGen_silhouette.png")
 
-gap_stat <- cluster::clusGap(log10(res2), FUN = hcut, nstart = 25, K.max = 10, B = 50)
+gap_stat <- cluster::clusGap(res2 %>% select(-id), FUN = hcut, nstart = 25, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
-ggsave("molTraitGen_gapstatistic.png")
+ggsave("phenoGen_gapstatistic.png")
+
+# https://ethen8181.github.io/machine-learning/clustering_old/clustering/clustering.html
+CHCriterion <- function( data, kmax, clustermethod, ...  )
+{
+  if( !clustermethod %in% c( "kmeanspp", "hclust" ) )
+    stop( "method must be one of 'kmeanspp' or 'hclust'" )
+  
+  # total sum squared error (independent with the number of cluster k)
+  tss <- Distance( cluster = data )
+  
+  # initialize a numeric vector storing the score
+  wss <- numeric(kmax)
+  
+  # k starts from 2, cluster 1 is meaningless
+  if( clustermethod == "kmeanspp" )
+  {
+    for( k in 2:kmax )
+    {
+      results <- Kmeanspp( data, k, ... )
+      wss[k]  <- results$tot.withinss 
+    }		
+  }else # "hclust"
+  {
+    d <- dist( data, method = "euclidean" )
+    clustering <- hclust( d, ... )
+    for( k in 2:kmax )
+    {
+      groups <- cutree( clustering, k )
+      wss[k] <- WSS( data = data, groups =  groups )
+    }
+  }		
+  
+  # between sum of square
+  bss <- tss - wss[-1]
+  
+  # cluster count start from 2! 
+  numerator <- bss / ( 1:(kmax-1) )
+  denominator <- wss[-1] / ( nrow(data) - 2:kmax )
+  
+  criteria <- data.frame( k = 2:kmax,
+                          CHIndex = numerator / denominator,
+                          wss = wss[-1] )
+  
+  # convert to long format for plotting 
+  criteria_long <- gather( criteria, "index", "value", -1 )
+  
+  plot <- ggplot( criteria_long, aes( k, value, color = index ) ) + 
+    geom_line() + geom_point( aes( shape = index ), size = 3 ) +
+    facet_wrap( ~ index, scale = "free_y" ) + 
+    guides( color = FALSE, shape = FALSE )
+  
+  return( list( data = criteria, 
+                plot = plot ) )
+}
+
+criteria <- CHCriterion(res2 %>% select(-id), kmax = 10, clustermethod = "hclust",
+                        method = "ward.D2")
+
 
 ## Looks like its either 2 or 3... we'll go with 3
 sub_grp <- cutree(clust, k = 3)
+names(sub_grp) <- res2$id
 
 # Add cluster number to original dataset
-d_qg %>% distinct(seed, modelindex, .keep_all = T) %>% 
-  mutate(cluster = as_factor(sub_grp)) -> d_qg_mdl
+d_qg_adapting <- d_qg %>% filter(gen > 49000)
+d_qg_adapting$cluster <- rep(sub_grp, each = 42)
+d_qg_adapting$cluster <- as.factor(d_qg_adapting$cluster)
+
+clustermeans <- d_qg_adapting %>%
+  mutate(gen = gen - 50000) %>%
+  group_by(gen, cluster) %>%
+  summarise(phenomean = mean(phenomean))
+
+# Plot walks
+ggplot(d_qg_adapting %>% mutate(gen = gen - 50000) %>%
+         filter(id %in% sample(unique(id), min(length(unique(id)), 20))),
+       aes(x = gen, y = phenomean, group = id)) +
+  facet_grid(.~cluster) +
+  geom_line(colour = "grey") +
+  geom_line(data = clustermeans, mapping = aes(group = NA), colour = "red") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", 1) +
+  labs(x = "Generations post-optimum shift", y = "Mean phenotype",
+       colour = "Cluster") +
+  theme_bw() + 
+  coord_cartesian(ylim = c(0, 3)) +
+  theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
+singlewalk2_pheno
+
+# How many in each cluster?
+d_qg_adapting %>% group_by(cluster) %>% summarise(n = n())
+
 
 # Plot
-ggplot(d_qg_mdl, aes(x = nloci, y = sigma, colour = cluster)) +
+ggplot(d_qg, aes(x = nloci, y = sigma, colour = cluster)) +
   geom_point() +
   stat_ellipse(geom = "polygon", aes(fill = cluster), alpha = 0.3) +
   scale_colour_viridis_d() +
@@ -123,7 +262,7 @@ plotAdaptSpeedCluster <- function(x, y, labels) {
     labs(colour = "Adaptation speed") +
     
     new_scale_colour() +
-    stat_ellipse(mapping = aes(colour = cluster)) +
+    stat_ellipse(geom = "polygon", mapping = aes(colour = cluster), fill = NA) +
     scale_colour_paletteer_d("ggsci::lanonc_lancet", 1) +
     scale_linewidth(guide = "none") +
     labs(x = labels[1], y = labels[2], colour = "Cluster") +
@@ -164,6 +303,7 @@ ggplot(d_sampled %>% filter(gen > 49000), aes(x = gen, y = phenomean, colour = c
   scale_colour_viridis_d() +
   labs(x = "Generations post-optimum shift", y = "Mean phenotype", colour = "Simulation parameters") +
   theme_bw()
+
 
 # molecular trait trajectories
 d_sampled$gen_width <- rescale(d_sampled$gen, to = c(0.001, 1))
