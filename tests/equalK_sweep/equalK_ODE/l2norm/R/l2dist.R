@@ -99,6 +99,20 @@ fviz_gap_stat(gap_stat)
 ggsave("phenoGen_gapstatistic.png")
 
 # https://ethen8181.github.io/machine-learning/clustering_old/clustering/clustering.html
+Distance <- function(cluster)
+{
+  # the center of the cluster, mean of all the points
+  center <- colMeans(cluster)
+  
+  # calculate the summed squared error between every point and 
+  # the center of that cluster 
+  distance <- apply( cluster, 1, function(row)
+  {
+    sum( ( row - center )^2 )
+  }) %>% sum()
+  
+  return(distance)
+}
 CHCriterion <- function( data, kmax, clustermethod, ...  )
 {
   if( !clustermethod %in% c( "kmeanspp", "hclust" ) )
@@ -151,10 +165,28 @@ CHCriterion <- function( data, kmax, clustermethod, ...  )
   return( list( data = criteria, 
                 plot = plot ) )
 }
+WSS <- function( data, groups )
+{
+  k <- max(groups)
+  
+  # loop through each groups (clusters) and obtain its 
+  # within sum squared error 
+  total <- lapply( 1:k, function(k)
+  {
+    # extract the data point within the cluster
+    cluster <- subset( data, groups == k )
+    
+    distance <- Distance(cluster)
+    return(distance)
+  }) %>% unlist()
+  
+  return( sum(total) )
+}
 
 criteria <- CHCriterion(res2 %>% select(-id), kmax = 10, clustermethod = "hclust",
                         method = "ward.D2")
 
+criteria$plot
 
 ## Looks like its either 2 or 3... we'll go with 3
 sub_grp <- cutree(clust, k = 3)
