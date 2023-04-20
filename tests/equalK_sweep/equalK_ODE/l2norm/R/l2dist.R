@@ -5,6 +5,8 @@ library(ggnewscale)
 library(paletteer)
 library(cowplot)
 library(latex2exp)
+library(lattice)
+library(latticeExtra)
 
 d_qg <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/checkpoint/d_qg.RDS")
 
@@ -64,7 +66,7 @@ res2 <- as.matrix(res)
 # Do PCA instead
 res.pca <- PCA(d_qg_wide %>% select(-id), ncp = 2, graph = F)
 fviz <- fviz_eig(res.pca, addlabels = TRUE)
-ggsave("fviz_ode_shape.png", fviz, bg = "white")
+ggsave("fviz_phenotime.png", fviz, bg = "white")
 var <- get_pca_var(res.pca)
 head(var$contrib)
 
@@ -85,7 +87,7 @@ distmat <- dist(res2 %>% select(-id))
 # calculate hierarchical cluster
 clust <- hclust(distmat, method = "ward.D2")
 plot(clust)
-rect.hclust(clust, k = 3, border = "blue")
+rect.hclust(clust, k = 2, border = "blue")
 
 # optimal clusters
 fviz_nbclust(res2 %>% select(-id), FUN = hcut, method = "wss")
@@ -186,10 +188,11 @@ WSS <- function( data, groups )
 criteria <- CHCriterion(res2 %>% select(-id), kmax = 10, clustermethod = "hclust",
                         method = "ward.D2")
 
-criteria$plot
+criteria$plot + theme_bw()
+ggsave("CHCriterion_phenotime.png")
 
-## Looks like its either 2 or 3... we'll go with 3
-sub_grp <- cutree(clust, k = 3)
+## Looks like 2 clusters is enough
+sub_grp <- cutree(clust, k = 2)
 names(sub_grp) <- res2$id
 
 # Add cluster number to original dataset
@@ -203,6 +206,23 @@ clustermeans <- d_qg_adapting %>%
   summarise(phenomean = mean(phenomean))
 
 # Plot walks
+ggplot(d_qg_adapting %>% mutate(gen = gen - 50000),
+       aes(x = gen, y = phenomean, group = id)) +
+  facet_grid(.~cluster) +
+  geom_line(colour = "grey") +
+  geom_line(data = clustermeans, mapping = aes(group = NA), colour = "red") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", 1) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Cluster", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = "Mean phenotype",
+       colour = "Cluster") +
+  theme_bw() + 
+  coord_cartesian(ylim = c(0, 3)) +
+  theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
+
+ggsave("phenotime_clusterwalks.png", singlewalk2_pheno)
+
+
 ggplot(d_qg_adapting %>% mutate(gen = gen - 50000) %>%
          filter(id %in% sample(unique(id), min(length(unique(id)), 20))),
        aes(x = gen, y = phenomean, group = id)) +
@@ -210,29 +230,118 @@ ggplot(d_qg_adapting %>% mutate(gen = gen - 50000) %>%
   geom_line(colour = "grey") +
   geom_line(data = clustermeans, mapping = aes(group = NA), colour = "red") +
   scale_colour_paletteer_d("ggsci::nrc_npg", 1) +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Cluster", 
+                                         breaks = NULL, labels = NULL)) +
   labs(x = "Generations post-optimum shift", y = "Mean phenotype",
-       colour = "Cluster") +
+     colour = "Cluster") +
   theme_bw() + 
   coord_cartesian(ylim = c(0, 3)) +
-  theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
-singlewalk2_pheno
+  theme(text = element_text(size = 16), legend.position = "bottom") -> pheno_sampled
+
+ggsave("phenotime_clusterwalks_sampled.png", pheno_sampled)
 
 # How many in each cluster?
-d_qg_adapting %>% group_by(cluster) %>% summarise(n = n())
+d_qg_adapting %>% group_by(cluster) %>% summarise(n = n()/42)
 
 
-# Plot
-ggplot(d_qg, aes(x = nloci, y = sigma, colour = cluster)) +
-  geom_point() +
-  stat_ellipse(geom = "polygon", aes(fill = cluster), alpha = 0.3) +
+# Plot each model vs cluster, jitter the replicates around a bit so we can see them
+ggplot(d_qg_adapting %>% distinct(seed, modelindex, .keep_all = T), 
+       aes(x = nloci, y = sigma, colour = cluster)) +
+  geom_jitter(size = 0.5, width = 0.1 * max(d_qg_adapting$nloci), 
+              height = 0.1 * max(d_qg_adapting$sigma)) +
+  #stat_ellipse(geom = "polygon", aes(fill = cluster), alpha = 0.3) +
   scale_colour_viridis_d() +
   scale_fill_viridis_d(guide = "none") +
   labs(x = "Number of loci", y = "Mutational effect variance", colour = "Cluster") +
   theme_bw() +
   theme(text = element_text(size = 16))
 
-ggsave("molTraitGen_cluster.png", width = 7, height = 5)
+# Plot as a levelplot
+d_qg_level <- d_qg_adapting %>% 
+  distinct(seed, modelindex, .keep_all = T) %>%
+  mutate(cluster = as.numeric(cluster)) %>%
+  select(cluster, nloci, sigma)
 
+# Draw each replicate in a circle around the point
+calcPosFromAngle <- function(r, angle) {
+  r <- runif(1, max = r)
+  c(x = r * sin(angle * pi/180),
+    y = r * cos(angle * pi/180))
+}
+
+angles <- d_qg_level %>%
+  group_by(nloci, sigma) %>%
+  mutate(row_num = row_number(), n = n()) %>%
+  group_by(nloci, sigma, row_num) %>%
+  mutate(posX = calcPosFromAngle(0.005, (360/n) * row_num)[1],
+         posY = calcPosFromAngle(0.005, (360/n) * row_num)[2])
+
+
+#d_qg_level[,2] <- jitter(as.matrix(d_qg_level[,2]), factor = 0.05 * max(d_qg_adapting$nloci))
+#d_qg_level[,3] <- jitter(as.matrix(d_qg_level[,3]), factor = 0.05 * max(d_qg_adapting$nloci))
+
+d_qg_level[,2] <- d_qg_level[,2] + angles$posX * max(d_qg_adapting$nloci)
+d_qg_level[,3] <- d_qg_level[,3] + angles$posY * max(d_qg_adapting$sigma)
+
+
+plt_level_phenocluster <- levelplot(cluster ~ nloci*sigma, d_qg_level, 
+                          col.regions = paletteer_c("viridis::viridis", 100, 1),
+                          panel = panel.levelplot.points,
+                          xlab = list(label = "Number of loci", cex = 1.2), 
+                          ylab = list(label = "Mutational effect variance", cex = 1.2), 
+                          colorkey = list(space = "bottom",
+                                          labels = list(cex = 1.2)),
+                          par.settings = list(layout.heights = list(xlab.key.padding = 4),
+                                              par.main.text = list(just = "left",
+                                                                   x = grid::unit(5, "mm"))),
+                          scales = list(tck = c(1, 0),
+                                        cex = 1.2), cex = 0.4,
+                          pretty = T) + 
+  layer_(panel.2dsmoother(..., n = 200))
+plt_level_phenocluster
+png("phenocluster_nlocisigma.png",
+    type = "cairo",
+    units = "in", 
+    pointsize = 12,
+    res = 300, 
+    bg = "white",
+    width = 8.5, 
+    height = 5.56)
+plt_level_phenocluster
+dev.off()
+
+# What molecular trait behaviour describes each cluster?
+# Are there particular combinations of molecular traits that drive
+# these two different phenotypic responses?
+
+# Sample some examples from each cluster
+d_qg_sampled <- d_qg_adapting %>% 
+  filter(id %in% sample(d_qg_adapting[d_qg_adapting$cluster == 1,]$id, 1) |
+           id %in% sample(d_qg_adapting[d_qg_adapting$cluster == 2,]$id, 1)) 
+
+d_qg_sampled <- d_qg_sampled %>% mutate(KZ = log10(KZ)) %>%
+  pivot_longer(cols = c(phenomean, aZ, bZ, KZ, KXZ), names_to = "trait", values_to = "value")
+
+
+# Plot molecular traits
+ggplot(d_qg_sampled %>% mutate(gen = gen - 50000),
+       aes(x = gen, y = value, colour = trait, group = interaction(trait, id))) +
+  facet_grid(.~cluster) +
+  geom_line() +
+  scale_colour_viridis_d() +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Cluster", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Generations post-optimum shift", y = "Mean trait/component value",
+       colour = "Trait/component") +
+  theme_bw()
+
+# plot example walks from both clusters (pairwise)
+
+# Recluster by molecular traits? How many combinations of ways do they respond?
+
+
+
+# Timee to reach optimum distribution
 se <- function(x, na.rm = F) {
   if (na.rm)
     x <- x[!is.na(x)]
