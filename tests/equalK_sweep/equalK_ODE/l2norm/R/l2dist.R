@@ -7,6 +7,9 @@ library(cowplot)
 library(latex2exp)
 library(lattice)
 library(latticeExtra)
+library(ggarrow)
+library(GGally)
+library(ggalt)
 
 d_qg <- readRDS("/mnt/d/SLiMTests/tests/equalK_sweep/data/checkpoint/d_qg.RDS")
 
@@ -20,7 +23,7 @@ molTrait_names <- c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$"),
                     TeX("$K_{XZ}$"), TeX("$log_{10}(K_Z)$"), TeX("Z"))
 
 ggplot(d_pheno %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
-       aes(x = gen, y = value, colour = trait, group = id)) +
+       aes(x = gen, y = value, colour = trait, group = interaction(trait,id))) +
   geom_line() +
   scale_colour_paletteer_d("ggsci::nrc_npg", 1, labels = molTrait_names) +
   labs(x = "Generations post-optimum shift", y = "Mean trait/\ncomponent value",
@@ -30,17 +33,6 @@ ggplot(d_pheno %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
   theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
 singlewalk2_pheno
 
-ggplot(d_qg %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
-       aes(x = gen, y = phenomean, group = id)) +
-  geom_line() +
-  scale_
-labs(x = "Generations post-optimum shift", y = "Mean phenotype") +
-  theme_bw()
-
-
-
-# scale variables
-d_qg_scaled <- d_qg %>% mutate_at(c("aZ", "bZ", "KZ", "KXZ"), ~(scale(.) %>% as.vector()))
 
 # First we need to pivot_wider so each simulation has a series of phenotype values for time
 d_qg_wide <- d_qg %>% filter(gen > 49000) %>% 
@@ -64,7 +56,7 @@ for (i in seq_along(res)) {
 res2 <- as.matrix(res)
 
 # Do PCA instead
-res.pca <- PCA(d_qg_wide %>% select(-id), ncp = 2, graph = F)
+res.pca <- PCA(d_qg_wide %>% select(-id), ncp = 2)
 fviz <- fviz_eig(res.pca, addlabels = TRUE)
 ggsave("fviz_phenotime.png", fviz, bg = "white")
 var <- get_pca_var(res.pca)
@@ -219,7 +211,7 @@ ggplot(d_qg_adapting %>% mutate(gen = gen - 50000),
   theme_bw() + 
   coord_cartesian(ylim = c(0, 3)) +
   theme(text = element_text(size = 16), legend.position = "bottom") -> singlewalk2_pheno
-
+singlewalk2_pheno
 ggsave("phenotime_clusterwalks.png", singlewalk2_pheno)
 
 
@@ -237,24 +229,12 @@ ggplot(d_qg_adapting %>% mutate(gen = gen - 50000) %>%
   theme_bw() + 
   coord_cartesian(ylim = c(0, 3)) +
   theme(text = element_text(size = 16), legend.position = "bottom") -> pheno_sampled
-
+pheno_sampled
 ggsave("phenotime_clusterwalks_sampled.png", pheno_sampled)
 
 # How many in each cluster?
 d_qg_adapting %>% group_by(cluster) %>% summarise(n = n()/42)
 
-
-# Plot each model vs cluster, jitter the replicates around a bit so we can see them
-ggplot(d_qg_adapting %>% distinct(seed, modelindex, .keep_all = T), 
-       aes(x = nloci, y = sigma, colour = cluster)) +
-  geom_jitter(size = 0.5, width = 0.1 * max(d_qg_adapting$nloci), 
-              height = 0.1 * max(d_qg_adapting$sigma)) +
-  #stat_ellipse(geom = "polygon", aes(fill = cluster), alpha = 0.3) +
-  scale_colour_viridis_d() +
-  scale_fill_viridis_d(guide = "none") +
-  labs(x = "Number of loci", y = "Mutational effect variance", colour = "Cluster") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
 
 # Plot as a levelplot
 d_qg_level <- d_qg_adapting %>% 
@@ -273,8 +253,8 @@ angles <- d_qg_level %>%
   group_by(nloci, sigma) %>%
   mutate(row_num = row_number(), n = n()) %>%
   group_by(nloci, sigma, row_num) %>%
-  mutate(posX = calcPosFromAngle(0.005, (360/n) * row_num)[1],
-         posY = calcPosFromAngle(0.005, (360/n) * row_num)[2])
+  mutate(posX = calcPosFromAngle(0.01, (360/n) * row_num)[1],
+         posY = calcPosFromAngle(0.01, (360/n) * row_num)[2])
 
 
 #d_qg_level[,2] <- jitter(as.matrix(d_qg_level[,2]), factor = 0.05 * max(d_qg_adapting$nloci))
@@ -314,10 +294,50 @@ dev.off()
 # Are there particular combinations of molecular traits that drive
 # these two different phenotypic responses?
 
-# Sample some examples from each cluster
-d_qg_sampled <- d_qg_adapting %>% 
-  filter(id %in% sample(d_qg_adapting[d_qg_adapting$cluster == 1,]$id, 1) |
-           id %in% sample(d_qg_adapting[d_qg_adapting$cluster == 2,]$id, 1)) 
+# Sample some examples from each cluster - from the most extreme cases
+d_qg_adapting %>% 
+  distinct(id, .keep_all = T) %>%
+  group_by(modelindex, cluster) %>%
+  summarise(clusterPerc = n()/48) %>%
+  ungroup() -> clusterPercs
+
+inner_join(clusterPercs, d_qg_adapting %>% 
+             distinct(modelindex, .keep_all = T) %>% 
+             select(modelindex, nloci, sigma), by = "modelindex") -> clusterPercs
+
+ggplot(clusterPercs, aes(x = nloci, y = clusterPerc)) +
+  facet_grid(.~cluster) +
+  geom_line() +
+  theme_bw()
+
+print(clusterPercs %>% filter(clusterPerc == min(clusterPerc, na.rm = T) |
+                          clusterPerc == max(clusterPerc, na.rm = T) |
+                          clusterPerc == median(clusterPerc, na.rm = T)), n = 25)
+
+ggplot(clusterPercs, aes(x = sigma, y = clusterPerc)) +
+  facet_grid(.~cluster) +
+  geom_line() +
+  theme_bw()
+
+
+# Mostly cluster 2
+sampled_ids <- clusterPercs %>% 
+  pivot_wider(names_prefix = "clusterPerc_",
+              names_from = "cluster", values_from = "clusterPerc") %>%
+  filter(clusterPerc_1 == max(clusterPerc_1, rm.na = T) | 
+           clusterPerc_1 == min(clusterPerc_1, rm.na = T))
+
+sampled_ids <- pivot_longer(sampled_ids, cols = c("clusterPerc_1", "clusterPerc_2"),
+                            names_to = "cluster", values_to = "perc") %>%
+  group_by(cluster) %>%
+  drop_na() %>%
+  filter(modelindex %in% sample(modelindex, 1))
+
+d_qg_sampled <- d_qg_adapting %>%
+                 filter(modelindex %in% sample(sampled_ids$modelindex)) %>%
+  group_by(modelindex) %>%
+  filter(seed %in% sample(seed, 1))
+
 
 d_qg_sampled <- d_qg_sampled %>% mutate(KZ = log10(KZ)) %>%
   pivot_longer(cols = c(phenomean, aZ, bZ, KZ, KXZ), names_to = "trait", values_to = "value")
@@ -336,6 +356,76 @@ ggplot(d_qg_sampled %>% mutate(gen = gen - 50000),
   theme_bw()
 
 # plot example walks from both clusters (pairwise)
+cc <- paletteer_c("grDevices::Burg", 3)
+cc2 <- paletteer_c("grDevices::Blues", 50, -1)
+
+d_qg_sampled <- d_qg_sampled %>%
+  pivot_wider(names_from = "trait", values_from = "value")
+
+
+sampled_id <- unique(d_qg_sampled$id)
+
+d_qg_sampled$gen_width <- scales::rescale(d_qg_sampled$gen, to = c(0.001, 1))
+
+plotPairwiseScatter <- function(x, y, labels) {
+  ggplot(d_qg_sampled %>% mutate(KZ = log10(KZ)), aes(x = .data[[x]], y = .data[[y]], colour = phenomean)) +
+    geom_point() +
+    geom_encircle(colour = "black", mapping = aes(group = id, linetype = cluster)) +
+    scale_colour_gradientn(colors = cc) +
+    labs(colour = "Phenotype (Z)", linetype = "Cluster") +
+
+    new_scale_colour() +
+    geom_arrow_segment(data = d_qg_sampled %>% mutate(KZ = log10(KZ)) %>% filter(id %in% sampled_id), 
+                       mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]), 
+                                     xend = .data[[x]], yend = .data[[y]], 
+                                     group = id, linewidth_head = gen_width, 
+                                     linewidth_fins = gen_width * 0.8,
+                                     colour = gen_width), 
+                       arrow_head = arrow_head_line()) +
+    scale_colour_gradientn(colors = cc2, labels = c(0, 0.25*2500, 0.5*2500, 0.75*2500, 2500)) +
+    scale_linewidth(guide = "none") +
+    labs(x = labels[1], y = labels[2], colour = "Generation") +
+    theme_bw() + 
+    theme(legend.position = "bottom") +
+    guides(colour=guide_colourbar(barwidth=15))
+}
+
+aZbZScatter <- plotPairwiseScatter("aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
+aZKZScatter <- plotPairwiseScatter("aZ", "KZ", c(TeX("$\\alpha_Z$"), TeX("$K_Z$")))
+aZKXZScatter <- plotPairwiseScatter("aZ", "KXZ", c(TeX("$\\alpha_Z$"), TeX("$K_{XZ}$")))
+bZKZScatter <- plotPairwiseScatter("bZ", "KZ", c(TeX("$\\beta_Z$"), TeX("$K_Z$")))
+bZKXZScatter <- plotPairwiseScatter("bZ", "KXZ", c(TeX("$\\beta_Z$"), TeX("$K_{XZ}$")))
+KZKXZScatter <- plotPairwiseScatter("KZ", "KXZ", c(TeX("$K_Z$"), TeX("$K_{XZ}$")))
+
+plot_list <- list(ggally_densityDiag(d_qg_adapting, mapping = aes(x = aZ)), 
+                  ggally_cor(d_qg_adapting, mapping = aes(x = aZ, y = bZ)),
+                  ggally_cor(d_qg_adapting, mapping = aes(x = aZ, y = KZ)),
+                  ggally_cor(d_qg_adapting, mapping = aes(x = aZ, y = KXZ)),
+                  
+                  aZbZScatter, 
+                  ggally_densityDiag(d_qg_adapting, mapping = aes(x = bZ)), 
+                  ggally_cor(d_qg_adapting, mapping = aes(x = bZ, y = KZ)),
+                  ggally_cor(d_qg_adapting, mapping = aes(x = bZ, y = KXZ)),
+                  
+                  aZKZScatter,
+                  bZKZScatter,
+                  ggally_densityDiag(d_qg_adapting, mapping = aes(x = KZ)), 
+                  ggally_cor(d_qg_adapting, mapping = aes(x = KZ, y = KXZ)),
+                  
+                  aZKXZScatter,
+                  bZKXZScatter,
+                  KZKXZScatter,
+                  ggally_densityDiag(d_qg_adapting, mapping = aes(x = KXZ)))
+
+xlabs <- c(TeX("$\\alpha_Z$", output = "character"), TeX("$\\beta_Z$", output = "character"), 
+           TeX("$log_{10}(K_Z)$", output = "character"), TeX("$K_{XZ}$", output = "character"))
+
+ggmatrix(plot_list, nrow = 4, ncol = 4, xAxisLabels = xlabs, yAxisLabels = xlabs,
+         progress = T, byrow = T, labeller = "label_parsed", 
+         legend = grab_legend(plot_list[[5]])) + theme_bw() + 
+  theme(legend.position = "bottom") -> pair_mat
+pair_mat
+ggsave("molTrait_landscape_clusterExtremes.png", pair_mat, width = 11, height = 8)
 
 # Recluster by molecular traits? How many combinations of ways do they respond?
 
