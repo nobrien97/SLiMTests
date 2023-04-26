@@ -442,12 +442,12 @@ function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
 	// Write output
 	l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
 	
-	//writeFile(outHaplo, l, append = T);
-	//writeFile(outFX, fx, append = T);
+	writeFile(outHaplo, l, append = T);
+	writeFile(outFX, fx, append = T);
 	
-	//phenos_out = paste(sim.generation, seed, modelindex, inds.phenotype, sep=",");
+	phenos_out = paste(sim.generation, seed, modelindex, inds.phenotype, sep=",");
 	
-	//writeFile(outPhenoSample, phenos_out, append = T);
+	writeFile(outPhenoSample, phenos_out, append = T);
 }
 
 
