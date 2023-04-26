@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/neutral/fixedK/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/fixedK/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/fixedK/neutral/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/fixedK/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "netFns.slim"));
 	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -82,7 +82,7 @@ initialize() {
 	setCfgParam("outMutsInd", paste0('slim_indMut', identifier, '.csv')); // Output individual mutation/allele information
 	
 	
-	setCfgParam("moveDir", "/scratch/ht96/nb9894/neutral/fixedK/"); // Directory to move output to at end of simulation
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/fixedK/neutral/"); // Directory to move output to at end of simulation
 	
 	// Time tests
 	setCfgParam("outTime", paste0('slim_time', identifier, '.csv'));

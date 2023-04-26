@@ -7,7 +7,7 @@ SECONDS=0
 MODELINDEX=$1
 SEED=$2
 FILENAME=${MODELINDEX}_${SEED}
-JOBNAME=neutral/fixedK
+JOBNAME=fixedK/neutral
 TESTDIR=$HOME/tests/$JOBNAME
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
