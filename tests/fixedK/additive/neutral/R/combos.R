@@ -17,7 +17,7 @@ set.seed(seed)
 # they need to have values in the model - this means the aZ and bZ will have 1, 10, 100 each
 # In additive models, we don't need to worry about feeding the K loci, so we use 2*nloci instead
 # which means the trait will have 2,20,200 loci, which is the same as the trait in the NAR model
-combos <- c(1, 10, 100) * 4
+combos <- c(1, 10, 100) * 2
 
 write_csv(data.frame(nloci = combos), "combos.csv", col_names = F)
 
