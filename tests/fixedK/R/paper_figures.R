@@ -32,12 +32,14 @@ d_qg_add$model <- "Additive"
 d_qg_net$model <- "NAR"
 d_qg <- bind_rows(d_qg_add, d_qg_net)
 
+rm(d_qg_net, d_qg_add)
+
 d_combos <- read_delim("./combos.csv", delim = " ", col_names = F)
 names(d_combos) <- c("nloci")
 
 d_qg <- d_qg %>% mutate(model = as_factor(model),
                         nloci = as_factor(d_combos$nloci[.$modelindex]),
-                        id = paste(seed, model, sep = "_"))
+                        id = paste(seed, modelindex, model, sep = "_"))
 
 # Mutation data
 d_mut_add <- read_csv("/mnt/d/SLiMTests/tests/fixedK/additive/slim_muts.csv", col_names = F)
@@ -51,9 +53,11 @@ d_mut_add$model <- "Additive"
 d_mut_net$model <- "NAR"
 d_mut <- bind_rows(d_mut_add, d_mut_net)
 
+rm(d_mut_net, d_mut_add)
+
 d_mut <- d_mut %>% mutate(model = as_factor(model),
                         nloci = as_factor(d_combos$nloci[.$modelindex]),
-                        id = paste(seed, model, sep = "_"))
+                        id = paste(seed, modelindex, model, sep = "_"))
 
 
 # Figure 1: adaptive walk
@@ -135,16 +139,24 @@ ggplot(d_fixed %>% filter(model == "NAR"),
   theme(text = element_text(size = 16))
 
 # Fig 4
+cc <- paletteer_c("grDevices::Burg", 3)
+cc2 <- paletteer_c("grDevices::Blues", 50, -1)
 
-plotPairwiseScatter <- function(x, y, labels) {
-  ggplot(d_qg, aes(x = .data[[x]], y = .data[[y]], colour = phenomean)) +
+d_qg$gen_width <- scales::rescale(d_qg$gen, to = c(0.001, 1))
+
+d_qg_sampled <- d_qg %>% filter(model == "NAR", nloci == 4) %>% filter(id %in% sample(id, 1))
+sampled_id <- unique(d_qg_sampled$id)
+
+
+plotPairwiseScatter <- function(x, y, xylabs) {
+  ggplot(d_qg_sampled, aes(x = .data[[x]], y = .data[[y]], colour = phenomean)) +
     geom_point() +
     geom_encircle(colour = "black", mapping = aes(group = id)) +
     scale_colour_gradientn(colors = cc) +
     labs(colour = "Phenotype (Z)") +
     
     new_scale_colour() +
-    geom_arrow_segment(data = d_qg %>% filter(id %in% sampled_id), 
+    geom_arrow_segment(data = d_qg_sampled, 
                        mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]), 
                                      xend = .data[[x]], yend = .data[[y]], 
                                      group = id, linewidth_head = gen_width, 
@@ -154,11 +166,23 @@ plotPairwiseScatter <- function(x, y, labels) {
     scale_colour_gradientn(colors = cc2, labels = c(0, 0.25*10500, 0.5*10500, 
                                                     0.75*10500, 10500)) +
     scale_linewidth(guide = "none") +
-    labs(x = labels[1], y = labels[2], colour = "Generation") +
+    labs(x = xylabs[1], y = xylabs[2], colour = "Generation") +
     theme_bw() + 
     theme(legend.position = "bottom") +
     guides(colour=guide_colourbar(barwidth=15))
 }
 
+plotPairwiseScatter("aZ", "KZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 
+ggplot(d_qg_sampled, aes(x = aZ, y = bZ, colour = gen_width)) +
+  geom_arrow_segment(data = d_qg_sampled, 
+                     mapping = aes(x = lag(aZ), y = lag(bZ), 
+                                   xend = aZ, yend = bZ, 
+                                   group = id, linewidth_head = gen_width, 
+                                   linewidth_fins = gen_width * 0.8,
+                                   colour = gen_width), 
+                     arrow_head = arrow_head_line()) +
+  scale_colour_gradientn(colors = cc2, labels = c(0, 0.25*10500, 0.5*10500, 
+                                                  0.75*10500, 10500)) +
+  labs(colour = "Phenotype (Z)")
 
