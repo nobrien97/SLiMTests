@@ -186,3 +186,21 @@ ggplot(d_qg_sampled, aes(x = aZ, y = bZ, colour = gen_width)) +
                                                   0.75*10500, 10500)) +
   labs(colour = "Phenotype (Z)")
 
+# Fig 1: Potential distributions for the distribution of fixed effects
+d_fisher <- data.frame(x = rnorm(100000))
+
+pale
+
+ggplot(data = data.frame(x = c(0, 3)), aes(x)) +
+  stat_function(fun = dexp, n = 101, args = list(rate = 1)) +
+  geom_rect(aes(xmin = 0, xmax = 0.99, ymin = 0, ymax = 1), alpha = 0, color = "#E64B35") +
+  geom_rect(aes(xmin = 1, xmax = 2, ymin = 0, ymax = 1), alpha = 0, color = "#4DBBD5") +
+  scale_y_continuous(breaks = NULL) +
+  scale_x_continuous(breaks = NULL) +
+  labs(x = "Effect size", y = "") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+ggsave("fig1_effectsizedist.png")
+
+
