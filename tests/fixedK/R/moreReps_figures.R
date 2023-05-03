@@ -181,3 +181,13 @@ ggplot(d_fix_nar,
        colour = "Molecular\ncomponent") +
   theme_bw() +
   theme(text = element_text(size = 16))
+
+ggplot(d_fix_nar, 
+       aes(x = value, colour = mutType)) +
+  geom_density() +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
+  labs(x = "Effect size on molecular component", y = "Density",
+       colour = "Molecular\ncomponent") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
