@@ -203,4 +203,4 @@ ggplot(data = data.frame(x = c(0, 3)), aes(x)) +
 
 ggsave("fig1_effectsizedist.png")
 
-
+# fig 2 - phenotype
