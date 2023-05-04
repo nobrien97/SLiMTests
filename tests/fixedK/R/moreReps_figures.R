@@ -48,7 +48,7 @@ d_fix <- d_muts %>%
 
 
 # Fig 2 - phenotype mean
-ggplot(d_qg_sum %>% filter(gen > 49500) %>% mutate(gen = gen - 50000), 
+ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
        aes(x = gen, y = meanPheno, colour = modelindex)) +
   geom_line() +
   geom_ribbon(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno, 
@@ -63,9 +63,11 @@ ggplot(d_qg_sum %>% filter(gen > 49500) %>% mutate(gen = gen - 50000),
   theme(text = element_text(size = 16))
 
 # Fig 3 - effect sizes
+d_fix$fixTime <- d_fix$gen - d_fix$originGen
+
 ## Additive
 ggplot(d_fix %>% filter(modelindex == 1), 
-       aes(x = abs(value), colour = modelindex)) +
+       aes(x = value, colour = modelindex)) +
   geom_density() +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
   labs(x = "Fixation effect size", y = "Density",
@@ -82,6 +84,8 @@ ggplot(d_fix %>% filter(modelindex == 1),
 
 # first need to generate the standard effect for alpha and beta 
 # from the range of mutational effects - remember it needs to be exponentiated
+
+d_fix_nar <- d_fix %>% filter(modelindex == 2)
 
 mutRange <- d_fix_nar %>% 
   group_by(mutType) %>% 
