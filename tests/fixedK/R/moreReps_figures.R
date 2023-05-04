@@ -85,7 +85,7 @@ ggplot(d_fix %>% filter(modelindex == 1),
 # first need to generate the standard effect for alpha and beta 
 # from the range of mutational effects - remember it needs to be exponentiated
 
-d_fix_nar <- d_fix %>% filter(modelindex == 2)
+d_fix_nar <- d_fix %>% filter(modelindex == 2, gen >= 50000)
 
 mutRange <- d_fix_nar %>% 
   group_by(mutType) %>% 
