@@ -54,6 +54,7 @@ ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
   geom_ribbon(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno, 
                   fill = modelindex), alpha = 0.2, colour = NA
               ) +
+  scale_x_continuous(labels = scales::comma) +
   geom_hline(yintercept = 2, linetype = "dashed") +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
   scale_fill_paletteer_d("ggsci::nrc_npg", guide = "none") +
@@ -67,7 +68,7 @@ d_fix$fixTime <- d_fix$gen - d_fix$originGen
 
 ## Additive
 ggplot(d_fix %>% filter(modelindex == 1), 
-       aes(x = value, colour = modelindex)) +
+       aes(x = abs(value), colour = modelindex)) +
   geom_density() +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
   labs(x = "Fixation effect size", y = "Density",
@@ -172,7 +173,7 @@ ggplot(d_fix_nar,
        aes(x = avFX, colour = mutType)) +
   geom_density() +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
-  labs(x = "Deviation from mean effect size on phenotype", y = "Density",
+  labs(x = "Average fixed phenotypic effect", y = "Density",
        colour = "Molecular\ncomponent") +
   theme_bw() +
   theme(text = element_text(size = 16))
@@ -181,17 +182,74 @@ ggplot(d_fix_nar,
        aes(x = avFit, colour = mutType)) +
   geom_density() +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
-  labs(x = "Deviation from mean effect size on fitness", y = "Density",
+  labs(x = "Average fixed fitness effect", y = "Density",
        colour = "Molecular\ncomponent") +
   theme_bw() +
   theme(text = element_text(size = 16))
 
 ggplot(d_fix_nar, 
-       aes(x = value, colour = mutType)) +
+       aes(x = abs(value), colour = mutType)) +
   geom_density() +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
   labs(x = "Effect size on molecular component", y = "Density",
        colour = "Molecular\ncomponent") +
   theme_bw() +
   theme(text = element_text(size = 16))
+
+# On average fitness effect is negative - so mutations require specific
+# genetic backgrounds to be positive
+# Need to measure fitness effect relative to background then rather than average
+# so need to get the moltrait values at a fixed effect's given timepoint, and 
+# subtract the fixed effect from it to measure the effect in context of the 
+# population's background
+
+# First get matched mol trait data for generations where we have fixations
+d_qg_matched_fix <- d_qg %>% 
+  filter(interaction(gen, seed, modelindex) %in% 
+           interaction(d_fix_nar$gen, d_fix_nar$seed, d_fix_nar$modelindex)) %>%
+  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+
+d_fix_nar2 <- inner_join(d_fix_nar, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
+
+d_fix_aZ <- d_fix_nar2 %>% filter(mutType == 3)
+d_fix_bZ <- d_fix_nar2 %>% filter(mutType == 4)
+
+# Calculate the mean phenotypes with the sampled mean aZ/bZ values
+write.table(d_fix_aZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
+
+write.table(d_fix_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
+
+
+# Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
+d_fix_aZ_diff <- d_fix_aZ
+d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
+
+d_fix_bZ_diff <- d_fix_bZ
+d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
+
+write.table(d_fix_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
+
+write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
+
+d_popfx_aZ <- d_popfx_aZ %>% 
+  mutate(pheno_diff = d_popfx_aZ_diff$pheno - d_fix_aZ$phenomean,
+         fitness_diff = d_popfx_aZ_diff$fitness - d_fix_aZ$w) 
+
+mean(d_popfx_aZ$pheno_diff)
+mean(d_popfx_aZ$fitness_diff)
+
+d_popfx_bZ <- d_popfx_bZ %>% 
+  mutate(pheno_diff = d_popfx_bZ_diff$pheno - d_fix_bZ$phenomean,
+         fitness_diff = d_popfx_bZ_diff$fitness - d_fix_bZ$w) 
+
+mean(d_popfx_bZ$pheno_diff)
+mean(d_popfx_bZ$fitness_diff)
 

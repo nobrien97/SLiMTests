@@ -197,7 +197,7 @@ ggplot(data = data.frame(x = c(0, 3)), aes(x)) +
   geom_rect(aes(xmin = 1, xmax = 2, ymin = 0, ymax = 1), alpha = 0, color = "#4DBBD5") +
   scale_y_continuous(breaks = NULL) +
   scale_x_continuous(breaks = NULL) +
-  labs(x = "Effect size", y = "") +
+  labs(x = "Effect size", y = "Probability Density") +
   theme_bw() +
   theme(text = element_text(size = 16))
 
