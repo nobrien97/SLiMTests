@@ -1,6 +1,11 @@
 library(tidyverse)
 library(paletteer)
-
+library(latex2exp)
+library(GGally)
+library(cowplot)
+library(ggnewscale)
+library(ggalt)
+library(ggarrow)
 
 # Functions
 se <- function(x, na.rm = F) {
@@ -26,10 +31,21 @@ d_qg <- read.table(paste0(data_path, "slim_qg.csv"), header = F,
                                "deltaw", "aZ", "bZ", "KZ", "KXZ"), 
                  fill = T)
 
-d_qg %>% 
+d_qg %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  ungroup() -> d_qg
+
+d_qg %>% group_by(modelindex) %>%
+  summarise(pAdapted = mean(isAdapted),
+            CIAdapted = CI(isAdapted))
+
+d_adapted <- d_qg %>% filter(isAdapted)
+
+d_adapted %>% 
   group_by(gen, modelindex) %>%
   summarise(meanPheno = mean(phenomean),
-            CIPheno = CI(phenomean)) -> d_qg_sum
+            CIPheno = CI(phenomean)) -> d_adapted_sum
 
 d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F, 
                      sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -46,11 +62,13 @@ d_fix <- d_muts %>%
   group_by(seed, modelindex, mutType) %>%
   distinct(mutID, .keep_all = T) 
 
+d_fix_adapted <- d_fix %>% filter(interaction(seed, modelindex) %in% 
+                                    interaction(d_adapted$seed, d_adapted$modelindex))
 
 # Fig 2 - phenotype mean
-ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
+ggplot(d_adapted_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
        aes(x = gen, y = meanPheno, colour = modelindex)) +
-  geom_line() +
+  geom_line(size = 0.7) +
   geom_ribbon(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno, 
                   fill = modelindex), alpha = 0.2, colour = NA
               ) +
@@ -61,53 +79,54 @@ ggplot(d_qg_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
   labs(x = "Generations post-optimum shift", y = "Mean population phenotype",
        colour = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 16))
-
+  theme(text = element_text(size = 16)) -> plt_phenomean
+plt_phenomean
+ggsave("phenomean.png", plt_phenomean, png)
 # Fig 3 - effect sizes
-d_fix$fixTime <- d_fix$gen - d_fix$originGen
+d_fix_adapted$fixTime <- d_fix_adapted$gen - d_fix_adapted$originGen
 
 ## Additive
-ggplot(d_fix %>% filter(modelindex == 1), 
-       aes(x = abs(value), colour = modelindex)) +
-  geom_density() +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
-  labs(x = "Fixation effect size", y = "Density",
-       colour = "Model") +
+ggplot(d_fix_adapted %>% filter(modelindex == 1), 
+       aes(x = value)) +
+  geom_density(show.legend = FALSE, size = 0) +
+  stat_density(geom="line", position="identity", size = 0.8) +
+  labs(x = "Phenotypic effect", y = "Density") +
   theme_bw() +
-  theme(text = element_text(size = 16))
+  theme(text = element_text(size = 16)) -> dfe_phenotype_additive
+dfe_phenotype_additive
 
-## Network: need to get the average phenotype effect over a range of genetic backgrounds
-## to do this, for a given alpha effect that was sampled, 
-## we look at its effect on phenotype and fitness over a range of beta values
-## each effect is a deviation from the standard rate (aZ = bZ = 1)
-## need to measure the average effect on phenotype compared to this standard rate: just
-## the difference between the phenotype values
+ggsave("dfe_phenotype_additive.png", dfe_phenotype_additive, png)
 
-# first need to generate the standard effect for alpha and beta 
-# from the range of mutational effects - remember it needs to be exponentiated
+# Get fitness effect by subtracting fitness
+d_fix_add <- d_fix_adapted %>% filter(modelindex == 1, gen >= 50000)
 
-d_fix_nar <- d_fix %>% filter(modelindex == 2, gen >= 50000)
+d_qg_matched_fix <- d_adapted %>% 
+  filter(interaction(gen, seed, modelindex) %in% 
+           interaction(d_fix_add$gen, d_fix_add$seed, d_fix_add$modelindex)) %>%
+  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
 
-mutRange <- d_fix_nar %>% 
-  group_by(mutType) %>% 
-  reframe(mutRange = range(value))
+d_fix_add <- inner_join(d_fix_add, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
-# Get the default average phenotype over the range of values for the other mol comp
-GRID_RES <- 1000
+calcAddFitness <- function(phenotypes, optimum, width) {
+  dists <- (phenotypes - optimum)^2
+  return(exp(-(dists * width)))
+}
 
-d_aZ_defaultgrid <- expand.grid(0, seq(from = mutRange$mutRange[3], 
-                   to = mutRange$mutRange[4], length.out = GRID_RES), 0, 0)
+d_absenceFitness <- d_fix_add %>% mutate(phenomean = phenomean - value)
+d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
 
-d_aZ_defaultgrid <- d_aZ_defaultgrid %>% mutate(across(everything(), exp))
+d_fix_add$avFit <- d_fix_add$w - d_absenceFitness$absenceW
 
-d_bZ_defaultgrid <- expand.grid(seq(from = mutRange$mutRange[1], 
-                                      to = mutRange$mutRange[2], length.out = GRID_RES),
-                                0, 0, 0)
+ggplot(d_fix_add %>% filter(modelindex == 1), 
+       aes(x = avFit)) +
+  geom_density(show.legend = FALSE, size = 0) +
+  stat_density(geom="line", position="identity", size = 0.8) +
+  labs(x = "Fitness effect", y = "Density") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> dfe_fitness_additive
+dfe_fitness_additive
 
-d_bZ_defaultgrid <- d_bZ_defaultgrid %>% mutate(across(everything(), exp))
-
-write.table(d_aZ_defaultgrid, "d_aZ_defaultgrid.csv", sep = ",", col.names = F, row.names = F)
-write.table(d_bZ_defaultgrid, "d_bZ_defaultgrid.csv", sep = ",", col.names = F, row.names = F)
+ggsave("dfe_fitness_additive.png", dfe_fitness_additive, png)
 
 
 runLandscaper <- function(df_path, output, width, optimum, threads) {
@@ -118,93 +137,18 @@ runLandscaper <- function(df_path, output, width, optimum, threads) {
   return(result)
 }
 
-aZ_out <- runLandscaper("d_aZ_defaultgrid.csv", "default_aZ.csv", 0.05, 2, 8)
-aZ_default_avg <- aZ_out %>% summarise(meanPheno = mean(pheno),
-                                       meanFitness = mean(fitness))
-
-bZ_out <- runLandscaper("d_bZ_defaultgrid.csv", "default_bZ.csv", 0.05, 2, 8)
-bZ_default_avg <- bZ_out %>% summarise(meanPheno = mean(pheno),
-                                       meanFitness = mean(fitness))
-
-d_fix_aZ <- d_fix_nar[d_fix_nar$mutType == 3,]
-d_fix_bZ <- d_fix_nar[d_fix_nar$mutType == 4,]
-
-# For each alpha value, we need to calculate the average value by running the landscaper -
-# we'll generate a list of all the effect size values to only run the landscaper once
-d_aZ_datagrid <- expand.grid(seq(from = mutRange$mutRange[3], 
-                   to = mutRange$mutRange[4], length.out = GRID_RES), d_fix_aZ$value, 0, 0)
-d_aZ_datagrid <- d_aZ_datagrid %>% mutate(across(everything(), exp)) %>% 
-  select(c(2, 1, 3, 4))
-
-d_bZ_datagrid <- expand.grid(seq(from = mutRange$mutRange[1], 
-                   to = mutRange$mutRange[2], length.out = GRID_RES), d_fix_bZ$value, 0, 0)
-d_bZ_datagrid <- d_bZ_datagrid %>% mutate(across(everything(), exp))
-
-write.table(d_aZ_datagrid, "d_aZ_grid.csv", sep = ",", col.names = F, row.names = F)
-aZ_out <- runLandscaper("d_aZ_grid.csv", "data_aZ.csv", 0.05, 2, 8)
-
-aZ_out <- aZ_out %>% mutate(aZ_value_id = rep(seq_along(d_fix_aZ$value), each = GRID_RES))
-
-write.table(d_bZ_datagrid, "d_bZ_grid.csv", sep = ",", col.names = F, row.names = F)
-bZ_out <- runLandscaper("d_bZ_grid.csv", "data_bZ.csv", 0.05, 2, 8)
-
-bZ_out <- bZ_out %>% mutate(bZ_value_id = rep(seq_along(d_fix_bZ$value), each = GRID_RES))
-
-
-d_mean_aZ_vals <- aZ_out %>%
-  group_by(aZ_value_id) %>%
-  summarise(meanPheno = mean(pheno),
-            meanFitness = mean(fitness))
-
-d_mean_bZ_vals <- bZ_out %>%
-  group_by(bZ_value_id) %>%
-  summarise(meanPheno = mean(pheno),
-            meanFitness = mean(fitness))
-
-d_fix_aZ$avFX <- d_mean_aZ_vals$meanPheno - aZ_default_avg$meanPheno
-d_fix_aZ$avFit <- d_mean_aZ_vals$meanFitness - aZ_default_avg$meanFitness
-
-d_fix_bZ$avFX <- d_mean_bZ_vals$meanPheno - bZ_default_avg$meanPheno
-d_fix_bZ$avFit <- d_mean_bZ_vals$meanFitness - bZ_default_avg$meanFitness
-
-d_fix_nar <- rbind(d_fix_aZ, d_fix_bZ)
-
-ggplot(d_fix_nar, 
-       aes(x = avFX, colour = mutType)) +
-  geom_density() +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
-  labs(x = "Average fixed phenotypic effect", y = "Density",
-       colour = "Molecular\ncomponent") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
-
-ggplot(d_fix_nar, 
-       aes(x = avFit, colour = mutType)) +
-  geom_density() +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
-  labs(x = "Average fixed fitness effect", y = "Density",
-       colour = "Molecular\ncomponent") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
-
-ggplot(d_fix_nar, 
-       aes(x = abs(value), colour = mutType)) +
-  geom_density() +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("aZ", "bZ")) +
-  labs(x = "Effect size on molecular component", y = "Density",
-       colour = "Molecular\ncomponent") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
-
 # On average fitness effect is negative - so mutations require specific
 # genetic backgrounds to be positive
-# Need to measure fitness effect relative to background then rather than average
+# Need to measure fitness effect relative to actual background then rather than 
+# average across the entire range experienced by every population
 # so need to get the moltrait values at a fixed effect's given timepoint, and 
 # subtract the fixed effect from it to measure the effect in context of the 
-# population's background
+# population's background - can use mean pop phenotype and fitness to measure the
+# background
+d_fix_nar <- d_fix_adapted %>% filter(modelindex == 2, gen >= 50000)
 
 # First get matched mol trait data for generations where we have fixations
-d_qg_matched_fix <- d_qg %>% 
+d_qg_matched_fix <- d_adapted %>% 
   filter(interaction(gen, seed, modelindex) %in% 
            interaction(d_fix_nar$gen, d_fix_nar$seed, d_fix_nar$modelindex)) %>%
   select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
@@ -239,17 +183,102 @@ write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ),
             "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
 
-d_popfx_aZ <- d_popfx_aZ %>% 
-  mutate(pheno_diff = d_popfx_aZ_diff$pheno - d_fix_aZ$phenomean,
-         fitness_diff = d_popfx_aZ_diff$fitness - d_fix_aZ$w) 
+# Get the effect size by taking away the phenotype missing that fixation
+d_fix_aZ$avFX <- d_fix_aZ$phenomean - d_popfx_aZ_diff$pheno
+d_fix_aZ$avFit <- d_fix_aZ$w - d_popfx_aZ_diff$fitness
 
-mean(d_popfx_aZ$pheno_diff)
-mean(d_popfx_aZ$fitness_diff)
+d_fix_bZ$avFX <- d_fix_bZ$phenomean - d_popfx_bZ_diff$pheno
+d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
 
-d_popfx_bZ <- d_popfx_bZ %>% 
-  mutate(pheno_diff = d_popfx_bZ_diff$pheno - d_fix_bZ$phenomean,
-         fitness_diff = d_popfx_bZ_diff$fitness - d_fix_bZ$w) 
+d_fix_nar <- rbind(d_fix_aZ, d_fix_bZ)
 
-mean(d_popfx_bZ$pheno_diff)
-mean(d_popfx_bZ$fitness_diff)
+ggplot(d_fix_nar, 
+       aes(x = avFX, colour = mutType)) +
+  geom_density(show.legend = FALSE, size = 0) +
+  stat_density(geom="line", position="identity", size = 0.8) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Phenotypic effect", y = "Density",
+       colour = "Molecular component") +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        plot.margin = margin(5.5, 10, 5.5, 5.5), 
+        legend.position = "bottom") -> dfe_phenotype_nar
+dfe_phenotype_nar
+ggsave("dfe_phenotype_nar.png", dfe_phenotype_nar, png)
 
+ggplot(d_fix_nar, 
+       aes(x = avFit, colour = mutType)) +
+  geom_density(show.legend = FALSE, size = 0) +
+  stat_density(geom="line", position="identity", size = 0.8) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Fitness effect", y = "Density",
+       colour = "Molecular\ncomponent") +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        plot.margin = margin(5.5, 10, 5.5, 5.5),
+        legend.position = "none") -> dfe_fitness_nar
+dfe_fitness_nar
+ggsave("dfe_fitness_nar.png", dfe_fitness_nar, png)
+
+# Combine the above figures
+leg <- get_legend(dfe_phenotype_nar)
+
+fig3 <- plot_grid(dfe_phenotype_additive,
+          dfe_phenotype_nar + theme(legend.position = "none"),
+          dfe_fitness_additive,
+          dfe_fitness_nar + theme(legend.position = "none"),
+          ncol = 2, nrow = 2, labels = "AUTO")
+
+fig3 <- plot_grid(fig3, get_legend(dfe_phenotype_nar), ncol = 1, rel_heights = c(1, 0.1))
+fig3
+ggsave("dfe_combined.png", fig3, png, bg = "white")
+
+# Fig 4: Plot adaptive walks
+cc <- paletteer_c("grDevices::Burg", 3)
+cc2 <- paletteer_c("grDevices::Blues", 50, -1)
+
+plotPairwiseScatter <- function(dat, x, y, labels) {
+  GRID_RES <- 200
+  d_grid <- expand.grid(seq(from = min(dat[[x]]), 
+                                   to = max(dat[[x]]), length.out = GRID_RES), 
+                        seq(from = min(dat[[y]]), 
+                            to = max(dat[[y]]), length.out = GRID_RES), 1, 1)
+  write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  
+  d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
+  cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  
+  ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]])) +
+    geom_raster(data = d_landscape, mapping = 
+                     aes(x = .data[[x]], y = .data[[y]], fill = pheno)) +
+    geom_point() +
+    geom_encircle(colour = "black", mapping = aes(group = seed)) +
+    scale_fill_gradient2(low = cc[1], mid = cc[3], high = cc[2], midpoint = 2) +
+    labs(fill = "Phenotype (Z)") +
+    
+    new_scale_colour() +
+    geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
+                       mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]),
+                                     xend = .data[[x]], yend = .data[[y]],
+                                     group = seed, linewidth_head = gen_width,
+                                     linewidth_fins = gen_width * 0.8,
+                                     colour = gen_width),
+                       arrow_head = arrow_head_line()) +
+    scale_colour_gradientn(colors = cc2, labels = scales::comma(c(0, 0.25*10000, 0.5*10000,
+                                                    0.75*10000, 10000))) +
+    scale_linewidth(guide = "none") +
+    labs(x = labels[1], y = labels[2], colour = "Generation") +
+    theme_bw() + 
+    theme(legend.position = "bottom", text = element_text(size = 14)) +
+    guides(colour=guide_colourbar(barwidth=15))
+}
+
+d_qg_adapting <- d_adapted %>% filter(gen >= 50000)
+d_qg_adapting$gen_width <- scales::rescale(d_qg_adapting$gen, to = c(0.1, 1))
+
+
+sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 3)
+walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% sampled_seed), 
+                    "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
+walk
+ggsave("example_adaptiveWalk.png", walk, png)
