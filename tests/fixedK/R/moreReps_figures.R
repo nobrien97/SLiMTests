@@ -192,6 +192,12 @@ d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
 
 d_fix_nar <- rbind(d_fix_aZ, d_fix_bZ)
 
+mutType_names <- c(
+  TeX("$\\alpha_Z$"),
+  TeX("$\\beta_Z$")
+)
+
+
 ggplot(d_fix_nar, 
        aes(x = avFX, colour = mutType)) +
   geom_density(show.legend = FALSE, size = 0) +
