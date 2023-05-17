@@ -8,6 +8,10 @@ hist(x,prob=T,xlab="Random Variables from Gumbel (location = 0,scale = 1, shape 
      main="Gumbel Distribution",ylab="f(x)",font=2,family="serif",font.lab=2,cex.lab=1.5)
 plot(logspline(x),add=T)
 
+# Set seed for reproducibility - 6673185 
+seed <- sample(0:.Machine$integer.max, 1)
+set.seed(seed)
+
 # Fitness effects
 fit_add <- fevd(d_fix_add$avFit, method = "Lmoments")
 plot(fit_add)
