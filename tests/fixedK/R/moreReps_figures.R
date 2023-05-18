@@ -253,14 +253,16 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
   
   d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  mp <- sum(range(d_landscape$fitness))/2
   
   ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]])) +
     geom_raster(data = d_landscape, mapping = 
-                     aes(x = .data[[x]], y = .data[[y]], fill = pheno)) +
+                     aes(x = .data[[x]], y = .data[[y]], fill = fitness)) +
     geom_point() +
     geom_encircle(colour = "black", mapping = aes(group = seed)) +
-    scale_fill_gradient2(low = cc[1], mid = cc[3], high = cc[2], midpoint = 2) +
-    labs(fill = "Phenotype (Z)") +
+    scale_fill_gradient2(low = cc[1], mid = cc[2], high = cc[3], midpoint = mp) +
+    labs(fill = "Relative fitness (w)") +
+    
     
     new_scale_colour() +
     geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
@@ -276,7 +278,8 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
     labs(x = labels[1], y = labels[2], colour = "Generation") +
     theme_bw() + 
     theme(legend.position = "bottom", text = element_text(size = 14)) +
-    guides(colour=guide_colourbar(barwidth=15))
+    guides(colour=guide_colourbar(barwidth=10),
+           fill = guide_colourbar(barwidth = 10))
 }
 
 d_qg_adapting <- d_adapted %>% filter(gen >= 50000)
