@@ -2,6 +2,9 @@
 library(extRemes)
 library(logspline)
 
+setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
+source("wrangle_data.R")
+
 # Try to fit GEV
 x <- revd(10000, loc = 0, scale = 1, shape = 0)
 hist(x,prob=T,xlab="Random Variables from Gumbel (location = 0,scale = 1, shape =0)",
