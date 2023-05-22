@@ -59,6 +59,19 @@ d_fix_adapted <- d_fix %>% filter(interaction(seed, modelindex) %in%
                                     interaction(d_adapted$seed, d_adapted$modelindex))
 
 d_fix_adapted$fixTime <- d_fix_adapted$gen - d_fix_adapted$originGen
+
+d_indPheno <- read.table(paste0(data_path, "slim_indPheno.csv"), header = F, 
+                     sep = ",", colClasses = c("integer", "factor", "factor",
+                                               "integer", rep("numeric", times = 5)), 
+                     col.names = c("gen", "seed", "modelindex", "index", "pheno",
+                                   "aZ", "bZ", "KZ", "KXZ"), 
+                     fill = T)
+
+d_indPheno_adapted <- d_indPheno %>% filter(interaction(gen, seed, modelindex) %in% 
+                                    interaction(d_fix_adapted$gen, d_fix_adapted$seed, d_fix_adapted$modelindex))
+
+rm(d_indPheno)
+
 # Get fitness effect by subtracting fitness
 d_fix_add <- d_fix_adapted %>% filter(modelindex == 1, gen >= 50000)
 
@@ -74,10 +87,13 @@ calcAddFitness <- function(phenotypes, optimum, width) {
   return(exp(-(dists * width)))
 }
 
-d_absenceFitness <- d_fix_add %>% mutate(phenomean = phenomean - value)
-d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
+BASELINE_PHENO_ADD <- 0
+BASELINE_PHENO <- 2.53531
+BASELINE_FITNESS_ADD <- calcAddFitness(BASELINE_PHENO_ADD, 2, 0.05)
+BASELINE_FITNESS <- calcAddFitness(BASELINE_PHENO, 2, 0.05)
 
-d_fix_add$avFit <- d_fix_add$w - d_absenceFitness$absenceW
+d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$value, 2, 0.05)
+d_fix_add$avFit <- d_absenceFitness$absenceW - BASELINE_FITNESS_ADD
 
 
 runLandscaper <- function(df_path, output, width, optimum, threads) {
@@ -118,13 +134,23 @@ write.table(d_fix_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ),
             "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
 
+# measure difference relative to baseline - 1, 1, 1, 1 case
+# so (baseline + mol comp value) - baseline 
+# maybe also look over many backgrounds?
 
 # Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
 d_fix_aZ_diff <- d_fix_aZ
+d_fix_aZ_diff$aZ <- exp(d_fix_aZ$value)
+d_fix_aZ_diff$bZ <- 1
+
 d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
+d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
+
+
 
 d_fix_bZ_diff <- d_fix_bZ
-d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
+d_fix_bZ_diff$bZ <- exp(d_fix_bZ$value)
+d_fix_bZ_diff$aZ <- 1
 
 write.table(d_fix_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
@@ -135,10 +161,26 @@ write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ),
 d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
 
 # Get the effect size by taking away the phenotype missing that fixation
+d_fix_aZ$avFX <- d_popfx_aZ_diff$pheno - BASELINE_PHENO
+d_fix_aZ$avFit <- d_popfx_aZ_diff$fitness - BASELINE_FITNESS
+
+d_fix_bZ$avFX <- d_popfx_bZ_diff$pheno - BASELINE_PHENO
+d_fix_bZ$avFit <- d_popfx_bZ_diff$fitness - BASELINE_FITNESS
+
 d_fix_aZ$avFX <- d_fix_aZ$phenomean - d_popfx_aZ_diff$pheno
 d_fix_aZ$avFit <- d_fix_aZ$w - d_popfx_aZ_diff$fitness
 
 d_fix_bZ$avFX <- d_fix_bZ$phenomean - d_popfx_bZ_diff$pheno
 d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
 
+
+
 d_fix_nar <- rbind(d_fix_aZ, d_fix_bZ)
+
+# ranked mutations and average effects
+
+d_fix_ranked <- d_fix_nar %>%
+  group_by(seed, modelindex) %>%
+  arrange(gen, .by_group = T) %>%
+  mutate(rank = row_number()) %>%
+  select(c(rank, seed, modelindex, mutType, value, aZ, bZ, phenomean, w, avFX, avFit))
