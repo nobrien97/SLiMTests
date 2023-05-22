@@ -61,7 +61,6 @@ mutType_names <- c(
   TeX("$\\beta_Z$")
 )
 
-
 ggplot(d_fix_nar, 
        aes(x = avFX, colour = mutType)) +
   geom_density(show.legend = FALSE, size = 0) +
@@ -157,3 +156,18 @@ walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 walk
 ggsave("example_adaptiveWalk.png", walk, png)
+
+# Ranked fixed effects
+d_rank_av <- d_fix_ranked %>%
+  group_by(rank, mutType) %>%
+  summarise(CIFit = CI(avFit),
+            meanFit = mean(avFit))
+
+ggplot(d_rank_av, aes(x = rank, y = meanFit, colour = mutType)) +
+  geom_point(position = position_dodge(1)) +
+  geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
+                width = 0.4, position = position_dodge(1)) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Mutation order", y = "Average effect on fitness", colour = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
