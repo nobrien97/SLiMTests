@@ -28,6 +28,10 @@ ggplot(d_adapted_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
 plt_phenomean
 ggsave("phenomean.png", plt_phenomean, png)
 
+d_qg %>% group_by(modelindex) %>%
+  summarise(pAdapted = mean(isAdapted),
+            CIAdapted = CI(isAdapted))
+
 
 # Fig 3 - effect sizes
 
@@ -116,16 +120,25 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
   
   d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
-  mp <- sum(range(d_landscape$fitness))/2
   
-  ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]])) +
+  minFit <- min(d_landscape$fitness)
+  maxFit <- max(d_landscape$fitness)
+  # Rescale fitness values so we can change gradient breaks
+  wValues <- c(0,
+               (0.90-minFit)/(maxFit - minFit),
+               (0.99-minFit)/(maxFit - minFit),
+               1)
+  
+  suppressWarnings(
+  ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]], 
+                                              group = seed)) +
     geom_raster(data = d_landscape, mapping = 
                      aes(x = .data[[x]], y = .data[[y]], fill = fitness)) +
     geom_point() +
     geom_encircle(s_shape = 0.2, expand = 0.2, colour = "black", mapping = aes(group = seed)) +
-    scale_fill_gradient2(low = cc[1], mid = cc[2], high = cc[3], midpoint = mp) +
-    labs(fill = "Relative fitness (w)") +
-    
+    scale_fill_gradientn(colors = c(cc[1], cc), limits = c(minFit, 1),
+                         values = wValues) +
+    labs(fill = "Log fitness (w)") +
     
     new_scale_colour() +
     geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
@@ -143,6 +156,7 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
     theme(legend.position = "bottom", text = element_text(size = 14)) +
     guides(colour=guide_colourbar(barwidth=10),
            fill = guide_colourbar(barwidth = 10))
+  )
 }
 
 d_qg_adapting <- d_adapted %>% filter(gen >= 50000)
@@ -151,23 +165,65 @@ d_qg_adapting$gen_width <- scales::rescale(d_qg_adapting$gen, to = c(0.1, 1))
 seed <- sample(0:.Machine$integer.max, 1)
 set.seed(seed)
 #set.seed(1269262162)
-sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 5)
+sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 2)
 walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% sampled_seed), 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 walk
 ggsave("example_adaptiveWalk.png", walk, png)
 
 # Ranked fixed effects
-d_rank_av <- d_fix_ranked %>%
-  group_by(rank, mutType) %>%
+d_rank_av_nar <- d_fix_ranked %>%
+  group_by(rank) %>%
   summarise(CIFit = CI(avFit),
-            meanFit = mean(avFit))
+            meanFit = mean(avFit),
+            CIPheno = CI(phenomean),
+            meanPheno = mean(phenomean))
 
-ggplot(d_rank_av, aes(x = rank, y = meanFit, colour = mutType)) +
+ggplot(d_rank_av_nar %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point(position = position_dodge(1)) +
+  geom_line(position = position_dodge(1)) +
   geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
                 width = 0.4, position = position_dodge(1)) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Mutation order", y = "Average effect on fitness", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16))
+
+d_rank_av_add <- d_fix_ranked_add %>%
+  group_by(rank) %>%
+  summarise(CIFit = CI(avFit),
+            meanFit = mean(avFit),
+            CIPheno = CI(phenomean),
+            meanPheno = mean(phenomean))
+
+ggplot(d_rank_av_add %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
+                width = 0.4) +
+  labs(x = "Mutation order", y = "Average effect on fitness") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+# diminishing returns of each step in the walk
+ggplot(d_rank_av_nar, aes(x = rank, y = meanPheno)) +
+  geom_point(position = position_dodge(1)) +
+  geom_line(position = position_dodge(1)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_errorbar(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno), 
+                width = 0.4, position = position_dodge(1)) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Mutation step", y = "Mean population phenotype", colour = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+ggplot(d_rank_av_add, aes(x = rank, y = meanPheno)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_errorbar(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno), 
+                width = 0.4) +
+  labs(x = "Mutation step", y = "Mean population phenotype") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
