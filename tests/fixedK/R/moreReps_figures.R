@@ -168,7 +168,7 @@ set.seed(seed)
 sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 2)
 walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% sampled_seed), 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
-walk
+suppressWarnings(walk)
 ggsave("example_adaptiveWalk.png", walk, png)
 
 # Ranked fixed effects
