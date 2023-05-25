@@ -53,6 +53,11 @@ d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F,
                                    "Freq", "Count", "fixGen"), 
                      fill = T)
 
+d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
+                                    interaction(d_adapted$seed, d_adapted$modelindex))
+
+d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
+
 d_fix <- d_muts %>%
   filter(Freq == 1) %>%
   group_by(seed, modelindex, mutType) %>%
@@ -338,6 +343,64 @@ step0_pheno$rank <- 0
 step0_pheno$value <- NA
 step0_pheno$avFit <- NA
 
-d_fix_ranked_add_mal <- rbind(d_fix_ranked_mal_add, step0_pheno %>% 
+d_fix_ranked_add_mal <- rbind(d_fix_ranked_add_mal, step0_pheno %>% 
                             select(rank, seed, modelindex, value, phenomean, w, avFit))
 
+mutType_names <- c(
+  TeX("$\\alpha_Z$"),
+  TeX("$\\beta_Z$")
+)
+
+seed <- sample(0:.Machine$integer.max, 1)
+set.seed(seed)
+#set.seed(1875704954)
+sampled_seed <- sample(d_com_adapted[d_com_adapted$modelindex == 2,]$seed, 3)
+d_com_adapted %>% 
+  filter(modelindex == 2, seed %in% sampled_seed) %>% distinct() -> d_com_nar_sample
+
+sampled_seed_add <- sample(d_com_adapted[d_com_adapted$modelindex == 1,]$seed, 3)
+d_com_adapted %>% 
+  filter(modelindex == 1, seed %in% sampled_seed_add) %>% distinct() -> d_com_add_sample
+
+# Calculate fitness effects
+## Additive
+d_absenceFitness <- d_com_add_sample %>% mutate(phenomean = phenomean - value)
+d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
+d_com_add_sample$avFit <- d_com_add_sample$w - d_absenceFitness$absenceW
+
+
+## NAR
+d_fix_aZ <- d_com_nar_sample %>% filter(mutType == 3)
+d_fix_bZ <- d_com_nar_sample %>% filter(mutType == 4)
+
+# Calculate the mean phenotypes with the sampled mean aZ/bZ values
+write.table(d_fix_aZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
+
+write.table(d_fix_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
+
+# Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
+d_fix_aZ_diff <- d_fix_aZ
+d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
+
+d_fix_bZ_diff <- d_fix_bZ
+d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
+
+write.table(d_fix_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
+
+write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+            "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
+d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
+
+d_fix_aZ$avFX <- d_fix_aZ$phenomean - d_popfx_aZ_diff$pheno
+d_fix_aZ$avFit <- d_fix_aZ$w - d_popfx_aZ_diff$fitness
+
+d_fix_bZ$avFX <- d_fix_bZ$phenomean - d_popfx_bZ_diff$pheno
+d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
+
+d_com_nar_sample <- rbind(d_fix_aZ, d_fix_bZ)
