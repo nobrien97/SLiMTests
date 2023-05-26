@@ -404,3 +404,10 @@ d_fix_bZ$avFX <- d_fix_bZ$phenomean - d_popfx_bZ_diff$pheno
 d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
 
 d_com_nar_sample <- rbind(d_fix_aZ, d_fix_bZ)
+
+# save data frames
+d_fix_combined <- rbind(d_fix_add, d_fix_nar)
+d_fix_combined <- d_fix_combined %>% select(-c(fixGen, constraint, chi, Count))
+write_csv(rbind(d_fix_add, d_fix_nar), "d_fix_combined.csv")
+
+

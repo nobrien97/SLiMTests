@@ -290,10 +290,6 @@ d_com_nar_sample %>% filter(gen > 49000) %>%
   group_by(gen, seed) %>%
   mutate(sumFit = sum(avFit)) -> d_com_nar_sample
 
-d_com_nar_sample %>% ungroup(gen) %>%
-  distinct(gen, .keep_all = T) %>%
-  mutate(cumSumFit = cumsum(sumFit)) -> d_nar_sample_sum
-
 d_com_add_sample %>% filter(gen > 49000) %>%
   group_by(gen, seed) %>%
   mutate(sumFit = sum(avFit)) -> d_com_add_sample
@@ -303,7 +299,7 @@ d_com_add_sample %>%
   distinct(gen, .keep_all = T) %>%
   mutate(cumSumFit = cumsum(sumFit)) -> d_add_sample_sum
 
-ggplot(d_nar_sample_sum %>% distinct(), aes(x = gen, y = cumSumFit, colour = seed)) +
+ggplot(d_com_sample_sum %>% distinct(), aes(x = gen, y = cumSumFit, colour = seed)) +
   geom_line() +
   theme_bw()
 
