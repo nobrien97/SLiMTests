@@ -248,7 +248,7 @@ function (void) writeAlleleData(void) {
 		mutCount = size(genom[genom.containsMutations(mut)]);
 		mutType = mut.mutationType.id;
 		mutValue = asString(mut.selectionCoeff);
-		mutChi = mut.selectionCoeff * sqrt(1/(2*dist));
+		mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
 		dictPos = match(mut.position, condict[0,]); // Get the position of the mutation in our dictonary of gene constraints
 		mutCon = condict[1, dictPos]; // Store the row number of the genetic constraint (low, medium, high constraint)
 		mutsLine = paste(sim.generation, asString(seed), modelindex, mutType, mut.id, mut.position, mutCon, mut.originGeneration, mutValue, mutChi, mutFreq, mutCount, "NA", sep = ",");
