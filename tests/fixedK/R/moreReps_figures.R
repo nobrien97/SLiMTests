@@ -6,6 +6,7 @@ library(cowplot)
 library(ggnewscale)
 library(ggalt)
 library(ggarrow)
+library(MASS)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -306,3 +307,124 @@ ggplot(d_com_sample_sum %>% distinct(), aes(x = gen, y = cumSumFit, colour = see
 ggplot(d_add_sample_sum %>% distinct(), aes(x = gen, y = cumSumFit, colour = seed)) +
   geom_line() +
   theme_bw()
+
+# combined ranks table
+ggplot(d_rank_combined_tbl, 
+       aes(x = rank, y = n, fill = mutType)) +
+  facet_grid(.~isAdapted) +
+  geom_col(position = position_dodge(0.9)) +
+  geom_line(position = position_dodge(0.9)) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Adapted", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Adaptive step", y = "Count", fill = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+
+# effect size per step
+ggplot(d_ranked_combined %>% drop_na(), 
+       aes(x = as.factor(rank), y = value, fill = mutType)) +
+  facet_grid(.~isAdapted) +
+  geom_boxplot() +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(x = "Adaptive step", y = "Effect", fill = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+
+# total SFS at gen 50000
+ggplot(d_muts %>% filter(gen == 50000), aes(x = Freq)) +
+  facet_grid(.~modelindex) +
+  geom_histogram() +
+  theme_bw()
+
+# Adaptive walk - ratio of alpha/beta
+ggplot(d_ratio, aes(x = aZ, y = bZ, colour = aZbZ, shape = isAdapted)) +
+  geom_point() +
+  scale_colour_paletteer_c("viridis::viridis") +
+  theme_bw()
+
+ggplot(d_ratio, aes(x = aZbZ, y = phenomean, colour = isAdapted)) +
+  geom_point() +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  theme_bw()
+
+# Fitness landscape aZbZ
+plotRatioLandscape <- function(minRatio, maxRatio) {
+  GRID_RES <- 50000
+  rational <- MASS:::.rat(seq(minRatio, maxRatio, length.out = GRID_RES),
+                          max.denominator = 20)$rat
+  d_grid <- data.frame(aZ = rational[,1], 
+                       bZ = rational[,2],
+                       KZ = 1, 
+                       KXZ = 1) %>% distinct()
+  write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  
+  d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8) %>%
+    filter(pheno > 0)
+  cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  
+  minFit <- 0.8 #min(d_landscape$fitness)
+  maxFit <- max(d_landscape$fitness)
+  # Rescale fitness values so we can change gradient breaks
+  wValues <- c(0,
+               (0.90-minFit)/(maxFit - minFit),
+               (0.99-minFit)/(maxFit - minFit),
+               1)
+  
+  suppressWarnings(
+    ggplot(d_landscape  %>% mutate(aZbZ = aZ/bZ), 
+           aes(x = aZbZ, y = pheno, colour = fitness)) +
+      geom_point() +
+      scale_colour_gradientn(colors = c(cc[1], cc), 
+                             limits = c(ifelse(minFit < 0.8, 0.8, minFit), 1),
+                           values = wValues) +
+      labs(x = TeX("$\\frac{\\alpha_Z}{\\beta_Z} ratio$"), y = "Phenotype", 
+           colour = "Fitness (w)") +
+      theme_bw() + 
+      theme(legend.position = "bottom", text = element_text(size = 14)) +
+      guides(colour = guide_colourbar(barwidth = 20))
+  )
+}
+
+plt <- plotRatioLandscape(0.5, 3)
+plt
+
+plotaZbZLandscape <- function(minVal, maxVal) {
+  GRID_RES <- 400
+  d_grid <- expand.grid(seq(from = minVal, 
+                            to = maxVal, length.out = GRID_RES), 
+                        seq(from = minVal, 
+                            to = maxVal, length.out = GRID_RES), 1, 1)
+  write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  
+  d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
+  cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  
+  minFit <- 0.8 #min(d_landscape$fitness)
+  maxFit <- max(d_landscape$fitness)
+  # Rescale fitness values so we can change gradient breaks
+  wValues <- c(0,
+               (0.90-minFit)/(maxFit - minFit),
+               (0.99-minFit)/(maxFit - minFit),
+               1)
+  
+  suppressWarnings(
+    ggplot(d_landscape %>% mutate(aZbZ = aZ/bZ), 
+           aes(x = aZ, y = bZ, fill = fitness)) +
+      geom_tile() +
+      #geom_abline(slope = 1/1.27) +
+      geom_point(data = d_landscape %>% mutate(aZbZ = aZ/bZ) 
+                 %>% filter(aZbZ > 1.25, aZbZ < 1.35), size = 0.1, shape = 4) +
+      scale_fill_gradientn(colors = c(cc[1], cc), 
+                           limits = c(minFit, 1),
+                             values = wValues, na.value = cc[1]) +
+      labs(x = TeX("$\\alpha_Z$"), y = TeX("$\\beta_Z$"), 
+           fill = "Fitness (w)", size = TeX("$\\frac{\\alpha_Z}{\\beta_Z} ratio$")) +
+      theme_bw() + 
+      theme(legend.position = "bottom", text = element_text(size = 14)) +
+      guides(fill = guide_colourbar(barwidth = 20))
+  )
+}
+
+plotaZbZLandscape(0, 3)
