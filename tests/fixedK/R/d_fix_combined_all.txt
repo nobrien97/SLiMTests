@@ -1,0 +1,20 @@
+gen: Simulation generation - at gen 50000 the optimum shifts
+seed: replicate/seed for SLiM's RNG
+modelindex: 1 = additive; 2 = NAR
+mutType: molecular trait the mutation affects - in additive models, there is only mutType = 3 (QTL); in NAR 3 = aZ, 4 = bZ
+mutID: the id of the mutation in SLiM - unique within a replicate only (i.e. seed 1 id 1 != seed 2 id 1) 
+pos: position along the genome
+constraint: N/A
+originGen: generation the mutation originated
+value: additive effect on molecular trait
+chi: scaled mutation size x = value * sqrt(n)/2d where n is the number of traits the mutation affects (1) and d is the distance from the optimum
+Freq: Allele frequency
+Count: Count of genomes with the mutation
+fixGen: generation the allele fixed (N/A in this dataset)
+fixTime: approximate time to fixation
+aZ, bZ, KZ, KXZ: mean molecular trait values (N/A for additive models)
+phenomean: mean population phenotype
+w: mean population fitness
+isAdapted: is the population within 5% of the optimum (1.9 > x > 2.1)
+avFit: fitness effect of the mutation relative to the population mean
+avFX: phenotype effect of the mutation relative to the population mean (in additive models this is just value)

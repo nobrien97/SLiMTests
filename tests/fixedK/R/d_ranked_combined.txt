@@ -1,0 +1,11 @@
+rank: adaptive step in the walk: rank 1 is the first step, step 0 is the phenotype mean at the optimum shift
+seed: replicate/seed for SLiM's RNG
+modelindex: 1 = additive; 2 = NAR
+mutType: molecular trait the mutation affects - in additive models, there is only mutType = 3 (QTL); in NAR 3 = aZ, 4 = bZ
+value: additive effect on molecular trait
+aZ, bZ, KZ, KXZ: mean molecular trait values (N/A for additive models)
+phenomean: mean population phenotype
+w: mean population fitness
+avFit: fitness effect of the mutation relative to the population mean
+avFX: phenotype effect of the mutation relative to the population mean (in additive models this is just value)
+isAdapted: is the population within 5% of the optimum (1.9 > x > 2.1)
