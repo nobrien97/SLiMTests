@@ -86,7 +86,7 @@ d_fix_add <- d_fix_adapted %>% filter(modelindex == 1, gen >= 50000)
 d_qg_matched_fix <- d_adapted %>% 
   filter(interaction(gen, seed, modelindex) %in% 
            interaction(d_fix_add$gen, d_fix_add$seed, d_fix_add$modelindex)) %>%
-  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
 
 d_fix_add <- inner_join(d_fix_add, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
@@ -127,7 +127,7 @@ d_fix_nar <- d_fix_adapted %>% filter(modelindex == 2, gen >= 50000)
 d_qg_matched_fix <- d_adapted %>% 
   filter(interaction(gen, seed, modelindex) %in% 
            interaction(d_fix_nar$gen, d_fix_nar$seed, d_fix_nar$modelindex)) %>%
-  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
 
 d_fix_nar2 <- inner_join(d_fix_nar, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
@@ -135,11 +135,11 @@ d_fix_aZ <- d_fix_nar2 %>% filter(mutType == 3)
 d_fix_bZ <- d_fix_nar2 %>% filter(mutType == 4)
 
 # Calculate the mean phenotypes with the sampled mean aZ/bZ values
-write.table(d_fix_aZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
 
-write.table(d_fix_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
 
@@ -151,30 +151,18 @@ d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
 d_fix_aZ_diff <- d_fix_aZ
 d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
 
-#d_fix_aZ_diff$aZ <- exp(d_fix_aZ$value)
-#d_fix_aZ_diff$bZ <- 1
-
-
 d_fix_bZ_diff <- d_fix_bZ
 d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
-#d_fix_bZ_diff$bZ <- exp(d_fix_bZ$value)
-#d_fix_bZ_diff$aZ <- 1
 
-write.table(d_fix_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_aZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
 
-write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_bZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
 
 # Get the effect size by taking away the phenotype missing that fixation
-# d_fix_aZ$avFX <- d_popfx_aZ_diff$pheno - BASELINE_PHENO
-# d_fix_aZ$avFit <- d_popfx_aZ_diff$fitness - BASELINE_FITNESS
-# 
-# d_fix_bZ$avFX <- d_popfx_bZ_diff$pheno - BASELINE_PHENO
-# d_fix_bZ$avFit <- d_popfx_bZ_diff$fitness - BASELINE_FITNESS
-
 d_fix_aZ$avFX <- d_fix_aZ$phenomean - d_popfx_aZ_diff$pheno
 d_fix_aZ$avFit <- d_fix_aZ$w - d_popfx_aZ_diff$fitness
 
@@ -188,7 +176,7 @@ d_fix_ranked <- d_fix_nar %>%
   group_by(seed, modelindex) %>%
   arrange(gen, .by_group = T) %>%
   mutate(rank = row_number()) %>%
-  select(c(rank, seed, modelindex, mutType, value, aZ, bZ, phenomean, w, avFX, avFit))
+  dplyr::select(c(rank, seed, modelindex, mutType, value, aZ, bZ, phenomean, w, avFX, avFit))
 
 step0_pheno <- d_adapted %>% 
   filter(modelindex == 2, gen == 49500, interaction(seed, modelindex) %in%
@@ -199,7 +187,7 @@ step0_pheno$value <- NA
 step0_pheno$avFit <- NA
 
 d_fix_ranked <- rbind(d_fix_ranked, step0_pheno %>% 
-                            select(rank, seed, modelindex, value, phenomean, w, avFit))
+                            dplyr::select(rank, seed, modelindex, value, phenomean, w, avFit))
 
 
 # additive: attach step 0 (phenomean from before the first step in the walk)
@@ -207,7 +195,7 @@ d_fix_ranked_add <- d_fix_add %>%
   group_by(seed, modelindex) %>%
   arrange(gen, .by_group = T) %>%
   mutate(rank = row_number()) %>%
-  select(c(rank, seed, modelindex, value, phenomean, w, avFit)) %>%
+  dplyr::select(c(rank, seed, modelindex, value, phenomean, w, avFit)) %>%
   ungroup()
 
 step0_pheno <- d_adapted %>% 
@@ -219,7 +207,7 @@ step0_pheno$value <- NA
 step0_pheno$avFit <- NA
 
 d_fix_ranked_add <- rbind(d_fix_ranked_add, step0_pheno %>% 
-             select(rank, seed, modelindex, value, phenomean, w, avFit))
+             dplyr::select(rank, seed, modelindex, value, phenomean, w, avFit))
 
 d_fix_ranked_add %>% filter(rank != 0) %>%
   group_by(rank) %>% 
@@ -236,7 +224,7 @@ rbind(d_fix_ranked %>% mutate(model = "NAR"),
   summarise(n = n())
 
 
-# Maladapted
+# Adapted and Maladapted
 d_maladapted <- d_qg %>% filter(!isAdapted)
 
 d_maladapted %>% 
@@ -247,14 +235,18 @@ d_maladapted %>%
 d_fix_maladapted <- d_fix %>% filter(interaction(seed, modelindex) %in% 
                                     interaction(d_maladapted$seed, d_maladapted$modelindex))
 
+# If we want to combine adapted and maladapted
+d_fix_maladapted <- d_fix 
+
+
 d_fix_maladapted$fixTime <- d_fix_maladapted$gen - d_fix_maladapted$originGen
 
 d_fix_mal_add <- d_fix_maladapted %>% filter(modelindex == 1, gen >= 50000)
 
-d_qg_matched_fix <- d_maladapted %>% 
+d_qg_matched_fix <- d_qg %>% 
   filter(interaction(gen, seed, modelindex) %in% 
            interaction(d_fix_mal_add$gen, d_fix_mal_add$seed, d_fix_mal_add$modelindex)) %>%
-  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w, isAdapted) %>% distinct()
 
 d_fix_mal_add <- inner_join(d_fix_mal_add, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
@@ -265,10 +257,10 @@ d_fix_mal_add$avFit <- d_fix_mal_add$w - d_absenceFitness$absenceW
 d_fix_mal_nar <- d_fix_maladapted %>% filter(modelindex == 2, gen >= 50000)
 
 # First get matched mol trait data for generations where we have fixations
-d_qg_matched_fix <- d_maladapted %>% 
+d_qg_matched_fix <- d_qg %>% 
   filter(interaction(gen, seed, modelindex) %in% 
            interaction(d_fix_mal_nar$gen, d_fix_mal_nar$seed, d_fix_mal_nar$modelindex)) %>%
-  select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w, isAdapted) %>% distinct()
 
 d_fix_mal_nar <- inner_join(d_fix_mal_nar, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
@@ -276,11 +268,11 @@ d_fix_mal_aZ <- d_fix_mal_nar %>% filter(mutType == 3)
 d_fix_mal_bZ <- d_fix_mal_nar %>% filter(mutType == 4)
 
 # Calculate the mean phenotypes with the sampled mean aZ/bZ values
-write.table(d_fix_mal_aZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_mal_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_mal_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
 
-write.table(d_fix_mal_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_mal_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_mal_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
 
@@ -291,11 +283,11 @@ d_fix_mal_aZ_diff$aZ <- exp(log(d_fix_mal_aZ$aZ) - d_fix_mal_aZ$value)
 d_fix_mal_bZ_diff <- d_fix_mal_bZ
 d_fix_mal_bZ_diff$bZ <- exp(log(d_fix_mal_bZ$bZ) - d_fix_mal_bZ$value)
 
-write.table(d_fix_mal_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_mal_aZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_mal_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
 
-write.table(d_fix_mal_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_mal_bZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_mal_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
 
@@ -313,9 +305,10 @@ d_fix_mal_ranked <- d_fix_mal_nar %>%
   group_by(seed, modelindex) %>%
   arrange(gen, .by_group = T) %>%
   mutate(rank = row_number()) %>%
-  select(c(rank, seed, modelindex, mutType, value, aZ, bZ, phenomean, w, avFX, avFit))
+  dplyr::select(c(rank, seed, modelindex, mutType, value, aZ, bZ, 
+           phenomean, w, avFX, avFit, isAdapted))
 
-step0_pheno <- d_maladapted %>% 
+step0_pheno <- d_qg %>% 
   filter(modelindex == 2, gen == 49500, interaction(seed, modelindex) %in%
            interaction(d_fix_mal_ranked$seed, d_fix_mal_ranked$modelindex))
 
@@ -324,7 +317,7 @@ step0_pheno$value <- NA
 step0_pheno$avFit <- NA
 
 d_fix_mal_ranked <- rbind(d_fix_mal_ranked, step0_pheno %>% 
-                        select(rank, seed, modelindex, value, phenomean, w, avFit))
+                        dplyr::select(rank, seed, modelindex, value, phenomean, w, avFit, isAdapted))
 
 
 # additive: attach step 0 (phenomean from before the first step in the walk)
@@ -332,10 +325,10 @@ d_fix_ranked_add_mal <- d_fix_mal_add %>%
   group_by(seed, modelindex) %>%
   arrange(gen, .by_group = T) %>%
   mutate(rank = row_number()) %>%
-  select(c(rank, seed, modelindex, value, phenomean, w, avFit)) %>%
+  dplyr::select(c(rank, seed, modelindex, value, phenomean, w, avFit, isAdapted)) %>%
   ungroup()
 
-step0_pheno <- d_maladapted %>% 
+step0_pheno <- d_qg %>% 
   filter(modelindex == 1, gen == 49500, interaction(seed, modelindex) %in%
            interaction(d_fix_ranked_add_mal$seed, d_fix_ranked_add_mal$modelindex))
 
@@ -344,7 +337,8 @@ step0_pheno$value <- NA
 step0_pheno$avFit <- NA
 
 d_fix_ranked_add_mal <- rbind(d_fix_ranked_add_mal, step0_pheno %>% 
-                            select(rank, seed, modelindex, value, phenomean, w, avFit))
+                            dplyr::select(rank, seed, modelindex, value, phenomean, w, 
+                                   avFit, isAdapted))
 
 mutType_names <- c(
   TeX("$\\alpha_Z$"),
@@ -374,11 +368,11 @@ d_fix_aZ <- d_com_nar_sample %>% filter(mutType == 3)
 d_fix_bZ <- d_com_nar_sample %>% filter(mutType == 4)
 
 # Calculate the mean phenotypes with the sampled mean aZ/bZ values
-write.table(d_fix_aZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
 
-write.table(d_fix_bZ %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
 
@@ -389,11 +383,11 @@ d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
 d_fix_bZ_diff <- d_fix_bZ
 d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
 
-write.table(d_fix_aZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_aZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
 
-write.table(d_fix_bZ_diff %>% ungroup() %>% select(aZ, bZ, KZ, KXZ), 
+write.table(d_fix_bZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
             "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
 d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
 
@@ -407,7 +401,22 @@ d_com_nar_sample <- rbind(d_fix_aZ, d_fix_bZ)
 
 # save data frames
 d_fix_combined <- rbind(d_fix_add, d_fix_nar)
-d_fix_combined <- d_fix_combined %>% select(-c(fixGen, constraint, chi, Count))
+d_fix_combined <- d_fix_combined %>% dplyr::select(-c(fixGen, constraint, chi, Count))
 write_csv(rbind(d_fix_add, d_fix_nar), "d_fix_combined.csv")
 
+d_fix_mal_combined <- rbind(d_fix_mal_add, d_fix_mal_nar)
+write_csv(d_fix_mal_combined, "d_fix_combined_all.csv")
 
+d_ranked_combined <- rbind(d_fix_mal_ranked, d_fix_ranked_add_mal)
+write_csv(d_ranked_combined, "d_ranked_combined_all.csv")
+
+d_rank_combined_tbl <- d_ranked_combined %>% filter(rank != 0, modelindex == 2) %>%
+  group_by(rank, modelindex, isAdapted, mutType) %>% 
+  summarise(n = n()) %>% ungroup() %>% 
+  complete(rank, isAdapted, mutType)
+d_rank_combined_tbl <- d_rank_combined_tbl[-c(15, 16),]
+d_rank_combined_tbl
+
+d_ranked_combined %>% filter(modelindex == 2) %>%
+  group_by(seed, isAdapted) %>%
+  mutate(aZbZ = aZ/bZ) -> d_ratio
