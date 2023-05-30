@@ -6,7 +6,7 @@ library(cowplot)
 library(ggnewscale)
 library(ggalt)
 library(ggarrow)
-library(MASS)
+library(gghalves)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -239,24 +239,44 @@ plot_grid(plt_adaptivestepsize_add,
 
 ggsave("stepsize_combined.png", plt_steps, png, bg = "white")
 
-# Box plots
+cc3 <- paletteer_d("ggsci::nrc_npg", 2)
+cc3
+
+# Box plots with segregating sites as well
 ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
-  geom_boxplot() +
-  #scale_y_continuous(limits = c(0, 0.02), breaks = seq(0, 0.02, by = 0.005)) +
+  geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
+  geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
+                   mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
+  geom_text(d_segFixRat_sum, 
+            mapping = aes(x = as.factor(rank), y = -0.05,
+                          label = paste0(signif(meanPercFix * 100, 3), 
+                                         " ± ", signif(CIPercFix * 100, 3), "%")),
+            size = 4.5) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_bp
 plt_adaptivestepsize_bp
 
+plot_grid(plt_adaptivestepsize_add_bp, plt_adaptivestepsize_bp,
+          nrow = 1, labels = "AUTO")
+
 ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
-  geom_boxplot() +
-  #scale_y_continuous(limits = c(0, 0.02), breaks = seq(0, 0.02, by = 0.005)) +
+  geom_half_boxplot(side = "l", center = T, width = 0.5) +
+  geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
+                   mapping = aes(x = as.factor(rank), y = avFit)) +
+  geom_text(d_segFixRat_add_sum, 
+            mapping = aes(x = as.factor(rank), y = -0.05,
+                          label = paste0(signif(meanPercFix * 100, 3), 
+                                        " ± ", signif(CIPercFix * 100, 3), "%")),
+            size = 4.5) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
+
+
 
 # diminishing returns of each step in the walk
 ggplot(d_fix_ranked, aes(x = as.factor(rank), y = phenomean)) +
