@@ -95,11 +95,14 @@ ggsave("dfe_fitness_nar.png", dfe_fitness_nar, png)
 # Combine the above figures
 leg <- get_legend(dfe_phenotype_nar)
 
-fig3 <- plot_grid(dfe_phenotype_additive,
-          dfe_phenotype_nar + theme(legend.position = "none"),
-          dfe_fitness_additive,
+fig3 <- plot_grid(dfe_fitness_additive,
           dfe_fitness_nar + theme(legend.position = "none"),
-          ncol = 2, nrow = 2, labels = "AUTO")
+          ncol = 2, labels = "AUTO")
+
+# phenotype in supp figures
+sfig1 <- plot_grid(dfe_phenotype_additive,
+                   dfe_phenotype_nar + theme(legend.position = "none"),
+                   ncol = 2, labels = "AUTO")
 
 fig3 <- plot_grid(fig3, get_legend(dfe_phenotype_nar), ncol = 1, rel_heights = c(1, 0.1))
 fig3
@@ -236,7 +239,7 @@ plot_grid(plt_adaptivestepsize_add,
           plt_phenostepPheno_add,
           plt_phenostepPheno, 
           nrow = 2, labels = "AUTO") -> plt_steps
-
+plt_steps
 ggsave("stepsize_combined.png", plt_steps, png, bg = "white")
 
 cc3 <- paletteer_d("ggsci::nrc_npg", 2)
@@ -248,35 +251,37 @@ ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
   geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
                    mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
   geom_text(d_segFixRat_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.05,
+            mapping = aes(x = as.factor(rank), y = -0.07,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                          " ± ", signif(CIPercFix * 100, 3), "%")),
-            size = 4.5) +
+            size = 3) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_bp
 plt_adaptivestepsize_bp
 
-plot_grid(plt_adaptivestepsize_add_bp, plt_adaptivestepsize_bp,
-          nrow = 1, labels = "AUTO")
-
 ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
-  geom_half_boxplot(side = "l", center = T, width = 0.5) +
+  geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = avFit)) +
+                   mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
   geom_text(d_segFixRat_add_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.05,
+            mapping = aes(x = as.factor(rank), y = -0.07,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                         " ± ", signif(CIPercFix * 100, 3), "%")),
-            size = 4.5) +
+            size = 3) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
 
+plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.07, 0.85)), 
+          plt_adaptivestepsize_bp + lims(y = c(-0.07, 0.85)),
+          nrow = 1, labels = "AUTO") -> plt_steps_fit
 
+ggsave("plt_steps_fit.png", plt_steps_fit, 
+       width = 10, height = 5, png, bg = "white")
 
 # diminishing returns of each step in the walk
 ggplot(d_fix_ranked, aes(x = as.factor(rank), y = phenomean)) +
