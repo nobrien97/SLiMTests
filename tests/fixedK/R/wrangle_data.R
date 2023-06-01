@@ -127,41 +127,64 @@ runLandscaper <- function(df_path, output, width, optimum, threads) {
 # population's background - can use mean pop phenotype and fitness to measure the
 # background
 
-CalcNARPhenotypeEffects <- function(dat) {
+CalcNARPhenotypeEffects <- function(dat, isFixed = T) {
   # Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
   d_dat_aZ <- dat %>% filter(mutType == 3)
   d_dat_bZ <- dat %>% filter(mutType == 4)
-  d_dat_aZ_absence <- d_dat_aZ
-  d_dat_aZ_absence$aZ <- exp(log(d_dat_aZ$aZ) - d_dat_aZ$value)
+    
+  if (isFixed) {
+    d_dat_aZ_absence <- d_dat_aZ
+    d_dat_aZ_absence$aZ <- exp(log(d_dat_aZ$aZ) - d_dat_aZ$value)
+    
+    d_dat_bZ_absence <- d_dat_bZ
+    d_dat_bZ_absence$bZ <- exp(log(d_dat_bZ$bZ) - d_dat_bZ$value)
+    # Get phenotypes with the mutation
+    write.table(d_dat_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
+                "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
+    d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
+    
+    write.table(d_dat_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
+                "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
+    d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
+    
+    # Get the phenotype without the mutation
+    write.table(d_dat_aZ_absence %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
+                "d_grid_aZ_absence.csv", sep = ",", col.names = F, row.names = F)
+    d_popfx_aZ_absence <- runLandscaper("d_grid_aZ_absence.csv", "data_popfx_aZ_absence.csv", 0.05, 2, 8)
+    
+    write.table(d_dat_bZ_absence %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
+                "d_grid_bZ_absence.csv", sep = ",", col.names = F, row.names = F)
+    d_popfx_bZ_absence <- runLandscaper("d_grid_bZ_absence.csv", "data_popfx_bZ_absence.csv", 0.05, 2, 8)
+    
+    # Get the effect size by taking away the phenotype missing that fixation
+    d_dat_aZ$avFX <- d_popfx_aZ$pheno - d_popfx_aZ_absence$pheno
+    d_dat_aZ$avFit <- d_popfx_aZ$fitness - d_popfx_aZ_absence$fitness
+    
+    d_dat_bZ$avFX <- d_popfx_bZ$pheno - d_popfx_bZ_absence$pheno
+    d_dat_bZ$avFit <- d_popfx_bZ$fitness - d_popfx_bZ_absence$fitness
+    return(rbind(d_dat_aZ, d_dat_bZ))
+  }
   
-  d_dat_bZ_absence <- d_dat_bZ
-  d_dat_bZ_absence$bZ <- exp(log(d_dat_bZ$bZ) - d_dat_bZ$value)
-  # Get phenotypes with the mutation
-  write.table(d_dat_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-              "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
+  # If we're looking at segregating effects we need to find all the fixed effects
+  # at that point
+  dat_fixed <- d_muts_adapted %>% 
+    filter(Freq == 1, modelindex == 2)
   
-  write.table(d_dat_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-              "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
+  # Use fixed effects to get the phenotype at the adaptive step
+  d_dat_fix_aZ <- dat_fixed %>% filter(mutType == 3)
+  d_dat_fix_bZ <- dat_fixed %>% filter(mutType == 4)
   
-  # Get the phenotype without the mutation
-  write.table(d_dat_aZ_absence %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-              "d_grid_aZ_absence.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx_aZ_absence <- runLandscaper("d_grid_aZ_absence.csv", "data_popfx_aZ_absence.csv", 0.05, 2, 8)
+  # calculate cumulative phenotypes at each step due to only fixed effects
+  dat
+  dat_fixed %>%
+    group_by(seed, mutType, modelindex) %>%
+    mutate(fixEffectSum = sum(abs(fix[fix$rank <= cur_group()$rank & fix$rank > 0 & 
+                                           fix$seed == cur_group()$seed,][[ifelse({{ isNAR }}, "avFit", "avFit")]]))) -> d_fixFX
   
-  write.table(d_dat_bZ_absence %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-              "d_grid_bZ_absence.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx_bZ_absence <- runLandscaper("d_grid_bZ_absence.csv", "data_popfx_bZ_absence.csv", 0.05, 2, 8)
   
-  # Get the effect size by taking away the phenotype missing that fixation
-  d_dat_aZ$avFX <- d_popfx_aZ$pheno - d_popfx_aZ_absence$pheno
-  d_dat_aZ$avFit <- d_popfx_aZ$fitness - d_popfx_aZ_absence$fitness
   
-  d_dat_bZ$avFX <- d_popfx_bZ$pheno - d_popfx_bZ_absence$pheno
-  d_dat_bZ$avFit <- d_popfx_bZ$fitness - d_popfx_bZ_absence$fitness
   
-  return(rbind(d_dat_aZ, d_dat_bZ))
+  
 }
 
 d_fix_nar <- d_fix_adapted %>% filter(modelindex == 2, gen >= 50000)
