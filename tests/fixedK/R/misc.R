@@ -80,3 +80,11 @@ d_seg_ranked %>%
   mutate(curEffect = abs(.data[["avFX"]])) %>%
   summarise(segEffectSum = sum(curEffect))
 
+d_fix_nar %>%
+  filter(gen > 49500, seed == 2016338465) %>% 
+  group_by(mutType, seed, gen) %>%
+  mutate(fixedSum = sum(.data[["avFX"]]))
+
+d_muts_adapted %>%
+  filter(Freq == 1, seed == 2016338465) %>%
+  distinct(mutID, .keep_all = T)
