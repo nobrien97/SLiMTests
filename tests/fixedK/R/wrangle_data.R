@@ -127,7 +127,7 @@ runLandscaper <- function(df_path, output, width, optimum, threads) {
 # population's background - can use mean pop phenotype and fitness to measure the
 # background
 
-CalcNARPhenotypeEffects <- function(dat, isFixed = T) {
+CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed) {
   # Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
   d_dat_aZ <- dat %>% filter(mutType == 3)
   d_dat_bZ <- dat %>% filter(mutType == 4)
@@ -167,24 +167,40 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T) {
   
   # If we're looking at segregating effects we need to find all the fixed effects
   # at that point
-  dat_fixed <- d_muts_adapted %>% 
-    filter(Freq == 1, modelindex == 2)
-  
-  # Use fixed effects to get the phenotype at the adaptive step
-  d_dat_fix_aZ <- dat_fixed %>% filter(mutType == 3)
-  d_dat_fix_bZ <- dat_fixed %>% filter(mutType == 4)
-  
+
   # calculate cumulative phenotypes at each step due to only fixed effects
-  dat
-  dat_fixed %>%
-    group_by(seed, mutType, modelindex) %>%
-    mutate(fixEffectSum = sum(abs(fix[fix$rank <= cur_group()$rank & fix$rank > 0 & 
-                                           fix$seed == cur_group()$seed,][[ifelse({{ isNAR }}, "avFit", "avFit")]]))) -> d_fixFX
+  # each segregating mutation needs the current fixed effect phenotypes then
+  dat <- dat %>%
+    group_by(gen, seed) %>%
+    mutate(fixEffectSum_aZ = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+                                          dat_fixed$mutType == 3 &
+                                        dat_fixed$seed == cur_group()$seed,]$value),
+           fixEffectSum_bZ = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+                                             dat_fixed$mutType == 4 &
+                                             dat_fixed$seed == cur_group()$seed,]$value))
+  # Transform to exp scale
+  dat$fixEffectSum_aZ <- exp(dat$fixEffectSum_aZ)
+  dat$fixEffectSum_bZ <- exp(dat$fixEffectSum_bZ)
+  # Get phenotypes without the mutation: this is the fixEffectSum
+  write.table(dat %>% ungroup() %>% dplyr::select(fixEffectSum_aZ, fixEffectSum_bZ, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
   
+  # Now add on the segregating effect
+  d_dat_withFX <- dat
+  d_dat_withFX$aZ <- exp(log(dat$fixEffectSum_aZ) - dat$value)
+  d_dat_withFX$bZ <- exp(log(dat$fixEffectSum_bZ) - dat$value)
   
+  # Get phenotypes with the mutation
+  write.table(d_dat_withFX %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  d_popfx_withFX <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
   
+  # Get effect
+  dat$avFX <- d_popfx_withFX$pheno - d_popfx$pheno
+  dat$avFit <- d_popfx_withFX$fitness - d_popfx$fitness
   
-  
+  return(dat)
 }
 
 d_fix_nar <- d_fix_adapted %>% filter(modelindex == 2, gen >= 50000)
