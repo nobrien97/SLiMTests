@@ -42,7 +42,7 @@ d_qg %>% group_by(modelindex) %>%
 ggplot(d_fix_adapted %>% filter(modelindex == 1), 
        aes(x = value)) +
   geom_density(show.legend = FALSE, size = 0) +
-  stat_density(geom="line", position="identity", size = 0.8) +
+  stat_density(geom="line", position="identity", linewidth = 0.8) +
   labs(x = "Phenotypic effect", y = "Density") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> dfe_phenotype_additive
@@ -53,7 +53,7 @@ ggsave("dfe_phenotype_additive.png", dfe_phenotype_additive, png)
 
 ggplot(d_fix_add %>% filter(modelindex == 1), 
        aes(x = avFit)) +
-  geom_density(show.legend = FALSE, size = 0) +
+  geom_density(show.legend = FALSE, linewidth = 0) +
   stat_density(geom="line", position="identity", size = 0.8) +
   labs(x = "Fitness effect", y = "Density") +
   theme_bw() +
@@ -67,7 +67,7 @@ ggsave("dfe_fitness_additive.png", dfe_fitness_additive, png)
 ggplot(d_fix_nar, 
        aes(x = avFX, colour = mutType)) +
   geom_density(show.legend = FALSE, size = 0) +
-  stat_density(geom="line", position="identity", size = 0.8) +
+  stat_density(geom="line", position="identity", linewidth = 0.8) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Phenotypic effect", y = "Density",
        colour = "Molecular component") +
@@ -80,8 +80,8 @@ ggsave("dfe_phenotype_nar.png", dfe_phenotype_nar, png)
 
 ggplot(d_fix_nar, 
        aes(x = avFit, colour = mutType)) +
-  geom_density(show.legend = FALSE, size = 0) +
-  stat_density(geom="line", position="identity", size = 0.8) +
+  geom_density(show.legend = FALSE, linewidth = 0) +
+  stat_density(geom="line", position="identity", linewidth = 0.8) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
   labs(x = "Fitness effect", y = "Density",
        colour = "Molecular\ncomponent") +
@@ -183,7 +183,7 @@ d_rank_av_nar <- d_fix_ranked %>%
 ggplot(d_rank_av_nar %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point(position = position_dodge(1)) +
   geom_line(position = position_dodge(1)) +
-  scale_y_continuous(limits = c(0, 0.02), breaks = seq(0, 0.02, by = 0.005)) +
+  scale_y_continuous(limits = c(0, 0.025), breaks = seq(0, 0.025, by = 0.005)) +
   geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
                 width = 0.4, position = position_dodge(1)) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
@@ -202,7 +202,7 @@ d_rank_av_add <- d_fix_ranked_add %>%
 ggplot(d_rank_av_add %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point() +
   geom_line() +
-  scale_y_continuous(limits = c(0, 0.02), breaks = seq(0, 0.02, by = 0.005)) +
+  scale_y_continuous(limits = c(0, 0.025), breaks = seq(0, 0.025, by = 0.005)) +
   geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
                 width = 0.4) +
   labs(x = "Adaptive step", y = "Mean fitness effect") +
@@ -251,7 +251,7 @@ ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
   geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
                    mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
   geom_text(d_segFixRat_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.07,
+            mapping = aes(x = as.factor(rank), y = 0.15,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                          " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
@@ -266,7 +266,7 @@ ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit
   geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
                    mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
   geom_text(d_segFixRat_add_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.07,
+            mapping = aes(x = as.factor(rank), y = 0.15,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                         " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
@@ -276,8 +276,8 @@ ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
 
-plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.07, 0.85)), 
-          plt_adaptivestepsize_bp + lims(y = c(-0.07, 0.85)),
+plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.5, 0.15)), 
+          plt_adaptivestepsize_bp + lims(y = c(-0.5, 0.15)),
           nrow = 1, labels = "AUTO") -> plt_steps_fit
 
 ggsave("plt_steps_fit.png", plt_steps_fit, 

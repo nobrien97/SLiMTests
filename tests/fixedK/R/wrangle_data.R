@@ -110,10 +110,11 @@ CalcAddEffects <- function(dat, isFixed = T, dat_fixed = NULL) {
   
   # If we are calculating fitness for segregating sites, need to evaluate fitness
   # vs the fixed effect background
+  # multiplied by 2 because diploid
   dat_fixed <- dat_fixed %>% filter(modelindex == 1)
   dat <- dat %>% 
     group_by(gen, seed) %>%
-    mutate(fixEffectSum = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+    mutate(fixEffectSum = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
                                              dat_fixed$seed == cur_group()$seed,]$value))
   
   # Get effect
@@ -188,12 +189,13 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed) {
   # each segregating mutation needs the current fixed effect phenotypes then
   dat_fixed <- dat_fixed %>% filter(modelindex == 2)
   
-  dat <- dat
+  # multiply by 2 because diploid
+  dat <- dat %>%
     group_by(gen, seed) %>%
-    mutate(fixEffectSum_aZ = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+    mutate(fixEffectSum_aZ = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
                                           dat_fixed$mutType == 3 &
                                         dat_fixed$seed == cur_group()$seed,]$value),
-           fixEffectSum_bZ = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+           fixEffectSum_bZ = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
                                              dat_fixed$mutType == 4 &
                                              dat_fixed$seed == cur_group()$seed,]$value))
   # Transform to exp scale
