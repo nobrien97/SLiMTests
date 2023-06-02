@@ -95,18 +95,34 @@ calcAddFitness <- function(phenotypes, optimum, width) {
   return(exp(-(dists * width)))
 }
 
-CalcAddEffects <- function(dat) {
+CalcAddEffects <- function(dat, isFixed = T, dat_fixed = NULL) {
   # BASELINE_PHENO_ADD <- 0
   # BASELINE_PHENO <- 2.53531
   # BASELINE_FITNESS_ADD <- calcAddFitness(BASELINE_PHENO_ADD, 2, 0.05)
   # BASELINE_FITNESS <- calcAddFitness(BASELINE_PHENO, 2, 0.05)
+  if (isFixed) {
+    d_absenceFitness <- dat %>% mutate(phenomean = phenomean - value)
+    d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
+    d_withFitness <- calcAddFitness(dat$phenomean, 2, 0.05)
+    dat$avFit <- d_withFitness - d_absenceFitness$absenceW
+    return(dat)
+  }
   
-  d_absenceFitness <- dat %>% mutate(phenomean = phenomean - value)
-  d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
-  d_withFitness <- calcAddFitness(dat$phenomean, 2, 0.05)
-  dat$avFit <- d_withFitness - d_absenceFitness$absenceW
+  # If we are calculating fitness for segregating sites, need to evaluate fitness
+  # vs the fixed effect background
+  dat_fixed <- dat_fixed %>% filter(modelindex == 1)
+  dat <- dat %>% 
+    group_by(gen, seed) %>%
+    mutate(fixEffectSum = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
+                                             dat_fixed$seed == cur_group()$seed,]$value))
+  
+  # Get effect
+  dat_withFX <- calcAddFitness(dat$fixEffectSum + dat$value, 2, 0.05)
+  dat_withoutFX <- calcAddFitness(dat$fixEffectSum, 2, 0.05)
+  dat$avFit <- dat_withFX - dat_withoutFX
   
   return(dat)
+  
 }
 
 d_fix_add <- CalcAddEffects(d_fix_add)
@@ -170,7 +186,9 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed) {
 
   # calculate cumulative phenotypes at each step due to only fixed effects
   # each segregating mutation needs the current fixed effect phenotypes then
-  dat <- dat %>%
+  dat_fixed <- dat_fixed %>% filter(modelindex == 2)
+  
+  dat <- dat
     group_by(gen, seed) %>%
     mutate(fixEffectSum_aZ = sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
                                           dat_fixed$mutType == 3 &
@@ -306,7 +324,7 @@ d_qg_matched_seg <- d_qg %>%
 
 d_seg_ranked <- inner_join(d_seg_ranked, d_qg_matched_seg, 
                            by = c("gen", "seed", "modelindex"))
-d_seg_ranked <- CalcNARPhenotypeEffects(d_seg_ranked)
+d_seg_ranked <- CalcNARPhenotypeEffects(d_seg_ranked, F, d_fix_adapted)
 
 d_qg_matched_seg <- d_qg %>% 
   filter(interaction(gen, seed, modelindex) %in% 
@@ -316,7 +334,7 @@ d_qg_matched_seg <- d_qg %>%
 
 d_seg_ranked_add <- inner_join(d_seg_ranked_add, d_qg_matched_seg, 
                                by = c("gen", "seed", "modelindex"))
-d_seg_ranked_add <- CalcAddEffects(d_seg_ranked_add)
+d_seg_ranked_add <- CalcAddEffects(d_seg_ranked_add, F, d_fix_adapted)
 
 # contribution to trait seg vs fixed
 GetSegFixContributions <- function(seg, fix, isNAR) {
