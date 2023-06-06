@@ -178,7 +178,9 @@ d_rank_av_nar <- d_fix_ranked %>%
   summarise(CIFit = CI(avFit),
             meanFit = mean(avFit),
             CIPheno = CI(phenomean),
-            meanPheno = mean(phenomean))
+            meanPheno = mean(phenomean),
+            meanDom = mean(h),
+            CIDom = CI(h))
 
 ggplot(d_rank_av_nar %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point(position = position_dodge(1)) +
@@ -246,25 +248,25 @@ cc3 <- paletteer_d("ggsci::nrc_npg", 2)
 cc3
 
 # Box plots with segregating sites as well
-ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
+ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
   geom_text(d_segFixRat_sum, 
             mapping = aes(x = as.factor(rank), y = 0.15,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                          " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
-  labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
+  labs(x = "Adaptive step", y = "Fitness effect (s)", colour = "Mutation type") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_bp
 plt_adaptivestepsize_bp
 
-ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit)) +
+ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = avFit), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
   geom_text(d_segFixRat_add_sum, 
             mapping = aes(x = as.factor(rank), y = 0.15,
                           label = paste0(signif(meanPercFix * 100, 3), 
@@ -276,9 +278,10 @@ ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = avFit
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
 
-plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.5, 0.15)), 
-          plt_adaptivestepsize_bp + lims(y = c(-0.5, 0.15)),
+plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.5, 0.8)), 
+          plt_adaptivestepsize_bp + lims(y = c(-0.5, 0.8)),
           nrow = 1, labels = "AUTO") -> plt_steps_fit
+plt_steps_fit
 
 ggsave("plt_steps_fit.png", plt_steps_fit, 
        width = 10, height = 5, png, bg = "white")
@@ -310,6 +313,26 @@ plot_grid(plt_adaptivestepsize_add_bp,
           nrow = 2, labels = "AUTO") -> plt_steps_bp
 plt_steps_bp
 ggsave("stepsize_combined_boxplot.png", plt_steps_bp, png, bg = "white")
+
+# Dominance
+ggplot(d_fix_ranked %>% filter(rank > 0, h < 1e+9), aes(x = as.factor(rank), y = h)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Adaptive step", y = "Dominance coefficient (h)", colour = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_dom_fixed_bp
+plt_dom_fixed_bp
+
+ggplot(d_seg_ranked %>% filter(rank > 0, h < 1e+9), aes(x = as.factor(rank), y = h)) +
+  geom_boxplot() +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
+  labs(x = "Adaptive step", y = "Dominance coefficient (h)", colour = "Mutation type") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_dom_seg_bp
+plt_dom_seg_bp
+
 
 # Cumulative fitness effects for a few replicates
 d_com_nar_sample %>% filter(gen > 49000) %>%
