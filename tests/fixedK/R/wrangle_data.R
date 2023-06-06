@@ -215,19 +215,32 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed = dat) {
     d_dat_withoutFX_bZ$aZ_aa <- exp(log(d_dat_withoutFX_bZ$fixEffectSum_aZ))
     d_dat_withoutFX_bZ$bZ_aa <- exp(log(d_dat_withoutFX_bZ$fixEffectSum_bZ) - 2 * d_dat_withoutFX_bZ$value)
     
-    d_dat_withoutFX <- rbind(d_dat_withoutFX_aZ, d_dat_withoutFX_bZ)
+    d_dat_withoutFX <<- rbind(d_dat_withoutFX_aZ, d_dat_withoutFX_bZ)
 
     write.table(d_dat_withoutFX %>% ungroup() %>% 
                   dplyr::select(aZ, bZ, KZ, KXZ), 
                 "d_grid.csv", sep = ",", col.names = F, row.names = F)
     Aa <<- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
+    colnames(Aa)[1:2] <- c("wAa", "pheno_Aa")
     
     write.table(d_dat_withoutFX %>% ungroup() %>% 
                   dplyr::select(aZ_aa, bZ_aa, KZ, KXZ), 
                 "d_grid.csv", sep = ",", col.names = F, row.names = F)
     aa <<- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
+    colnames(aa)[1:2] <- c("waa", "pheno_aa")
+    
+    # Rename popfx to AA
+    colnames(d_popfx)[1:2] <- c("wAA", "pheno_AA")
     
     # Get the effect size by taking away the phenotype missing that fixation
+    d_popfx$mcID <- interaction(d_popfx$aZ, d_popfx$bZ)
+    Aa$mcID <- interaction(Aa$aZ, Aa$bZ)
+    aa$mcID <- interaction(aa$aZ, aa$bZ)
+    
+    d_dat_withoutFX <- inner_join(d_dat_withoutFX, Aa, by = "mcID")
+    d_dat_withoutFX <- inner_join(d_dat_withoutFX, aa, by = "mcID")
+    d_dat_withoutFX <- inner_join(d_dat_withoutFX, d_popfx, by = "mcID")
+    
     dat$avFX <- d_popfx$pheno - Aa$pheno
     dat$avFit <- d_popfx$fitness - Aa$fitness
     dat$avFX_AA <- d_popfx$pheno - aa$pheno
