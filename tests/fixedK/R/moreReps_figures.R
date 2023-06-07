@@ -251,9 +251,9 @@ cc3
 ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = weighteds), colour = cc3[2]) +
   geom_text(d_segFixRat_sum, 
-            mapping = aes(x = as.factor(rank), y = 0.15,
+            mapping = aes(x = as.factor(rank), y = -0.3,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                          " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
@@ -266,9 +266,9 @@ plt_adaptivestepsize_bp
 ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = weighteds), colour = cc3[2]) +
   geom_text(d_segFixRat_add_sum, 
-            mapping = aes(x = as.factor(rank), y = 0.15,
+            mapping = aes(x = as.factor(rank), y = -0.3,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                         " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
@@ -278,8 +278,8 @@ ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
 
-plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.5, 0.8)), 
-          plt_adaptivestepsize_bp + lims(y = c(-0.5, 0.8)),
+plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.3, 0.6)), 
+          plt_adaptivestepsize_bp + lims(y = c(-0.3, 0.6)),
           nrow = 1, labels = "AUTO") -> plt_steps_fit
 plt_steps_fit
 
@@ -315,6 +315,10 @@ plt_steps_bp
 ggsave("stepsize_combined_boxplot.png", plt_steps_bp, png, bg = "white")
 
 # Dominance
+rbind(d_fix_ranked, d_fix_ranked_add) %>%
+  group_by(rank, modelindex) %>%
+  summarise(meanh = mean(h),
+            CIh = CI(h))
 ggplot(d_fix_ranked %>% filter(rank > 0, h < 1e+9), aes(x = as.factor(rank), y = h)) +
   geom_boxplot() +
   geom_hline(yintercept = 0.5, linetype = "dashed") +
