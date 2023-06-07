@@ -99,7 +99,9 @@ d_muts_adapted %>%
 View(d_muts_adapted %>% filter(Freq == 1) %>% distinct())
 
 # Verify -7.452538 big effect for fixation in seed 489849073
-test <- d_fix_adapted %>% ungroup() %>% mutate(r = rownames(.)) %>% filter(modelindex == 2, seed == 119202918)
+test <- d_fix_adapted %>% ungroup() %>% filter(
+                                               seed == 997252366,
+                                               modelindex == 2)
 
 # First get matched mol trait data for generations where we have fixations
 d_qg_matched_fix <- d_adapted %>% 
@@ -109,77 +111,85 @@ d_qg_matched_fix <- d_adapted %>%
 
 test <- inner_join(test, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
 
+# multiply by 2 because diploid
+test <- test %>% filter(modelindex == 2)
+test_fixed <- test
+# calculate cumulative molecular component values at each step due to only 
+# fixed effects
 test <- test %>%
   group_by(gen, seed) %>%
-  mutate(fixEffectSum_aZ = 2 * sum(test[test$gen <= cur_group()$gen &
-                                          test$mutType == 3 &
-                                          test$seed == cur_group()$seed,]$value),
-         fixEffectSum_bZ = 2 * sum(test[test$gen <= cur_group()$gen &
-                                          test$mutType == 4 &
-                                          test$seed == cur_group()$seed,]$value))
+  mutate(fixEffectSum_aZ = 2 * sum(test_fixed[test_fixed$gen <= cur_group()$gen &
+                                               test_fixed$mutType == 3 &
+                                               test_fixed$seed == cur_group()$seed,]$value),
+         fixEffectSum_bZ = 2 * sum(test_fixed[test_fixed$gen <= cur_group()$gen &
+                                               test_fixed$mutType == 4 &
+                                               test_fixed$seed == cur_group()$seed,]$value))
 # Transform to exp scale
 test$fixEffectSum_aZ <- exp(test$fixEffectSum_aZ)
 test$fixEffectSum_bZ <- exp(test$fixEffectSum_bZ)
 
+test$rowID <- as.integer(rownames(test))
+
 # Get phenotypes with the mutation
 write.table(test %>% ungroup() %>%
-              dplyr::select(fixEffectSum_aZ, fixEffectSum_bZ, KZ, KXZ), 
+              dplyr::select(rowID, fixEffectSum_aZ, fixEffectSum_bZ, KZ, KXZ), 
             "d_grid.csv", sep = ",", col.names = F, row.names = F)
-d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
+d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
 
-
-# For fixed comparisons:
-# AA = 1+s; Aa = 1+hs; aa = 1
-# AA = d_popfx$fixEffectSum
-# Aa = d_popfx$fixEffectSum - value
-# aa = d_popfx$fixEffectSum - 2 * value
-
-test_withoutFX_aZ <- test %>% filter(mutType == 3)
-test_withoutFX_bZ <- test %>% filter(mutType == 4)
-test_withoutFX_aZ$aZ <- exp(log(test_withoutFX_aZ$fixEffectSum_aZ) - test_withoutFX_aZ$value)
-test_withoutFX_aZ$bZ <- exp(log(test_withoutFX_aZ$fixEffectSum_bZ))
-test_withoutFX_bZ$aZ <- exp(log(test_withoutFX_bZ$fixEffectSum_aZ))
-test_withoutFX_bZ$bZ <- exp(log(test_withoutFX_bZ$fixEffectSum_bZ) - test_withoutFX_bZ$value)
-
-# Homozygous estimation - for dominance calculation
-test_withoutFX_aZ$aZ_aa <- exp(log(test_withoutFX_aZ$fixEffectSum_aZ) - 2 * test_withoutFX_aZ$value)
-test_withoutFX_aZ$bZ_aa <- exp(log(test_withoutFX_aZ$fixEffectSum_bZ))
-test_withoutFX_bZ$aZ_aa <- exp(log(test_withoutFX_bZ$fixEffectSum_aZ))
-test_withoutFX_bZ$bZ_aa <- exp(log(test_withoutFX_bZ$fixEffectSum_bZ) - 2 * test_withoutFX_bZ$value)
-
-test_withoutFX <- rbind(test_withoutFX_aZ, test_withoutFX_bZ)
-
-write.table(test_withoutFX %>% ungroup() %>% 
-              dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid.csv", sep = ",", col.names = F, row.names = F)
-Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
-
-write.table(test_withoutFX %>% ungroup() %>% 
-              dplyr::select(aZ_aa, bZ_aa, KZ, KXZ), 
-            "d_grid.csv", sep = ",", col.names = F, row.names = F)
-aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8)
-
-# Get the effect size by taking away the phenotype missing that fixation
-test$avFX <- d_popfx$pheno - Aa$pheno
-test$avFit <- d_popfx$fitness - Aa$fitness
-test$avFX_AA <- d_popfx$pheno - aa$pheno
-test$avFit_AA <- d_popfx$fitness - aa$fitness
-test$wAA <- d_popfx$fitness
-test$wAa <- Aa$fitness
-test$waa <- aa$fitness
-
-
-
-View(d_com_adapted %>% filter(seed == 489849073, gen == 53950) %>% distinct())
-write.table(d_seg_ranked %>% filter(seed == 2016338465, gen == 59700, mutType == 3) %>% ungroup() %>% 
-              dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
-d_dat_aZ_absence <- d_seg_ranked %>% filter(seed == 2016338465, gen == 59700, mutType == 3)
-d_dat_aZ_absence$aZ <- exp(log(d_dat_aZ_absence$aZ) - d_dat_aZ_absence$value)
-
-write.table(d_dat_aZ_absence %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_aZ_absence.csv", sep = ",", col.names = F, row.names = F)
-
-d_popfx_aZ_absence <- runLandscaper("d_grid_aZ_absence.csv", "data_popfx_aZ_absence.csv", 0.05, 2, 8)
-d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
-d_popfx_aZ$fitness - d_popfx_aZ_absence$fitness
+  # For fixed comparisons:
+  # AA = 1+s; Aa = 1+hs; aa = 1
+  # AA = d_popfx$fixEffectSum
+  # Aa = d_popfx$fixEffectSum - value
+  # aa = d_popfx$fixEffectSum - 2 * value
+  
+  # Now take away the fixed effect: calculate seperately for alpha/beta
+  d_test_withoutFX_aZ <- test %>% filter(mutType == 3)
+  d_test_withoutFX_bZ <- test %>% filter(mutType == 4)
+  d_test_withoutFX_aZ$aZ <- exp(log(d_test_withoutFX_aZ$fixEffectSum_aZ) - d_test_withoutFX_aZ$value)
+  d_test_withoutFX_aZ$bZ <- exp(log(d_test_withoutFX_aZ$fixEffectSum_bZ))
+  d_test_withoutFX_bZ$aZ <- exp(log(d_test_withoutFX_bZ$fixEffectSum_aZ))
+  d_test_withoutFX_bZ$bZ <- exp(log(d_test_withoutFX_bZ$fixEffectSum_bZ) - d_test_withoutFX_bZ$value)
+  
+  # Homozygous estimation - for dominance calculation
+  d_test_withoutFX_aZ$aZ_aa <- exp(log(d_test_withoutFX_aZ$fixEffectSum_aZ) - 2 * d_test_withoutFX_aZ$value)
+  d_test_withoutFX_aZ$bZ_aa <- exp(log(d_test_withoutFX_aZ$fixEffectSum_bZ))
+  d_test_withoutFX_bZ$aZ_aa <- exp(log(d_test_withoutFX_bZ$fixEffectSum_aZ))
+  d_test_withoutFX_bZ$bZ_aa <- exp(log(d_test_withoutFX_bZ$fixEffectSum_bZ) - 2 * d_test_withoutFX_bZ$value)
+  
+  d_test_withoutFX <- rbind(d_test_withoutFX_aZ, d_test_withoutFX_bZ)
+  
+  write.table(d_test_withoutFX %>% ungroup() %>% 
+                dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  colnames(Aa)[2:3] <- c("wAa", "pheno_Aa")
+  
+  write.table(d_test_withoutFX %>% ungroup() %>% 
+                dplyr::select(rowID, aZ_aa, bZ_aa, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  colnames(aa)[2:3] <- c("waa", "pheno_aa")
+  
+  # Rename popfx to AA
+  colnames(d_popfx)[2:3] <- c("wAA", "pheno_AA")
+  
+  # Get the effect size by taking away the phenotype missing that fixation
+  # Ensure that the tables are aligned by id before we join them
+  test <- test %>% arrange(rowID)
+  Aa <- Aa %>% arrange(id)
+  aa <- aa %>% arrange(id)
+  
+  test$avFX <- d_popfx$pheno_AA - Aa$pheno_Aa
+  test$avFit <- d_popfx$wAA - Aa$wAa
+  test$avFX_AA <- d_popfx$pheno_AA - aa$pheno_aa
+  test$avFit_AA <- d_popfx$wAA - aa$waa
+  test$wAA <- d_popfx$wAA
+  test$wAa <- Aa$wAa
+  test$waa <- aa$waa
+  
+# test weighted segfixcontributions
+  abs(d_seg_ranked_add[d_seg_ranked_add$gen == 59000 & 
+                         d_seg_ranked_add$seed == 1125463852,][["value"]]) * 
+    d_seg_ranked_add[d_seg_ranked_add$gen == 59000 & 
+                       d_seg_ranked_add$seed == 1125463852,]$Freq
+  
