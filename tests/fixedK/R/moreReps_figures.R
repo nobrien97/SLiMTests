@@ -95,8 +95,8 @@ ggsave("dfe_fitness_nar.png", dfe_fitness_nar, png)
 # Combine the above figures
 leg <- get_legend(dfe_phenotype_nar)
 
-fig3 <- plot_grid(dfe_fitness_additive,
-          dfe_fitness_nar + theme(legend.position = "none"),
+fig3 <- plot_grid(dfe_fitness_additive + ylim(c(0, 31.37901)),
+          dfe_fitness_nar + theme(legend.position = "none") + ylim(c(0, 31.37901)),
           ncol = 2, labels = "AUTO")
 
 # phenotype in supp figures
@@ -106,7 +106,7 @@ sfig1 <- plot_grid(dfe_phenotype_additive,
 
 fig3 <- plot_grid(fig3, get_legend(dfe_phenotype_nar), ncol = 1, rel_heights = c(1, 0.1))
 fig3
-ggsave("dfe_combined.png", fig3, png, bg = "white")
+ggsave("dfe_combined_fitness.png", fig3, width = 8, height = 5, png, bg = "white")
 
 # Fig 4: Plot adaptive walks
 cc2 <- paletteer_c("grDevices::Blues", 50, -1)
@@ -251,7 +251,7 @@ cc3
 ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = weighteds), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
   geom_text(d_segFixRat_sum, 
             mapping = aes(x = as.factor(rank), y = -0.3,
                           label = paste0(signif(meanPercFix * 100, 3), 
@@ -266,7 +266,7 @@ plt_adaptivestepsize_bp
 ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
   geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = weighteds), colour = cc3[2]) +
+                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
   geom_text(d_segFixRat_add_sum, 
             mapping = aes(x = as.factor(rank), y = -0.3,
                           label = paste0(signif(meanPercFix * 100, 3), 
@@ -278,8 +278,8 @@ ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
 plt_adaptivestepsize_add_bp
 
-plot_grid(plt_adaptivestepsize_add_bp + lims(y = c(-0.3, 0.6)), 
-          plt_adaptivestepsize_bp + lims(y = c(-0.3, 0.6)),
+plot_grid(plt_adaptivestepsize_add_bp + ylim(c(-1, 0.45)), 
+          plt_adaptivestepsize_bp + ylim(c(-1, 0.45)),
           nrow = 1, labels = "AUTO") -> plt_steps_fit
 plt_steps_fit
 

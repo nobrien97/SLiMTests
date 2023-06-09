@@ -180,12 +180,12 @@ runLandscaper <- function(df_path, output, width, optimum, threads, useID = FALS
 # background
 
 CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed = dat) {
-  # multiply by 2 because diploid
   dat <- dat %>% filter(modelindex == 2)
   dat_fixed <- dat_fixed %>% filter(modelindex == 2)
   
   # calculate cumulative molecular component values at each step due to only 
   # fixed effects
+  # multiply by 2 because diploid
   dat <- dat %>%
     group_by(gen, seed) %>%
     mutate(fixEffectSum_aZ = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
@@ -547,70 +547,16 @@ mutType_names <- c(
   TeX("$\\beta_Z$")
 )
 
-seed <- sample(0:.Machine$integer.max, 1)
-set.seed(seed)
-#set.seed(1875704954)
-sampled_seed <- sample(d_com_adapted[d_com_adapted$modelindex == 2,]$seed, 3)
-d_com_adapted %>% 
-  filter(modelindex == 2, seed %in% sampled_seed) %>% distinct() -> d_com_nar_sample
-
-sampled_seed_add <- sample(d_com_adapted[d_com_adapted$modelindex == 1,]$seed, 3)
-d_com_adapted %>% 
-  filter(modelindex == 1, seed %in% sampled_seed_add) %>% distinct() -> d_com_add_sample
-
-# Calculate fitness effects
-## Additive
-d_absenceFitness <- d_com_add_sample %>% mutate(phenomean = phenomean - value)
-d_absenceFitness$absenceW <- calcAddFitness(d_absenceFitness$phenomean, 2, 0.05)
-d_com_add_sample$avFit <- d_com_add_sample$w - d_absenceFitness$absenceW
-
-
-## NAR
-d_fix_aZ <- d_com_nar_sample %>% filter(mutType == 3)
-d_fix_bZ <- d_com_nar_sample %>% filter(mutType == 4)
-
-# Calculate the mean phenotypes with the sampled mean aZ/bZ values
-write.table(d_fix_aZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_aZ.csv", sep = ",", col.names = F, row.names = F)
-d_popfx_aZ <- runLandscaper("d_grid_aZ.csv", "data_popfx_aZ.csv", 0.05, 2, 8)
-
-write.table(d_fix_bZ %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_bZ.csv", sep = ",", col.names = F, row.names = F)
-d_popfx_bZ <- runLandscaper("d_grid_bZ.csv", "data_popfx_bZ.csv", 0.05, 2, 8)
-
-# Calculate the phenotypes when we take away the fixed effect in question from aZ/bZ
-d_fix_aZ_diff <- d_fix_aZ
-d_fix_aZ_diff$aZ <- exp(log(d_fix_aZ$aZ) - d_fix_aZ$value)
-
-d_fix_bZ_diff <- d_fix_bZ
-d_fix_bZ_diff$bZ <- exp(log(d_fix_bZ$bZ) - d_fix_bZ$value)
-
-write.table(d_fix_aZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_aZ_diff.csv", sep = ",", col.names = F, row.names = F)
-d_popfx_aZ_diff <- runLandscaper("d_grid_aZ_diff.csv", "data_popfx_aZ_diff.csv", 0.05, 2, 8)
-
-write.table(d_fix_bZ_diff %>% ungroup() %>% dplyr::select(aZ, bZ, KZ, KXZ), 
-            "d_grid_bZ_diff.csv", sep = ",", col.names = F, row.names = F)
-d_popfx_bZ_diff <- runLandscaper("d_grid_bZ_diff.csv", "data_popfx_bZ_diff.csv", 0.05, 2, 8)
-
-d_fix_aZ$avFX <- d_fix_aZ$phenomean - d_popfx_aZ_diff$pheno
-d_fix_aZ$avFit <- d_fix_aZ$w - d_popfx_aZ_diff$fitness
-
-d_fix_bZ$avFX <- d_fix_bZ$phenomean - d_popfx_bZ_diff$pheno
-d_fix_bZ$avFit <- d_fix_bZ$w - d_popfx_bZ_diff$fitness
-
-d_com_nar_sample <- rbind(d_fix_aZ, d_fix_bZ)
-
 # save data frames
 d_fix_combined <- rbind(d_fix_add, d_fix_nar)
 d_fix_combined <- d_fix_combined %>% dplyr::select(-c(fixGen, constraint, chi, Count))
 write_csv(rbind(d_fix_add, d_fix_nar), "d_fix_combined.csv")
 
-d_fix_mal_combined <- rbind(d_fix_mal_add, d_fix_mal_nar)
-write_csv(d_fix_mal_combined, "d_fix_combined_all.csv")
+# d_fix_mal_combined <- rbind(d_fix_mal_add, d_fix_mal_nar)
+# write_csv(d_fix_mal_combined, "d_fix_combined_all.csv")
 
-d_ranked_combined <- rbind(d_fix_mal_ranked, d_fix_ranked_add_mal)
-write_csv(d_ranked_combined, "d_ranked_combined_all.csv")
+# d_ranked_combined <- rbind(d_fix_mal_ranked, d_fix_ranked_add_mal)
+# write_csv(d_ranked_combined, "d_ranked_combined_all.csv")
 
 d_rank_combined_tbl <- d_ranked_combined %>% filter(rank != 0, modelindex == 2) %>%
   group_by(rank, modelindex, isAdapted, mutType) %>% 
