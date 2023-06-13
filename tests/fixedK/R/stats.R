@@ -91,3 +91,5 @@ ggplot(d_muts_adapting %>% filter(modelindex == 2, mutType == 4),
   geom_density() +
   theme_bw() +
   theme(text = element_text(size = 16))
+
+# Fisher's exact test

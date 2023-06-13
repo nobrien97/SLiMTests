@@ -1,4 +1,5 @@
 library(tidyverse)
+library(latex2exp)
 
 # Functions
 se <- function(x, na.rm = F) {

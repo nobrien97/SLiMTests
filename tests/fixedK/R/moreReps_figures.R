@@ -136,19 +136,19 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
     geom_raster(data = d_landscape, mapping = 
                      aes(x = .data[[x]], y = .data[[y]], fill = fitness)) +
     geom_point() +
-    geom_encircle(s_shape = 0.2, expand = 0.2, colour = "black", mapping = aes(group = seed)) +
+    #geom_encircle(s_shape = 0.2, expand = 0.2, colour = "black", mapping = aes(group = seed)) +
     scale_fill_gradientn(colors = c(cc[1], cc), limits = c(minFit, 1),
                          values = wValues) +
     labs(fill = "Log fitness (w)") +
     
     new_scale_colour() +
-    geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
-                       mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]),
-                                     xend = .data[[x]], yend = .data[[y]],
-                                     group = seed, linewidth_head = gen_width,
-                                     linewidth_fins = gen_width * 0.8,
-                                     colour = gen_width),
-                       arrow_head = arrow_head_line()) +
+    # geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
+    #                    mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]),
+    #                                  xend = .data[[x]], yend = .data[[y]],
+    #                                  group = seed, linewidth_head = gen_width,
+    #                                  linewidth_fins = gen_width * 0.8,
+    #                                  colour = gen_width),
+    #                    arrow_head = arrow_head_line()) +
     scale_colour_gradientn(colors = cc2, labels = scales::comma(c(0, 0.25*10000, 0.5*10000,
                                                     0.75*10000, 10000))) +
     scale_linewidth(guide = "none") +
@@ -165,8 +165,8 @@ d_qg_adapting$gen_width <- scales::rescale(d_qg_adapting$gen, to = c(0.1, 1))
 
 seed <- sample(0:.Machine$integer.max, 1)
 set.seed(seed)
-#set.seed(1269262162)
-sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 2)
+#set.seed(18799214)
+sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 3)
 walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% sampled_seed), 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 suppressWarnings(walk)
@@ -328,7 +328,7 @@ ggplot(d_fix_ranked %>% filter(rank > 0, h < 1e+9), aes(x = as.factor(rank), y =
   theme(text = element_text(size = 16)) -> plt_dom_fixed_bp
 plt_dom_fixed_bp
 
-ggplot(d_seg_ranked %>% filter(rank > 0, h < 1e+9), aes(x = as.factor(rank), y = h)) +
+ggplot(d_seg_ranked %>% filter(rank > 0, h < 1e+9, h > -1000), aes(x = as.factor(rank), y = h)) +
   geom_boxplot() +
   geom_hline(yintercept = 0.5, linetype = "dashed") +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
