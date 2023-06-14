@@ -338,7 +338,7 @@ RankFixations <- function(dat, isNAR) {
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
       mutate(rank = 0, value = NA, avFit = NA) %>%
       dplyr::select(gen, rank, seed, modelindex, value, 
-                    phenomean, w, avFit)
+                    aZ, bZ, phenomean, w, avFit)
   } else {
     d_fix_ranked <- dat %>%
       group_by(seed, modelindex) %>%
@@ -353,7 +353,7 @@ RankFixations <- function(dat, isNAR) {
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
       mutate(rank = 0, value = NA, avFit = NA) %>%
       dplyr::select(gen, rank, seed, modelindex, value, 
-                    phenomean, w, avFit)
+                    aZ, bZ, phenomean, w, avFit)
   }
   
   return(rbind(d_fix_ranked, step0_pheno))
