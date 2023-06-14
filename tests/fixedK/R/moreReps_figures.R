@@ -7,6 +7,7 @@ library(ggnewscale)
 library(ggalt)
 library(ggarrow)
 library(gghalves)
+library(ggstance)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -18,6 +19,7 @@ ggplot(d_adapted_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000),
   geom_ribbon(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno, 
                   fill = modelindex), alpha = 0.2, colour = NA
               ) +
+  scale_y_continuous(limits = c(0.9, 2.15), breaks = seq(1, 2, by = 0.25)) +
   scale_x_continuous(labels = scales::comma) +
   geom_hline(yintercept = 2, linetype = "dashed") +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
@@ -108,8 +110,7 @@ fig3 <- plot_grid(fig3, get_legend(dfe_phenotype_nar), ncol = 1, rel_heights = c
 fig3
 ggsave("dfe_combined_fitness.png", fig3, width = 8, height = 5, png, bg = "white")
 
-# Fig 4: Plot adaptive walks
-cc2 <- paletteer_c("grDevices::Blues", 50, -1)
+# Fig 4: Plot adaptive walks - use d_fix_ranked 
 
 plotPairwiseScatter <- function(dat, x, y, labels) {
   GRID_RES <- 200
@@ -122,7 +123,7 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
   d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
   
-  minFit <- min(d_landscape$fitness)
+  minFit <- 0.9 #min(d_landscape$fitness)
   maxFit <- max(d_landscape$fitness)
   # Rescale fitness values so we can change gradient breaks
   wValues <- c(0,
@@ -130,44 +131,55 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
                (0.99-minFit)/(maxFit - minFit),
                1)
   
+  dat_arrow <- dat %>% 
+    filter(seed %in% sampled_seed) %>%
+    arrange(rank) %>%
+    group_by(seed) %>% mutate(xend = lead(aZ),
+                              yend = lead(bZ))
+
   suppressWarnings(
   ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]], 
                                               group = seed)) +
     geom_raster(data = d_landscape, mapping = 
                      aes(x = .data[[x]], y = .data[[y]], fill = fitness)) +
-    geom_point() +
+    geom_point(aes(colour = as.factor(rank)), size = 2) +
     #geom_encircle(s_shape = 0.2, expand = 0.2, colour = "black", mapping = aes(group = seed)) +
-    scale_fill_gradientn(colors = c(cc[1], cc), limits = c(minFit, 1),
-                         values = wValues) +
-    labs(fill = "Log fitness (w)") +
-    
-    new_scale_colour() +
-    # geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
+    scale_fill_gradientn(colors = c(cc[1], cc), 
+                           limits = c(ifelse(minFit < 0.8, 0.8, minFit), 1),
+                           values = wValues, na.value = cc[1]) +
+    labs(fill = "Fitness (w)") +
+    geom_segment(data = dat_arrow,
+                 mapping = aes(x = .data[[x]], y = .data[[y]],
+                               xend = xend, yend = yend,
+                               group = seed,
+                               colour = as.factor(rank)),
+                 arrow = arrow(length = unit(0.5, "cm")), linetype = "dashed", 
+                 size = 1, show.legend = F) +
+  # geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
     #                    mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]),
     #                                  xend = .data[[x]], yend = .data[[y]],
-    #                                  group = seed, linewidth_head = gen_width,
-    #                                  linewidth_fins = gen_width * 0.8,
-    #                                  colour = gen_width),
-    #                    arrow_head = arrow_head_line()) +
-    scale_colour_gradientn(colors = cc2, labels = scales::comma(c(0, 0.25*10000, 0.5*10000,
-                                                    0.75*10000, 10000))) +
+    #                                  group = interaction(seed, rank), linewidth_head = rank,
+    #                                  linewidth_fins = (rank+1) * 0.8,
+    #                                  colour = as.factor(rank)),
+    #                    arrow_head = arrow_head_line(), show.legend = F) +
+    scale_colour_paletteer_d("unikn::pal_grau") +
     scale_linewidth(guide = "none") +
-    labs(x = labels[1], y = labels[2], colour = "Generation") +
+    labs(x = labels[1], y = labels[2], colour = "Adaptive step") +
     theme_bw() + 
     theme(legend.position = "bottom", text = element_text(size = 14)) +
-    guides(colour=guide_colourbar(barwidth=10),
-           fill = guide_colourbar(barwidth = 10))
+    guides(
+           fill = guide_colourbar(barwidth = 10, title.vjust = 0.87)) # i love magic numbers
   )
 }
 
-d_qg_adapting <- d_adapted %>% filter(gen >= 50000)
-d_qg_adapting$gen_width <- scales::rescale(d_qg_adapting$gen, to = c(0.1, 1))
+# d_qg_adapting <- d_adapted %>% filter(gen >= 50000)
+# d_qg_adapting$gen_width <- scales::rescale(d_qg_adapting$gen, to = c(0.1, 1))
 
 seed <- sample(0:.Machine$integer.max, 1)
 set.seed(seed)
-#set.seed(18799214)
-sampled_seed <- sample(d_qg_adapting[d_qg_adapting$modelindex == 2,]$seed, 3)
-walk <- plotPairwiseScatter(d_qg_adapting %>% filter(modelindex == 2, seed %in% sampled_seed), 
+#set.seed(1098129538)
+sampled_seed <- sample(d_fix_ranked$seed, 3)
+walk <- plotPairwiseScatter(d_fix_ranked %>% filter(seed %in% sampled_seed), 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 suppressWarnings(walk)
 ggsave("example_adaptiveWalk.png", walk, png)
@@ -180,7 +192,8 @@ d_rank_av_nar <- d_fix_ranked %>%
             CIPheno = CI(phenomean),
             meanPheno = mean(phenomean),
             meanDom = mean(h),
-            CIDom = CI(h))
+            CIDom = CI(h),
+            nInRank = n())
 
 ggplot(d_rank_av_nar %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point(position = position_dodge(1)) +
@@ -199,7 +212,10 @@ d_rank_av_add <- d_fix_ranked_add %>%
   summarise(CIFit = CI(avFit),
             meanFit = mean(avFit),
             CIPheno = CI(phenomean),
-            meanPheno = mean(phenomean))
+            meanPheno = mean(phenomean),
+            CIDom = CI(h),
+            meanDom = mean(h),
+            nInRank = n())
 
 ggplot(d_rank_av_add %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point() +
@@ -235,6 +251,40 @@ ggplot(d_rank_av_add, aes(x = rank, y = meanPheno)) +
   labs(x = "Adaptive step", y = "Mean phenotype") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_phenostepPheno_add
+
+# combined diminishing returns plot
+d_rank_av <- rbind(d_rank_av_nar %>% mutate(model = "NAR"), 
+                   d_rank_av_add %>% mutate(model = "Additive"))
+
+ggplot(d_rank_av, aes(x = rank, y = meanPheno, colour = model)) +
+  geom_point(position = position_dodge(0.3)) +
+  geom_line(position = position_dodge(0.3)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_text(data = d_rank_av %>% filter(rank > 0), mapping = aes(x = rank, y = 2.1, colour = model,
+                          label = paste0("n = ", nInRank)), size = 5,
+            position = position_dodgev(height = 0.1), show.legend = F) +
+  scale_y_continuous(limits = c(0.9, 2.15), breaks = seq(1, 2, by = 0.25)) +
+  geom_errorbar(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno), 
+                width = 0.4, position = position_dodge(0.3)) +
+  labs(x = "Adaptive step", y = "Mean population phenotype", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_phenostep
+
+ggsave("phenostep.png", plt_phenostep, device = png, bg = "white")
+
+leg <- get_legend(plt_phenomean + theme(legend.position = "bottom"))
+
+# grid with phenomean
+plot_grid(plt_phenostep + theme(legend.position = "none",
+                                plot.margin = margin(10, 10, 10, 10)),
+          plt_phenomean + theme(legend.position = "none",
+                                plot.margin = margin(10, 10, 10, 10)),
+          ncol = 2, labels = "AUTO") -> plt_meanstep 
+
+plot_grid(plt_meanstep,
+          leg, ncol = 1, rel_heights = c(1, 0.1))
+ggsave("phenomean_step.png", width = 10, height = 5.625, device = png, bg = "white")
+
 
 plot_grid(plt_adaptivestepsize_add,
           plt_adaptivestepsize,
