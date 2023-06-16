@@ -321,49 +321,70 @@ d_fix_nar <- CalcNARPhenotypeEffects(d_fix_nar) %>% filter(gen >= 50000)
 d_fix_nar <- CalcDominance(d_fix_nar)
 
 # ranked mutations and average effects
-RankFixations <- function(dat, isNAR) {
+RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
   index <- as.integer(isNAR) + 1
   
   if (isNAR) {
+    # Get fixed effects up to each rank
+    dat <- dat %>%
+      group_by(gen, seed) %>%
+      mutate(fixEffectSum_aZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
+                                                    dat_burnInFX$mutType == 3 &
+                                                    dat_burnInFX$seed == cur_group()$seed,]$value)),
+             fixEffectSum_bZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
+                                                    dat_burnInFX$mutType == 4 &
+                                                    dat_burnInFX$seed == cur_group()$seed,]$value)))
+    
     d_fix_ranked <- dat %>%
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
       dplyr::select(c(gen, rank, seed, modelindex, mutType, 
-                      value, aZ, bZ, phenomean, w, avFX, avFit, avFit_AA, avFX_AA, 
+                      value, aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ,
+                      avFX, avFit, avFit_AA, avFX_AA, 
                       wAA, wAa, waa, s, h))
     
     step0_pheno <- d_adapted %>% 
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
-      mutate(rank = 0, value = NA, avFit = NA) %>%
+      group_by(gen, seed) %>%
+      mutate(rank = 0, value = NA, avFit = NA,
+             fixEffectSum_aZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
+                                                    dat_burnInFX$mutType == 3 &
+                                                    dat_burnInFX$seed == cur_group()$seed,]$value)),
+             fixEffectSum_bZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
+                                                    dat_burnInFX$mutType == 4 &
+                                                    dat_burnInFX$seed == cur_group()$seed,]$value))) %>%
       dplyr::select(gen, rank, seed, modelindex, value, 
-                    aZ, bZ, phenomean, w, avFit)
+                    aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ, avFit)
   } else {
     d_fix_ranked <- dat %>%
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutType, 
+      dplyr::select(c(gen, rank, seed, modelindex, mutType, fixEffectSum,
                       value, value_AA, aZ, bZ, phenomean, w, avFit, avFit_AA, 
                       wAA, wAa, waa, s, h))
     
     step0_pheno <- d_adapted %>% 
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
-      mutate(rank = 0, value = NA, avFit = NA) %>%
-      dplyr::select(gen, rank, seed, modelindex, value, 
-                    aZ, bZ, phenomean, w, avFit)
+      group_by(gen, seed) %>%
+      mutate(rank = 0, value = NA, avFit = NA,
+             fixEffectSum = 2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
+                                                     dat_burnInFX$seed == cur_group()$seed,]$value)) %>%
+      dplyr::select(gen, rank, seed, modelindex, value,
+                    aZ, bZ, phenomean, w, fixEffectSum, avFit)
   }
   
   return(rbind(d_fix_ranked, step0_pheno))
 }
 
-d_fix_ranked <- RankFixations(d_fix_nar, T)
+d_fix_ranked <- RankFixations(d_fix_nar, T, d_fix %>% filter(modelindex == 2))
 
 
 # additive: attach step 0 (phenomean from before the first step in the walk)
-d_fix_ranked_add <- RankFixations(d_fix_add, F)
+d_fix_ranked_add <- RankFixations(d_fix_add, F, d_fix %>% filter(modelindex == 1))
 
 # Summarise
 d_fix_ranked_add %>% filter(rank != 0) %>%

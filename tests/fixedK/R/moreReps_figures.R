@@ -192,6 +192,8 @@ d_rank_av_nar <- d_fix_ranked %>%
             CIPheno = CI(phenomean),
             meanPheno = mean(phenomean),
             meanDom = mean(h),
+            meanGen = mean(gen),
+            CIGen = CI(gen),
             CIDom = CI(h),
             nInRank = n())
 
@@ -213,6 +215,8 @@ d_rank_av_add <- d_fix_ranked_add %>%
             meanFit = mean(avFit),
             CIPheno = CI(phenomean),
             meanPheno = mean(phenomean),
+            meanGen = mean(gen),
+            CIGen = CI(gen),
             CIDom = CI(h),
             meanDom = mean(h),
             nInRank = n())
@@ -269,7 +273,7 @@ ggplot(d_rank_av, aes(x = rank, y = meanPheno, colour = model)) +
   labs(x = "Adaptive step", y = "Mean population phenotype", colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_phenostep
-
+plt_phenostep
 ggsave("phenostep.png", plt_phenostep, device = png, bg = "white")
 
 leg <- get_legend(plt_phenomean + theme(legend.position = "bottom"))
@@ -294,47 +298,81 @@ plot_grid(plt_adaptivestepsize_add,
 plt_steps
 ggsave("stepsize_combined.png", plt_steps, png, bg = "white")
 
-cc3 <- paletteer_d("ggsci::nrc_npg", 2)
+cc3 <- paletteer_d("ggprism::viridis", 6)[c(1, 6)]
 cc3
 
 # Box plots with segregating sites as well
-ggplot(d_fix_ranked %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
+d_segFixRat_sum$model <- "NAR"
+d_segFixRat_add_sum$model <- "Additive"
+d_segFixRat_sum_combined <- rbind(d_segFixRat_sum, d_segFixRat_add_sum)
+d_seg_ranked$model <- "NAR"
+d_seg_ranked_add$model <- "Additive"
+d_seg_ranked_combined <- rbind(d_seg_ranked, d_seg_ranked_add)
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
+  facet_grid(.~model) +
   geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
-  geom_half_violin(side = "r", data = d_seg_ranked %>% distinct() %>% filter(rank > 0), 
+  geom_half_boxplot(side = "r", center = T, width = 0.5, 
+                    data = d_seg_ranked_combined %>% distinct() %>% filter(rank > 0), 
                    mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
-  geom_text(d_segFixRat_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.3,
+  geom_text(d_segFixRat_sum_combined, 
+            mapping = aes(x = as.factor(rank), y = -1,
                           label = paste0(signif(meanPercFix * 100, 3), 
                                          " ± ", signif(CIPercFix * 100, 3), "%")),
             size = 3) +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
-  labs(x = "Adaptive step", y = "Fitness effect (s)", colour = "Mutation type") +
+  labs(x = "Adaptive step", y = "Fitness effect (s)") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_bp
 plt_adaptivestepsize_bp
 
-ggplot(d_fix_ranked_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
-  geom_half_boxplot(side = "l", center = T, width = 0.5, colour = cc3[1]) +
-  geom_half_violin(side = "r", data = d_seg_ranked_add %>% filter(rank > 0), 
-                   mapping = aes(x = as.factor(rank), y = s), colour = cc3[2]) +
-  geom_text(d_segFixRat_add_sum, 
-            mapping = aes(x = as.factor(rank), y = -0.3,
-                          label = paste0(signif(meanPercFix * 100, 3), 
-                                        " ± ", signif(CIPercFix * 100, 3), "%")),
-            size = 3) +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
-  labs(x = "Adaptive step", y = "Fitness effect", colour = "Mutation type") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_adaptivestepsize_add_bp
-plt_adaptivestepsize_add_bp
 
-plot_grid(plt_adaptivestepsize_add_bp + ylim(c(-1, 0.45)), 
-          plt_adaptivestepsize_bp + ylim(c(-1, 0.45)),
-          nrow = 1, labels = "AUTO") -> plt_steps_fit
+# distribution of generations the step happens at
+d_fix_ranked_combined <- rbind(d_fix_ranked, d_fix_ranked_add)
+
+d_fix_ranked_combined$model <- ifelse(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
+       aes(x = as.factor(rank), y = (gen - 50000), 
+           colour = model)) +
+  geom_boxplot(position = position_dodge2(0.8, preserve = "single"), alpha = 0.1) +
+  geom_point(data = d_rank_av %>% filter(rank > 0), 
+             mapping = aes(y = meanGen - 50000), size = 2,
+             position = position_dodge(0.8)) +
+  geom_line(data = d_rank_av %>% filter(rank > 0), 
+            mapping = aes(y = meanGen - 50000, group = model), 
+            position = position_dodge(0.8), linewidth = 1) +
+  labs(x = "Adaptive step", y = "Average fixation generation", colour = "Model") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
+  scale_y_continuous(label = scales::comma) +
+  theme_bw() +
+  theme(text = element_text(size = 16),
+        legend.position = "bottom") -> plt_gensteptime
+plt_gensteptime
+
+# Hack together a legend for the grid
+plt_legend <- ggplot(data.frame(x = 1,2, 
+                                y = 1,2,
+                                mutation = c("Fixed","Segregating")), 
+                     aes(x = x, y = y, colour = mutation)) +
+  geom_boxplot() +
+  scale_colour_manual(values = cc3) +
+  labs(colour = "Mutation type") + 
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+plt_legend
+
+leg <- get_legend(plt_legend)
+
+plot_grid(plt_adaptivestepsize_bp + ylim(c(-1, 0.45)), 
+          leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_steps_fit
+
+plot_grid(plt_steps_fit, 
+          plt_gensteptime,
+          nrow = 1, labels = "AUTO", rel_widths = c(1.5, 1)) -> plt_steps_fit
 plt_steps_fit
 
 ggsave("plt_steps_fit.png", plt_steps_fit, 
-       width = 10, height = 5, png, bg = "white")
+       width = 14, height = 5, png, bg = "white")
 
 # diminishing returns of each step in the walk
 ggplot(d_fix_ranked, aes(x = as.factor(rank), y = phenomean)) +
