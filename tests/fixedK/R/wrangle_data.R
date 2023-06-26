@@ -62,12 +62,16 @@ d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "mo
 d_fix <- d_muts %>%
   filter(Freq == 1) %>%
   group_by(seed, modelindex, mutType) %>%
-  distinct(mutID, .keep_all = T) 
+  distinct(mutID, .keep_all = T)
 
 d_fix_adapted <- d_fix %>% filter(interaction(seed, modelindex) %in% 
                                     interaction(d_adapted$seed, d_adapted$modelindex))
 
 d_fix_adapted$fixTime <- d_fix_adapted$gen - d_fix_adapted$originGen
+
+# every model had at least 1 fixation
+length(unique(interaction(d_fix$seed, d_fix$modelindex)))
+
 
 d_indPheno <- read.table(paste0(data_path, "slim_indPheno.csv"), header = F, 
                      sep = ",", colClasses = c("integer", "factor", "factor",
@@ -486,6 +490,34 @@ d_segFixRat_sum <- GetSegFixContributions(d_seg_ranked, d_fix_ranked, T)
 # seg effects weighted by frequency
 d_seg_ranked$weighteds <- d_seg_ranked$s * d_seg_ranked$Freq
 d_seg_ranked_add$weighteds <- d_seg_ranked_add$s * d_seg_ranked_add$Freq
+
+
+# are overall phenomeans skewed by walks with only 1 fixation?
+d_fix_ranked_combined %>%
+  group_by(seed, modelindex) %>%
+  mutate(manyFixed = any(rank > 1)) %>%
+  filter(!manyFixed) -> d_1fixation
+
+d_fix_ranked_combined %>%
+  group_by(seed, modelindex) %>%
+  mutate(manyFixed = any(rank > 1)) %>%
+  filter(manyFixed) -> d_manyfixation
+
+d_adapted_1fix <- d_adapted %>% 
+  filter(interaction(seed, modelindex) %in% 
+           interaction(d_1fixation$seed, d_1fixation$modelindex))
+
+d_adapted_manyfix <- d_adapted %>% 
+  filter(interaction(seed, modelindex) %in% 
+           interaction(d_manyfixation$seed, d_manyfixation$modelindex))
+
+d_adapted_manyfixsum <- d_adapted_manyfix %>%
+  group_by(gen, modelindex) %>%
+  summarise(meanPheno = mean(phenomean),
+            CIPheno = CI(phenomean))
+
+# upon plotting these above phenomeans, doesn't make any difference: trait evo
+# similar between all of them - must be the phenomeans in the fix_ranked calculation
 
 # Adapted and Maladapted
 # d_maladapted <- d_qg %>% filter(!isAdapted)
