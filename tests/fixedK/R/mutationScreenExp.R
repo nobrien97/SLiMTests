@@ -1,9 +1,8 @@
 # From each adaptive step, generate some mutations and get the distribution of 
 # fitness effects
 library(tidyverse)
-library(future)
-library(doParallel)
-library(foreach)
+library(paletteer)
+library(cowplot)
 source("wrangle_data.R")
 
 .createEffectDataframeAdd <- function(dat, sampled_effects) {
@@ -120,10 +119,13 @@ MutationScreenExp <- function(fixed, n, isAdditive = F) {
   .createEffectDataframe(fixed, fx)
 }
 
-test <- MutationScreenExp(d_fix_ranked, 100)
+seed <- sample(1:.Machine$integer.max, 1)
+# 1913059415
+set.seed(seed)
+test <- MutationScreenExp(d_fix_ranked, 500)
 test <- CalcDominance(test)
 
-test_add <- MutationScreenExp(d_fix_ranked_add, 100, T)
+test_add <- MutationScreenExp(d_fix_ranked_add, 500, T)
 test_add <- CalcDominance(test_add)
 
 
@@ -138,7 +140,8 @@ ggplot(test_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
   labs(x = "Adaptive step", y = "Fitness effect (s)") +
   theme_bw()
 
-
+# percentage of mutations beneficial, expected waiting time for beneficial mutation,
+# mean effect of mutations
 test %>% 
   group_by(rank) %>%
   summarise(percBeneficial = mean(as.integer(s > 0)),
@@ -232,3 +235,29 @@ ggplot(test_combined, aes(x = as.factor(rank), y = s)) +
 plot_grid(plt_percBeneficial, plt_effectsizerandom,
           nrow = 2, labels = "AUTO")
 ggsave("effectstepdist.png", width = 8, height = 6, device = png, bg = "white")
+
+ggplot(test_sum_combined %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial)),
+       aes(x = as.factor(rank), y = waitingTime, colour = model)) +
+  geom_point() +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  geom_line(aes(group=model)) +
+  labs(x = "Adaptive step", y = "Mean waiting time to beneficial mutation", colour = "Model") +
+  theme_bw() + 
+  theme(text = element_text(size = 12))
+
+
+# average fitness effect among beneficial mutations
+test_combined %>%
+  filter(s > 0) %>%
+  group_by(rank, model) %>%
+  summarise(mean_s = mean(s),
+            CI_s = CI(s))
+
+# among deleterious muts
+test_combined %>%
+  filter(s < 0) %>%
+  group_by(rank, model) %>%
+  summarise(mean_s = mean(s),
+            CI_s = CI(s))
+
+
