@@ -13,7 +13,9 @@ setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
 
 # Fig 2 - phenotype mean
-ggplot(d_adapted_sum %>% filter(gen > 49000) %>% mutate(gen = gen - 50000), 
+ggplot(d_adapted_sum %>% 
+         filter(gen > 49000) %>% 
+         mutate(gen = gen - 50000), 
        aes(x = gen, y = meanPheno, colour = modelindex)) +
   geom_line(linewidth = 0.7) +
   geom_ribbon(aes(ymin = meanPheno - CIPheno, ymax = meanPheno + CIPheno, 
@@ -122,6 +124,7 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
   
   d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  cc_arrow <- paletteer_d("RColorBrewer::Reds", 9)[c(3, 6, 9)]
   
   minFit <- 0.9 #min(d_landscape$fitness)
   maxFit <- max(d_landscape$fitness)
@@ -131,38 +134,30 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
                (0.99-minFit)/(maxFit - minFit),
                1)
   
-  dat_arrow <- dat %>% 
+  dat_arrow <- dat %>%
     filter(seed %in% sampled_seed) %>%
     arrange(rank) %>%
     group_by(seed) %>% mutate(xend = lead(aZ),
                               yend = lead(bZ))
 
   suppressWarnings(
-  ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]], 
-                                              group = seed)) +
+  ggplot(dat %>% filter(modelindex == 2), aes(x = .data[[x]], y = .data[[y]])) +
     geom_raster(data = d_landscape, mapping = 
                      aes(x = .data[[x]], y = .data[[y]], fill = fitness)) +
-    geom_point(aes(colour = as.factor(rank)), size = 2) +
+    # geom_point(aes(colour = as.factor(rank)), size = 2) +
     #geom_encircle(s_shape = 0.2, expand = 0.2, colour = "black", mapping = aes(group = seed)) +
     scale_fill_gradientn(colors = c(cc[1], cc), 
                            limits = c(ifelse(minFit < 0.8, 0.8, minFit), 1),
                            values = wValues, na.value = cc[1]) +
     labs(fill = "Fitness (w)") +
-    geom_segment(data = dat_arrow,
-                 mapping = aes(x = .data[[x]], y = .data[[y]],
-                               xend = xend, yend = yend,
-                               group = seed,
-                               colour = as.factor(rank)),
-                 arrow = arrow(length = unit(0.5, "cm")), linetype = "dashed", 
-                 size = 1, show.legend = F) +
-  # geom_arrow_segment(data = dat %>% filter(seed %in% sampled_seed),
-    #                    mapping = aes(x = lag(.data[[x]]), y = lag(.data[[y]]),
-    #                                  xend = .data[[x]], yend = .data[[y]],
-    #                                  group = interaction(seed, rank), linewidth_head = rank,
-    #                                  linewidth_fins = (rank+1) * 0.8,
-    #                                  colour = as.factor(rank)),
-    #                    arrow_head = arrow_head_line(), show.legend = F) +
-    scale_colour_paletteer_d("unikn::pal_grau") +
+    # geom_segment(data = dat_arrow,
+    #              mapping = aes(x = .data[[x]], y = .data[[y]],
+    #                            xend = xend, yend = yend,
+    #                            group = seed,
+    #                            colour = as.factor(rank)),
+    #              arrow = arrow(length = unit(0.5, "cm")), linetype = "dashed",
+    #              size = 1, show.legend = F) +
+    scale_colour_manual(values = cc_arrow) +
     scale_linewidth(guide = "none") +
     labs(x = labels[1], y = labels[2], colour = "Adaptive step") +
     theme_bw() + 
@@ -178,11 +173,11 @@ plotPairwiseScatter <- function(dat, x, y, labels) {
 seed <- sample(0:.Machine$integer.max, 1)
 set.seed(seed)
 #set.seed(1098129538)
-sampled_seed <- sample(d_fix_ranked$seed, 3)
+sampled_seed <- sample(d_fix_ranked[d_fix_ranked$rank == 2,]$seed, 3)
 walk <- plotPairwiseScatter(d_fix_ranked %>% filter(seed %in% sampled_seed), 
                     "aZ", "bZ", c(TeX("$\\alpha_Z$"), TeX("$\\beta_Z$")))
 suppressWarnings(walk)
-ggsave("example_adaptiveWalk.png", walk, png)
+ggsave("walk_landscape.png", walk, png)
 
 # Ranked fixed effects
 d_rank_av_nar <- d_fix_ranked %>%
@@ -276,6 +271,17 @@ ggplot(d_rank_av, aes(x = rank, y = meanPheno, colour = model)) +
 plt_phenostep
 ggsave("phenostep.png", plt_phenostep, device = png, bg = "white")
 
+ggplot(d_rank_av %>% filter(rank > 0), aes(x = rank, y = meanFit, colour = model)) +
+  geom_point(position = position_dodge(0.3)) +
+  geom_line(position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
+                width = 0.4, position = position_dodge(0.3)) +
+  labs(x = "Adaptive step", y = "Mean fitness effect (s)", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_fitstep
+plt_fitstep
+ggsave("fitstep.png", plt_fitstep, device = png, bg = "white")
+
 leg <- get_legend(plt_phenomean + theme(legend.position = "bottom"))
 
 # grid with phenomean
@@ -298,7 +304,14 @@ plot_grid(plt_adaptivestepsize_add,
 plt_steps
 ggsave("stepsize_combined.png", plt_steps, png, bg = "white")
 
-cc3 <- paletteer_d("ggprism::viridis", 6)[c(1, 6)]
+# Stick mean fixation times onto plt_phenomean
+plt_phenomean +
+  geom_point(data = d_rank_av %>% mutate(meanGen = meanGen - 50000,
+                                         modelindex = ifelse(model == "NAR", 2, 1)), 
+             mapping = aes(x = meanGen, y = meanPheno, colour = as.factor(modelindex)))
+
+
+cc3 <- paletteer_d("ggprism::viridis", 4)[c(1, 4)]
 cc3
 
 # Box plots with segregating sites as well
@@ -335,15 +348,19 @@ ggplot(d_fix_ranked_combined %>% filter(rank > 0),
        aes(x = as.factor(rank), y = (gen - 50000), 
            colour = model)) +
   geom_boxplot(position = position_dodge2(0.8, preserve = "single"), alpha = 0.1) +
-  geom_point(data = d_rank_av %>% filter(rank > 0), 
-             mapping = aes(y = meanGen - 50000), size = 2,
+  geom_point(data = d_rank_av %>% mutate(meanGen = meanGen - 50000) %>% filter(rank > 0), 
+             mapping = aes(y = meanGen), size = 2,
              position = position_dodge(0.8)) +
-  geom_line(data = d_rank_av %>% filter(rank > 0), 
-            mapping = aes(y = meanGen - 50000, group = model), 
+  geom_errorbar(data = d_rank_av %>% mutate(meanGen = meanGen - 50000) %>% filter(rank > 0),
+                mapping = aes(y = meanGen, ymin = meanGen - CIGen, ymax = meanGen + CIGen), 
+                position = position_dodge(0.8), width = 0.3) +
+  geom_line(data = d_rank_av %>% mutate(meanGen = meanGen - 50000) %>% filter(rank > 0), 
+            mapping = aes(y = meanGen, group = model), 
             position = position_dodge(0.8), linewidth = 1) +
   labs(x = "Adaptive step", y = "Average fixation generation", colour = "Model") +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
   scale_y_continuous(label = scales::comma) +
+  coord_flip() +
   theme_bw() +
   theme(text = element_text(size = 16),
         legend.position = "bottom") -> plt_gensteptime
