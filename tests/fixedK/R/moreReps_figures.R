@@ -8,6 +8,7 @@ library(ggalt)
 library(ggarrow)
 library(gghalves)
 library(ggstance)
+library(ggridges)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -32,6 +33,44 @@ ggplot(d_adapted_sum %>%
   theme(text = element_text(size = 16)) -> plt_phenomean
 plt_phenomean
 ggsave("phenomean.png", plt_phenomean, png)
+
+# phenotype median
+ggplot(d_adapted_sum %>% 
+         filter(gen > 49000) %>% 
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = medPheno, colour = modelindex)) +
+  geom_line(linewidth = 0.7) +
+  scale_y_continuous(limits = c(0.9, 2.15), breaks = seq(1, 2, by = 0.25)) +
+  scale_x_continuous(labels = scales::comma) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
+  scale_fill_paletteer_d("ggsci::nrc_npg", guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Median population phenotype",
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_phenomed
+plt_phenomed
+ggsave("phenomed.png", plt_phenomed, png)
+
+# phenotype mode
+ggplot(d_adapted_sum %>% 
+         filter(gen > 49000) %>% 
+         mutate(gen = gen - 50000), 
+       aes(x = gen, y = modePheno, colour = modelindex)) +
+  geom_line(linewidth = 0.7) +
+  scale_y_continuous(limits = c(0.9, 2.15), breaks = seq(1, 2, by = 0.25)) +
+  scale_x_continuous(labels = scales::comma) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
+  scale_fill_paletteer_d("ggsci::nrc_npg", guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mode of population\nphenotype distribution",
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_phenomode
+plt_phenomode
+ggsave("phenomode.png", plt_phenomode, png)
+
+
 
 d_qg %>% group_by(modelindex) %>%
   filter(gen == 49500) %>%
@@ -182,12 +221,18 @@ ggsave("walk_landscape.png", walk, png)
 # Ranked fixed effects
 d_rank_av_nar <- d_fix_ranked %>%
   group_by(rank) %>%
-  summarise(CIFit = CI(avFit),
-            meanFit = mean(avFit),
+  summarise(CIFit = CI(s),
+            meanFit = mean(s),
+            medFit = median(s),
+            modeFit = estimate_mode(s, T),
             CIPheno = CI(phenomean),
             meanPheno = mean(phenomean),
+            medPheno = median(phenomean),
+            modePheno = estimate_mode(phenomean, T),
             meanDom = mean(h),
             meanGen = mean(gen),
+            medGen = median(gen),
+            modeGen = estimate_mode(gen, T),
             CIGen = CI(gen),
             CIDom = CI(h),
             nInRank = n())
@@ -206,11 +251,17 @@ plt_adaptivestepsize
 
 d_rank_av_add <- d_fix_ranked_add %>%
   group_by(rank) %>%
-  summarise(CIFit = CI(avFit),
-            meanFit = mean(avFit),
+  summarise(CIFit = CI(s),
+            meanFit = mean(s),
+            medFit = median(s),
+            modeFit = estimate_mode(s, T),
             CIPheno = CI(phenomean),
             meanPheno = mean(phenomean),
+            medPheno = median(phenomean),
+            modePheno = estimate_mode(phenomean, T),
             meanGen = mean(gen),
+            medGen = median(gen),
+            modeGen = estimate_mode(gen, T),
             CIGen = CI(gen),
             CIDom = CI(h),
             meanDom = mean(h),
@@ -219,7 +270,6 @@ d_rank_av_add <- d_fix_ranked_add %>%
 ggplot(d_rank_av_add %>% filter(rank > 0), aes(x = rank, y = meanFit)) +
   geom_point() +
   geom_line() +
-  scale_y_continuous(limits = c(0, 0.025), breaks = seq(0, 0.025, by = 0.005)) +
   geom_errorbar(aes(ymin = meanFit - CIFit, ymax = meanFit + CIFit), 
                 width = 0.4) +
   labs(x = "Adaptive step", y = "Mean fitness effect") +
@@ -308,8 +358,164 @@ ggsave("stepsize_combined.png", plt_steps, png, bg = "white")
 plt_phenomean +
   geom_point(data = d_rank_av %>% mutate(meanGen = meanGen - 50000,
                                          modelindex = ifelse(model == "NAR", 2, 1)), 
-             mapping = aes(x = meanGen, y = meanPheno, colour = as.factor(modelindex)))
+             mapping = aes(x = meanGen, y = meanPheno, colour = as.factor(modelindex)),
+             size = 2) +
+  geom_text(data = d_rank_av %>% filter(model == "Additive") %>% 
+              mutate(meanGen = meanGen - 50000,
+                     modelindex = ifelse(model == "NAR", 2, 1)), 
+            mapping = aes(x = meanGen, y = meanPheno, colour = NULL,
+                          label = paste("Step", as.factor(rank))),
+            vjust = 0, nudge_y = -0.09, show.legend = F) +
+  geom_errorbarh(data = d_rank_av %>% mutate(meanGen = meanGen - 50000,
+                                            modelindex = ifelse(model == "NAR", 2, 1)),
+                mapping = aes(x = NULL, y = meanPheno, xmin = meanGen - CIGen,
+                              xmax = meanGen + CIGen,
+                              colour = as.factor(modelindex)), width = 0.05) +
+  geom_errorbar(data = d_rank_av %>% mutate(meanGen = meanGen - 50000,
+                                            modelindex = ifelse(model == "NAR", 2, 1)),
+                mapping = aes(x = meanGen, y = meanPheno, ymin = meanPheno - CIPheno,
+                              ymax = meanPheno + CIPheno,
+                              colour = as.factor(modelindex))) +
+  theme(text = element_text(size = 12)) -> plt_phenomeanwalk
 
+plt_phenomed +
+  geom_point(data = d_rank_av %>% mutate(medGen = medGen - 50000,
+                                         modelindex = ifelse(model == "NAR", 2, 1)), 
+             mapping = aes(x = medGen, y = medPheno, colour = as.factor(modelindex)),
+             size = 2) +
+  geom_text(data = d_rank_av %>% filter(model == "Additive") %>% 
+              mutate(medGen = medGen - 50000,
+                     modelindex = ifelse(model == "NAR", 2, 1)), 
+            mapping = aes(x = medGen, y = medPheno, colour = NULL,
+                          label = paste("Step", as.factor(rank))),
+            vjust = 0, nudge_y = -0.09, show.legend = F) +
+  theme(text = element_text(size = 12)) -> plt_phenomedwalk
+
+
+plt_phenomode +
+  geom_point(data = d_rank_av %>% mutate(modeGen = modeGen - 50000,
+                                         modelindex = ifelse(model == "NAR", 2, 1)), 
+             mapping = aes(x = modeGen, y = modePheno, colour = as.factor(modelindex)),
+             size = 2) +
+  geom_text(data = d_rank_av %>% filter(model == "Additive") %>% 
+              mutate(modeGen = modeGen - 50000,
+                     modelindex = ifelse(model == "NAR", 2, 1)), 
+             mapping = aes(x = modeGen, y = modePheno, colour = NULL,
+                           label = paste("Step", as.factor(rank))),
+            vjust = 0, nudge_y = -0.09, show.legend = F) +
+  theme(text = element_text(size = 12)) -> plt_phenomodewalk
+plt_phenomeanwalk
+plt_phenomedwalk
+plt_phenomodewalk
+ggsave("phenomeanwalk.png", plt_phenomeanwalk, device = png)
+ggsave("phenomedwalk.png", plt_phenomedwalk, device = png)
+ggsave("phenomodewalk.png", plt_phenomodewalk, device = png)
+
+# combine them
+plot_grid(plt_phenomeanwalk, plt_phenomedwalk, plt_phenomodewalk,
+          nrow = 3, labels = "AUTO")
+ggsave("combinedphenowalks.png", height = 10, device = png)
+
+ggplot(d_rank_av_stat %>% mutate(medGen = medGen - 50000,
+                            modelindex = ifelse(model == "NAR", 2, 1)), 
+       mapping = aes(x = gen, y = medPheno, colour = as.factor(modelindex)),) +
+  geom_point(size = 2) +
+  geom_text(data = d_rank_av %>% filter(model == "Additive") %>% 
+              mutate(medGen = medGen - 50000,
+                     modelindex = ifelse(model == "NAR", 2, 1)), 
+            mapping = aes(x = medGen, y = medPheno, colour = NULL,
+                          label = paste("Step", as.factor(rank))),
+            vjust = 0, nudge_y = -0.09, show.legend = F) -> plt_phenomedwalk
+
+
+# Now plot all the walks
+plt_phenomean +
+  geom_point(data = d_fix_ranked_combined %>% filter(rank > 0) %>% 
+               mutate(gen = gen - 50000), 
+             mapping = aes(x = gen, y = phenomean, colour = modelindex, 
+                           shape = as.factor(rank)),
+             size = 1.7) +
+  geom_line(data = d_fix_ranked_combined %>% mutate(gen = gen - 50000), 
+            mapping = aes(x = gen, y = phenomean, 
+                          group = interaction(seed, modelindex),
+                          colour = modelindex),
+            linewidth = 0.1) +
+  labs(shape = "Adaptive step") -> plt_phenowalks
+ggsave("phenowalks.png", plt_phenowalks, device = png)
+
+# as box plots
+d_fix_ranked_combined$gen_group <- cut(d_fix_ranked_combined$gen - 50000, breaks = 10)
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0),
+       aes(x = as.factor(gen_group), y = phenomean, colour = model)) +
+  geom_boxplot(position = position_dodge(1)) +
+  labs(x = "Generations post-optimum shift", y = "Phenotype mean", 
+       shape = "Adaptive step", colour = "Model") +
+  theme_bw()
+
+# Ridgeline works better for showing change in the distribution I think
+d_adapted_walk <- d_adapted %>% filter(gen > 49000)
+breaks <- seq(min(d_adapted_walk$gen - 50000), max(d_adapted_walk$gen - 50000), by = 1000)
+
+d_adapted_walk$gen_group <- breaks[findInterval(d_adapted_walk$gen - 50000, breaks, rightmost.closed = TRUE)]
+
+ggplot(d_adapted_walk,
+       aes(y = as.factor(gen_group), x = phenomean, fill = modelindex)) +
+  geom_density_ridges(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
+  labs(y = "Generations post-optimum shift", x = "Phenotype mean", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_phenomean_dist
+ggsave("phenomean_dist.png", plt_phenomean_dist, device = png)
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0),
+       aes(y = as.factor(rank), x = s, fill = model)) +
+  geom_density_ridges(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Adaptive step", x = "Fitness effect (s)", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_adaptivewalk_dist
+plt_adaptivewalk_dist
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0),
+       aes(y = as.factor(rank), x = gen - 50000, fill = model)) +
+  geom_density_ridges(alpha = 0.4) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Adaptive step", x = "Generations post-optimum shift", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_adaptivestepgen_dist
+plt_adaptivestepgen_dist
+
+
+# distributions of phenotypes and fitness effects - departures from normality?
+ggplot(d_fix_ranked_combined,
+       aes(x = phenomean, fill = model)) +
+  facet_grid(.~as.factor(rank)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Adaptive step", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Mean phenotype", y = "Density", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_pheno_dist
+         
+ggplot(d_fix_ranked_combined,
+       aes(x = s, fill = model)) +
+  facet_grid(.~as.factor(rank)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Adaptive step", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_s_dist
+
+plot_grid(plt_pheno_dist, plt_s_dist, nrow = 2, labels = "AUTO") -> plt_pheno_s_dist
+ggsave("pheno_s_dist.png", plt_pheno_s_dist, device = png)
 
 cc3 <- paletteer_d("ggprism::viridis", 4)[c(1, 4)]
 cc3
@@ -340,7 +546,6 @@ plt_adaptivestepsize_bp
 
 
 # distribution of generations the step happens at
-d_fix_ranked_combined <- rbind(d_fix_ranked, d_fix_ranked_add)
 
 d_fix_ranked_combined$model <- ifelse(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
 
