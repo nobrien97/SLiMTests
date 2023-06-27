@@ -13,6 +13,16 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
   return(qnorm(quantile) * se(x, na.rm))
 }
 
+estimate_mode <- function(x, na.rm = F) {
+  if (na.rm)
+    x <- x[!is.na(x)]
+  
+  if (length(x) < 2)
+    return(NA)
+  d <- density(x)
+  d$x[which.max(d$y)]
+}
+
 
 data_path <- "/mnt/d/SLiMTests/tests/fixedK/moreReps/"
 
@@ -37,12 +47,17 @@ d_qg %>% group_by(modelindex) %>%
             pAdapted = mean(isAdapted),
             CIAdapted = CI(isAdapted))
 
+# 719 additive models adapted total
+# 585 network models adapted total
+
 d_adapted <- d_qg %>% filter(isAdapted)
 
 d_adapted %>% 
   group_by(gen, modelindex) %>%
   summarise(meanPheno = mean(phenomean),
-            CIPheno = CI(phenomean)) -> d_adapted_sum
+            CIPheno = CI(phenomean),
+            medPheno = median(phenomean),
+            modePheno = estimate_mode(phenomean)) -> d_adapted_sum
 
 d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F, 
                      sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -386,9 +401,12 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
 
 d_fix_ranked <- RankFixations(d_fix_nar, T, d_fix %>% filter(modelindex == 2))
 
-
 # additive: attach step 0 (phenomean from before the first step in the walk)
 d_fix_ranked_add <- RankFixations(d_fix_add, F, d_fix %>% filter(modelindex == 1))
+
+# 610 unique simulations that reached the optimum and had fixations in additive sims
+length(unique(d_fix_add$seed))
+
 
 # Summarise
 d_fix_ranked_add %>% filter(rank != 0) %>%
@@ -493,6 +511,8 @@ d_seg_ranked_add$weighteds <- d_seg_ranked_add$s * d_seg_ranked_add$Freq
 
 
 # are overall phenomeans skewed by walks with only 1 fixation?
+d_fix_ranked_combined <- rbind(d_fix_ranked, d_fix_ranked_add)
+
 d_fix_ranked_combined %>%
   group_by(seed, modelindex) %>%
   mutate(manyFixed = any(rank > 1)) %>%
