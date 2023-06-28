@@ -2,6 +2,7 @@ library(tidyverse)
 library(paletteer)
 library(cowplot)
 library(ggridges)
+library(extRemes)
 source("mutationScreenExp.R")
 
 # Set seed for reproducibility - 6673185 
@@ -9,21 +10,29 @@ seed <- sample(0:.Machine$integer.max, 1)
 #set.seed(seed)
 set.seed(6673185)
 
-test_add_ben <- test_add %>% filter(s > 0)
-test_ben <- test %>% filter(s > 0)
+test_add_ben <- test_add %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
+test_ben <- test %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
 
-fit_add <- fevd(test_add_ben$s, method = "Lmoments")
+fit_add <- fevd(s, test_add_ben %>% select(s))
 plot(fit_add)
 # bootstrap to find CIs
 addci <- ci(fit_add, R = 1000, type = "parameter")
 
 summary(fit_add)
 
-fit_nar <- fevd(test_ben$s, method = "Lmoments")
+fit_nar <- fevd(s, test_ben %>% select(s))
 plot(fit_nar)
 NARci <- ci(fit_nar, R = 1000, type = "parameter")
 
 summary(fit_nar)
+
+# likelihood ratio test: is the fit different if we try to fit a Gumbel?
+fit_add_gumbel <- fevd(s, test_add_ben %>% select(s), type = "Gumbel")
+fit_gumbel <- fevd(s, test_ben %>% select(s), type = "Gumbel")
+
+lr.test(fit_add_gumbel, fit_add)
+lr.test(fit_gumbel, fit_nar)
+
 
 attr(addci, "class") <- NULL
 attr(NARci, "class") <- NULL
