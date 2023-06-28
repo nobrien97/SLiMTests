@@ -279,3 +279,20 @@ plot_grid(plt_aZbZ_landscape + theme(legend.position = "none"),
 plot_grid(plt_fig4, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig4
 plt_fig4
 ggsave("fig4.png", plt_fig4, width = 4, height = 12, device = png, bg = "white")
+
+# percentage of models with more than 1 step that used only alpha, only beta, or both
+d_fix_ranked %>%
+  mutate(value_aZ = if_else(mutType == 3, value, 0),
+         value_bZ = if_else(mutType == 4, value, 0)) %>%
+  group_by(seed) %>%
+  filter(n() > 2) %>% # exclude groups with less than 2 steps
+  mutate(evoBybZ = all(value_aZ == 0, na.rm = T),
+         evoByaZ = all(value_bZ == 0, na.rm = T)) %>%
+  ungroup() %>%
+  distinct(seed, .keep_all = T) %>% 
+  summarise(percEvoByaZ = mean(evoByaZ),
+            percEvoBybZ = mean(evoBybZ),
+            percEvoByBoth = 1 - (percEvoByaZ + percEvoBybZ),
+            countEvoByaZ = sum(evoByaZ),
+            countEvoBybZ = sum(evoBybZ),
+            countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
