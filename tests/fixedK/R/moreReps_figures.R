@@ -95,7 +95,7 @@ ggsave("dfe_phenotype_additive.png", dfe_phenotype_additive, png)
 
 
 ggplot(d_fix_add %>% filter(modelindex == 1), 
-       aes(x = avFit)) +
+       aes(x = s)) +
   geom_density(show.legend = FALSE, linewidth = 0) +
   stat_density(geom="line", position="identity", size = 0.8) +
   labs(x = "Fitness effect", y = "Density") +
@@ -122,7 +122,7 @@ dfe_phenotype_nar
 ggsave("dfe_phenotype_nar.png", dfe_phenotype_nar, png)
 
 ggplot(d_fix_nar, 
-       aes(x = avFit, colour = mutType)) +
+       aes(x = s, colour = mutType)) +
   geom_density(show.legend = FALSE, linewidth = 0) +
   stat_density(geom="line", position="identity", linewidth = 0.8) +
   scale_colour_paletteer_d("ggsci::nrc_npg", labels = mutType_names) +
@@ -467,7 +467,9 @@ ggplot(d_adapted_walk,
        fill = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_phenomean_dist
+plt_phenomean_dist
 ggsave("phenomean_dist.png", plt_phenomean_dist, device = png)
+
 
 ggplot(d_fix_ranked_combined %>% filter(rank > 0),
        aes(y = as.factor(rank), x = s, fill = model)) +
@@ -543,6 +545,49 @@ ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = as.factor(rank), y = 
   theme_bw() +
   theme(text = element_text(size = 16)) -> plt_adaptivestepsize_bp
 plt_adaptivestepsize_bp
+
+# Distribution of all effects - should be normal! (Orr 2006)
+d_ranked_combined <- rbind(d_fix_ranked_combined, d_seg_ranked_combined) %>% filter(!is.na(s))
+d_ranked_combined$model <- if_else(d_ranked_combined$modelindex == 1, "Additive", "NAR")
+ggplot(d_ranked_combined, aes(x = s, fill = model)) +
+  geom_density(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Density", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_distallfx
+plt_distallfx
+ggsave("dist_allfx.png", device = png)
+
+# Distribution of all beneficial effects - should be exponential (if Gumbel)
+ggplot(d_ranked_combined %>% filter(s > 0), aes(x = s, fill = model)) +
+  geom_density(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Density", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_distbenfx_alltimes
+plt_distbenfx_alltimes
+ggsave("dist_benfx_alltimes.png", device = png)
+
+# Dist of fixed muts - should become less exponential over time
+d_fix_ranked_combined$model <- if_else(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
+  geom_density_ridges(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_distfixed_time
+plt_distfixed_time
+ggsave("dist_fixed_time.png", device = png)
+
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, fill = model)) +
+  geom_density(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Density", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_distfixed
+plt_distfixed
+ggsave("dist_fixed.png", device = png)
+
 
 
 # distribution of generations the step happens at
@@ -701,14 +746,14 @@ ggplot(d_muts %>% filter(gen == 50000), aes(x = Freq)) +
   theme_bw()
 
 # Adaptive walk - ratio of alpha/beta
-ggplot(d_ratio, aes(x = aZ, y = bZ, colour = aZbZ, shape = isAdapted)) +
+ggplot(d_ratio, aes(x = fixEffectSum_aZ, y = fixEffectSum_bZ, colour = aZbZ)) +
   geom_point() +
   scale_colour_paletteer_c("viridis::viridis") +
   theme_bw()
 
-ggplot(d_ratio, aes(x = aZbZ, y = phenomean, colour = isAdapted)) +
+ggplot(d_ratio, aes(x = aZbZ, y = phenomean, colour = wAA)) +
   geom_point() +
-  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  scale_colour_paletteer_c("viridis::viridis") +
   theme_bw()
 
 # Fitness landscape aZbZ
@@ -776,8 +821,8 @@ plotaZbZLandscape <- function(minVal, maxVal) {
            aes(x = aZ, y = bZ, fill = fitness)) +
       geom_tile() +
       #geom_abline(slope = 1/1.27) +
-      geom_point(data = d_landscape %>% mutate(aZbZ = aZ/bZ) 
-                 %>% filter(aZbZ > 1.25, aZbZ < 1.35), size = 0.1, shape = 4) +
+      # geom_point(data = d_landscape %>% mutate(aZbZ = aZ/bZ) 
+      #            %>% filter(aZbZ > 1.25, aZbZ < 1.35), size = 0.1, shape = 4) +
       scale_fill_gradientn(colors = c(cc[1], cc), 
                            limits = c(minFit, 1),
                              values = wValues, na.value = cc[1]) +
@@ -790,3 +835,14 @@ plotaZbZLandscape <- function(minVal, maxVal) {
 }
 
 plotaZbZLandscape(0, 3)
+
+# Plot difference in movement between alpha and beta
+ggplot(d_molCompDiff,
+       aes(x = molCompDiff)) +
+  geom_density() +
+  labs(x = TeX("Difference in molecular component evolution"), y = "Density") +
+  theme_bw() + 
+  theme(text = element_text(size = 16)) -> plt_molCompDiff
+plt_molCompDiff
+ggsave("molCompDiff.png", plt_molCompDiff, device = png)
+  
