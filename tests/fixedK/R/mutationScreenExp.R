@@ -57,7 +57,7 @@ source("wrangle_data.R")
   d_dat_withFX_aZ <- dat_out
   d_dat_withFX_bZ <- dat_out
 
-  # Now add a random effect: calculate seperately for alpha/beta
+  # Now add a random effect: calculate separately for alpha/beta
   d_dat_withFX_aZ$aZ <- exp(log(d_dat_withFX_aZ$fixEffectSum_aZ) + sampled_effects)
   d_dat_withFX_aZ$bZ <- exp(log(d_dat_withFX_aZ$fixEffectSum_bZ))
   d_dat_withFX_bZ$aZ <- exp(log(d_dat_withFX_bZ$fixEffectSum_aZ))
@@ -120,204 +120,50 @@ MutationScreenExp <- function(fixed, n, isAdditive = F) {
   .createEffectDataframe(fixed, fx)
 }
 
-seed <- sample(1:.Machine$integer.max, 1)
+# seed <- sample(1:.Machine$integer.max, 1)
 # 18799215
+seed <- 18799215
 set.seed(seed)
-test <- MutationScreenExp(d_fix_ranked, 200)
-test <- CalcDominance(test)
+mutExp <- MutationScreenExp(d_fix_ranked, 1000)
+mutExp <- CalcDominance(mutExp)
 
-test_add <- MutationScreenExp(d_fix_ranked_add, 200, T)
-test_add <- CalcDominance(test_add)
+mutExp_add <- MutationScreenExp(d_fix_ranked_add, 1000, T)
+mutExp_add <- CalcDominance(mutExp_add)
 
-
-# plot 
-ggplot(test, aes(x = as.factor(rank), y = s)) +
-  geom_boxplot() +
-  labs(x = "Adaptive step", y = "Fitness effect (s)") +
-  theme_bw()
-
-ggplot(test_add %>% filter(rank > 0), aes(x = as.factor(rank), y = s)) +
-  geom_boxplot() +
-  labs(x = "Adaptive step", y = "Fitness effect (s)") +
-  theme_bw()
+mutExp_combined <- rbind(mutExp, mutExp_add)
+mutExp_combined$model <- ifelse(mutExp_combined$modelindex == 1, "Additive", "NAR")
 
 # percentage of mutations beneficial, expected waiting time for beneficial mutation,
 # mean effect of mutations
-test %>% 
+mutExp %>% 
   group_by(rank) %>%
   summarise(percBeneficial = mean(as.integer(s > 0)),
             CIperc = CI(as.integer(s > 0)),
             meanEffect = mean(s),
-            CIEffect = CI(s)) -> test_sum
+            CIEffect = CI(s)) -> mutExp_sum
 
-test %>%
+mutExp %>%
   group_by(rank, seed) %>%
-  summarise(percBeneficial = mean(as.integer(s > 0))) -> test_percBeneficial
+  summarise(percBeneficial = mean(as.integer(s > 0))) -> mutExp_percBeneficial
 
-test_add %>% 
+mutExp_add %>% 
   group_by(rank) %>%
   summarise(percBeneficial = mean(as.integer(s > 0)),
             CIperc = CI(as.integer(s > 0)),
             meanEffect = mean(s),
-            CIEffect = CI(s)) -> test_add_sum
+            CIEffect = CI(s)) -> mutExp_add_sum
 
-test_add %>%
+mutExp_add %>%
   group_by(rank, seed) %>%
-  summarise(percBeneficial = mean(as.integer(s > 0))) -> test_add_percBeneficial
+  summarise(percBeneficial = mean(as.integer(s > 0))) -> mutExp_add_percBeneficial
 
 
-test_add_sum$model <- "Additive"
-test_sum$model <- "NAR"
+mutExp_add_sum$model <- "Additive"
+mutExp_sum$model <- "NAR"
 
-test_add_percBeneficial$model <- "Additive"
-test_percBeneficial$model <- "NAR"
-
-
-test_sum_combined <- rbind(test_add_sum, test_sum)
-test_perc_combined <- rbind(test_add_percBeneficial, test_percBeneficial)
-
-ggplot(test_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour = model)) +
-  geom_point() +
-  geom_errorbar(mapping = aes(ymin = percBeneficial - CIperc, 
-                              ymax = percBeneficial + CIperc),
-                width = 0.2) +
-  geom_line(aes(group = model)) +
-  scale_colour_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Adaptive step", y = "Proportion of mutations where s > 0",
-       colour = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
-ggsave("propbeneficial.png", device = png, bg = "white")
-
-ggplot(test_perc_combined, aes(x = as.factor(rank), y = percBeneficial)) +
-  facet_grid(.~model) +
-  geom_boxplot(alpha = 0.1) +
-  geom_point(data = test_sum_combined, aes(x = as.factor(rank), y = percBeneficial),
-            size = 2) +
-  geom_line(data = test_sum_combined, group = 1,
-           linetype = "dashed", linewidth = 1) +
-  geom_errorbar(data = test_sum_combined, mapping = aes(ymin = percBeneficial - CIperc, 
-                              ymax = percBeneficial + CIperc),
-                width = 0.2) +
-  scale_colour_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Adaptive step", y = "Beneficial mutation\nprobability (s > 0)") +
-  theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_percBeneficial
-plt_percBeneficial
-
-ggplot(test_sum_combined, aes(x = as.factor(rank), y = meanEffect, colour = model)) +
-  geom_point() +
-  geom_errorbar(mapping = aes(ymin = meanEffect - CIEffect, 
-                              ymax = meanEffect + CIEffect),
-                width = 0.2) +
-  scale_colour_paletteer_d("ggsci::nrc_npg") +
-  geom_line(aes(group=model)) +
-  labs(x = "Adaptive step", y = "Mean effect", colour = "Model") +
-  theme_bw() + 
-  theme(text = element_text(size = 12))
-ggsave("meaneffectstep.png", device = png, bg = "white")
-
-test_combined <- rbind(test, test_add)
-test_combined$model <- ifelse(test_combined$modelindex == 1, "Additive", "NAR")
-
-ggplot(test_combined, aes(x = as.factor(rank), y = s)) +
-  facet_grid(.~model) +
-  geom_boxplot() +
-  geom_point(data = test_sum_combined, mapping = aes(y = meanEffect)) +
-  geom_errorbar(data = test_sum_combined, 
-                mapping = aes(y = meanEffect, ymin = meanEffect - CIEffect, 
-                              ymax = meanEffect + CIEffect),
-                width = 0.2) +
-  geom_line(data = test_sum_combined, 
-            mapping = aes(y = meanEffect), group = 1) +
-  labs(x = "Adaptive step", y = "Fitness effect (s)") +
-  theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_effectsizerandom
-plt_effectsizerandom
-
-plot_grid(plt_percBeneficial, plt_effectsizerandom,
-          nrow = 2, labels = "AUTO")
-ggsave("effectstepdist.png", width = 8, height = 6, device = png, bg = "white")
-
-ggplot(test_sum_combined %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial)),
-       aes(x = as.factor(rank), y = waitingTime, colour = model)) +
-  geom_point() +
-  scale_colour_paletteer_d("ggsci::nrc_npg") +
-  geom_line(aes(group=model)) +
-  labs(x = "Adaptive step", y = "Expected waiting time to beneficial mutation", colour = "Model") +
-  theme_bw() + 
-  theme(text = element_text(size = 12))
+mutExp_add_percBeneficial$model <- "Additive"
+mutExp_percBeneficial$model <- "NAR"
 
 
-# average fitness effect among beneficial mutations
-test_combined %>%
-  filter(s > 0) %>%
-  group_by(rank, model) %>%
-  summarise(mean_s = mean(s),
-            CI_s = CI(s))
-
-# among deleterious muts
-test_combined %>%
-  filter(s < 0) %>%
-  group_by(rank, model) %>%
-  summarise(mean_s = mean(s),
-            CI_s = CI(s))
-
-# distribution of all beneficial mutations
-ggplot(test_combined %>% filter(s > 0), aes(x = s, fill = model)) +
-  geom_density(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_evt1
-plt_evt1
-
-# distribution of fixed effects
-ggplot(d_fix_ranked_combined %>% filter(s > 0),
-       aes(x = s, fill = model)) +
-  geom_density(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_evt2
-plt_evt2
-
-# changing over time
-ggplot(test_combined %>% filter(s > 0, rank > 0),
-       aes(x = s, y = as.factor(rank), fill = model)) +
-  geom_density_ridges(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Adaptive step", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_evt1_time
-plt_evt1_time
-
-ggplot(d_fix_ranked_combined %>% filter(s > 0, rank > 0),
-       aes(x = s, y = as.factor(rank), fill = model)) +
-  geom_density_ridges(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Adaptive step", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_evt2_time
-plt_evt2_time
-
-# what about deleterious variants?
-ggplot(test_combined %>% filter(s < 0),
-       aes(x = s, fill = model)) +
-  geom_density(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_del_dist
-plt_del_dist
-
-ggplot(test_combined %>% filter(s < 0, rank > 0),
-       aes(x = s, y = as.factor(rank), fill = model)) +
-  geom_density_ridges(alpha = 0.4) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  labs(x = "Fitness effect (s)", y = "Adaptive step", fill = "Model") +
-  theme_bw() +
-  theme(text = element_text(size = 16)) -> plt_del_dist_time
-plt_del_dist_time
-
-
+mutExp_sum_combined <- rbind(mutExp_add_sum, mutExp_sum)
+mutExp_perc_combined <- rbind(mutExp_add_percBeneficial, mutExp_percBeneficial)
