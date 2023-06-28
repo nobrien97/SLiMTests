@@ -639,7 +639,33 @@ d_rank_combined_tbl <- d_ranked_combined %>% filter(rank != 0, modelindex == 2) 
 d_rank_combined_tbl <- d_rank_combined_tbl[-c(15, 16),]
 d_rank_combined_tbl
 
-d_ranked_combined %>% filter(modelindex == 2) %>%
-  group_by(seed, isAdapted) %>%
-  mutate(aZbZ = aZ/bZ) -> d_ratio
+d_fix_ranked_combined %>% filter(modelindex == 2) %>%
+  mutate(aZbZ = fixEffectSum_aZ/fixEffectSum_bZ) %>%
+  ungroup() -> d_ratio
 
+d_fix_ranked %>%
+  mutate(value_aZ = if_else(mutType == 3, value, 0),
+         value_bZ = if_else(mutType == 4, value, 0)) %>%
+  group_by(seed) %>%
+  filter(n() > 2) %>% # exclude groups with less than 2 steps
+  mutate(molCompDiff = sum(abs(2 * value_aZ), na.rm = T) - sum(abs(2 * value_bZ), na.rm = T)) %>%
+  ungroup() %>%
+  select(seed, molCompDiff) %>%
+  distinct(seed, .keep_all = T) -> d_molCompDiff
+
+d_fix_ranked %>%
+  mutate(value_aZ = if_else(mutType == 3, value, 0),
+         value_bZ = if_else(mutType == 4, value, 0)) %>%
+  group_by(seed) %>%
+  filter(n() > 2) %>% # exclude groups with less than 2 steps
+  mutate(evoBybZ = all(value_aZ == 0, na.rm = T),
+         evoByaZ = all(value_bZ == 0, na.rm = T)) %>%
+  ungroup() %>%
+  distinct(seed, .keep_all = T) %>% 
+  summarise(percEvoByaZ = mean(evoByaZ),
+            percEvoBybZ = mean(evoBybZ),
+            percEvoByBoth = 1 - (percEvoByaZ + percEvoBybZ),
+            countEvoByaZ = sum(evoByaZ),
+            countEvoBybZ = sum(evoBybZ),
+            countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
+  
