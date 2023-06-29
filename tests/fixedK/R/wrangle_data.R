@@ -134,6 +134,9 @@ CalcAddEffects <- function(dat, isFixed = T, dat_fixed = dat) {
     Aa <- calcAddFitness(dat$fixEffectSum - dat$value, 2, 0.05)
     AA <- calcAddFitness(dat$fixEffectSum, 2, 0.05)
     aa <- calcAddFitness(dat$fixEffectSum - 2 * dat$value, 2, 0.05)
+    dat$AA_pheno <- dat$fixEffectSum
+    dat$Aa_pheno <- dat$fixEffectSum - dat$value
+    dat$aa_pheno <- dat$fixEffectSum - 2 * dat$value
     dat$avFit <- Aa - aa
     dat$avFit_AA <- AA - aa
     dat$value_AA <- dat$value * 2
@@ -152,6 +155,10 @@ CalcAddEffects <- function(dat, isFixed = T, dat_fixed = dat) {
   Aa <- calcAddFitness(dat$fixEffectSum + dat$value, 2, 0.05)
   AA <- calcAddFitness(dat$fixEffectSum + dat$value * 2, 2, 0.05)
   aa <- calcAddFitness(dat$fixEffectSum, 2, 0.05)
+  
+  dat$AA_pheno <- dat$fixEffectSum + 2 * dat$value
+  dat$Aa_pheno <- dat$fixEffectSum + dat$value
+  dat$aa_pheno <- dat$fixEffectSum
   dat$avFit <- Aa - aa
   dat$avFit_AA <- AA - aa
   dat$value_AA <- dat$value * 2
@@ -265,6 +272,9 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed = dat) {
     Aa <- Aa %>% arrange(id)
     aa <- aa %>% arrange(id)
     
+    dat$AA_pheno <- d_popfx$pheno
+    dat$Aa_pheno <- Aa$pheno
+    dat$aa_pheno <- aa$pheno
     dat$avFX <- d_popfx$pheno - Aa$pheno
     dat$avFit <- d_popfx$fitness - Aa$fitness
     dat$avFX_AA <- d_popfx$pheno - aa$pheno
@@ -316,6 +326,9 @@ CalcNARPhenotypeEffects <- function(dat, isFixed = T, dat_fixed = dat) {
   AA <- AA %>% arrange(id)
   
   # Get effect
+  dat$AA_pheno <- AA$pheno
+  dat$Aa_pheno <- Aa$pheno
+  dat$aa_pheno <- d_popfx$pheno
   dat$avFX <- Aa$pheno - d_popfx$pheno
   dat$avFit <- Aa$fitness - d_popfx$fitness
   dat$avFX_AA <- AA$pheno - d_popfx$pheno
@@ -360,7 +373,7 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       mutate(rank = row_number()) %>%
       dplyr::select(c(gen, rank, seed, modelindex, mutType, 
                       value, aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ,
-                      avFX, avFit, avFit_AA, avFX_AA, 
+                      avFX, avFit, avFit_AA, avFX_AA, AA_pheno, Aa_pheno, aa_pheno,
                       wAA, wAa, waa, s, h))
     
     step0_pheno <- d_adapted %>% 
@@ -383,7 +396,7 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       mutate(rank = row_number()) %>%
       dplyr::select(c(gen, rank, seed, modelindex, mutType, fixEffectSum,
                       value, value_AA, aZ, bZ, phenomean, w, avFit, avFit_AA, 
-                      wAA, wAa, waa, s, h))
+                      AA_pheno, Aa_pheno, aa_pheno, wAA, wAa, waa, s, h))
     
     step0_pheno <- d_adapted %>% 
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
@@ -508,6 +521,8 @@ d_segFixRat_sum <- GetSegFixContributions(d_seg_ranked, d_fix_ranked, T)
 # seg effects weighted by frequency
 d_seg_ranked$weighteds <- d_seg_ranked$s * d_seg_ranked$Freq
 d_seg_ranked_add$weighteds <- d_seg_ranked_add$s * d_seg_ranked_add$Freq
+
+
 
 
 # are overall phenomeans skewed by walks with only 1 fixation?
@@ -668,4 +683,3 @@ d_fix_ranked %>%
             countEvoByaZ = sum(evoByaZ),
             countEvoBybZ = sum(evoBybZ),
             countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
-  
