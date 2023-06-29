@@ -527,6 +527,7 @@ d_seg_ranked_add$weighteds <- d_seg_ranked_add$s * d_seg_ranked_add$Freq
 
 # are overall phenomeans skewed by walks with only 1 fixation?
 d_fix_ranked_combined <- rbind(d_fix_ranked, d_fix_ranked_add)
+d_fix_ranked_combined$model <- if_else(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
 
 d_fix_ranked_combined %>%
   group_by(seed, modelindex) %>%
@@ -647,16 +648,16 @@ write_csv(rbind(d_fix_add, d_fix_nar), "d_fix_combined.csv")
 # d_ranked_combined <- rbind(d_fix_mal_ranked, d_fix_ranked_add_mal)
 # write_csv(d_ranked_combined, "d_ranked_combined_all.csv")
 
-d_rank_combined_tbl <- d_ranked_combined %>% filter(rank != 0, modelindex == 2) %>%
-  group_by(rank, modelindex, isAdapted, mutType) %>% 
-  summarise(n = n()) %>% ungroup() %>% 
-  complete(rank, isAdapted, mutType)
-d_rank_combined_tbl <- d_rank_combined_tbl[-c(15, 16),]
-d_rank_combined_tbl
-
-d_fix_ranked_combined %>% filter(modelindex == 2) %>%
-  mutate(aZbZ = fixEffectSum_aZ/fixEffectSum_bZ) %>%
-  ungroup() -> d_ratio
+# d_rank_combined_tbl <- d_ranked_combined %>% filter(rank != 0, modelindex == 2) %>%
+#   group_by(rank, modelindex, isAdapted, mutType) %>% 
+#   summarise(n = n()) %>% ungroup() %>% 
+#   complete(rank, isAdapted, mutType)
+# d_rank_combined_tbl <- d_rank_combined_tbl[-c(15, 16),]
+# d_rank_combined_tbl
+# 
+# d_fix_ranked_combined %>% filter(modelindex == 2) %>%
+#   mutate(aZbZ = fixEffectSum_aZ/fixEffectSum_bZ) %>%
+#   ungroup() -> d_ratio
 
 d_fix_ranked %>%
   mutate(value_aZ = if_else(mutType == 3, value, 0),
