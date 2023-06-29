@@ -211,14 +211,14 @@ plotaZbZLandscape <- function(minVal, maxVal) {
       theme_bw() + 
       theme(legend.position = "bottom", text = element_text(size = 14)) +
       guides(
-        fill = guide_colourbar(barwidth = 20, title.vjust = 0.87)) # i love magic numbers
+        fill = guide_colourbar(barwidth = 10, title.vjust = 0.87)) # i love magic numbers
   )
 }
 plotaZbZLandscape(0, 3) -> plt_aZbZ_landscape
 plt_aZbZ_landscape
 
 # B - GPW map of aZbZ
-plotRatioLandscape <- function(minRatio, maxRatio) {
+genRatioLandscapeData <- function(minRatio, maxRatio) {
   GRID_RES <- 50000
   rational <- MASS:::.rat(seq(minRatio, maxRatio, length.out = GRID_RES),
                           max.denominator = 20)$rat
@@ -228,8 +228,13 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
                        KXZ = 1) %>% distinct()
   write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
   
-  d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8) %>%
-    filter(pheno > 0)
+  return(runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8) %>%
+           filter(pheno > 0))
+}
+
+plotRatioLandscape <- function(minRatio, maxRatio) {
+  d_landscape <- genRatioLandscapeData(minRatio, maxRatio)
+  
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
   
   minFit <- 0.8 #min(d_landscape$fitness)
@@ -257,6 +262,12 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
 }
 
 plotRatioLandscape(0.5, 3) -> plt_aZbZratio
+
+plt_aZbZratio +
+  stat_poly_line(colour = "#AAAAAA", linetype = "dashed") +
+  stat_poly_eq(use_label(c("adj.R2", "R2.CI", "p.value"), sep = "*\"; \"*"), 
+               label.x = "right", colour = "#000000") -> plt_aZbZratio
+
 plt_aZbZratio
 
 # C - difference in evolution among alpha and beta
@@ -296,3 +307,26 @@ d_fix_ranked %>%
             countEvoByaZ = sum(evoByaZ),
             countEvoBybZ = sum(evoBybZ),
             countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
+
+# Fig 5 - Phenotype fixed vs segregating effects
+# A - correlation between phenotype of fixations only with mean phenotype
+group_means <- d_fix_ranked_combined %>% filter(rank > 0) %>%
+  group_by(modelindex) %>%
+  summarise(ratio = mean(AA_pheno/phenomean),
+            CIRatio = CI(AA_pheno/phenomean))
+
+# set seed for geom_jitter
+set.seed(seed)
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
+       aes(x = as.factor(modelindex), y = AA_pheno/phenomean)) +
+  geom_jitter(size = 0.5, shape = 1, alpha = 0.3) +
+  geom_point(data = group_means, aes(y = ratio, colour = modelindex), size = 2) +
+  geom_errorbar(data = group_means, aes(y = ratio, ymin = ratio - CIRatio,
+                                        ymax = ratio + CIRatio,
+                                        colour = modelindex), width = 0.1) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", guide = NULL) +
+  scale_x_discrete(labels = c("Additive", "NAR")) +
+  labs(x = "Model", y = "Fixed effect/mean phenotype ratio") +
+  theme_bw() + 
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_fig5
+ggsave("fig5.png", plt_fig5, device = png)
