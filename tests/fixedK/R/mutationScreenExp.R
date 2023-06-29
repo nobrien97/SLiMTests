@@ -45,7 +45,6 @@ source("wrangle_data.R")
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_base <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
-  
   # Duplicate rows so that each has the sampled additional effect
   dat_out <- dat[rep(seq_len(nrow(dat)), each = length(sampled_effects)),]
   rownames(dat_out) <- NULL # reset row names
@@ -98,10 +97,10 @@ source("wrangle_data.R")
   dat$wAA <- AA$fitness
   dat$wAa <- Aa$fitness
   dat$waa <- d_popfx$fitness
-  dat <- dat %>% mutate(value = ifelse((aZ - fixEffectSum_aZ) > 0, aZ - fixEffectSum_aZ, bZ - fixEffectSum_bZ))
-  dat <- dat %>% select(gen, rank, seed, modelindex, value, phenomean, 
-                        w, aZ, bZ, fixEffectSum_aZ, fixEffectSum_bZ,
-                        avFX, avFX_AA, avFit, avFit_AA, wAA, wAa, waa)
+  # dat <- dat %>% mutate(value = ifelse((aZ - fixEffectSum_aZ) > 0, aZ - fixEffectSum_aZ, bZ - fixEffectSum_bZ))
+  # dat <- dat %>% select(gen, rank, seed, modelindex, value, phenomean, 
+  #                       w, aZ, bZ, fixEffectSum_aZ, fixEffectSum_bZ,
+  #                       avFX, avFX_AA, avFit, avFit_AA, wAA, wAa, waa)
   return(dat)
 }
 
