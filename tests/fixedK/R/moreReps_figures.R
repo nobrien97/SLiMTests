@@ -9,6 +9,7 @@ library(ggarrow)
 library(gghalves)
 library(ggstance)
 library(ggridges)
+library(ggpmisc)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -845,4 +846,16 @@ ggplot(d_molCompDiff,
   theme(text = element_text(size = 16)) -> plt_molCompDiff
 plt_molCompDiff
 ggsave("molCompDiff.png", plt_molCompDiff, device = png)
-  
+
+# correlation between phenotype of fixations only with mean phenotype
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
+       aes(x = AA_pheno, y = phenomean, colour = modelindex)) +
+  geom_point(size = 0.5, shape = 1) +
+  geom_abline(linetype = "dashed", colour = "#AAAAAA") +
+  stat_poly_line() +
+  stat_poly_eq(use_label(c("eq", "adj.R2"))) +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  labs(x = "Phenotype with only fixed effects", y = "Mean population phenotype") +
+  theme_bw() + 
+  theme(text = element_text(size = 16))
+
