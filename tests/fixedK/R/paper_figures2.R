@@ -23,6 +23,7 @@ d_adapted_walk$gen_group <- breaks[findInterval(d_adapted_walk$gen - 50000, brea
 ggplot(d_adapted_walk,
        aes(y = as.factor(gen_group), x = phenomean, fill = modelindex)) +
   geom_density_ridges(alpha = 0.4) +
+  geom_vline(xintercept = 2, linetype = "dashed") +
   scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "NAR")) +
   labs(y = "Generations post-optimum shift", x = "Phenotype mean", 
        fill = "Model") +
@@ -34,6 +35,7 @@ plt_phenomean_dist
 ggplot(d_fix_ranked_combined,
        aes(y = as.factor(rank), x = phenomean, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
+  geom_vline(xintercept = 2, linetype = "dashed") +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Phenotype mean", 
        fill = "Model") +
