@@ -57,4 +57,8 @@ plot(fit_nar)
 plot(fit_add)
 
 # Compare means - proportion of beneficial muts, waiting time to beneficial mut
-aov()
+aov(s ~ model * rank, mutExp_combined)
+
+
+# alpha/beta optimum ratio
+(plt_aZbZratio$data$pheno)

@@ -9,6 +9,7 @@ library(ggarrow)
 library(gghalves)
 library(ggstance)
 library(ggridges)
+library(ggpmisc)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -220,20 +221,67 @@ plotaZbZLandscape(0, 3) -> plt_aZbZ_landscape
 plt_aZbZ_landscape
 
 # B - GPW map of aZbZ
+ODEs_FBA <- function(t, state, parameters) {
+  with (as.list(c(state, parameters)), {
+    # step function leads to numerical issues in lsoda:
+    #dZ <- bZ * (t > Xstart && t <= Xstop & Z<1) - aZ*Z
+    # use Hill function instead:
+    X <- (t > Xstart && t <= Xstop)
+    dZ <- bZ * (t > Xstart && t <= Xstop) * (X^Hilln)/(KXZ^Hilln + X^Hilln) * (KZ^Hilln)/(KZ^Hilln + Z^Hilln) - aZ*Z
+    dZnoFB <- aZ * (t > Xstart && t <= Xstop) - aZ*ZnoFB
+    return(list(c(dZ, dZnoFB)))
+  })
+}
+
+plotDynamics_FBA <- function(Xstart = 1,
+                             Xstop = 6,
+                             tmax = 10,
+                             dt = 0.1,
+                             pars = list(aZ = 1,
+                                         bZ = 1,
+                                         KXZ = 1,
+                                         KZ = 1)) {
+  params <- c(Xstart = Xstart, Xstop = Xstop, 
+              aZ = pars$aZ, bZ = pars$bZ, KXZ = pars$KXZ, KZ = pars$KZ)
+  iniState <- c(Z=0, ZnoFB = 0)
+  times <- seq(0,tmax,by=dt)
+  solution <- ode(iniState, times, ODEs_FBA, params) %>%
+    as.data.frame() %>%
+    as_tibble() %>%
+    mutate(X = ifelse(time > params["Xstart"] & time <= params["Xstop"], 1, 0),
+           aZ = as.factor(pars$aZ), bZ = as.factor(pars$bZ), 
+           KXZ = as.factor(pars$KXZ), KZ = as.factor(pars$KZ)) %>%
+    select(time, aZ, bZ, KXZ, KZ, X, Z, ZnoFB)
+  return(AUC(solution$time, solution$Z, absolutearea = T))
+}
+
+
 genRatioLandscapeData <- function(minRatio, maxRatio) {
-  GRID_RES <- 50000
+  GRID_RES <- 1000
   rational <- MASS:::.rat(seq(minRatio, maxRatio, length.out = GRID_RES),
                           max.denominator = 20)$rat
   d_grid <- data.frame(aZ = rational[,1], 
                        bZ = rational[,2],
                        KZ = 1, 
                        KXZ = 1) %>% distinct()
-  write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  # write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  # 
+  # return(runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8) %>%
+  #          filter(pheno > 0))
   
-  return(runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8) %>%
-           filter(pheno > 0))
+  result <- data.frame(pheno = numeric(nrow(d_grid)), 
+                       aZ = numeric(nrow(d_grid)), 
+                       bZ = numeric(nrow(d_grid)), 
+                       KZ = numeric(nrow(d_grid)),  
+                       KXZ = numeric(nrow(d_grid)))
+  
+  for (i in seq_len(nrow(d_grid))) {
+    pheno <- plotDynamics_FBA(pars = as.list(d_grid[i,]))
+    result[i,] <- c(pheno, d_grid[i,])
+  }
+  result$fitness <- calcAddFitness(result$pheno, 2, 0.05)
+  return(result)
 }
-
 plotRatioLandscape <- function(minRatio, maxRatio) {
   d_landscape <- genRatioLandscapeData(minRatio, maxRatio)
   
@@ -263,7 +311,7 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
   )
 }
 
-plotRatioLandscape(0.5, 3) -> plt_aZbZratio
+plotRatioLandscape(0.01, 3) -> plt_aZbZratio
 
 plt_aZbZratio +
   stat_poly_line(colour = "#AAAAAA", linetype = "dashed") +
