@@ -371,7 +371,7 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutType, 
+      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, 
                       value, aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ,
                       avFX, avFit, avFit_AA, avFX_AA, AA_pheno, Aa_pheno, aa_pheno,
                       wAA, wAa, waa, s, h))
@@ -380,21 +380,21 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
       group_by(gen, seed) %>%
-      mutate(rank = 0, value = NA, avFit = NA,
+      mutate(rank = 0, value = NA, mutID = NA, avFit = NA,
              fixEffectSum_aZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
                                                     dat_burnInFX$mutType == 3 &
                                                     dat_burnInFX$seed == cur_group()$seed,]$value)),
              fixEffectSum_bZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
                                                     dat_burnInFX$mutType == 4 &
                                                     dat_burnInFX$seed == cur_group()$seed,]$value))) %>%
-      dplyr::select(gen, rank, seed, modelindex, value, 
+      dplyr::select(gen, rank, seed, modelindex, mutID, value, 
                     aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ, avFit)
   } else {
     d_fix_ranked <- dat %>%
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutType, fixEffectSum,
+      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, fixEffectSum,
                       value, value_AA, aZ, bZ, phenomean, w, avFit, avFit_AA, 
                       AA_pheno, Aa_pheno, aa_pheno, wAA, wAa, waa, s, h))
     
@@ -402,10 +402,10 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
                interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
       group_by(gen, seed) %>%
-      mutate(rank = 0, value = NA, avFit = NA,
+      mutate(rank = 0, value = NA, mutID = NA, avFit = NA,
              fixEffectSum = 2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
                                                      dat_burnInFX$seed == cur_group()$seed,]$value)) %>%
-      dplyr::select(gen, rank, seed, modelindex, value,
+      dplyr::select(gen, rank, seed, modelindex, mutID, value,
                     aZ, bZ, phenomean, w, fixEffectSum, avFit)
   }
   
@@ -416,10 +416,6 @@ d_fix_ranked <- RankFixations(d_fix_nar, T, d_fix %>% filter(modelindex == 2))
 
 # additive: attach step 0 (phenomean from before the first step in the walk)
 d_fix_ranked_add <- RankFixations(d_fix_add, F, d_fix %>% filter(modelindex == 1))
-
-# 610 unique simulations that reached the optimum and had fixations in additive sims
-length(unique(d_fix_add$seed))
-
 
 # Summarise
 d_fix_ranked_add %>% filter(rank != 0) %>%
@@ -435,6 +431,7 @@ rbind(d_fix_ranked %>% mutate(model = "NAR"),
   group_by(model, rank) %>%
   filter(rank != 0) %>%
   summarise(n = n())
+
 
 # get segregating variants
 d_muts_adapted %>% 
@@ -555,6 +552,40 @@ d_adapted_manyfixsum <- d_adapted_manyfix %>%
 # upon plotting these above phenomeans, doesn't make any difference: trait evo
 # similar between all of them - must be the phenomeans in the fix_ranked calculation
 
+
+# Some fixations are deleterious in early steps - why?
+# Could be they are adaptive in burn-in environment, reached a high freq
+# there and then drifted the rest of the way
+# so need to calculate fitness effect of the mutation relative to that environment:
+# where they originated, and when the mutation first reached >50% frequency
+d_fix_ranked_combined %>% filter(s < 0) -> d_fix_del
+
+# need to find simulations with those muts
+d_muts_adapted %>% filter(interaction(seed, modelindex) %in%
+                            interaction(d_fix_del$seed, 
+                                        d_fix_del$modelindex)) -> d_muts_del
+
+d_muts_del %>% filter(mutID %in% d_fix_del$mutID) %>% distinct() -> d_muts_del
+
+ggplot(d_muts_del %>% filter(mutID %in% sample(unique(d_muts_del$mutID), 10)),
+       aes(x = gen, y = Freq, linetype = modelindex, group = as.factor(mutID))) + 
+  geom_line(aes(colour = as.factor(mutID)), show.legend = F) +
+  theme_bw()
+
+# d_muts_adapted %>% 
+#   filter(interaction(seed, modelindex, mutID) %in% 
+#                        interaction(d_fix_del$seed, 
+#                                    d_fix_del$modelindex, 
+#                                    d_fix_del$mutID)) -> d_muts_del
+# 
+# d_fix_del$wAA = calcAddFitness(d_fix_del$AA_pheno, 1, 0.05)
+# d_fix_del$wAa = calcAddFitness(d_fix_del$Aa_pheno, 1, 0.05)
+# d_fix_del$waa = calcAddFitness(d_fix_del$aa_pheno, 1, 0.05)
+# 
+# d_fix_del <- CalcDominance(d_fix_del)
+
+
+
 # Adapted and Maladapted
 # d_maladapted <- d_qg %>% filter(!isAdapted)
 # 
@@ -666,7 +697,7 @@ d_fix_ranked %>%
   filter(n() > 2) %>% # exclude groups with less than 2 steps
   mutate(molCompDiff = sum(abs(2 * value_aZ), na.rm = T) - sum(abs(2 * value_bZ), na.rm = T)) %>%
   ungroup() %>%
-  select(seed, molCompDiff) %>%
+  dplyr::select(seed, molCompDiff) %>%
   distinct(seed, .keep_all = T) -> d_molCompDiff
 
 d_fix_ranked %>%
