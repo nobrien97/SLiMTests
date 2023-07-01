@@ -10,28 +10,28 @@ seed <- sample(0:.Machine$integer.max, 1)
 #set.seed(seed)
 set.seed(6673185)
 
-test_add_ben <- test_add %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
-test_ben <- test %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
+mutExp_add_ben <- mutExp_add %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
+mutExp_ben <- mutExp %>% filter(s > 0) %>% ungroup() %>% as.data.frame()
 
-fit_add <- fevd(s, test_add_ben %>% select(s))
+fit_add <- fevd(s, mutExp_add_ben %>% dplyr::select(s), method = "Lmoments")
 plot(fit_add)
 # bootstrap to find CIs
 addci <- ci(fit_add, R = 1000, type = "parameter")
 
 summary(fit_add)
 
-fit_nar <- fevd(s, test_ben %>% select(s))
+fit_nar <- fevd(s, mutExp_ben %>% dplyr::select(s), method = "Lmoments")
 plot(fit_nar)
 NARci <- ci(fit_nar, R = 1000, type = "parameter")
 
 summary(fit_nar)
 
-# likelihood ratio test: is the fit different if we try to fit a Gumbel?
-fit_add_gumbel <- fevd(s, test_add_ben %>% select(s), type = "Gumbel")
-fit_gumbel <- fevd(s, test_ben %>% select(s), type = "Gumbel")
+# likelihood ratio mutExp: is the fit different if we try to fit a Gumbel?
+fit_add_gumbel <- fevd(s, mutExp_add_ben %>% select(s), type = "Gumbel")
+fit_gumbel <- fevd(s, mutExp_ben %>% select(s), type = "Gumbel")
 
-lr.test(fit_add_gumbel, fit_add)
-lr.test(fit_gumbel, fit_nar)
+lr.mutExp(fit_add_gumbel, fit_add)
+lr.mutExp(fit_gumbel, fit_nar)
 
 
 attr(addci, "class") <- NULL
@@ -53,3 +53,4 @@ ggplot(shape_plt, aes(x = effectType, y = estimate)) +
   labs(x = "Allelic effect type", y = TeX("Estimated shape parameter ($\\xi$)")) +
   theme_bw() +
   theme(text = element_text(size = 16))
+ggsave("fig_s1_evdfit.png")
