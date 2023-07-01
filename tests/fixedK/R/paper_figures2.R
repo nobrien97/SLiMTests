@@ -10,6 +10,8 @@ library(gghalves)
 library(ggstance)
 library(ggridges)
 library(ggpmisc)
+library(deSolve)
+library(DescTools)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/fixedK/R")
 source("wrangle_data.R")
@@ -54,8 +56,8 @@ plot_grid(plt_phenomean_dist + theme(legend.position = "none"),
 plot_grid(plt_fig1, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig1
 ggsave("fig1.png", plt_fig1, device = png, bg = "white")
 
-# supp fig 1 - adaptive step timing
-ggplot(d_fix_ranked_combined %>% filter(rank > 0),
+# supp fig 1 - adaptive step timing for populations not yet at the optimum
+ggplot(d_fix_ranked_combined %>% filter(rank > 0, phenomean < 1.9),
        aes(y = as.factor(rank), x = gen - 50000, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
   scale_x_continuous(labels = scales::comma) +
@@ -73,6 +75,26 @@ d_qg %>% group_by(modelindex) %>%
   summarise(n = n(),
             pAdapted = mean(isAdapted),
             CIAdapted = CI(isAdapted))
+
+# text: timing of fixations
+d_fix_ranked_combined %>% filter(rank > 0, phenomean < 1.9) %>%
+  mutate(gen = gen - 50000) %>%
+  group_by(model, rank) %>%
+  summarise(meanGen = mean(gen), CIGen = CI(gen)) -> d_meanGenTiming
+
+ggplot(d_meanGenTiming, 
+       aes(x = as.factor(rank), y = meanGen, colour = model)) +
+  geom_point() +
+  geom_errorbar(mapping = aes(ymin = meanGen - CIGen, 
+                              ymax = meanGen + CIGen),
+                width = 0.2) +
+  geom_line(aes(group = model)) +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  labs(x = "Adaptive step", y = "Mean adaptive step fixation time",
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "none") -> plt_meanGen
+plt_meanGen
 
 # fig 2 - distribution of fixations and step size over time
 d_fix_ranked_combined$model <- if_else(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
@@ -129,7 +151,7 @@ ggplot(mutExp_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour 
 plt_propbeneficial
 
 # C: Waiting time to a beneficial mutation
-ggplot(mutExp_sum_combined %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial),
+ggplot(mutExp_sum_combined %>% filter(rank < 4) %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial),
                                       CIWaitingTime_lower = 1/(10000 * (9.1528*10^-6) * (percBeneficial - CIperc)),
                                       CIWaitingTime_upper = 1/(10000 * (9.1528*10^-6) * (percBeneficial + CIperc))),
        aes(x = as.factor(rank), y = waitingTime, colour = model)) +
@@ -242,7 +264,8 @@ plotDynamics_FBA <- function(Xstart = 1,
                                          KXZ = 1,
                                          KZ = 1)) {
   params <- c(Xstart = Xstart, Xstop = Xstop, 
-              aZ = pars$aZ, bZ = pars$bZ, KXZ = pars$KXZ, KZ = pars$KZ)
+              aZ = pars$aZ, bZ = pars$bZ, KXZ = pars$KXZ, KZ = pars$KZ,
+              Hilln = 8)
   iniState <- c(Z=0, ZnoFB = 0)
   times <- seq(0,tmax,by=dt)
   solution <- ode(iniState, times, ODEs_FBA, params) %>%
@@ -251,7 +274,7 @@ plotDynamics_FBA <- function(Xstart = 1,
     mutate(X = ifelse(time > params["Xstart"] & time <= params["Xstop"], 1, 0),
            aZ = as.factor(pars$aZ), bZ = as.factor(pars$bZ), 
            KXZ = as.factor(pars$KXZ), KZ = as.factor(pars$KZ)) %>%
-    select(time, aZ, bZ, KXZ, KZ, X, Z, ZnoFB)
+    dplyr::select(time, aZ, bZ, KXZ, KZ, X, Z, ZnoFB)
   return(AUC(solution$time, solution$Z, absolutearea = T))
 }
 
@@ -259,7 +282,7 @@ plotDynamics_FBA <- function(Xstart = 1,
 genRatioLandscapeData <- function(minRatio, maxRatio) {
   GRID_RES <- 1000
   rational <- MASS:::.rat(seq(minRatio, maxRatio, length.out = GRID_RES),
-                          max.denominator = 20)$rat
+                          max.denominator = 2000)$rat
   d_grid <- data.frame(aZ = rational[,1], 
                        bZ = rational[,2],
                        KZ = 1, 
@@ -311,14 +334,20 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
   )
 }
 
-plotRatioLandscape(0.01, 3) -> plt_aZbZratio
+plotRatioLandscape(0.5, 3) -> plt_aZbZratio
 
 plt_aZbZratio +
   stat_poly_line(colour = "#AAAAAA", linetype = "dashed") +
-  stat_poly_eq(use_label(c("adj.R2", "R2.CI", "p.value"), sep = "*\"; \"*"), 
+  stat_poly_eq(use_label(c("eq", "adj.R2", "R2.CI", "p.value"), sep = "*\"; \"*"), 
                label.x = "right", colour = "#000000") -> plt_aZbZratio
 
 plt_aZbZratio
+
+# Optimum phenotype - what aZbZ ratio gives exactly 2: from the above figure,
+# it's around 1.25
+opt_pheno_ratio <- genRatioLandscapeData(1.24, 1.26)
+opt_pheno_ratio$aZbZ <- opt_pheno_ratio$aZ / opt_pheno_ratio$bZ
+opt_pheno_ratio[match(max(opt_pheno_ratio$fitness), opt_pheno_ratio$fitness),]
 
 # C - difference in evolution among alpha and beta
 ggplot(d_molCompDiff,
@@ -361,7 +390,7 @@ d_fix_ranked %>%
 # Fig 5 - Phenotype fixed vs segregating effects
 # A - correlation between phenotype of fixations only with mean phenotype
 group_means <- d_fix_ranked_combined %>% filter(rank > 0) %>%
-  group_by(modelindex) %>%
+  group_by(model) %>%
   summarise(ratio = mean(AA_pheno/phenomean),
             CIRatio = CI(AA_pheno/phenomean))
 
@@ -379,4 +408,12 @@ ggplot(d_fix_ranked_combined %>% filter(rank > 0),
   labs(x = "Model", y = "Fixed effect/mean phenotype ratio") +
   theme_bw() + 
   theme(text = element_text(size = 16), legend.position = "bottom") -> plt_fig5
+plt_fig5
+
+# Segregating variation: frequency > 25%
+d_seg_ranked_combined <- rbind(d_seg_ranked_add, d_seg_ranked)
+ggplot(d_seg_ranked_combined %>% filter(Freq >= 0.25),
+       aes(x = AA_pheno/aa_pheno, y = Freq, colour = modelindex)) +
+  geom_jitter()
+
 ggsave("fig5.png", plt_fig5, device = png)
