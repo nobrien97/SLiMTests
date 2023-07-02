@@ -136,6 +136,31 @@ ggplot(mutExp_combined, aes(y = as.factor(rank), x = s, fill = model)) +
   theme(text = element_text(size = 12), legend.position = "none") -> plt_effectsizerandom_time
 plt_effectsizerandom_time
 
+# Combined across all time points
+ggplot(mutExp_combined, aes(x = s, fill = model)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs( x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "none") -> plt_effectsizerandom
+plt_effectsizerandom
+
+# Find modes
+d <- density(mutExp$s)
+
+modes <- function(d){
+  i <- which(diff(sign(diff(d$y))) < 0) + 1
+  data.frame(x = d$x[i], y = d$y[i])
+}
+
+mutExp_modes <- modes(d)
+mutExp_modes[order(mutExp_modes$y, decreasing = T),]
+
+d_add <- density(mutExp_add$s)
+mutExp_add_modes <- modes(d_add)
+mutExp_add_modes[order(mutExp_add_modes$y, decreasing = T),]
+
+
 # B: Proportion of mutations that are beneficial
 ggplot(mutExp_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour = model)) +
   geom_point() +
@@ -397,12 +422,12 @@ group_means <- d_fix_ranked_combined %>% filter(rank > 0) %>%
 # set seed for geom_jitter
 set.seed(seed)
 ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
-       aes(x = as.factor(modelindex), y = AA_pheno/phenomean)) +
+       aes(x = as.factor(model), y = AA_pheno/phenomean)) +
   geom_jitter(size = 0.5, shape = 1, alpha = 0.3) +
-  geom_point(data = group_means, aes(y = ratio, colour = modelindex), size = 2) +
+  geom_point(data = group_means, aes(y = ratio, colour = model), size = 2) +
   geom_errorbar(data = group_means, aes(y = ratio, ymin = ratio - CIRatio,
                                         ymax = ratio + CIRatio,
-                                        colour = modelindex), width = 0.1) +
+                                        colour = model), width = 0.1) +
   scale_colour_paletteer_d("ggsci::nrc_npg", guide = NULL) +
   scale_x_discrete(labels = c("Additive", "NAR")) +
   labs(x = "Model", y = "Fixed effect/mean phenotype ratio") +
