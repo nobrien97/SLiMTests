@@ -141,15 +141,10 @@ d_fix_del %>%
             propBen = nBen/n)
 
 # Fit multimodal distribution to beneficial effects
-findModes <- function(data, i) {
-  return(modetest(sample(data$s, 300))$p.value)
-}
-findModes(mutExp, 1)
-mutExpFindModes <- boot(mutExp, findModes, R = 100, parallel = "multicore", ncpus = 8)
-mutExpAddFindModes <- boot(mutExp_add, findModes, R = 100, parallel = "multicore", ncpus = 8)
 
-boot.ci(mutExpFindModes)
-boot.ci(mutExpAddFindModes)
+ggplot(mutExp, aes(s)) + 
+  geom_density() + 
+  xlim((min(mutExp$s)-1),(max(mutExp$s)+1) )
 
 
 # Compare means - proportion of beneficial muts, waiting time to beneficial mut
