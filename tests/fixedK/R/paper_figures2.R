@@ -124,6 +124,16 @@ plot_grid(plt_distfixed,
 plot_grid(plt_fig2, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig2
 ggsave("fig2.png", plt_fig2, device = png, bg = "white")
 
+# Supp fig: dist of beneficial fixations at each step - zoom in of Fig. 2B
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
+  geom_density_ridges(alpha = 0.4) + 
+  coord_cartesian(xlim = c(0, 0.1)) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+ggsave("s_fig_driftbarrier.png", device = png)
+
 # fig 3: space of possible mutations
 source("mutationScreenExp.R")
 
@@ -442,3 +452,24 @@ ggplot(d_seg_ranked_combined %>% filter(Freq >= 0.25),
   geom_jitter()
 
 ggsave("fig5.png", plt_fig5, device = png)
+
+# Balancing selection example
+ggplot(d_com_adapted %>% filter((modelindex == 1 & seed == 1448101263 & mutID == 4624809) | 
+                                  (modelindex == 2 & seed == 2270695859 & mutID == 4607309), 
+                                gen >= 49000) %>% 
+         distinct() %>%
+         mutate(gen = gen - 50000, 
+                model = if_else(modelindex == 1, "Additive", "NAR")), 
+       aes(x = gen, y = Freq, colour = model)) +
+  geom_line(linewidth = 1) +
+  theme_bw() +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  labs(x = "Generations post-optimum shift", y = "Allele frequency", 
+       colour = "Model") +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+ggsave("sfig_balsel.png", device = png)
+
+# View the mutations' effects
+View(d_com_adapted %>% filter((modelindex == 1 & seed == 1448101263 & mutID == 4624809) | 
+                                (modelindex == 2 & seed == 2270695859 & mutID == 4607309), 
+                              gen >= 49000))
