@@ -569,6 +569,16 @@ ggplot(d_ranked_combined %>% filter(s > 0), aes(x = s, fill = model)) +
 plt_distbenfx_alltimes
 ggsave("dist_benfx_alltimes.png", device = png)
 
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
+  geom_density_ridges(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16)) -> plt_distbenfx
+plt_distbenfx
+ggsave("dist_benfx.png", device = png)
+
+
 # Dist of fixed muts - should become less exponential over time
 d_fix_ranked_combined$model <- if_else(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
 ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
