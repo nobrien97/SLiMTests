@@ -567,10 +567,68 @@ d_muts_adapted %>% filter(interaction(seed, modelindex) %in%
 
 d_muts_del %>% filter(mutID %in% d_fix_del$mutID) %>% distinct() -> d_muts_del
 
-ggplot(d_muts_del %>% filter(mutID %in% sample(unique(d_muts_del$mutID), 10)),
-       aes(x = gen, y = Freq, linetype = modelindex, group = as.factor(mutID))) + 
-  geom_line(aes(colour = as.factor(mutID)), show.legend = F) +
+# Calculate fitness effects when they arose, 
+# and when they first reached 50% or greater freq - not fixed
+d_qg_matched_seg <- d_qg %>% 
+  filter(interaction(gen, seed, modelindex) %in% 
+           interaction(d_muts_del$gen, d_muts_del$seed, d_muts_del$modelindex)) %>%
+  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+
+d_seg_del <- inner_join(d_muts_del, d_qg_matched_seg, 
+                        by = c("gen", "seed", "modelindex"))
+
+# Calculate phenotypes
+d_seg_del_add <- CalcAddEffects(d_seg_del %>% filter(modelindex == 1), isFixed = F,
+                                dat_fixed = d_fix_adapted %>% filter(modelindex == 1))
+d_seg_del <- CalcNARPhenotypeEffects(d_seg_del %>% filter(modelindex == 2), isFixed = F, 
+                        dat_fixed = d_fix_adapted %>% filter(modelindex == 2))
+
+# Fitness calculations aren't correct for those before optimum shift: recalculate
+d_seg_del[d_seg_del$gen < 50000,]$wAA <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$AA_pheno, 1, 0.05)
+d_seg_del[d_seg_del$gen < 50000,]$wAa <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$Aa_pheno, 1, 0.05)
+d_seg_del[d_seg_del$gen < 50000,]$waa <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$aa_pheno, 1, 0.05)
+d_seg_del$avFit <- d_seg_del$wAa - d_seg_del$waa
+d_seg_del$avFit_AA <- d_seg_del$wAA - d_seg_del$waa
+d_seg_del <- CalcDominance(d_seg_del)
+
+d_seg_del_add[d_seg_del_add$gen < 50000,]$wAA <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$AA_pheno, 1, 0.05)
+d_seg_del_add[d_seg_del_add$gen < 50000,]$wAa <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$Aa_pheno, 1, 0.05)
+d_seg_del_add[d_seg_del_add$gen < 50000,]$waa <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$aa_pheno, 1, 0.05)
+d_seg_del_add$avFit <- d_seg_del_add$wAa - d_seg_del_add$waa
+d_seg_del_add$avFit_AA <- d_seg_del_add$wAA - d_seg_del_add$waa
+d_seg_del_add <- CalcDominance(d_seg_del_add)
+
+d_seg_del <- rbind(d_seg_del, d_seg_del_add)
+d_seg_del$model <- ifelse(d_seg_del$modelindex == 2, "NAR", "Additive")
+rm(d_seg_del_add)
+
+# Sample a few mutations
+eg_muts <- sample(unique(d_seg_del$mutID), 10)
+
+# Plot frequency 
+ggplot(d_seg_del %>% filter(mutID %in% eg_muts),
+       aes(x = gen, y = Freq, linetype = model, 
+           group = as.factor(mutID), colour = as.factor(mutID))) + 
+  geom_line(show.legend = F) +
   theme_bw()
+
+# Plot effect over time
+ggplot(d_seg_del %>% filter(mutID %in% eg_muts),
+       aes(x = gen, y = s, linetype = model, 
+           group = as.factor(mutID), colour = as.factor(mutID))) + 
+  geom_line(show.legend = F) +
+  theme_bw()
+
+# Get the difference in selection coefficient after optimum shift
+# as well as mean frequency just prior to optimum shift
+d_seg_del %>%
+  filter(gen == 49500 | gen == 50000) %>%
+  arrange(gen) %>%
+  group_by(seed, model, mutID) %>%
+  filter(n() > 1) %>%
+  summarise(diff_s = s[2] - s[1],
+            Freq = Freq[1]) -> d_del_diffs
+
 
 # d_muts_adapted %>% 
 #   filter(interaction(seed, modelindex, mutID) %in% 

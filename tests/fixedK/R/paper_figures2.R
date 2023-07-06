@@ -473,3 +473,44 @@ ggsave("sfig_balsel.png", device = png)
 View(d_com_adapted %>% filter((modelindex == 1 & seed == 1448101263 & mutID == 4624809) | 
                                 (modelindex == 2 & seed == 2270695859 & mutID == 4607309), 
                               gen >= 49000))
+
+# Supp fig: fitness effect difference in deleterious fixations
+# Means
+d_del_diffs %>% ungroup() %>%
+  group_by(model) %>%
+  summarise(meanDiff = mean(diff_s),
+            CIDiff = CI(diff_s),
+            meanFreq = mean(Freq),
+            CIFreq = CI(Freq))
+
+# Plot distribution of differences
+ggplot(d_del_diffs, 
+       aes(x = diff_s, fill = model)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  theme_bw() +
+  labs(x = TeX("Difference in fitness effect after optimum shift $(s_1 - s_0)$"),
+       y = "Density", fill = "Model") +
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_delfixed_s
+
+ggplot(d_del_diffs, 
+       aes(x = Freq, fill = model)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  theme_bw() +
+  labs(x = "Frequency at end of burn-in (p)",
+       y = "Density", fill = "Model") +
+  theme(text = element_text(size = 16), legend.position = "none") -> plt_delfixed_freq
+
+leg <- get_legend(plt_delfixed_s)
+
+plot_grid(plt_delfixed_s + theme(legend.position = "none"),
+          plt_delfixed_freq + theme(legend.position = "none"),
+          nrow = 2,
+          labels = "AUTO") -> plt_delfixed
+plt_delfixed <- plot_grid(plt_delfixed, 
+                          leg, 
+                          nrow = 2,
+                          rel_heights = c(1, 0.1))
+plt_delfixed
+ggsave("sfig_delfixations.png", plt_delfixed, device = png, bg = "white")
