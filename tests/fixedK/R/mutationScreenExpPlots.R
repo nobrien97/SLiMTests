@@ -30,7 +30,7 @@ ggplot(mutExp_combined %>% filter(s > 0), aes(y = as.factor(rank), x = s, fill =
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_effectsizebenrandom_time
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_effectsizebenrandom_time
 plt_effectsizebenrandom_time
 
 # across all steps
@@ -39,7 +39,7 @@ ggplot(mutExp_combined, aes(x = s, fill = model)) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_effectsizerandom
+  theme(text = element_text(size = 16)) -> plt_effectsizerandom
 plt_effectsizerandom
 
 # Beneficial mutations only
@@ -48,9 +48,18 @@ ggplot(mutExp_combined %>% filter(s > 0), aes(x = s, fill = model)) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_beneffectsizerandom
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_beneffectsizerandom
 plt_beneffectsizerandom
 
+leg <- get_legend(plt_beneffectsizerandom)
+plt_ben_random <- plot_grid(plt_effectsizebenrandom_time + theme(legend.position = "none"),
+                            plt_beneffectsizerandom + theme(legend.position = "none"),
+                            labels = "AUTO",
+                            nrow = 2, align = "v")
+plt_ben_random <- plot_grid(plt_ben_random, leg, nrow = 2,
+                            rel_heights = c(1, 0.1))
+ggsave("fig_s_benrandom.png", plt_ben_random, width = 6, height = 9, 
+       device = png, bg = "white")
 
 ggplot(mutExp_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour = model)) +
   geom_point() +
