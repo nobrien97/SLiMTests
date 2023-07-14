@@ -53,11 +53,14 @@ d_qg %>% group_by(modelindex) %>%
 d_adapted <- d_qg %>% filter(isAdapted)
 
 d_adapted %>% 
-  group_by(gen, modelindex) %>%
+  mutate(model = if_else(modelindex == 1, "Additive", "NAR")) %>%
+  group_by(gen, model) %>%
   summarise(meanPheno = mean(phenomean),
             CIPheno = CI(phenomean),
             medPheno = median(phenomean),
-            modePheno = estimate_mode(phenomean)) -> d_adapted_sum
+            modePheno = estimate_mode(phenomean),
+            meanGenomeH = mean(meanH),
+            CIGenomeH = CI(meanH)) -> d_adapted_sum
 
 d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F, 
                      sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -773,3 +776,31 @@ d_fix_ranked %>%
             countEvoByaZ = sum(evoByaZ),
             countEvoBybZ = sum(evoBybZ),
             countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
+
+# measure heterozygosity at causal loci over time
+d_muts_adapted %>%
+  filter(gen > 49000, Freq < 1) %>%
+  distinct() %>%
+  ungroup() %>%
+  mutate(model = if_else(modelindex == 1, "Additive", "NAR")) %>% 
+  group_by(gen, seed, model) %>% 
+  mutate(mutPos = if_else(pos == first(pos),
+                          1,
+                          2)) %>%
+  group_by(gen, seed, model, mutPos) %>%
+  distinct(Freq, .keep_all = T) %>% # completely linked alleles (mega-alleles)
+  summarise(sumFreq = sum(Freq),
+            sumFreq2 = sum(Freq^2),
+            wildTypeFreq = 1 - sumFreq) %>%
+  ungroup() %>%
+  group_by(gen, seed, model) %>%
+  summarise(locusH = if_else(n() == 1,
+                     1 - sum(sumFreq2, wildTypeFreq^2),
+                     1 - 0.5 * sum(sumFreq2, wildTypeFreq^2))) %>%
+  ungroup() -> d_locusH
+
+d_locusH %>%
+  group_by(gen, model) %>%
+  summarise(meanLocusH = mean(locusH),
+            CILocusH = CI(locusH)) -> d_locusH_sum
+  

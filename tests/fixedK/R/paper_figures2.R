@@ -369,15 +369,16 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
   )
 }
 
-plotRatioLandscape(0.5, 3) -> plt_aZbZratio
+plotRatioLandscape(0.6, 3) -> plt_aZbZratio
 
 plt_aZbZratio +
   stat_poly_line(colour = "#AAAAAA", linetype = "dashed") +
   stat_poly_eq(use_label(c("eq", "adj.R2", "R2.CI", "p.value"), sep = "*\"; \"*"), 
                label.x = "right", colour = "#000000") -> plt_aZbZratio
 
-plt_aZbZratio
-
+plt_aZbZratio + geom_hline(yintercept = 2, linetype = "dashed") + 
+  theme(text = element_text(size = 16))
+ggsave("alphaBetaRatio.png", device = png, width = 6, height = 6)
 # Optimum phenotype - what aZbZ ratio gives exactly 2: from the above figure,
 # it's around 1.25
 opt_pheno_ratio <- genRatioLandscapeData(1.24, 1.26)
@@ -514,3 +515,28 @@ plt_delfixed <- plot_grid(plt_delfixed,
                           rel_heights = c(1, 0.1))
 plt_delfixed
 ggsave("sfig_delfixations.png", plt_delfixed, device = png, bg = "white")
+
+# Supp fig: heterozygosity
+# should be 0 most of the time if we're under SSWM
+ggplot(d_locusH_sum %>% mutate(gen = gen - 50000), 
+       aes(x = gen, y = meanLocusH, colour = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanLocusH - CILocusH, ymax = meanLocusH + CILocusH,
+                  colour = NA, fill = model),
+              alpha = 0.2) +
+  scale_colour_paletteer_d("ggsci::nrc_npg") +
+  scale_fill_paletteer_d("ggsci::nrc_npg", guide = NULL) +
+  labs(x = "Generations post-optimum shift", y = "Mean population heterozygosity") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
+ggplot(d_locusH %>% mutate(gen = gen - 50000),
+       aes(x = gen, y = locusH, fill = model)) +
+  geom_density_ridges(alpha = 0.4) + 
+  scale_fill_paletteer_d("ggsci::nrc_npg") + 
+  labs(x = "Generations post-optimum shift", y = "Mean population heterozygosity",
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
+  
