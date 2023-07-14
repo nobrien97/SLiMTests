@@ -30,6 +30,7 @@ ggplot(mutExp_combined %>% filter(s > 0), aes(y = as.factor(rank), x = s, fill =
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
   theme_bw() +
+  coord_cartesian(xlim = c(0, 0.25)) +
   theme(text = element_text(size = 16), legend.position = "bottom") -> plt_effectsizebenrandom_time
 plt_effectsizebenrandom_time
 
@@ -48,6 +49,7 @@ ggplot(mutExp_combined %>% filter(s > 0), aes(x = s, fill = model)) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(x = "Fitness effect (s)", y = "Density", fill = "Model") +
   theme_bw() +
+  coord_cartesian(xlim = c(0, 0.25)) +
   theme(text = element_text(size = 16), legend.position = "bottom") -> plt_beneffectsizerandom
 plt_beneffectsizerandom
 
