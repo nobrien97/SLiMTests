@@ -75,6 +75,11 @@ d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F,
 d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
                                     interaction(d_adapted$seed, d_adapted$modelindex))
 
+# Remove populations with more than one segregating allele
+d_muts_adapted %>%
+  group_by(seed, modelindex, gen, mutType) %>%
+  mutate(multiAllelic = n() > 1 & all(cur_group()$Freq))
+
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
 
 d_fix <- d_muts %>%
@@ -435,6 +440,20 @@ rbind(d_fix_ranked %>% mutate(model = "NAR"),
   filter(rank != 0) %>%
   summarise(n = n())
 
+# Since there aren't many populations with steps >3, we'll organise the groups
+# into 1, 2, >=3
+d_fix_ranked %>% 
+  mutate(rankFactor = ifelse(rank > 2, "\\geq 3", as.character(rank))) -> d_fix_ranked
+
+d_fix_ranked$rankFactor <- factor(d_fix_ranked$rankFactor, 
+                                  levels = c("0", "1", "2", "\\geq 3"))
+
+d_fix_ranked_add %>% 
+  mutate(rankFactor = ifelse(rank > 2, "\\geq 3", as.character(rank))) -> d_fix_ranked_add
+
+d_fix_ranked_add$rankFactor <- factor(d_fix_ranked_add$rankFactor, 
+                                  levels = c("0", "1", "2", "\\geq 3"))
+
 
 # get segregating variants
 d_muts_adapted %>% 
@@ -778,25 +797,15 @@ d_fix_ranked %>%
             countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
 
 # measure heterozygosity at causal loci over time
+# Assume that each mutation is happening at a distinct base pair 
+# within the simulated locus 
 d_muts_adapted %>%
   filter(gen > 49000, Freq < 1) %>%
   distinct() %>%
   ungroup() %>%
   mutate(model = if_else(modelindex == 1, "Additive", "NAR")) %>% 
   group_by(gen, seed, model) %>% 
-  mutate(mutPos = if_else(pos == first(pos),
-                          1,
-                          2)) %>%
-  group_by(gen, seed, model, mutPos) %>%
-  distinct(Freq, .keep_all = T) %>% # completely linked alleles (mega-alleles)
-  summarise(sumFreq = sum(Freq),
-            sumFreq2 = sum(Freq^2),
-            wildTypeFreq = 1 - sumFreq) %>%
-  ungroup() %>%
-  group_by(gen, seed, model) %>%
-  summarise(locusH = if_else(n() == 1,
-                     1 - sum(sumFreq2, wildTypeFreq^2),
-                     1 - 0.5 * sum(sumFreq2, wildTypeFreq^2))) %>%
+  summarise(locusH = 1 - 1/n() * sum(Freq^2, (1-Freq)^2)) %>%
   ungroup() -> d_locusH
 
 d_locusH %>%
