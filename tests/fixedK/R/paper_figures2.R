@@ -18,7 +18,7 @@ source("wrangle_data.R")
 
 # Fig 1: phenomean and adaptive walk
 # A - phenomean ridgeline plot
-d_adapted_walk <- d_adapted %>% filter(gen > 49000)
+d_adapted_walk <- d_adapted %>% filter(gen >= 49000)
 breaks <- seq(min(d_adapted_walk$gen - 50000), max(d_adapted_walk$gen - 50000), by = 1000)
 
 d_adapted_walk$gen_group <- breaks[findInterval(d_adapted_walk$gen - 50000, breaks, rightmost.closed = TRUE)]
@@ -35,11 +35,13 @@ ggplot(d_adapted_walk,
 plt_phenomean_dist
 
 # B: phenotype at each step
+step_labs <- paste0("$", levels(d_fix_ranked_combined$rankFactor), "$")
 ggplot(d_fix_ranked_combined,
-       aes(y = as.factor(rank), x = phenomean, fill = model)) +
+       aes(y = rankFactor, x = phenomean, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
   geom_vline(xintercept = 2, linetype = "dashed") +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_y_discrete(labels = parse(text=TeX(step_labs))) +
   labs(y = "Adaptive step", x = "Phenotype mean", 
        fill = "Model") +
   theme_bw() +
@@ -58,9 +60,10 @@ ggsave("fig1.png", plt_fig1, device = png, bg = "white")
 
 # supp fig 1 - adaptive step timing for populations not yet at the optimum
 ggplot(d_fix_ranked_combined %>% filter(rank > 0, phenomean < 1.9),
-       aes(y = as.factor(rank), x = gen - 50000, fill = model)) +
+       aes(y = rankFactor, x = gen - 50000, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
   scale_x_continuous(labels = scales::comma) +
+  scale_y_discrete(labels = parse(text=TeX(step_labs[2:4]))) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Generations post-optimum shift", 
        fill = "Model") +
@@ -79,17 +82,18 @@ d_qg %>% group_by(modelindex) %>%
 # text: timing of fixations
 d_fix_ranked_combined %>% filter(rank > 0, phenomean < 1.9) %>%
   mutate(gen = gen - 50000) %>%
-  group_by(model, rank) %>%
+  group_by(model, rankFactor) %>%
   summarise(meanGen = mean(gen), CIGen = CI(gen)) -> d_meanGenTiming
 
 ggplot(d_meanGenTiming, 
-       aes(x = as.factor(rank), y = meanGen, colour = model)) +
+       aes(x = rankFactor, y = meanGen, colour = model)) +
   geom_point() +
   geom_errorbar(mapping = aes(ymin = meanGen - CIGen, 
                               ymax = meanGen + CIGen),
                 width = 0.2) +
   geom_line(aes(group = model)) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
+  scale_x_discrete(labels = parse(text=TeX(step_labs[2:4]))) +
   labs(x = "Adaptive step", y = "Mean adaptive step fixation time",
        colour = "Model") +
   theme_bw() +
@@ -108,9 +112,11 @@ ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, fill = model)) +
 plt_distfixed
 
 
-ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
+       aes(x = s, y = rankFactor, fill = model)) +
   geom_density_ridges(alpha = 0.4) + 
   scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_y_discrete(labels = parse(text=TeX(step_labs[2:4]))) +
   labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "none") -> plt_distfixed_time
@@ -125,9 +131,11 @@ plot_grid(plt_fig2, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig2
 ggsave("fig2.png", plt_fig2, device = png, bg = "white")
 
 # Supp fig: dist of beneficial fixations at each step - zoom in of Fig. 2B
-ggplot(d_fix_ranked_combined %>% filter(rank > 0), aes(x = s, y = as.factor(rank), fill = model)) +
+ggplot(d_fix_ranked_combined %>% filter(rank > 0), 
+       aes(x = s, y = rankFactor, fill = model)) +
   geom_density_ridges(alpha = 0.4) + 
   coord_cartesian(xlim = c(0, 0.1)) +
+  scale_y_discrete(labels = parse(text=TeX(step_labs[2:4]))) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
   theme_bw() +
@@ -138,9 +146,10 @@ ggsave("s_fig_driftbarrier.png", device = png)
 source("mutationScreenExp.R")
 
 # A: all possible mutations at each step
-ggplot(mutExp_combined, aes(y = as.factor(rank), x = s, fill = model)) +
+ggplot(mutExp_combined, aes(y = rankFactor, x = s, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
+  scale_y_discrete(labels = parse(text=TeX(step_labs))) +
   labs(y = "Adaptive step", x = "Fitness effect (s)", fill = "Model") +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "none") -> plt_effectsizerandom_time
@@ -172,13 +181,14 @@ mutExp_add_modes[order(mutExp_add_modes$y, decreasing = T),]
 
 
 # B: Proportion of mutations that are beneficial
-ggplot(mutExp_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour = model)) +
+ggplot(mutExp_sum_combined, aes(x = rankFactor, y = percBeneficial, colour = model)) +
   geom_point() +
   geom_errorbar(mapping = aes(ymin = percBeneficial - CIperc, 
                               ymax = percBeneficial + CIperc),
                 width = 0.2) +
   geom_line(aes(group = model)) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
+  scale_x_discrete(labels = parse(text=TeX(step_labs))) +
   labs(x = "Adaptive step", y = "Proportion of\nbeneficial mutations (s > 0)",
        colour = "Model") +
   theme_bw() +
@@ -186,14 +196,15 @@ ggplot(mutExp_sum_combined, aes(x = as.factor(rank), y = percBeneficial, colour 
 plt_propbeneficial
 
 # C: Waiting time to a beneficial mutation
-ggplot(mutExp_sum_combined %>% filter(rank < 4) %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial),
+ggplot(mutExp_sum_combined %>% mutate(waitingTime = 1/(10000 * (9.1528*10^-6) * percBeneficial),
                                       CIWaitingTime_lower = 1/(10000 * (9.1528*10^-6) * (percBeneficial - CIperc)),
                                       CIWaitingTime_upper = 1/(10000 * (9.1528*10^-6) * (percBeneficial + CIperc))),
-       aes(x = as.factor(rank), y = waitingTime, colour = model)) +
+       aes(x = rankFactor, y = waitingTime, colour = model)) +
   geom_point() +
   geom_errorbar(mapping = aes(ymin = CIWaitingTime_lower, 
                               ymax = CIWaitingTime_upper),
                 width = 0.2) +
+  scale_x_discrete(labels = parse(text=TeX(step_labs))) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   geom_line(aes(group=model)) +
   labs(x = "Adaptive step", y = "Expected waiting time\nto beneficial mutation", colour = "Model") +
@@ -201,19 +212,25 @@ ggplot(mutExp_sum_combined %>% filter(rank < 4) %>% mutate(waitingTime = 1/(1000
   theme(text = element_text(size = 12), legend.position = "none") -> plt_waitingtime
 plt_waitingtime
 
-plot_grid(plt_effectsizerandom_time, 
-          plt_propbeneficial, 
-          plt_waitingtime,
-          nrow = 3,
-          labels = "AUTO") -> plt_fig3
+right_col <- plot_grid(plt_propbeneficial, 
+                       plt_waitingtime,
+                       ncol = 1,
+                       labels = c("B", "C"))
 
+plot_grid(plt_effectsizerandom_time, 
+          right_col, 
+          ncol = 2,
+          labels = "AUTO", rel_heights = c(2, 1)) -> plt_fig3
 plot_grid(plt_fig3, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig3
 plt_fig3
-ggsave("fig3.png", plt_fig3, width = 4, height = 10, device = png, bg = "white")
+
+ggsave("fig3.png", plt_fig3, width = 10, height = 6, device = png, bg = "white")
 
 # supp fig 2 - distribution of percentage beneficial
-ggplot(mutExp_perc_combined, aes(y = as.factor(rank), x = percBeneficial, fill = model)) +
+ggplot(mutExp_perc_combined, 
+       aes(y = rankFactor, x = percBeneficial, fill = model)) +
   geom_density_ridges(alpha = 0.4) +
+  scale_y_discrete(labels = parse(text=TeX(step_labs))) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   labs(y = "Adaptive step", x = "Proportion of beneficial mutations (s > 0)", fill = "Model") +
   theme_bw() +
@@ -389,10 +406,75 @@ opt_pheno_ratio[match(max(opt_pheno_ratio$fitness), opt_pheno_ratio$fitness),]
 ggplot(d_molCompDiff,
        aes(x = molCompDiff)) +
   geom_density() +
-  labs(x = "Molecular component\ncontribution", y = "Density") +
+  labs(x = TeX("Molecular component contribution ($\\phi_{\\alpha_Z \\beta_Z} = $\\Sigma | \\textbf{a}_{\\alpha_Z} | - \\Sigma | \\textbf{a}_{\\beta_Z} |$)"), y = "Density") +
   theme_bw() + 
   theme(text = element_text(size = 16)) -> plt_molCompDiff
 plt_molCompDiff
+
+# D - alpha vs beta/alpha landscape
+plotbZaZvsaZLandscape <- function(minValaZ, maxValaZ, minRatio, maxRatio) {
+  GRID_RES <- 400
+  aZVals <- seq(minValaZ, maxValaZ, length.out = GRID_RES)
+  ratios <- seq(minRatio, maxRatio, length.out = GRID_RES)
+  combos <- expand.grid(aZVals, ratios)
+  colnames(combos) <- c("aZVals", "ratios")
+  
+  # calculate beta values from aZ values and ratios
+  combos$bZVals <- combos$aZVals * combos$ratios
+  
+  d_grid <- data.frame(aZ = combos$aZVals, 
+                       bZ = combos$bZVals,
+                       KZ = 1, 
+                       KXZ = 1) %>% distinct()
+  
+  d_landscape <- data.frame(pheno = numeric(nrow(d_grid)), 
+                       aZ = numeric(nrow(d_grid)), 
+                       bZ = numeric(nrow(d_grid)), 
+                       KZ = numeric(nrow(d_grid)),  
+                       KXZ = numeric(nrow(d_grid)))
+  pb <- progress::progress_bar$new(
+    format = "  Running [:bar] :percent in :elapsedfull",
+    total = 100, clear = FALSE, width = 60)  
+  
+  for (i in seq_len(nrow(d_grid))) {
+    pb$tick()
+    pheno <- plotDynamics_FBA(pars = as.list(d_grid[i,]))
+    d_landscape[i,] <- c(pheno, d_grid[i,])
+  }
+  d_landscape$fitness <- calcAddFitness(result$pheno, 2, 0.05)
+  
+  
+  #write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+  
+  #d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
+  cc <- paletteer_c("viridis::viridis", 3, direction = 1)
+  
+  minFit <- 0.8 #min(d_landscape$fitness)
+  maxFit <- max(d_landscape$fitness)
+  # Rescale fitness values so we can change gradient breaks
+  wValues <- c(0,
+               (0.90-minFit)/(maxFit - minFit),
+               (0.99-minFit)/(maxFit - minFit),
+               1)
+  
+  suppressWarnings(
+    ggplot(d_landscape %>% mutate(bZaZ = bZ/aZ), 
+           aes(x = aZ, y = bZaZ, colour = fitness)) +
+      geom_point() +
+      scale_colour_gradientn(colors = c(cc[1], cc), 
+                           limits = c(minFit, 1),
+                           values = wValues, na.value = cc[1]) +
+      labs(x = TeX("$\\alpha_Z$"), y = TeX("$\\beta_Z/\\alpha_Z$"), 
+           colour = "Fitness (w)") +
+      theme_bw() + 
+      theme(legend.position = "bottom", text = element_text(size = 14)) +
+      guides(
+        colour = guide_colourbar(barwidth = 10, title.vjust = 0.87)) # i love magic numbers
+    )
+}
+plotbZaZvsaZLandscape(0, 3, 0, 3) -> plt_bZaZ_aZ_landscape
+plt_bZaZ_aZ_landscape
+
 
 leg <- get_legend(plt_aZbZ_landscape)
 
@@ -493,6 +575,10 @@ ggplot(d_del_diffs,
   labs(x = TeX("Difference in fitness effect after optimum shift $(s_1 - s_0)$"),
        y = "Density", fill = "Model") +
   theme(text = element_text(size = 16), legend.position = "bottom") -> plt_delfixed_s
+
+ggplot(d_adapted %>% filter(gen > 49000), 
+       aes(x = gen, y = meanH, colour = modelindex)) +
+  geom_line()
 
 ggplot(d_del_diffs, 
        aes(x = Freq, fill = model)) +
