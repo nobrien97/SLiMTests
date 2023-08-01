@@ -135,25 +135,25 @@ mutExp_combined$model <- ifelse(mutExp_combined$modelindex == 1, "Additive", "NA
 # percentage of mutations beneficial, expected waiting time for beneficial mutation,
 # mean effect of mutations
 mutExp %>% 
-  group_by(rank) %>%
+  group_by(rankFactor) %>%
   summarise(percBeneficial = mean(as.integer(s > 0)),
             CIperc = CI(as.integer(s > 0)),
             meanEffect = mean(s),
             CIEffect = CI(s)) -> mutExp_sum
 
 mutExp %>%
-  group_by(rank, seed) %>%
+  group_by(rankFactor, seed) %>%
   summarise(percBeneficial = mean(as.integer(s > 0))) -> mutExp_percBeneficial
 
 mutExp_add %>% 
-  group_by(rank) %>%
+  group_by(rankFactor) %>%
   summarise(percBeneficial = mean(as.integer(s > 0)),
             CIperc = CI(as.integer(s > 0)),
             meanEffect = mean(s),
             CIEffect = CI(s)) -> mutExp_add_sum
 
 mutExp_add %>%
-  group_by(rank, seed) %>%
+  group_by(rankFactor, seed) %>%
   summarise(percBeneficial = mean(as.integer(s > 0))) -> mutExp_add_percBeneficial
 
 
