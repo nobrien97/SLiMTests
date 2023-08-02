@@ -75,11 +75,6 @@ d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F,
 d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
                                     interaction(d_adapted$seed, d_adapted$modelindex))
 
-# Remove populations with more than one segregating allele
-d_muts_adapted %>%
-  group_by(seed, modelindex, gen, mutType) %>%
-  mutate(multiAllelic = n() > 1 & all(cur_group()$Freq))
-
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
 
 d_fix <- d_muts %>%
@@ -93,7 +88,7 @@ d_fix_adapted <- d_fix %>% filter(interaction(seed, modelindex) %in%
 d_fix_adapted$fixTime <- d_fix_adapted$gen - d_fix_adapted$originGen
 
 # every model had at least 1 fixation
-length(unique(interaction(d_fix$seed, d_fix$modelindex)))
+# length(unique(interaction(d_fix$seed, d_fix$modelindex)))
 
 
 d_indPheno <- read.table(paste0(data_path, "slim_indPheno.csv"), header = F, 
