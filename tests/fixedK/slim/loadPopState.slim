@@ -18,7 +18,7 @@ initialize() {
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
-	setCfgParam("popPath", "/mnt/d/SLiMTests/tests/fixedK/moreReps/pop_states/slim_popstate13_32.bin");
+	setCfgParam("popPath", "/mnt/d/SLiMTests/tests/fixedK/moreReps/pop_states/slim_popstate1456854714_2.bin");
 	setCfgParam("mu", 9.1528e-6); // Mutation rate averaged across two samples of A. thaliana from Table 1 Aston et al. 2017, transformed to per locus by multiplying by 1346 (Xu et al. 2006) 
 	setCfgParam("N", 5000); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
@@ -173,6 +173,7 @@ fitness(m6) {
 	assignQTLPositions();
 	
 	sim.readFromPopulationFile(popPath);
+	setSeed(asInteger(strsplit(strsplit(popPath, "popstate")[1], "_")[0]));
 }
 
 // Burn-in under stabilising selection
