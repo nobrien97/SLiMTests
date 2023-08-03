@@ -27,7 +27,7 @@ fi
 
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # Run the model
-$HOME/SLiM/slim -s ${SEED} -d modelindex=$MODELINDEX -d nloci=${NLOCI} -d popPath=${POPFILE} $TESTDIR/slim/$MODEL
+$HOME/SLiM/slim -s ${SEED} -d modelindex=$MODELINDEX -d nloci=${NLOCI} -d popPath=\"${POPFILE}\" $TESTDIR/slim/$MODEL
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"
