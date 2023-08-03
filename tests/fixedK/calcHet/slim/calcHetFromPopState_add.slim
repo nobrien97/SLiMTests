@@ -10,6 +10,8 @@ initialize() {
 	}
 	
 	defineConstant("wd", "/home/564/nb9894/tests/fixedK/moreReps2/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/fixedK/additive/slim/"); //
+	//defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/fixedK/moreReps2/slim/"); // 
+
 	// Load functions from file
 	source(paste0(wd, "addFns.slim"));
 	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -17,7 +19,7 @@ initialize() {
 	
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
-	setCfgParam("popPath", "/mnt/d/SLiMTests/tests/fixedK/moreReps/pop_states/slim_popstate1456854714_2.bin"); // set on cli
+	setCfgParam("popPath", "/mnt/c/GitHub/SLiMTests/tests/fixedK/pop_states/slim_popstate995657675_1.bin"); // set on cli
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
 	setCfgParam("mu", 9.1528e-6); // Mutation rate averaged across five species from Table 1 Aston et al. 2017 
 	setCfgParam("N", 5000 ); // Population size
@@ -228,8 +230,8 @@ fitness(m3) {
 
 function (void) writeHetData(void) {
 	hets = calcHeterozygosityAtPosition(p1.individuals, sim.getValue("pos_QTL")[0:1]);
-	hetFile = paste(asString(seed), modelindex, hets, sep = ",");
-	writeFile(outHet, hetFile);
+	hetFile = paste(sim.generation, asString(seed), modelindex, hets, sep = ",");
+	writeFile(outHet, hetFile, append = T);
 }
 
 // Adaptation + output
@@ -263,7 +265,7 @@ s2 late() {
 		//		system(paste0("mv ./", outRel, " ", moveDir));
 		//system(paste0("mv ./", outGenMap, " ", moveDir));
 		//system(paste0("mv ./", outFX, " ", moveDir));
-		//system(paste0("mv ./", outQG, " ", moveDir));
+		system(paste0("mv ./", outQG, " ", moveDir));
 		//system(paste0("mv ./", outInd, " ", moveDir));
 		//system(paste0("mv ./", outMutsInd, " ", moveDir));
 		//system(paste0("mv ./", outPopState, " ", moveDir));
