@@ -20,7 +20,7 @@ fi
 MODEL=calcHetFromPopState_add.slim
 NLOCI=2
 # If we are asking for more than 2 loci, we're running a network model and need to switch files
-if [[ "${MODELINDEX}" != 2 ]]; then
+if [[ ${MODELINDEX} == 2 ]]; then
    MODEL=calcHetFromPopState_net.slim
    NLOCI=4
 fi
