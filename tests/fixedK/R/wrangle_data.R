@@ -63,14 +63,14 @@ d_adapted %>%
             CIGenomeH = CI(meanH)) -> d_adapted_sum
 
 d_muts <- read.table(paste0(data_path, "slim_muts.csv"), header = F, 
-                     sep = ",", colClasses = c("integer", "factor", "factor", 
-                                               "factor", rep("integer", times = 4),
-                                               rep("numeric", times = 3),
-                                               rep("integer", times = 2)), 
-                     col.names = c("gen", "seed", "modelindex", "mutType", "mutID",
-                                   "pos", "constraint", "originGen", "value", "chi",
-                                   "Freq", "Count", "fixGen"), 
-                     fill = T)
+                   sep = ",", colClasses = c("integer", "factor", "factor", 
+                                             "factor", rep("integer", times = 4),
+                                             rep("numeric", times = 3),
+                                             rep("integer", times = 2)), 
+                   col.names = c("gen", "seed", "modelindex", "mutType", "mutID",
+                                 "pos", "constraint", "originGen", "value", "chi",
+                                 "Freq", "Count", "fixGen"), 
+                   fill = T)
 
 d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
                                     interaction(d_adapted$seed, d_adapted$modelindex))
@@ -90,18 +90,53 @@ d_fix_adapted$fixTime <- d_fix_adapted$gen - d_fix_adapted$originGen
 # every model had at least 1 fixation
 # length(unique(interaction(d_fix$seed, d_fix$modelindex)))
 
+# observed heterozygosity
+d_het <- read.table("/mnt/d/SLiMTests/tests/fixedK/calcHet/slim_locusHo.csv", 
+                     header = F, sep = ",", 
+                     colClasses = c("integer", "factor", "factor", "numeric", "numeric"), 
+                                    col.names = c("gen", "seed", "modelindex", "Ho_l1", "Ho_l2"), 
+                                    fill = T)
+  
+d_het %>% pivot_longer(cols = c(Ho_l1, Ho_l2), names_to = "locus", values_to = "Ho") %>%
+  group_by(modelindex) %>%
+  summarise(meanHo = mean(Ho),
+            CIHo = CI(Ho))
 
-d_indPheno <- read.table(paste0(data_path, "slim_indPheno.csv"), header = F, 
-                     sep = ",", colClasses = c("integer", "factor", "factor",
-                                               "integer", rep("numeric", times = 5)), 
-                     col.names = c("gen", "seed", "modelindex", "index", "pheno",
-                                   "aZ", "bZ", "KZ", "KXZ"), 
-                     fill = T)
+d_Ho <- d_het %>% 
+  pivot_longer(cols = c(Ho_l1, Ho_l2), names_to = "locus", values_to = "Ho") %>%
+  mutate(model = ifelse(modelindex == 1, "Additive", "NAR"))
 
-d_indPheno_adapted <- d_indPheno %>% filter(interaction(gen, seed, modelindex) %in% 
-                                    interaction(d_fix_adapted$gen, d_fix_adapted$seed, d_fix_adapted$modelindex))
+d_Ho %>%
+  group_by(gen, model) %>%
+  summarise(meanHo = mean(Ho),
+            CIHo = CI(Ho)) -> d_Ho_sum
 
-rm(d_indPheno)
+View(d_Ho %>%
+  group_by(model) %>%
+  summarise(meanHo = mean(Ho),
+            CIHo = CI(Ho)))
+
+
+
+  
+
+# is the repeat simulation identical to the original?
+d_qg_het <- read.table("/mnt/d/SLiMTests/tests/fixedK/calcHet/slim_qg.csv", 
+                       sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                 rep("numeric", times = 12)), 
+                       col.names = c("gen", "seed", "modelindex", "meanH", "VA",
+                                     "phenomean", "phenovar", "dist", "w", "deltaPheno",
+                                     "deltaw", "aZ", "bZ", "KZ", "KXZ"), 
+                       fill = T)
+
+d_qg_het %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  ungroup() -> d_qg_het
+
+d_adapted_het <- d_qg_het %>% filter(isAdapted)
+
 
 # Get fitness effect by subtracting fitness
 d_fix_add <- d_fix_adapted %>% filter(modelindex == 1)
@@ -374,7 +409,7 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, 
+      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, originGen,
                       value, aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ,
                       avFX, avFit, avFit_AA, avFX_AA, AA_pheno, Aa_pheno, aa_pheno,
                       wAA, wAa, waa, s, h))
@@ -397,9 +432,10 @@ RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
       group_by(seed, modelindex) %>%
       arrange(gen, .by_group = T) %>%
       mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, fixEffectSum,
-                      value, value_AA, aZ, bZ, phenomean, w, avFit, avFit_AA, 
-                      AA_pheno, Aa_pheno, aa_pheno, wAA, wAa, waa, s, h))
+      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, originGen,
+                      fixEffectSum, value, value_AA, aZ, bZ, phenomean, w, 
+                      avFit, avFit_AA, AA_pheno, Aa_pheno, aa_pheno, 
+                      wAA, wAa, waa, s, h))
     
     step0_pheno <- d_adapted %>% 
       filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
@@ -790,21 +826,3 @@ d_fix_ranked %>%
             countEvoByaZ = sum(evoByaZ),
             countEvoBybZ = sum(evoBybZ),
             countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
-
-# measure heterozygosity at causal loci over time
-# Assume that each mutation is happening at a distinct base pair 
-# within the simulated locus 
-d_muts_adapted %>%
-  filter(gen > 49000, Freq < 1) %>%
-  distinct() %>%
-  ungroup() %>%
-  mutate(model = if_else(modelindex == 1, "Additive", "NAR")) %>% 
-  group_by(gen, seed, model) %>% 
-  summarise(locusH = 1 - 1/n() * sum(Freq^2, (1-Freq)^2)) %>%
-  ungroup() -> d_locusH
-
-d_locusH %>%
-  group_by(gen, model) %>%
-  summarise(meanLocusH = mean(locusH),
-            CILocusH = CI(locusH)) -> d_locusH_sum
-  
