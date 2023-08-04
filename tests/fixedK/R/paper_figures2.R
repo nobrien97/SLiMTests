@@ -598,11 +598,12 @@ ggplot(d_Ho_sum %>% mutate(gen = gen - 50000),
   geom_ribbon(aes(ymin = meanHo - CIHo, ymax = meanHo + CIHo,
                   colour = NA, fill = model),
               alpha = 0.2) +
+  scale_x_continuous(labels = scales::comma) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   scale_fill_paletteer_d("ggsci::nrc_npg", guide = NULL) +
   labs(x = "Generations post-optimum shift", y = "Mean population heterozygosity",
        colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom") -> plt_Ho
-
+plt_Ho
 ggsave("s_fig_het.png", plt_Ho, device = png)
