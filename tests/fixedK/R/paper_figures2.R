@@ -377,7 +377,7 @@ plotRatioLandscape <- function(minRatio, maxRatio) {
       scale_colour_gradientn(colors = c(cc[1], cc), 
                              limits = c(ifelse(minFit < 0.8, 0.8, minFit), 1),
                              values = wValues, na.value = cc[1]) +
-      labs(x = TeX("$\\frac{\\alpha_Z}{\\beta_Z} ratio$"), y = "Phenotype", 
+      labs(x = TeX("$\\alpha_Z / \\beta_Z$"), y = "Phenotype", 
            colour = "Fitness (w)") +
       theme_bw() + 
       theme(legend.position = "bottom", text = element_text(size = 14)) +
@@ -390,11 +390,13 @@ plotRatioLandscape(0.6, 3) -> plt_aZbZratio
 
 plt_aZbZratio +
   stat_poly_line(colour = "#AAAAAA", linetype = "dashed") +
-  stat_poly_eq(use_label(c("eq", "adj.R2", "R2.CI", "p.value"), sep = "*\"; \"*"), 
-               label.x = "right", colour = "#000000") -> plt_aZbZratio
+  stat_poly_eq(use_label(c("adj.R2", "p.value"), sep = "*\"; \"*"), 
+               label.x = "right", colour = "#000000") +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  theme(text = element_text(size = 14)) -> plt_aZbZratio
 
 plt_aZbZratio + geom_hline(yintercept = 2, linetype = "dashed") + 
-  theme(text = element_text(size = 16))
+  theme(text = element_text(size = 14))
 ggsave("alphaBetaRatio.png", device = png, width = 6, height = 6)
 # Optimum phenotype - what aZbZ ratio gives exactly 2: from the above figure,
 # it's around 1.25
@@ -406,9 +408,9 @@ opt_pheno_ratio[match(max(opt_pheno_ratio$fitness), opt_pheno_ratio$fitness),]
 ggplot(d_molCompDiff,
        aes(x = molCompDiff)) +
   geom_density() +
-  labs(x = TeX("Molecular component contribution ($\\phi_{\\alpha_Z \\beta_Z} = $\\Sigma | \\textbf{a}_{\\alpha_Z} | - \\Sigma | \\textbf{a}_{\\beta_Z} |$)"), y = "Density") +
+  labs(x = TeX("Molecular component contribution ($\\phi_{\\alpha_Z \\beta_Z}$)"), y = "Density") +
   theme_bw() + 
-  theme(text = element_text(size = 16)) -> plt_molCompDiff
+  theme(text = element_text(size = 14)) -> plt_molCompDiff
 plt_molCompDiff
 
 # D - alpha vs beta/alpha landscape
@@ -422,31 +424,31 @@ plotbZaZvsaZLandscape <- function(minValaZ, maxValaZ, minRatio, maxRatio) {
   # calculate beta values from aZ values and ratios
   combos$bZVals <- combos$aZVals * combos$ratios
   
-  d_grid <- data.frame(aZ = combos$aZVals, 
+  d_grid <- data.frame(aZ = combos$aZVals,
                        bZ = combos$bZVals,
-                       KZ = 1, 
+                       KZ = 1,
                        KXZ = 1) %>% distinct()
+   
+  # d_landscape <- data.frame(pheno = numeric(nrow(d_grid)), 
+  #                      aZ = numeric(nrow(d_grid)), 
+  #                      bZ = numeric(nrow(d_grid)), 
+  #                      KZ = numeric(nrow(d_grid)),  
+  #                      KXZ = numeric(nrow(d_grid)))
+  # pb <- progress::progress_bar$new(
+  #   format = "  Running [:bar] :percent in :elapsedfull",
+  #   total = 100, clear = FALSE, width = 60)  
+  # 
+  # for (i in seq_len(nrow(d_grid))) {
+  #   pb$tick()
+  #   pheno <- plotDynamics_FBA(pars = as.list(d_grid[i,]))
+  #   d_landscape[i,] <- c(pheno, d_grid[i,])
+  # }
+  # d_landscape$fitness <- calcAddFitness(result$pheno, 2, 0.05)
   
-  d_landscape <- data.frame(pheno = numeric(nrow(d_grid)), 
-                       aZ = numeric(nrow(d_grid)), 
-                       bZ = numeric(nrow(d_grid)), 
-                       KZ = numeric(nrow(d_grid)),  
-                       KXZ = numeric(nrow(d_grid)))
-  pb <- progress::progress_bar$new(
-    format = "  Running [:bar] :percent in :elapsedfull",
-    total = 100, clear = FALSE, width = 60)  
   
-  for (i in seq_len(nrow(d_grid))) {
-    pb$tick()
-    pheno <- plotDynamics_FBA(pars = as.list(d_grid[i,]))
-    d_landscape[i,] <- c(pheno, d_grid[i,])
-  }
-  d_landscape$fitness <- calcAddFitness(result$pheno, 2, 0.05)
-  
-  
-  #write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
-  
-  #d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
+  write.table(d_grid, "d_pairinput.csv", sep = ",", col.names = F, row.names = F)
+
+  d_landscape <- runLandscaper("d_pairinput.csv", "d_pairwiselandscape.csv", 0.05, 2, 8)
   cc <- paletteer_c("viridis::viridis", 3, direction = 1)
   
   minFit <- 0.8 #min(d_landscape$fitness)
@@ -479,31 +481,17 @@ plt_bZaZ_aZ_landscape
 leg <- get_legend(plt_aZbZ_landscape)
 
 plot_grid(plt_aZbZ_landscape + theme(legend.position = "none"), 
+          plt_bZaZ_aZ_landscape + theme(legend.position = "none"),
           plt_aZbZratio + theme(legend.position = "none"), 
           plt_molCompDiff,
-          nrow = 3,
+          nrow = 2,
           labels = "AUTO") -> plt_fig4
 
 plot_grid(plt_fig4, leg, nrow = 2, rel_heights = c(1, 0.1)) -> plt_fig4
 plt_fig4
-ggsave("fig4.png", plt_fig4, width = 4, height = 12, device = png, bg = "white")
+ggsave("fig4.png", plt_fig4, width = 10, height = 8, device = png, bg = "white")
 
-# percentage of models with more than 1 step that used only alpha, only beta, or both
-d_fix_ranked %>%
-  mutate(value_aZ = if_else(mutType == 3, value, 0),
-         value_bZ = if_else(mutType == 4, value, 0)) %>%
-  group_by(seed) %>%
-  filter(n() > 2) %>% # exclude groups with less than 2 steps
-  mutate(evoBybZ = all(value_aZ == 0, na.rm = T),
-         evoByaZ = all(value_bZ == 0, na.rm = T)) %>%
-  ungroup() %>%
-  distinct(seed, .keep_all = T) %>% 
-  summarise(percEvoByaZ = mean(evoByaZ),
-            percEvoBybZ = mean(evoBybZ),
-            percEvoByBoth = 1 - (percEvoByaZ + percEvoBybZ),
-            countEvoByaZ = sum(evoByaZ),
-            countEvoBybZ = sum(evoBybZ),
-            countEvoByBoth = n() - (countEvoByaZ + countEvoBybZ))
+
 
 # Fig 5 - Phenotype fixed vs segregating effects
 # A - correlation between phenotype of fixations only with mean phenotype
@@ -604,25 +592,17 @@ ggsave("sfig_delfixations.png", plt_delfixed, device = png, bg = "white")
 
 # Supp fig: heterozygosity
 # should be 0 most of the time if we're under SSWM
-ggplot(d_locusH_sum %>% mutate(gen = gen - 50000), 
-       aes(x = gen, y = meanLocusH, colour = model)) +
+ggplot(d_Ho_sum %>% mutate(gen = gen - 50000), 
+       aes(x = gen, y = meanHo, colour = model)) +
   geom_line() +
-  geom_ribbon(aes(ymin = meanLocusH - CILocusH, ymax = meanLocusH + CILocusH,
+  geom_ribbon(aes(ymin = meanHo - CIHo, ymax = meanHo + CIHo,
                   colour = NA, fill = model),
               alpha = 0.2) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   scale_fill_paletteer_d("ggsci::nrc_npg", guide = NULL) +
-  labs(x = "Generations post-optimum shift", y = "Mean population heterozygosity") +
-  theme_bw() +
-  theme(text = element_text(size = 16), legend.position = "bottom")
-
-ggplot(d_locusH %>% mutate(gen = gen - 50000),
-       aes(x = gen, y = locusH, fill = model)) +
-  geom_density_ridges(alpha = 0.4) + 
-  scale_fill_paletteer_d("ggsci::nrc_npg") + 
   labs(x = "Generations post-optimum shift", y = "Mean population heterozygosity",
-       fill = "Model") +
+       colour = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 16), legend.position = "bottom")
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_Ho
 
-  
+ggsave("s_fig_het.png", plt_Ho, device = png)
