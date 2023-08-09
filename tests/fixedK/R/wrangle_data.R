@@ -97,11 +97,6 @@ d_het <- read.table("/mnt/d/SLiMTests/tests/fixedK/calcHet/slim_locusHo.csv",
                                     col.names = c("gen", "seed", "modelindex", "Ho_l1", "Ho_l2"), 
                                     fill = T)
   
-d_het %>% pivot_longer(cols = c(Ho_l1, Ho_l2), names_to = "locus", values_to = "Ho") %>%
-  group_by(modelindex) %>%
-  summarise(meanHo = mean(Ho),
-            CIHo = CI(Ho))
-
 d_Ho <- d_het %>% 
   pivot_longer(cols = c(Ho_l1, Ho_l2), names_to = "locus", values_to = "Ho") %>%
   mutate(model = ifelse(modelindex == 1, "Additive", "NAR"))
@@ -642,14 +637,14 @@ d_seg_del[d_seg_del$gen < 50000,]$wAa <- calcAddFitness(d_seg_del[d_seg_del$gen 
 d_seg_del[d_seg_del$gen < 50000,]$waa <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$aa_pheno, 1, 0.05)
 d_seg_del$avFit <- d_seg_del$wAa - d_seg_del$waa
 d_seg_del$avFit_AA <- d_seg_del$wAA - d_seg_del$waa
-d_seg_del <- CalcDominance(d_seg_del)
+d_seg_del$s <- d_seg_del$wAA - d_seg_del$waa
 
 d_seg_del_add[d_seg_del_add$gen < 50000,]$wAA <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$AA_pheno, 1, 0.05)
 d_seg_del_add[d_seg_del_add$gen < 50000,]$wAa <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$Aa_pheno, 1, 0.05)
 d_seg_del_add[d_seg_del_add$gen < 50000,]$waa <- calcAddFitness(d_seg_del_add[d_seg_del_add$gen < 50000,]$aa_pheno, 1, 0.05)
 d_seg_del_add$avFit <- d_seg_del_add$wAa - d_seg_del_add$waa
 d_seg_del_add$avFit_AA <- d_seg_del_add$wAA - d_seg_del_add$waa
-d_seg_del_add <- CalcDominance(d_seg_del_add)
+d_seg_del_add$s <- d_seg_del_add$wAA - d_seg_del_add$waa
 
 d_seg_del <- rbind(d_seg_del, d_seg_del_add)
 d_seg_del$model <- ifelse(d_seg_del$modelindex == 2, "NAR", "Additive")
@@ -806,9 +801,10 @@ d_fix_ranked %>%
          value_bZ = if_else(mutType == 4, value, 0)) %>%
   group_by(seed) %>%
   filter(n() > 2) %>% # exclude groups with less than 2 steps
-  mutate(molCompDiff = sum(abs(2 * value_aZ), na.rm = T) - sum(abs(2 * value_bZ), na.rm = T)) %>%
+  mutate(molCompDiff = sum(abs(2 * value_aZ), na.rm = T) - sum(abs(2 * value_bZ), na.rm = T),
+         molCompCorr = cor(abs(2 * value_aZ), abs(2 * value_bZ))) %>%
   ungroup() %>%
-  dplyr::select(seed, molCompDiff) %>%
+  dplyr::select(seed, molCompDiff, molCompCorr) %>%
   distinct(seed, .keep_all = T) -> d_molCompDiff
 
 d_fix_ranked %>%
