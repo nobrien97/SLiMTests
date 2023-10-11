@@ -151,7 +151,7 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 
 function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
-	if (calcMode == "NAR")
+	if (calcMode == "ODE")
 	{
 		inds.phenotype = sim.NARIntegrate(inds);
 		return;
@@ -168,7 +168,7 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 		
 		phenotype = (mutscount ? sum(muts.selectionCoeff) else 0.0);
 		phenotype = phenotype + fixedfx; // add fixed effects
-		phenotype = (exp(phenotype) * asInteger(calcMode == "Mult")) + (phenotype * asInteger(calcMode == "Add")); // transform if multiplicative
+		if (calcMode == "Mult") {phenotype = exp(phenotype);}
 		ind.phenotype = phenotype;
 	}
 	return;
