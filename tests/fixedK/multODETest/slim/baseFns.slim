@@ -17,6 +17,8 @@ function (void) writeTimeData(void) {
 
 
 function (void) assignQTLPositions(void) {
+
+	if (modelType == "ODE") {
 	// mol traits are in order: first molMutProp[0]% are alpha, next molMutProp[1]% are beta, then KZ, then KXZ
 	// figure out the actual cutoffs 
 	molMutres = integer(size(molMutProp));
@@ -39,7 +41,7 @@ function (void) assignQTLPositions(void) {
 	}
 	
 	defineConstant("molMutCutoffs", molMutres-1);
-	
+	}
 	// Define locations of QTLs, deleterious loci, and neutral loci
 	lengthvec = 0:(genomelength - 1);
 	pos_QTL = sample(lengthvec, nloci);
@@ -117,6 +119,7 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	// Load the actual positions of the QTLs
 	pos_QTL = sim.getValue("pos_QTL");
 	
+	if (modelType == "ODE") {
 	// If we are an ubiquitin QTL we're in the first molMutProp[0]% of the nloci loci in pos_QTL - we will take the 
 	// ceiling of that to be consistent
 	// We can only sample neutral, deleterious, and aZ: m1, m2, m3
@@ -141,13 +144,24 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	if (any(pos == pos_QTL[(molMutCutoffs[2]+1):molMutCutoffs[3]])) {
 		return sample(sim.mutationTypes[c(0:1, 5)], 1, weights = gene_constraint[c(0:1, 5)]);
 	}
-	
-	
+
 	// If we still haven't figured it out, return m1
 	return sim.mutationTypes[0];
-
+	}
+	
+	// Additive/mult case
+	if (any(mut.position == sim.getValue("pos_QTL"))) {
+		choice = sample(sim.mutationTypes, 1, weights = gene_constraint);
+	}
+	else {
+		choice = sum(gene_constraint[0:1]) ? sample(sim.mutationTypes[0:1], 1, weights = gene_constraint[0:1]) else -1;
+	}
+	
+	if (isInteger(choice))
+		return sim.mutationTypes[0];
+	
+	return choice;
 }
-
 
 function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
