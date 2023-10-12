@@ -5,7 +5,7 @@ setwd(path)
 singleRunBashName <- "./multODETestSR.sh"
 
 seed_path <- "/mnt/c/GitHub/SLiMTests/tests/fixedK/multODETest/R/multODETest_seeds.csv"
-system(paste0("SeedGenerator -n 16 -t -d ", seed_path))
+system(paste0("SeedGenerator -n 64 -t -d ", seed_path))
 
 library(tidyverse)
 
@@ -20,7 +20,7 @@ combos <- c(2, 4, 2)
 
 write_delim(data.frame(modelType = modelType, nloci = combos), "combos.csv", col_names = F, quote = "all")
 
-seeds <- 1:16
+seeds <- 1:64
 
 cmds <- data.frame(sr = singleRunBashName,
                    nloci = rep(1:length(combos), each = length(seeds)),
