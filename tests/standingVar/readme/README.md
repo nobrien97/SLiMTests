@@ -29,10 +29,14 @@ Measure change in G, $\epsilon$, $\bar{dP/dt}$ per unit change in genetic archit
 
 Examples:
 $\Delta \bar{dP/dt}$
-![](fig1.jpg)
+<p>
+    <img src="fig1.jpg" width="1000" height="600" />
+</p>
 
 $\Delta$ SFS
-![](fig2.jpg)
+<p>
+    <img src="fig2.jpg" width="1000" height="300" />
+</p>
 
 We'll have these 4 panel figures for:
 - $\bar{dP/dt}$
@@ -44,7 +48,10 @@ Mutational variance
 $V_m = 2n_{loci}\mu\tau^2$
 In additive models it might not matter whether it is the number of loci or $\tau$ that changes, but it probably will matter for network models
 So measuring the relationship between nloci and $\tau$ vs $V_m$ could be important e.g.
-![](fig4.jpg)
+<p>
+    <img src="fig4.jpg" width="1000" height="300" />
+</p>
+
 
 Supplementary - continuous trends for each input
 ![](fig3.jpg)
