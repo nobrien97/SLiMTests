@@ -61,7 +61,7 @@ Parameter sweep across three variables:
 
 256 samples to minimise correlations between parameters, maximise coverage
 
-When the number of loci increases, h^2 should increase, as the mutational target is so large and mutational effects
+When the number of loci increases, $h^2$ should increase, as the mutational target is so large and mutational effects
 should be favoured to be very small to compensate for the higher effective mutation rate. When mutational effect
 size variance is small, this should be particularly apparent - we should approach an infinitesimal model.
 Recombination rate will further this - with free recombination, non-additivity should be less frequent.
