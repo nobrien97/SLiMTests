@@ -7,8 +7,8 @@ SECONDS=0
 MODELINDEX=$1
 SEED=$2
 FILENAME=${MODELINDEX}_${SEED}
-JOBNAME=fixedK
-TESTDIR=$HOME/tests/$JOBNAME/moreReps2
+JOBNAME=standingVar
+TESTDIR=$HOME/tests/$JOBNAME
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."

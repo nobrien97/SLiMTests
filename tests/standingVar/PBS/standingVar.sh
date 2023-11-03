@@ -8,7 +8,7 @@
   
   
 ECHO=/bin/echo
-JOBNAME=fixedK/moreReps2
+JOBNAME=standingVar
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
