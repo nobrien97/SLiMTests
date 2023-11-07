@@ -16,8 +16,6 @@ if [ -f $TESTDIR/done/${FILENAME} ]; then
 fi
 
 # Get the correct modelindex from the file: put into array
-MODEL_FILE=$TESTDIR/R/combos.csv
-MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
 SEED_FILE=$TESTDIR/R/${JOBNAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
