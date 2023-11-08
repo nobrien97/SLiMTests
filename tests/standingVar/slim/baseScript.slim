@@ -258,7 +258,7 @@ s1 late() {
 	// Check if we're at the end of burn-in
 	if (sim.cycle == burnTime) {
 		calcPhenotype(p2.individuals, modelType); // need to calculate phenotypes for p2 when we write
-		//writeLDmat(p1, T);
+		writeLDmat(p1, T);
 		//writeGenMap();
 		writeHaplo(p2, N_samp);
 		savePopState();
@@ -298,7 +298,7 @@ s2 late() {
 		
 		// Write LD output and pedigree/heritability stuff
 		calcPhenotype(p2.individuals, modelType);
-		//writeLDmat(p1, F);
+		writeLDmat(p1, F);
 		//writeGenMap();
 		writeHaplo(p2, N_samp);
 		writeHetData();
@@ -310,15 +310,15 @@ s2 late() {
 		system(paste0("mv ./", outOpt, " ", moveDir));
 		system(paste0("mv ./", outMuts, " ", moveDir));
 		system(paste0("mv ./", outDict, " ", moveDir));
-		//system(paste0("mv ./", outLD[0], " ", moveDir));
-		//system(paste0("mv ./", outLD[1], " ", moveDir));
+		system(paste0("mv ./", outLD[0], " ", moveDir));
+		system(paste0("mv ./", outLD[1], " ", moveDir));
 		//system(paste0("mv ./", outPed, " ", moveDir));
-		//system(paste0("mv ./", outHaplo, " ", moveDir));
-		//system(paste0("mv ./", outPhenoSample, " ", moveDir));
-		//system(paste0("mv ./", outMolSample, " ", moveDir));
+		system(paste0("mv ./", outHaplo, " ", moveDir));
+		system(paste0("mv ./", outPhenoSample, " ", moveDir));
+		system(paste0("mv ./", outMolSample, " ", moveDir));
 		//		system(paste0("mv ./", outRel, " ", moveDir));
 		//system(paste0("mv ./", outGenMap, " ", moveDir));
-		//system(paste0("mv ./", outFX, " ", moveDir));
+		system(paste0("mv ./", outFX, " ", moveDir));
 		system(paste0("mv ./", outQG, " ", moveDir));
 		system(paste0("mv ./", outInd, " ", moveDir));
 		system(paste0("mv ./", outMutsInd, " ", moveDir));
