@@ -10,10 +10,10 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // "/home/564/nb9894/tests/standingVar/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/standingVar/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); //
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
-	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
+	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
 	
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
@@ -187,6 +187,10 @@ mutationEffect(m6) {
 	// Script blocks for reproduction callbacks: burn-in vs test period
 	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
 	community.rescheduleScriptBlock(s4, start = burnTime+1, end = burnTime + testTime);
+	
+	// Diagnostics for this run
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
+	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
 
 }
 
@@ -352,8 +356,8 @@ s2 late() {
 	writeHetData();
 	
 	
-	if (debug)
-		writeTimeData();
+	//if (debug)
+	//	writeTimeData();
 
 }
 
