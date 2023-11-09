@@ -21,16 +21,15 @@ MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
 SEED_FILE=$TESTDIR/R/${JOBNAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
-MODEL=indTrack_add.slim
-
-# If we are asking for more than 2 loci, we're running a network model and need to switch files
-if [[ "${MODEL_NUM[0]}" != 2 ]]; then
-   MODEL=indTrack_net.slim
-fi
-
-echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # Run the model
-$HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[0]} $TESTDIR/slim/$MODEL
+echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
+# If we have a K model, we need to disable molTraitFix by setting it to -1
+if [[ "$MODEL" == "'K'" ]]
+then
+    $HOME/SLiM/slim -s ${SEED_NUM} -d molTraitFix=-1 -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/baseScript.slim
+else
+    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/baseScript.slim
+fi
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"
