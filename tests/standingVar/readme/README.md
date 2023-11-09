@@ -58,7 +58,8 @@ Supplementary - continuous trends for each input
 
 
 
-G matrix
+G matrix: extract the log-transformed molecular component values?
+Estimate using sommer?
 
 
 Parameter sweep across three variables:
@@ -66,7 +67,13 @@ Parameter sweep across three variables:
 - Number of loci [1 - 1000]
 - Mutational effect size variance [0.01 - 1.5]
 
-256 samples to minimise correlations between parameters, maximise coverage
+144 samples to minimise correlations between parameters, maximise coverage
+50 replicates per model
+This is repeated three times: additive, NAR, NAR with KXZ and KZ, totalling 21600 simulations
+This is approximately 388880 SUs on Gadi.
+
+
+
 
 When the number of loci increases, $h^2$ should increase, as the mutational target is so large and mutational effects
 should be favoured to be very small to compensate for the higher effective mutation rate. When mutational effect
