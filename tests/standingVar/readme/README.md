@@ -67,16 +67,12 @@ Parameter sweep across three variables:
 - Mutational effect size variance [0.01 - 1.5]
 
 ## File size/time estimation
+### File size
 - 144 samples to minimise correlations between parameters, maximise coverage
 - 50 replicates per model
 - This is repeated three times: additive, NAR, NAR with KXZ and KZ
 - 144 samples * 50 replicates * 3 models = 21,600 simulations
-- 18 service units per simulation average
-- 21,600 * 18 = 388,800 SUs
-- Simulations are max 15 hours
-- 15 * 21,600 = 324,000 CPU hours
-- 21,600/1,440 cores = 15 jobs
-- 201 samples per adaptation run + 100 burnin
+- 201 samples per adaptation run (every 50 generations) + 100 burnin (every 500 generations)
 - 301 samples
 - per sample file sizes (per sim file size): 
   - slim_qg = 115 bytes (34615 bytes)
@@ -93,16 +89,30 @@ Parameter sweep across three variables:
     - should also optimise
 
 Total per sim: 39.43 MB for everything except haplos
+
 Total for experiment: 851.67 GB
 
-Could sample less often? 
-If we're going for discrete timesteps, only measure
-some things when pops reach that?
-- In that case we have maybe 4 timesteps, which means simulations would take ~860KB + 14MB LD plot
-- Reduces total cost to 321GB (and most of that is in the LD matrices which are sparse)
-- Risk that we miss something in the interim, but if we always save data when populations reach 25%, 50%, 75%, 100%, there's consistency in the sampling
+### Time estimation/job cost
+- 18 service units per simulation average
+- 21,600 * 18 = 388,800 SUs
+- Simulations are worst-case 15 hours
+- 15 * 21,600 = 324,000 CPU hours
+- 21,600/1,440 cores = 15 jobs
+- 15 * 15 = 225 total hours, ~9.4 days runtime excluding queue time
+
+
+
+
+
+
 
 ## TODO:
+- Could sample less often? 
+- If we're going for discrete timesteps, only measure
+some things when pops reach that?
+  - In that case we have maybe 4 timesteps, which means simulations would take ~860KB + 14MB LD plot
+  - Reduces total cost to 321GB (and most of that is in the LD matrices which are sparse)
+  - Risk that we miss something in the interim, but if we always save data when populations reach 25%, 50%, 75%, 100%, there's consistency in the sampling
 - use better methods for storing sparse matrices (haplotypes, LD): storage by columns or indices, or CSR
 
 ## Predictions
