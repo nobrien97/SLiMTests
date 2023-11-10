@@ -107,6 +107,8 @@ Total for experiment: 851.67 GB
 
 
 ## TODO:
+- Optimise NAR solution for highly variable populations
+  - cache is not effective, will need to parallelise solutions when unique individuals is high
 - Could sample less often? 
 - If we're going for discrete timesteps, only measure
 some things when pops reach that?
