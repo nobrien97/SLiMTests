@@ -593,7 +593,7 @@ function (float) getFX(integer pos, integer haplos) {
 }
 
 function (void) writeHetData(void) {
-	hets = calcHeterozygosityAtPosition(p1.individuals, sim.getValue("pos_QTL")[0:1]);
+	hets = calcHeterozygosityAtPosition(p1.individuals, sim.getValue("pos_QTL"));
 	hetFile = paste(sim.cycle, asString(seed), modelindex, hets, sep = ",");
 	writeFile(outHet, hetFile, append = T);
 }
