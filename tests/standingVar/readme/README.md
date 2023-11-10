@@ -1,5 +1,6 @@
 # Chapter 2: The genetic architecture of polygenic adaptation under a network-derived trait
 
+## Questions, input, and output
 Q: How does genetic architecture influence the
 - Rate of adaptation
 - Probability of adaptation
@@ -57,23 +58,54 @@ Supplementary - continuous trends for each input
 ![](fig3.jpg)
 
 
-
 G matrix: extract the log-transformed molecular component values?
 Estimate using sommer?
-
 
 Parameter sweep across three variables:
 - Recombination rate [0 - 0.5]
 - Number of loci [1 - 1000]
 - Mutational effect size variance [0.01 - 1.5]
 
-144 samples to minimise correlations between parameters, maximise coverage
-50 replicates per model
-This is repeated three times: additive, NAR, NAR with KXZ and KZ, totalling 21600 simulations
-This is approximately 388880 SUs on Gadi.
+## File size/time estimation
+- 144 samples to minimise correlations between parameters, maximise coverage
+- 50 replicates per model
+- This is repeated three times: additive, NAR, NAR with KXZ and KZ
+- 144 samples * 50 replicates * 3 models = 21,600 simulations
+- 18 service units per simulation average
+- 21,600 * 18 = 388,800 SUs
+- Simulations are max 15 hours
+- 15 * 21,600 = 324,000 CPU hours
+- 21,600/1,440 cores = 15 jobs
+- 201 samples per adaptation run + 100 burnin
+- 301 samples
+- per sample file sizes (per sim file size): 
+  - slim_qg = 115 bytes (34615 bytes)
+  - slim_indPheno = 599 bytes (180299 bytes)
+  - slim_muts = 72 bytes per mutation (assuming max 500 mutations: 8610707 bytes)
+  - slim_locusHo = 5000 bytes (1505000 bytes)
+  - slim_sampled_pheno = 9000 bytes (2709000 bytes)
+  - slim_sampled_moltrait = 35000 bytes (10535 kb)
+  - slim_fx = 4500 bytes (1354500 bytes)
+  - slim_popstate = 500 kb (500 kb - end of burn-in)
+  - slim_haplos = 4052000 bytes (1.22 GB (!!!))
+    - need to optimise: save in a better format
+  - out_slim_ld = 7 MB (14 MB for two samples)
+    - should also optimise
 
+Total per sim: 39.43 MB for everything except haplos
+Total for experiment: 851.67 GB
 
+Could sample less often? 
+If we're going for discrete timesteps, only measure
+some things when pops reach that?
+- In that case we have maybe 4 timesteps, which means simulations would take ~860KB + 14MB LD plot
+- Reduces total cost to 321GB (and most of that is in the LD matrices which are sparse)
+- Risk that we miss something in the interim, but if we always save data when populations reach 25%, 50%, 75%, 100%, there's consistency in the sampling
 
+## TODO:
+- use better methods for storing sparse matrices (haplotypes, LD): storage by columns or indices, or CSR
+
+## Predictions
 
 When the number of loci increases, $h^2$ should increase, as the mutational target is so large and mutational effects
 should be favoured to be very small to compensate for the higher effective mutation rate. When mutational effect
