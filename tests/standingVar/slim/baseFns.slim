@@ -550,19 +550,16 @@ function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
 	qtls = 0:(genomelength-1);
 	
 	// Extract haplotypes and qtl effect sizes
-	haplos = matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T);
-	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos), sep=",");
+	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
+	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
 	
 	
 	// Stick on generation and identifier data
-	haplos = cbind(rep(sim.cycle, nrow(haplos)),
-		rep(seed, nrow(haplos)),
-		rep(modelindex, nrow(haplos)),
-		haplos);
+	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
 	// Write output
-	l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
+	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
 	
-	writeFile(outHaplo, l, append = T);
+	writeFile(outHaplo, haplos, append = T);
 	writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
@@ -580,16 +577,34 @@ function (integer) colSums(integer mat) {
 	return result;
 }
 
-function (float) getFX(integer pos, integer haplos) {
-	result = float(length(pos));
-	posToGet = pos[asLogical(colSums(haplos))];
+// Get phenotypic effects (additive scale) from a compressed binary haplotype matrix
+function (float) getFX(integer pos, integer haplos, integer$ n, integer$ m) {
+	if (length(haplos) == 0) {
+		return float(0);
+	}
+	posToGet = pos[asLogical(binaryMatrixLoci(haplos, n, m))];
+	result = float(length(posToGet));
 	muts = sim.mutations[sim.mutations.mutationType != m1 & sim.mutations.mutationType != m2];
 	
-	for (i in seqLen(length(pos))) {
-		result[i] = (any(pos[i] == posToGet)) ? sum(muts[muts.position == pos[i]].selectionCoeff) else 0.0;
+	for (i in seqLen(length(posToGet))) {
+		result[i] = sum(muts[muts.position == posToGet[i]].selectionCoeff);
 	
 	}
 	return result;
+}
+
+// returns positions of loci with nonzero elements (i.e. >= 1 ind with a mutation)
+function (integer) binaryMatrixLoci(i haplos, i$ nrow, i$ ncol) {
+	colCutoffs = asInteger((nrow * 1:ncol) - 1);	
+	colSums = integer(ncol);
+	
+	for (i in seqAlong(colCutoffs)) {
+			colSums[i] = length(haplos[haplos <= colCutoffs[i]]);
+	}
+	
+	colSums = colSums - c(0, colSums[0:(ncol-2)]);
+	
+	return colSums;
 }
 
 function (void) writeHetData(void) {
@@ -597,3 +612,11 @@ function (void) writeHetData(void) {
 	hetFile = paste(sim.cycle, asString(seed), modelindex, hets, sep = ",");
 	writeFile(outHet, hetFile, append = T);
 }
+
+function (integer) StoreBinaryMatrix(integer mat) {
+	if (any(mat != 0 & mat != 1)) {
+		stop("StoreBinaryMatrix called with a non-binary matrix!");
+	}
+	n = length(mat);
+	return (0:(n-1))[c(asLogical(mat))];
+} 
