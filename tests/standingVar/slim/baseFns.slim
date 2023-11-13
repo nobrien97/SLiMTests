@@ -39,6 +39,11 @@ function (void) assignQTLPositions(void) {
 			molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)) + molMutres[i-1];
 		}
 		
+		// if the first element has 0 loci, remove it
+		if (molMutres[0] == 0) {
+			molMutres = molMutres[1:(length(molMutres)-1)];
+		}
+		
 		// Ensure we don't go over nloci
 		molMutres[molMutres > nloci] = nloci; 
 		
@@ -141,9 +146,12 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 		}
 		
 		// Iterate through mutation types, sample relevant mutation
+
 		for (i in 1:(length(molMutCutoffs)-1)) {
 			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
-				return sample(sim.mutationTypes[c(0:1, i+1)], 1, weights = gene_constraint[c(0:1, i+1)]);
+				// offset i by the number of 0s in molMutProp prior to i
+				j = i + sum(!asLogical(molMutProp[0:min(0, i-1)]));
+				return sample(sim.mutationTypes[c(0:1, j+1)], 1, weights = gene_constraint[c(0:1, j+1)]);
 			}
 		}		
 		
