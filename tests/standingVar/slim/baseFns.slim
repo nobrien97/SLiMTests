@@ -39,7 +39,13 @@ function (void) assignQTLPositions(void) {
 			molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)) + molMutres[i-1];
 		}
 		
-		defineConstant("molMutCutoffs", molMutres-1);
+		// Ensure we don't go over nloci
+		molMutres[molMutres > nloci] = nloci; 
+		
+		// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
+		molMutres = unique(molMutres);
+		
+		defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
 	}
 	// Define locations of QTLs, deleterious loci, and neutral loci
 	lengthvec = 0:(genomelength - 1);
@@ -122,30 +128,27 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 		// If we are an ubiquitin QTL we're in the first molMutProp[0]% of the nloci loci in pos_QTL - we will take the 
 		// ceiling of that to be consistent
 		// We can only sample neutral, deleterious, and aZ: m1, m2, m3
-		if (any(pos == pos_QTL[0:asInteger(molMutCutoffs[0])])) {
-			return sample(sim.mutationTypes[0:2], 1, weights = gene_constraint[0:2]);
-		}
-		
 		// If we are at an enhancer site we're in the second molMutProp[1]% of the nloci loci in pos_QTL
 		// We can only sample neutral, deleterious, and bZ: m1, m2, m4
-		if (any(pos == pos_QTL[(molMutCutoffs[0]+1):molMutCutoffs[1]])) {
-			return sample(sim.mutationTypes[c(0:1, 3)], 1, weights = gene_constraint[c(0:1, 3)]);
-		}
-		
 		// If we are at KZ site we're in the third molMutProp[2]% of the nloci loci in pos_QTL
 		// We can only sample neutral, deleterious, and KZ: m1, m2, m5
-		if (any(pos == pos_QTL[(molMutCutoffs[1]+1):molMutCutoffs[2]])) {
-			return sample(sim.mutationTypes[c(0:1, 4)], 1, weights = gene_constraint[c(0:1, 4)]);
-		}
-		
 		// If we are at KXZ site we're in the fourth molMutProp[3]% of the nloci loci in pos_QTL
 		// We can only sample neutral, deleterious, and KXZ: m1, m2, m6
-		if (any(pos == pos_QTL[(molMutCutoffs[2]+1):molMutCutoffs[3]])) {
-			return sample(sim.mutationTypes[c(0:1, 5)], 1, weights = gene_constraint[c(0:1, 5)]);
+
+		// exit early if we aren't a QTL: return m1
+		if (!any(pos == pos_QTL)) {
+			return sim.mutationTypes[0];
 		}
 		
-		// If we still haven't figured it out, return m1
-		return sim.mutationTypes[0];
+		// Iterate through mutation types, sample relevant mutation
+		for (i in 1:(length(molMutCutoffs)-1)) {
+			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
+				return sample(sim.mutationTypes[c(0:1, i+1)], 1, weights = gene_constraint[c(0:1, i+1)]);
+			}
+		}		
+		
+		// if we somehow fail, stop the simulation
+		stop(paste("sampleMutTypeFromSite: Failed to find mutation type for locus", pos));
 	}
 	
 	// Additive/mult case: since we are additive/mult, we want to ignore mutTypes m4 onwards
