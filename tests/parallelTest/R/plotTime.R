@@ -27,9 +27,15 @@ cores_treatments <- c(1, 2, 4, 6)
 d_times %>% mutate(cores = cores_treatments[modelindex]) -> d_times
 
 d_times %>%
+  group_by(seed, modelindex, model) %>%
+  mutate(delta = time - lag(time)) -> d_times
+
+d_times %>%
   group_by(gen, model, cores) %>%
   summarise(meanTime = mean(time),
-            seTime = se(time)) -> time_summary
+            seTime = se(time),
+            meanDelta = mean(delta),
+            seDelta = se(delta)) -> time_summary
 
 ggplot(time_summary, aes(x = gen, y = meanTime, colour = as.factor(cores))) +
   facet_grid(model~.) +
@@ -47,3 +53,10 @@ ggplot(time_summary, aes(x = gen, y = meanTime, colour = as.factor(cores))) +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
 ggsave("times.png")
+
+# extrapolate to 60000 generations
+time_summary %>%
+  group_by(model, cores) %>%
+  slice_tail(n = 1) %>%
+  select(!c(meanTime, seTime, gen, seDelta)) %>%
+  mutate(wholeSimEstimate = (meanDelta * (60000/50))/3600)
