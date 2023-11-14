@@ -83,14 +83,13 @@ Parameter sweep across three variables:
   - slim_sampled_moltrait = 35000 bytes (10535 kb)
   - slim_fx = 4500 bytes (1354500 bytes)
   - slim_popstate = 500 kb (500 kb - end of burn-in)
-  - slim_haplos = 4052000 bytes (1.22 GB (!!!))
-    - need to optimise: save in a better format
+  - slim_haplos = ~1741 bytes (351682 bytes (only sample during test and at end of burn-in - 202 samples))
   - out_slim_ld = 7 MB (14 MB for two samples)
-    - should also optimise
+    - should also optimise (but low priority: we can still store that since it's only 2 samples)
 
-Total per sim: 39.43 MB for everything except haplos
+Total per sim: 39.78 MB
 
-Total for experiment: 851.67 GB
+Total for experiment: 859.27 GB
 
 ### Time estimation/job cost
 - 18 service units per simulation average
@@ -99,10 +98,6 @@ Total for experiment: 851.67 GB
 - 15 * 21,600 = 324,000 CPU hours
 - 21,600/1,440 cores = 15 jobs
 - 15 * 15 = 225 total hours, ~9.4 days runtime excluding queue time
-
-
-
-
 
 
 
@@ -115,7 +110,6 @@ some things when pops reach that?
   - In that case we have maybe 4 timesteps, which means simulations would take ~860KB + 14MB LD plot
   - Reduces total cost to 321GB (and most of that is in the LD matrices which are sparse)
   - Risk that we miss something in the interim, but if we always save data when populations reach 25%, 50%, 75%, 100%, there's consistency in the sampling
-- use better methods for storing sparse matrices (haplotypes, LD): storage by columns or indices, or CSR
 
 ## Predictions
 
