@@ -14,3 +14,9 @@ cmds <- data.frame(sr = singleRunBashName,
                    seed = rep(1:length(seeds), times = length(1:4)))
 
 write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/parallelTest/PBS/cmds.txt", sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+singleRunBashName <- "./parallelTestAddSR.sh"
+cmds <- data.frame(sr = singleRunBashName,
+                   model = rep(1:4, each = length(seeds)),
+                   seed = rep(1:length(seeds), times = length(1:4)))
+write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/parallelTest/PBS/cmds_add.txt", sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
