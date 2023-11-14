@@ -90,3 +90,14 @@ cmds <- data.frame(sr = singleRunBashName,
 
 write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/PBS/cmds.txt", 
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+rwide <- 10^seq(-10, -1, by = 0.5)
+nloci <- 2^(0:8)
+
+ggpairs(expand.grid(nloci, rwide),
+        diag = list(continuous = "barDiag"), 
+        columnLabels = c(TeX("Number of loci $(n_{loci})$", output = "character"), 
+                         TeX("Recombination rate $(r)$", output = "character")),
+        labeller = "label_parsed"
+)
