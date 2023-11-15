@@ -59,6 +59,7 @@ lhc$nloci <- ceiling(lhc$nloci)
 ggpairs(lhc, progress = F,
         lower = list(continuous = wrap("points", size = 0.1)),
         upper = list(continuous = wrap("cor", size = 10)),
+        diag = list(continuous = "barDiag"),
         columnLabels = c(TeX("Number of loci $(n_{loci})$", output = "character"), 
                          TeX("Effect size variance ($\\tau$)", output = "character"), 
                          TeX("Recombination rate $(r)$", output = "character")),
@@ -104,7 +105,7 @@ ggpairs(lhc,
                          TeX("Recombination rate $(r)$", output = "character")),
         labeller = "label_parsed"
 )
-
+ggsave("factorialSample.png", device = png)
 
 models <- c("\'Add\'", "\'ODE\'", "\'K\'")
 
