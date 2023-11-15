@@ -65,11 +65,23 @@ Parameter sweep across three variables:
 - Recombination rate [0 - 0.5]
 - Number of loci [1 - 1000]
 - Mutational effect size variance [0.01 - 1.5]
+Sampling:
+![](lhc_pairs.png)
+
+Factorial approach:
+- Recombination rate, 10 levels [1e-10, 1e-9, ..., 1e-1]
+- Number of loci, 5 levels [1, 4, 16, 64, 256]
+- Mutational effect size variance, 3 levels [0.0125, 0.125, 1.25]
+  - Chosen by an estimate of the number of + mutations to carry us to the optimum:
+  - ![](effectsizevariance.png)
+Sampling is not uniform:
+![](factorialSample.png)
+
 
 ## File size/time estimation
 ### File size
-- 144 samples to minimise correlations between parameters, maximise coverage
-- 50 replicates per model
+- 150 factorial combinations
+- 48 replicates per model
 - This is repeated three times: additive, NAR, NAR with KXZ and KZ
 - 144 samples * 50 replicates * 3 models = 21,600 simulations
 - 201 samples per adaptation run (every 50 generations) + 100 burnin (every 500 generations)
