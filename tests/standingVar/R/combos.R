@@ -5,7 +5,7 @@ setwd(path)
 singleRunBashName <- "./standingVarSR.sh"
 
 seed_path <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/R/standingVar_seeds.csv"
-system(paste0("SeedGenerator -n 50 -t -d ", seed_path))
+system(paste0("SeedGenerator -n 48 -t -d ", seed_path))
 
 library(tidyverse)
 library(DoE.wrapper)
@@ -82,7 +82,7 @@ lhc$model <- rep(models, times = 144)
 
 write_delim(lhc, "combos.csv", col_names = F)
 
-seeds <- 1:50
+seeds <- 1:48
 
 cmds <- data.frame(sr = singleRunBashName,
                    model = rep(1:nrow(lhc), each = length(seeds)),
@@ -92,12 +92,32 @@ write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/PBS/cmds.txt",
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
-rwide <- 10^seq(-10, -1, by = 0.5)
-nloci <- 2^(0:8)
+nloci <- 4^(0:4)
+tau <- c(0.0125, 0.125, 1.25)
+rwide <- 10^seq(-10, -1, by = 1)
+lhc <- expand.grid(nloci, tau, rwide)
 
-ggpairs(expand.grid(nloci, rwide),
+ggpairs(lhc,
         diag = list(continuous = "barDiag"), 
-        columnLabels = c(TeX("Number of loci $(n_{loci})$", output = "character"), 
+        columnLabels = c(TeX("Number of loci $(n_{loci})$", output = "character"),
+                         TeX("Effect size variance $(\\tau)$", output = "character"), 
                          TeX("Recombination rate $(r)$", output = "character")),
         labeller = "label_parsed"
 )
+
+
+models <- c("\'Add\'", "\'ODE\'", "\'K\'")
+
+lhc <- lhc %>% slice(rep(1:n(), each = 3))
+lhc$model <- rep(models, times = 150)
+write_delim(lhc, "combos.csv", col_names = F)
+
+
+seeds <- 1:48
+
+cmds <- data.frame(sr = singleRunBashName,
+                   model = rep(1:nrow(lhc), each = length(seeds)),
+                   seed = rep(1:length(seeds), times = nrow(lhc)))
+
+write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/PBS/cmds.txt", 
+            sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)

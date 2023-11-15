@@ -24,7 +24,7 @@ SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # If we have a K model, we need to disable molTraitFix by setting it to -1
-if [[ "$MODEL" == "'K'" ]]
+if [[ "${MODEL_NUM[3]}" == "'K'" ]]
 then
     $HOME/SLiM/slim -s ${SEED_NUM} -d molTraitFix=-1 -d modelindex=$MODELINDEX -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/baseScript.slim
 else
