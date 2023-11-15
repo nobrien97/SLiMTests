@@ -84,12 +84,13 @@ Parameter sweep across three variables:
   - slim_fx = 4500 bytes (1354500 bytes)
   - slim_popstate = 500 kb (500 kb - end of burn-in)
   - slim_haplos = ~1741 bytes (351682 bytes (only sample during test and at end of burn-in - 202 samples))
+  - slim_PMmat = 107 bytes (21614 bytes)
   - out_slim_ld = 7 MB (14 MB for two samples)
     - should also optimise (but low priority: we can still store that since it's only 2 samples)
 
-Total per sim: 39.78 MB
+Total per sim: 39.8 MB
 
-Total for experiment: 859.27 GB
+Total for experiment: 859.7 GB
 
 ### Time estimation/job cost
 - 18 service units per simulation average
