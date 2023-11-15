@@ -65,6 +65,8 @@ Parameter sweep across three variables:
 - Recombination rate [0 - 0.5]
 - Number of loci [1 - 1000]
 - Mutational effect size variance [0.01 - 1.5]
+
+
 Sampling:
 ![](lhc_pairs.png)
 
@@ -74,6 +76,8 @@ Factorial approach:
 - Mutational effect size variance, 3 levels [0.0125, 0.125, 1.25]
   - Chosen by an estimate of the number of + mutations to carry us to the optimum:
   - ![](effectsizevariance.png)
+
+
 Sampling is not uniform:
 ![](factorialSample.png)
 
