@@ -367,8 +367,8 @@ function (void) writeLDmat(o<Subpopulation> pop, l$ isBurnin) {
 }
 
 
-// Get variance-covariance matrix of molecular traits
-function (void) writeGMatrix(o<Subpopulation> pop) {
+// Get variance-covariance matrix of molecular traits (P_M) - phenotypic variance-covariance matrix of molecular traits
+function (void) writePMMatrix(o<Subpopulation> pop) {
 	inds = pop.individuals;
 	aZ = inds.ODEPars[seq(1, size(inds.ODEPars)-1, by = 5)];
 	bZ = inds.ODEPars[seq(2, size(inds.ODEPars)-1, by = 5)];
@@ -384,7 +384,7 @@ function (void) writeGMatrix(o<Subpopulation> pop) {
 	cbZKXZ = setSmallValToZero(cov(bZ, KXZ)); cKZKXZ = setSmallValToZero(cov(KZ, KXZ));
 	
 	file = paste(sim.cycle, asString(seed), modelindex, c(vaZ, caZbZ, caZKZ, caZKXZ, vbZ, cbZKZ, cbZKXZ, vKZ, cKZKXZ, vKXZ), sep=",");
-	writeFile(outGMat, file, append = T);
+	writeFile(outPMMat, file, append = T);
 }
 
 // Helper function to fix floating point rounding error
