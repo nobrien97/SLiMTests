@@ -102,6 +102,17 @@ function (void) assignQTLPositions(void) {
 			slimgui.openDocument(pngPath);
 	}
 	
+	// Calculate and set mutation rates according to n loci
+	u_g = genomelength * mu;
+	u_q = u_g / nloci;
+	u_n = u_g / (genomelength - nloci);
+	
+	rates = rep(c(u_n, u_q), nloci);
+	ends = sort(c(pos_QTL-1, pos_QTL));
+	
+	// get a vector of values
+	sim.chromosome.setMutationRate(rates, ends);
+	
 	
 	// Set delta difference value
 	sim.setValue("lastDist", 0.0);
