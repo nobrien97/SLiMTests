@@ -102,16 +102,32 @@ function (void) assignQTLPositions(void) {
 			slimgui.openDocument(pngPath);
 	}
 	
-	// Calculate and set mutation rates according to n loci
+	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
 	u_g = genomelength * mu;
 	u_q = u_g / nloci;
 	u_n = u_g / (genomelength - nloci);
 	
-	rates = rep(c(u_n, u_q), nloci);
+	ends = findMutBreakpoints(pos_QTL);
+	ends = sort(pos_QTL);
 	ends = sort(c(pos_QTL-1, pos_QTL));
+	ends = ends[ends > -1];
+	
+	rates = rep(c(u_n, u_q), length(ends));
+	rates = rates[0:(length(ends)-1)];
+
+	// If we only have one end, we only need one rate
+	if (length(ends) == 1)  {
+		rates = u_q;
+	}
+	
+	
+	if (ends[(length(ends)-1)] != (genomelength - 1)) {
+		rates = c(rates, u_n);
+		ends = c(ends, genomelength - 1);
+	}	
 	
 	// get a vector of values
-	sim.chromosome.setMutationRate(rates, ends);
+	//sim.chromosome.setMutationRate(rates, ends);
 	
 	
 	// Set delta difference value
@@ -127,6 +143,45 @@ function (void) assignQTLPositions(void) {
 
 }
 
+function (i) findMutBreakpoints(i pos) {
+	// sort the list
+	pos = sort(pos);
+	genome_pos = 0:(genomelength-1);
+	
+	// go through elements and determine what is next to each other, find new breaks
+	result = integer(length(genome_pos), -1);
+	
+	for (i in genome_pos) {
+//		// Special case for first element
+//		if (i == 0) {
+//			if (pos[i] > 0) {
+//				result[i] = pos[i]; // include the first element
+//			}
+//			next;
+//		}	
+	
+		// Skip non-QTL positions
+		QTLPos = match(genome_pos[i], pos);
+		if (QTLPos == -1) {
+			next;
+		}
+		
+		if (		
+		
+		// Otherwise we flag i as a new breakpoint
+		result[i-1] = pos[i-1];
+		//result[i+1] = pos[i]+1;
+	}
+	
+	// need at least one breakpoint, so set the last value	
+	result[(length(pos)-1)] = pos[(length(pos)-1)];
+	result = result[result > -1];
+	
+	// fill the result with the largest/smallest non-QTL elements that will fit between QTLs
+	
+	
+	return result;
+}
 
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	// Find the correct mutation type options for a given position and sample one

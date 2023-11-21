@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/standingVar/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // 
+	defineConstant("wd",  "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // "/home/564/nb9894/tests/standingVar/slim/"); //
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -28,7 +28,7 @@ initialize() {
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 0.0); // Whole genome recombination rate
-	setCfgParam("nloci", 1024); // Number of U and E sites along the chromosome
+	setCfgParam("nloci", 256); // Number of U and E sites along the chromosome
 	setCfgParam("molMutProp", c(1/4, 1/4, 1/4, 1/4)); // proportion of molecular trait loci
 	setCfgParam("genomelength", 1024); // Loci across the genome - some are deleterious, others QTL, others neutral
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
