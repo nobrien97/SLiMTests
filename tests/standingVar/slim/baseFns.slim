@@ -101,35 +101,7 @@ function (void) assignQTLPositions(void) {
 		if (exists("slimgui"))
 			slimgui.openDocument(pngPath);
 	}
-	
-	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
-	u_g = genomelength * mu;
-	u_q = u_g / nloci;
-	u_n = u_g / (genomelength - nloci);
-	
-	ends = findMutBreakpoints(pos_QTL);
-	ends = sort(pos_QTL);
-	ends = sort(c(pos_QTL-1, pos_QTL));
-	ends = ends[ends > -1];
-	
-	rates = rep(c(u_n, u_q), length(ends));
-	rates = rates[0:(length(ends)-1)];
 
-	// If we only have one end, we only need one rate
-	if (length(ends) == 1)  {
-		rates = u_q;
-	}
-	
-	
-	if (ends[(length(ends)-1)] != (genomelength - 1)) {
-		rates = c(rates, u_n);
-		ends = c(ends, genomelength - 1);
-	}	
-	
-	// get a vector of values
-	//sim.chromosome.setMutationRate(rates, ends);
-	
-	
 	// Set delta difference value
 	sim.setValue("lastDist", 0.0);
 	sim.setValue("lastw", 0.0);
@@ -139,48 +111,68 @@ function (void) assignQTLPositions(void) {
 		sim.setValue("sRate", samplerate);
 		sim.setValue("burnDelta", NULL);
 		sim.setValue("curTime", 0);
+	}	
+	
+	
+	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
+	u_g = genomelength * mu;
+	u_q = u_g / nloci;
+	u_n = u_g / (genomelength - nloci);
+	
+	// return early if we have no QTLs: mutation rate is always mu
+	if (length(pos_QTL) == 0) {
+		return;
 	}
+	
+	ends = findMutBreakpoints(pos_QTL);
+
+	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
+	if (sort(pos_QTL)[0] == 0) {
+		rates = rep(c(u_q, u_n), length(ends));
+	} else {
+		rates = rep(c(u_n, u_q), length(ends));
+	}
+	
+	// shorten to match ends length
+	rates = rates[0:(length(ends)-1)];	
+		
+	// get a vector of values
+	sim.chromosome.setMutationRate(rates, ends);
 
 }
 
 function (i) findMutBreakpoints(i pos) {
 	// sort the list
 	pos = sort(pos);
-	genome_pos = 0:(genomelength-1);
 	
-	// go through elements and determine what is next to each other, find new breaks
-	result = integer(length(genome_pos), -1);
+	// neutral breakpoints
+	neuPos = pos - 1;
 	
-	for (i in genome_pos) {
-//		// Special case for first element
-//		if (i == 0) {
-//			if (pos[i] > 0) {
-//				result[i] = pos[i]; // include the first element
-//			}
-//			next;
-//		}	
-	
-		// Skip non-QTL positions
-		QTLPos = match(genome_pos[i], pos);
-		if (QTLPos == -1) {
-			next;
+	// case where this is only 1 QTL
+	if (length(pos) == 1) {
+		result = c(neuPos[neuPos > -1], pos, genomelength-1);
+		result = sort(unique(result));
+		return result;
+	}
+
+	// collapse adjacent positions and exclude from breakpoints
+	for (i in 1:(length(pos)-1)) {
+		if (pos[i] == pos[i-1]+1) {
+			pos[i-1] = -1;
+			neuPos[i] = -1;
 		}
-		
-		if (		
-		
-		// Otherwise we flag i as a new breakpoint
-		result[i-1] = pos[i-1];
-		//result[i+1] = pos[i]+1;
+	}
+	pos = pos[pos > -1];
+	neuPos = neuPos[neuPos > -1];
+
+	// combine and add the last breakpoint (end of genome) if that isn't already sampled	
+	pos = sort(c(pos, neuPos));
+	if (pos[length(pos)-1] != genomelength - 1) {
+		pos = c(pos, genomelength - 1);
 	}
 	
-	// need at least one breakpoint, so set the last value	
-	result[(length(pos)-1)] = pos[(length(pos)-1)];
-	result = result[result > -1];
-	
-	// fill the result with the largest/smallest non-QTL elements that will fit between QTLs
-	
-	
-	return result;
+	// return sorted list
+	return pos;		
 }
 
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
