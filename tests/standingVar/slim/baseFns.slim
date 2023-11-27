@@ -562,35 +562,24 @@ function (float) getRecomDistances(i$ loci_len) {
 }
 
 
-function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
+function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	inds = sample(pop.individuals, n);
-	ped = DataFrame("gen", rep(sim.cycle, length(inds)),
-		"seed", rep(seed, length(inds)),
-		"modelindex", rep(modelindex, length(inds)),
-		"id", inds.pedigreeID,
-		"mother", inds.pedigreeParentIDs[rep(c(T, F), length(inds))],
-		"father", inds.pedigreeParentIDs[rep(c(F, T), length(inds))]);
-	ped = ped.serialize("csv");
 	// Note: Using all sites instead of just the QTLs, see if this makes a difference
 	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
 	//	qtls = sort(sim.getValue("pos_QTL"));
-	qtls = 0:(genomelength-1);
+		qtls = 0:(genomelength-1);
 	
 	// Extract haplotypes and qtl effect sizes
-	haplos = matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T);
-	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos), sep=",");
+	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), 
+												 nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
+	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
 	
 	
 	// Stick on generation and identifier data
-	haplos = cbind(rep(sim.cycle, nrow(haplos)),
-		rep(seed, nrow(haplos)),
-		rep(modelindex, nrow(haplos)),
-		haplos);
-	// Write output
-	l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
+	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
 	
-	writeFile(outHaplo, l, append = T);
-	writeFile(outPed, ped[1:(length(ped)-1)], append = T);
+	// Write output
+	writeFile(outHaplo, haplos, append = T);
 	writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
@@ -598,17 +587,24 @@ function (void) writeHaploPed(o<Subpopulation>$ pop, i$ n) {
 	
 	writeFile(outPhenoSample, phenos_out, append = T);
 	writeFile(outMolSample, mol_out, append = T);
-	
+
+	// relatedness matrix compression
 	rel = matrix(inds.relatedness(inds), nrow = length(inds), byrow = T);
-	rel = cbind(rep(asString(sim.cycle), nrow(rel)),
-		rep(asString(seed), nrow(rel)),
-		rep(asString(modelindex), nrow(rel)),
-		asString(rel));
 	
-	l = sapply(seqLen(nrow(rel)), "paste(rel[applyValue,], sep=',');");
-	writeFile(outRel, l, append = T);
+	// mask the relatedness matrix so we only store the upper triangle: don't need diagonal since it's always 1
+	rel = rel[c(upperTri(rel))];
 	
-	//sim.treeSeqOutput("out.trees");
+	// If a lot of values are 0, we can compress further: keep a file with non-zero elements,
+	// and the matrix stores their positions only
+	relPos = CompressRelatednessList(rel);	
+	relValues = GetRelValues(rel, relPos);
+	
+	relPos = paste(c(asString(sim.cycle), asString(seed), asString(modelindex), asString(relPos)), sep = ",");
+	relValues = paste(c(asString(sim.cycle), asString(seed), asString(modelindex), asString(relValues)), sep = ",");
+		
+	writeFile(outRelPos, relPos, append = T);
+	writeFile(outRelVals, relValues, append = T);
+
 }
 
 function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
@@ -689,3 +685,13 @@ function (integer) StoreBinaryMatrix(integer mat) {
 	n = length(mat);
 	return (0:(n-1))[c(asLogical(mat))];
 } 
+
+// Compresses relatedness matrix list: input is the upper triangle of the relatedness matrix excluding diagonals
+function (integer) CompressRelatednessList(float upperTri) {
+	return which(upperTri != 0);
+} 
+
+// Get the relationship coefficients at a given position in the upper triangle
+function (float) GetRelValues(float upperTri, integer pos) {
+	return upperTri[pos];
+}

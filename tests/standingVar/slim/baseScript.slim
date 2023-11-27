@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd",  "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // "/home/564/nb9894/tests/standingVar/slim/"); //
+	defineConstant("wd",  "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // "/home/564/nb9894/tests/standingVar/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -20,7 +20,7 @@ initialize() {
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
 	setCfgParam("modelType", "ODE"); // The model type
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
-	setCfgParam("N", 5000); // Population size
+	setCfgParam("N", 1000); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
 	setCfgParam("N_dam", 20); // Number of dams per sire
 	setCfgParam("N_perdam", 10); // Number of offspring per dam
@@ -28,11 +28,11 @@ initialize() {
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 0.0); // Whole genome recombination rate
-	setCfgParam("nloci", 256); // Number of U and E sites along the chromosome
+	setCfgParam("nloci", 1024); // Number of U and E sites along the chromosome
 	setCfgParam("molMutProp", c(1/4, 1/4, 1/4, 1/4)); // proportion of molecular trait loci
 	setCfgParam("genomelength", 1024); // Loci across the genome - some are deleterious, others QTL, others neutral
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
-	setCfgParam("locisigma", 1.0); // Variance used for QTL effect pulls - the effect size distribution
+	setCfgParam("locisigma", 2.0); // Variance used for QTL effect pulls - the effect size distribution
 	//setCfgParam("locidist", paste0("exp(rnorm(1,", locimu, ",", locisigma, "));"));
 	setCfgParam("con_props", c(1.0, 0.0, 0.0)); // Proportion of genes that have low/medium/high substitution rate
 	setCfgParam("constraints", matrix(c(1.0, 0.0, 1.0, 1.0, 1.0, 1.0,
@@ -42,7 +42,7 @@ initialize() {
 	
 	setCfgParam("width", 0.05);	// Set so 1 phenotypic unit deviation is a 20% drop in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
-	setCfgParam("optBurn", 1); // Optimum during burn-in	
+	setCfgParam("optBurn", 5); // Optimum during burn-in	
 	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
 	
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
@@ -77,7 +77,8 @@ initialize() {
 	setCfgParam("outPhenoSample", paste0('slim_sampled_pheno', identifier, '.csv')); // Output filepath for sampled phenotypes
 	setCfgParam("outMolSample", paste0('slim_sampled_moltrait', identifier, '.csv')); // Output filepath for sampled molecular trait values
 	setCfgParam("outGenMap", paste0('slim_genmap', identifier, '.csv')); // Output filepath for genetic map
-	setCfgParam("outRel", paste0('slim_rel', identifier, '.csv')); // Output filepath for relatedness matrix
+	setCfgParam("outRelPos", paste0('slim_relPos', identifier, '.csv')); // Output filepath for relatedness matrix non zero positions (columnwise upper triangle
+	setCfgParam("outRelVals", paste0('slim_relVals', identifier, '.csv')); // Output filepath for relatedness matrix values
 	setCfgParam("outFX", paste0('slim_fx', identifier, '.csv')); // Output filepath for effect sizes associated with haplotypes
 	setCfgParam("outPopState", paste0('slim_popstate', identifier, '.bin')); // Output binary population saved state
 	setCfgParam("outMutsInd", paste0('slim_indMut', identifier, '.csv')); // Output individual mutation/allele information
@@ -183,7 +184,6 @@ mutationEffect(m6) {
 	// s2: Shift optimum, end the simulation and write/move output files 
 	community.rescheduleScriptBlock(s1, start = 1, end = burnTime);
 	community.rescheduleScriptBlock(s2, start = burnTime+1, end = burnTime + testTime);
-	
 	// Script blocks for reproduction callbacks: burn-in vs test period
 	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
 	community.rescheduleScriptBlock(s4, start = burnTime+1, end = burnTime + testTime);
@@ -342,7 +342,6 @@ s2 late() {
 		sim.simulationFinished();
 		return;
 	}
-	
 	// Check if we're sampling this generation
 	if (sim.cycle % testSampling)
 		return;
