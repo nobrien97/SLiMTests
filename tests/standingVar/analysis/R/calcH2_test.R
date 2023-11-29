@@ -7,7 +7,6 @@ source("helpFns.R")
 
 # Read data and add names
 haplos <- scan(paste0("test_haplo.csv"), what = numeric(), sep = ",")[-(1:3)]
-relPos <- scan(paste0("test_rel_relPos.csv"), what = numeric(), sep = ",")[-(1:3)]
 haplos <- decompressHap(haplos, 2000, 1024)
 names(haplos) <- paste0("q_", seq_len(ncol(haplos)))
 phenos <- scan(paste0("test_pheno.csv"), sep = ",")
@@ -176,3 +175,70 @@ mcmcres <- MCMCglmm(cbind(aZ_scl, bZ_scl, KZ_scl, KXZ_scl) ~ 1,
 # Output file
 print(paste0("Writing output for model ", run, "..."))
 write.table(Result.A_D_AA.Extract, paste0("/scratch/ht96/nb9894/h2_hsfs_nloci/getH2_hsfs_nloci/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)
+
+relPos <- scan(paste0("test_rel_relPos.csv"), what = numeric(), sep = ",")[-(1:3)]
+relVals <- scan(paste0("test_rel_relVals.csv"), what = numeric(), sep = ",")[-(1:3)]
+A <- decompressRel(relPos, relVals, 1000)
+
+# Get inverse A
+Ai <- as(solve(A + diag(1e-4,ncol(A),ncol(A))), Class="dgCMatrix")
+
+# Phenotype data
+relPheno <- scan(paste0("test_rel_moltrait.csv"), sep = ",")
+names(relPheno) <- NULL
+# From the phenos file, extract gen, seed, modelindex and remove them
+## Use these later to identify output
+run_info <- relPheno[1:3]
+relPheno <- relPheno[-(1:3)]
+
+ind_names <- paste0(1:1000)
+
+# Convert to data frame
+relPheno_dat <- data.frame(Z   = relPheno[seq(1, length(relPheno), by = 5)],
+                           aZ  = relPheno[seq(2, length(relPheno), by = 5)],
+                           bZ  = relPheno[seq(3, length(relPheno), by = 5)],
+                           KZ  = relPheno[seq(4, length(relPheno), by = 5)],
+                           KXZ = relPheno[seq(5, length(relPheno), by = 5)],
+                           id = as.factor(ind_names))
+
+
+
+# Estimate variance components
+relMdl <- mmec(Z~1,
+             random=~vsc(isc(id),Gu=Ai),
+             rcov=~units,
+             data=relPheno_dat)
+summary(relMdl)
+
+relMdlaZ_bZ <- mmer(cbind(aZ, bZ)~1,
+               random=~vsr(id,Gu=A),
+               rcov=~units,
+               data=relPheno_dat)
+summary(relMdlaZ_bZ)
+
+vpredict(relMdlaZ_bZ, h2_aZ ~ V1 / (V1+V3+V4+V6))
+vpredict(relMdlaZ_bZ, h2_bZ ~ V3 / (V1+V3+V4+V6))
+
+relMdlaZ_bZ$sigma$`u:id`
+# kernel regression
+library(bWGR)
+relPheno_mat <- as.matrix(relPheno_dat[1:5])
+A <- decompressRel(relPos, relVals, 1000)
+
+mkr_result <- mkr(relPheno_mat[,2:3], A)
+
+
+
+# Marker based: ridge regressions
+
+library(Rcpp)
+sourceCpp("pegs.cpp")
+# Try this out: https://link.springer.com/article/10.1186/s12711-022-00730-w
+molPheno_mat <-  as.matrix(molPheno_dat[1:4])
+pegs_result <- PEGS(molPheno_mat, genos)
+
+cor2cov <- function(GC, mu) {
+  sweep(sweep(GC, 1, mu, "*"), 2, mu, "*")
+}
+cor2cov(pegs_result$GC, pegs_result$mu)
+

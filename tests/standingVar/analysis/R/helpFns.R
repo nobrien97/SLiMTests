@@ -1,7 +1,25 @@
+decompressRel <- function(relPos, relVals, n) {
+  # converts compressed relatedness matrix to a regular form
+  result <- matrix(double(n*n), nrow = n)
+  diag(result) <- 1
+  
+  # Convert relPos/relVals to list form
+  listLength <- n * (n -1) / 2
+  relList <- vector(mode = "numeric", length = listLength)
+  relList[relPos+1] <- relVals # correct for zero based index with + 1
+  result[upper.tri(result)] <- relList
+  result <- result + t(result) - diag(diag(result)) # make symmetric
+  
+  colnames(result) <- 1:n
+  rownames(result) <- 1:n
+  return(result)
+}
+
+
 decompressHap <- function(compHaplos, n, m, ploidy = 2L) {
   # Converts a compressed haplotype matrix to a sparse form
   result <- matrix(integer(n*m), nrow = n, ncol = m)
-  result[compHaplos] <- 1
+  result[compHaplos+1] <- 1
   return(result)
 }
 
