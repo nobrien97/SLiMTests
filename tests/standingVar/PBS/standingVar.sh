@@ -95,6 +95,9 @@ cat ./slim_sampled_moltrait* >> $SAVEDIR/slim_sampled_moltrait.csv
 cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
 cat ./slim_locusHo* >> $SAVEDIR/slim_locusHo.csv
 cat ./slim_PMmat* >> $SAVEDIR/slim_PMmat.csv
+cat ./slim_relPos* >> $SAVEDIR/slim_relPos.csv
+cat ./slim_relVals* >> $SAVEDIR/slim_relVals.csv
+
 
 # Zip LD matrices
 /bin/zip -q -Z bzip2 $SAVEDIR/out_slim_ld.zip ./out_slim_ld* 
