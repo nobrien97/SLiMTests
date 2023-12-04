@@ -570,11 +570,28 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 		qtls = 0:(genomelength-1);
 	
 	// Extract haplotypes and qtl effect sizes
-	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), 
-												 nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
-	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
-	
-	
+	haplos = matrix(sim.getHaplos(inds.genomes, qtls), 
+												 nrow = length(inds.genomes), ncol = length(qtls), byrow = T);
+
+	// Remove fixations and store separately
+	colsToRemove = (colSums(haplos) == 2*n);
+	if (size(colsToRemove)) {
+		haploFixations = paste(sim.cycle, seed, modelindex, (0:(size(qtls)-1))[colsToRemove], sep = ",");
+	}
+
+	writeFile(outHaploFix, haploFixations, append = T);
+
+	// Write FX with the fixed haplotypes
+	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, StoreBinaryMatrix(haplos), length(inds.genomes), length(qtls)), sep=",");
+
+	// Remove fixed from the haplotype store
+	for (i in seqAlong(colsToRemove)) {
+		haplos[, colsToRemove] = 0;
+	}
+
+	// compress haplotypes
+	haplos = StoreBinaryMatrix(haplos);
+
 	// Stick on generation and identifier data
 	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
 	
