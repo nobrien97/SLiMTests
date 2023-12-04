@@ -90,6 +90,7 @@ cat ./slim_dict* >> $SAVEDIR/slim_dict.csv
 cat ./slim_qg* >> $SAVEDIR/slim_qg.csv
 cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
 cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
+cat ./slim_haplo_fix* >> $SAVEDIR/slim_haplo_fix.csv
 cat ./slim_sampled_pheno* >> $SAVEDIR/slim_sampled_pheno.csv
 cat ./slim_sampled_moltrait* >> $SAVEDIR/slim_sampled_moltrait.csv
 cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
@@ -100,7 +101,7 @@ cat ./slim_relVals* >> $SAVEDIR/slim_relVals.csv
 
 
 # Zip LD matrices
-/bin/zip -q -Z bzip2 $SAVEDIR/out_slim_ld.zip ./out_slim_ld* 
+/bin/zip -q -Z bzip2 $SAVEDIR/slim_ld.zip ./slim_ld* 
 
 mkdir -p $SAVEDIR/popstates
 mv ./slim_popstate* $SAVEDIR/popstates
