@@ -7,6 +7,8 @@ source("helpFns.R")
 
 # Read data and add names
 haplos <- scan(paste0("test_haplo.csv"), what = numeric(), sep = ",")[-(1:3)]
+haplos <- scan(paste0("test2/test_haplo.csv"), what = numeric(), sep = ",")[-(1:3)]
+
 haplos <- decompressHap(haplos, 2000, 1024)
 names(haplos) <- paste0("q_", seq_len(ncol(haplos)))
 phenos <- scan(paste0("test_pheno.csv"), sep = ",")
@@ -178,6 +180,11 @@ write.table(Result.A_D_AA.Extract, paste0("/scratch/ht96/nb9894/h2_hsfs_nloci/ge
 
 relPos <- scan(paste0("test_rel_relPos.csv"), what = numeric(), sep = ",")[-(1:3)]
 relVals <- scan(paste0("test_rel_relVals.csv"), what = numeric(), sep = ",")[-(1:3)]
+
+relPos <- scan(paste0("test2/test_relPos.csv"), what = numeric(), sep = ",")[-(1:3)]
+relVals <- scan(paste0("test2/test_relVals.csv"), what = numeric(), sep = ",")[-(1:3)]
+
+
 A <- decompressRel(relPos, relVals, 1000)
 
 # Get inverse A
@@ -227,7 +234,7 @@ A <- decompressRel(relPos, relVals, 1000)
 
 mkr_result <- mkr(relPheno_mat[,2:3], A)
 
-
+wgr_result <- wgr(relPheno)
 
 # Marker based: ridge regressions
 
