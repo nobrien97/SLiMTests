@@ -1,5 +1,5 @@
 # Load packages
-packageList <- c("dplyr", "ggplot2", "tibble", "tidyr", "cowplot", "ggridges", 
+packageList <- c("data.table", "dtplyr", "dplyr", "ggplot2", "tibble", "tidyr", "cowplot", "ggridges", 
 "ggpmisc", "deSolve", "DescTools", "paletteer", "latex2exp", "readr", "RColorBrewer")
 
 lapply(packageList, require, character.only = T)
@@ -48,11 +48,16 @@ CalcAddEffects <- function(dat, dat_fixed) {
   # If we are calculating fitness for segregating sites, need to evaluate fitness
   # vs the fixed effect background at the timepoint (i.e. all fixations at timepoint gen)
   # Fixation effect is multiplied by 2 because diploid
-  dat <- dat %>% 
+  dat <- as.data.table(dat)
+  dat_fixed <- as.data.table(dat_fixed)
+  
+  dat_fixed <- dat_fixed %>%
     group_by(gen, seed, modelindex) %>%
-    mutate(fixEffectSum = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
-                                            dat_fixed$seed == cur_group()$seed &
-                                            dat_fixed$modelindex == cur_group()$modelindex,]$value))
+    summarise(fixEffectSum = 2 * sum(value)) %>%
+    select(gen, seed, modelindex, fixEffectSum) %>%
+    ungroup()
+  
+  dat <- dat %>% inner_join(dat_fixed, by = c("gen", "seed", "modelindex"))
   
   # For segregating comparisons:
   # AA = 1+s; Aa = 1+hs; aa = 1
@@ -64,9 +69,12 @@ CalcAddEffects <- function(dat, dat_fixed) {
   AA <- calcAddFitness(dat$fixEffectSum + dat$value * 2, 2, 0.05)
   aa <- calcAddFitness(dat$fixEffectSum, 2, 0.05)
   
-  dat$AA_pheno <- dat$fixEffectSum + 2 * dat$value
-  dat$Aa_pheno <- dat$fixEffectSum + dat$value
-  dat$aa_pheno <- dat$fixEffectSum
+  dat %>% 
+    mutate(AA_pheno = fixEffectSum + 2 * value,
+           Aa_pheno = fixEffectSum + value,
+           aa_pheno = fixEffectSum,
+           value_AA = value * 2,
+)
   dat$avFit <- Aa - aa
   dat$avFit_AA <- AA - aa
   dat$value_AA <- dat$value * 2
@@ -75,7 +83,7 @@ CalcAddEffects <- function(dat, dat_fixed) {
   dat$waa <- aa
   dat$s <- AA - aa
   
-  return(dat)
+  return(as_tibble(dat))
 }
 
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
@@ -99,31 +107,28 @@ runLandscaper <- function(df_path, output, width, optimum, threads, useID = FALS
 
 ## Calculate fitness in network models
 CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
-  
   # calculate cumulative molecular component values at each step due to only 
   # fixed effects
   # multiply by 2 because diploid
-  dat <- dat %>%
-    group_by(gen, seed, modelindex) %>%
-    mutate(fixEffectSum_aZ = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
-                                                 dat_fixed$mutType == 3 &
-                                                 dat_fixed$seed == cur_group()$seed &
-                                                 dat_fixed$modelindex == cur_group()$modelindex,]$value),
-           fixEffectSum_bZ = 2 * sum(dat_fixed[dat_fixed$gen <= cur_group()$gen &
-                                                 dat_fixed$mutType == 4 &
-                                                 dat_fixed$seed == cur_group()$seed &
-                                                 dat_fixed$modelindex == cur_group()$modelindex,]$value))
-  # Transform to exp scale
-  dat$fixEffectSum_aZ <- exp(dat$fixEffectSum_aZ)
-  dat$fixEffectSum_bZ <- exp(dat$fixEffectSum_bZ)
-  dat$fixEffectSum_KZ <- exp(dat$fixEffectSum_KZ)
-  dat$fixEffectSum_KXZ <- exp(dat$fixEffectSum_KXZ)
+  dat <- as.data.table(dat)
+  dat_fixed <- as.data.table(dat_fixed)
   
+  dat_fixed <- dat_fixed %>%
+    group_by(gen, seed, modelindex, mutType) %>%
+    summarise(fixEffectSum = exp(2 * sum(value))) %>%
+    select(gen, seed, modelindex, mutType, fixEffectSum) %>%
+    ungroup()
+  
+  # Join and pivot fixEffectSums and values 
+  dat <- dat %>% inner_join(dat_fixed, 
+                            by = c("gen", "seed", "modelindex", "mutType")) %>% 
+    pivot_wider(names_from = mutType, values_from = c(fixEffectSum, value),
+                names_glue = "{.value}_{mutType}", values_fill = 0)
   dat$rowID <- as.integer(rownames(dat))
   
-  # Get phenotypes with the mutation
+  # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
-                dplyr::select(rowID, fixEffectSum_aZ, fixEffectSum_bZ, fixEffectSum_KZ, fixEffectSum_KXZ), 
+                dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
@@ -134,34 +139,30 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # Aa = d_popfx$fixEffectSum + value
   # aa = d_popfx$fixEffectSum
   
-  # Loop over molecular components
-  for (C in 3:6) {
   # Add on the segregating effect to the fixation effects
-    d_dat_withFX <- dat %>% filter(mutType == C)
-    d_dat_withFX$aZ <- exp(log(d_dat_withFX_aZ$fixEffectSum_aZ) + d_dat_withFX_aZ$value)
-    d_dat_withFX$bZ <- exp(log(d_dat_withFX_aZ$fixEffectSum_bZ))
-    d_dat_withFX$KZ <- exp(log(d_dat_withFX_bZ$fixEffectSum_aZ))
-    d_dat_withFX$KXZ <- exp(log(d_dat_withFX_bZ$fixEffectSum_bZ) + d_dat_withFX_bZ$value)
-    
-    # homozygous effect
-    d_dat_withFX_aZ$aZ_AA <- exp(log(d_dat_withFX_aZ$fixEffectSum_aZ) + 2 * d_dat_withFX_aZ$value)
-    d_dat_withFX_aZ$bZ_AA <- exp(log(d_dat_withFX_aZ$fixEffectSum_bZ))
-    d_dat_withFX_bZ$aZ_AA <- exp(log(d_dat_withFX_bZ$fixEffectSum_aZ))
-    d_dat_withFX_bZ$bZ_AA <- exp(log(d_dat_withFX_bZ$fixEffectSum_bZ) + 2 * d_dat_withFX_bZ$value)
-    
-    d_dat_withFX <- rbind(d_dat_withFX_aZ, d_dat_withFX_bZ)
-    
-    # Get phenotypes with the mutation
-    write.table(d_dat_withFX %>% ungroup() %>% 
-                  dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
-                "d_grid.csv", sep = ",", col.names = F, row.names = F)
-    Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
-    
-    write.table(d_dat_withFX %>% ungroup() %>% 
-                  dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
-                "d_grid.csv", sep = ",", col.names = F, row.names = F)
-    AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
-  }
+  d_dat_withFX <- dat
+  d_dat_withFX$aZ <- exp(log(d_dat_withFX$fixEffectSum_3) + d_dat_withFX$value_3)
+  d_dat_withFX$bZ <- exp(log(d_dat_withFX$fixEffectSum_4) + d_dat_withFX$value_4)
+  d_dat_withFX$KZ <- exp(log(d_dat_withFX$fixEffectSum_5) + d_dat_withFX$value_5)
+  d_dat_withFX$KXZ <- exp(log(d_dat_withFX$fixEffectSum_6) + d_dat_withFX$value_6)
+  
+  # homozygous effect
+  d_dat_withFX$aZ_AA <- exp(log(d_dat_withFX$fixEffectSum_3) + 2 * d_dat_withFX$value_3)
+  d_dat_withFX$bZ_AA <- exp(log(d_dat_withFX$fixEffectSum_4) + 2 * d_dat_withFX$value_4)
+  d_dat_withFX$KZ_AA <- exp(log(d_dat_withFX$fixEffectSum_5) + 2 * d_dat_withFX$value_5)
+  d_dat_withFX$KXZ_AA <- exp(log(d_dat_withFX$fixEffectSum_6) + 2 * d_dat_withFX$value_6)
+  
+  # Get phenotypes with the mutation
+  write.table(d_dat_withFX %>% ungroup() %>% 
+                dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  
+  write.table(d_dat_withFX %>% ungroup() %>% 
+                dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
+              "d_grid.csv", sep = ",", col.names = F, row.names = F)
+  AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+
   
   # Ensure that the tables are aligned by id before we join them
   dat <- dat %>% arrange(rowID)
