@@ -75,25 +75,21 @@ d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in%
 
 # Combine with d_qg
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
-
-d_fixed_adapted <- d_muts_adapted %>% filter(!is.na(fixGen))
-# Calculate the fitness effects in additive populations (>= 50000 because that's when burn-in ended)
-d_fix_add <- CalcAddEffects(d_fix_add) %>% filter(gen >= 50000)
-
-# Filter for NAR populations
-d_fix_nar <- d_fix_adapted %>% ungroup() %>% mutate(r = rownames(.)) %>% 
-  filter(modelindex == 2)
-
-# First get matched molecular component data for generations where we have fixations
-d_qg_matched_fix <- d_adapted %>% 
-  filter(interaction(gen, seed, modelindex) %in% 
-           interaction(d_fix_nar$gen, d_fix_nar$seed, d_fix_nar$modelindex)) %>%
-  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
-
-d_fix_nar <- inner_join(d_fix_nar, d_qg_matched_fix, by = c("gen", "seed", "modelindex"))
+d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen), gen >= 50000)
+# Calculate the fitness effects in additive populations
+d_add_fx <- CalcAddEffects(d_com_adapted %>% filter(model == "Add", 
+                                                    is.na(fixGen),
+                                                    gen >= 50000),
+                           d_fixed_adapted %>% filter(model == "Add"))
 
 # Calculate fitness effects for NAR populations
-d_fix_nar <- CalcNARPhenotypeEffects(d_fix_nar) %>% filter(gen >= 50000)
+d_nar_fx <- CalcNARPhenotypeEffects(d_com_adapted %>% filter(model != "Add",
+                                                              is.na(fixGen),
+                                                              gen >= 50000),
+                                     d_fixed_adapted %>% filter(model != "Add"))
+
+# Calculate pairwise epistasis
+
 
 # Get adaptive step order and attach step 0 (phenotype from before the first step in the walk)
 d_fix_ranked <- RankFixations(d_fix_nar, T, d_fix %>% filter(modelindex == 2))
