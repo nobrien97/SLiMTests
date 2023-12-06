@@ -26,11 +26,11 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
 
 # Adds the parameter combination to a dataframe
 AddCombosToDF <- function(df) {
-  df %>% 
-    mutate(nloci = d_combos$nloci[modelindex],
-           tau = d_combos$tau[modelindex],
-           r = d_combos$r[modelindex],
-           model = d_combos$model[modelindex])
+  df %>% ungroup() %>%
+    mutate(model = d_combos$model[as.numeric(levels(modelindex))[modelindex]],
+           nloci = d_combos$nloci[as.numeric(levels(modelindex))[modelindex]],
+           tau = d_combos$tau[as.numeric(levels(modelindex))[modelindex]],
+           r = d_combos$r[as.numeric(levels(modelindex))[modelindex]])
 }
 
 # Fitness effect calculation functions
