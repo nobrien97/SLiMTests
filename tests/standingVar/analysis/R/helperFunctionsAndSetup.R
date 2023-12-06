@@ -119,11 +119,22 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
-  # Join and pivot fixEffectSums and values 
+  # Pivot fixEffectSums and values 
+  dat_fixed <- dat_fixed %>% 
+    pivot_wider(names_from = mutType, values_from = fixEffectSum,
+                names_glue = "{.value}_{mutType}", values_fill = 1)
+  
+  # HACK ALERT! HACK ALERT!
+  ## use a temporary mutType2 column so we keep mutType when pivot_wider does
+  ## its thing
+  dat <- dat %>%
+    mutate(mutType2 = mutType) %>%
+    pivot_wider(names_from = mutType2, values_from = value,
+                names_glue = "{.value}_{mutType2}", values_fill = 0)
+  
   dat <- dat %>% inner_join(dat_fixed, 
-                            by = c("gen", "seed", "modelindex", "mutType")) %>% 
-    pivot_wider(names_from = mutType, values_from = c(fixEffectSum, value),
-                names_glue = "{.value}_{mutType}", values_fill = 0)
+                            by = c("gen", "seed", "modelindex"))
+  
   dat$rowID <- as.integer(rownames(dat))
   
   # Get phenotypes without the mutation
@@ -182,6 +193,12 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   dat$waa <- d_popfx$fitness
   dat$s <- dat$wAA - dat$waa
   return(dat)
+}
+
+# Calculate pairwise epistasis between two vectors of additive mutational effects
+PairwiseEpistasisAdditive <- function(a, b) {
+  # Generate combinations of a and b
+  ab_combos <- expand.grid(a, b)
 }
 
 
