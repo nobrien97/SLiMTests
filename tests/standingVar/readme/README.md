@@ -17,7 +17,7 @@ Q: How do these components of the genetic architecture influence the heritabilit
 - G matrix (among molecular components)
 - Epistasis (pairwise)
   - $\epsilon = ln(w_{ab}) - ln(w_{a}) - ln(w_{b})$
-  - $\epsilon_P = P_{ab} - P_{a} - P_{b}$
+  - $\epsilon_P = (P_{ab} - P_{wildtype}) - ((P_{a} - P_{wildtype}) + (P_{b} - P_{wildtype}))$
 
 Rate of adaptation
 $\bar{dP/dt}$: average change in phenotype over time
