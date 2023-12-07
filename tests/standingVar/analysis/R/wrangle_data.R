@@ -89,6 +89,27 @@ d_nar_fx <- CalcNARPhenotypeEffects(d_com_adapted %>% filter(model != "Add",
                                      d_fixed_adapted %>% filter(model != "Add"))
 
 # Calculate pairwise epistasis
+d_add_e <- PairwiseEpistasisAdditive(d_fixed_adapted %>% filter(model == "Add"),
+                          d_com_adapted %>% filter(model == "Add",
+                                                   is.na(fixGen)) %>%
+                            select(gen, seed, modelindex, value) %>%
+                            rename(a = value),
+                          d_com_adapted %>% filter(model == "Add",
+                                                   is.na(fixGen)) %>%
+                            select(gen, seed, modelindex, value) %>%
+                            rename(b = value))
+
+d_net_e <- PairwiseEpistasisNAR(d_fixed_adapted %>% filter(model != "Add"),
+                                     d_com_adapted %>% filter(model != "Add",
+                                                              is.na(fixGen)) %>%
+                                       select(gen, seed, modelindex, mutType, value) %>%
+                                       rename(a = value),
+                                     d_com_adapted %>% filter(model != "Add",
+                                                              is.na(fixGen)) %>%
+                                       select(gen, seed, modelindex, mutType, value) %>%
+                                       rename(b = value))
+
+
 
 
 # Get adaptive step order and attach step 0 (phenotype from before the first step in the walk)
