@@ -15,7 +15,7 @@ d_qg <- read.table(paste0(dataPath, "slim_qg.csv"), header = F,
                                  "deltaw", "aZ", "bZ", "KZ", "KXZ"), 
                    fill = T)
 
-# Add predictors
+ # Add predictors
 d_qg <- AddCombosToDF(d_qg) 
 
 # Filter for models which adapted (within 10% of optimum by the end of the simulation)
@@ -75,6 +75,11 @@ d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in%
 
 # Combine with d_qg
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
+
+# Testing
+d_com_adapted <- d_com_adapted %>%
+  filter(modelindex == 25 | modelindex == 26)
+
 d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen), gen >= 50000)
 # Calculate the fitness effects in additive populations
 d_add_fx <- CalcAddEffects(d_com_adapted %>% filter(model == "Add", 
@@ -109,36 +114,85 @@ d_net_e <- PairwiseEpistasisNAR(d_fixed_adapted %>% filter(model != "Add"),
                                        select(gen, seed, modelindex, mutType, value) %>%
                                        rename(b = value))
 
+d_add_e_av <- d_add_e %>%
+  group_by(gen, modelindex) %>%
+  summarise(meanEW = mean(ew),
+            CIEW = CI(ew),
+            meanEP = mean(ep),
+            CIEP = CI(ep))
 
 
+d_net_e_av <- d_net_e %>%
+  mutate(mutTypeAB = interaction(mutType_a, mutType_b)) %>%
+  group_by(gen, modelindex, mutTypeAB) %>%
+  summarise(meanEW = mean(ew),
+            CIEW = CI(ew),
+            meanEP = mean(ep),
+            CIEP = CI(ep))
 
-# Get adaptive step order and attach step 0 (phenotype from before the first step in the walk)
-d_fix_ranked <- RankFixations(d_fix_nar, T, d_fix %>% filter(modelindex == 2))
-d_fix_ranked_add <- RankFixations(d_fix_add, F, d_fix %>% filter(modelindex == 1))
+ggplot(d_net_e_av %>% mutate(gen = gen - 50000) %>%
+         pivot_longer(c(meanEP, meanEW, CIEP, CIEW), 
+                      names_to = c(".value", "EType"),
+                      names_pattern = "(..*)(..$)"),
+       aes(x = gen, y = mean, colour = EType)) +
+  facet_wrap(vars(mutTypeAB)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = mean - CI, ymax = mean + CI, colour = NULL,
+                  fill = EType), alpha = 0.4) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Phenotype", "Fitness")) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  guides(fill = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean epistasis", colour = "Epistasis type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
 
-d_seg_ranked <- CalcNARPhenotypeEffects(d_seg_ranked, F, d_fix_adapted)
+ggplot(d_add_e_av %>% mutate(gen = gen - 50000) %>%
+         pivot_longer(c(meanEP, meanEW, CIEP, CIEW), 
+                      names_to = c(".value", "EType"),
+                      names_pattern = "(..*)(..$)"),
+       aes(x = gen, y = mean, colour = EType)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = mean - CI, ymax = mean + CI, colour = NULL,
+                  fill = EType), alpha = 0.4) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Phenotype", "Fitness")) +
+  scale_fill_paletteer_d("ggsci::nrc_npg") +
+  guides(fill = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean epistasis", 
+       colour = "Epistasis type") +
+  theme_bw() +
+  theme(text = element_text(size = 16))
 
-d_seg_ranked_add <- CalcAddEffects(d_seg_ranked_add, F, d_fix_adapted)
+# dP/dt
+sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
+d_adapted %>%
+  mutate(dPdT = deltaPheno / 50) -> d_adapted
 
+d_dpdt <- d_adapted %>%
+  filter(gen >= 50000) %>%
+  mutate(gen = gen - 50000,
+         optPerc = (phenomean - 1))    # percent to optimum
 
-d_fix_ranked_combined <- rbind(d_fix_ranked, d_fix_ranked_add)
-d_fix_ranked_combined$model <- if_else(d_fix_ranked_combined$modelindex == 1, "Additive", "NAR")
+d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.95, Inf))
 
-# Calculate fitness effects when they arose, 
-# and when they first reached 50% or greater freq - not fixed
-d_qg_matched_seg <- d_qg %>% 
-  filter(interaction(gen, seed, modelindex) %in% 
-           interaction(d_muts_del$gen, d_muts_del$seed, d_muts_del$modelindex)) %>%
-  dplyr::select(gen, seed, modelindex, aZ, bZ, KZ, KXZ, phenomean, w) %>% distinct()
+d_dpdt %>%
+  group_by(optPerc, modelindex, model, nloci, r, tau) %>%
+  mutate(nloci = as.factor(nloci),
+         r = as.factor(r),
+         tau = as.factor(tau)) %>%
+  summarise(meandPdT = mean(dPdT),
+            CIdPdT = CI(dPdT)) -> d_dpdt
 
-d_seg_del <- inner_join(d_muts_del, d_qg_matched_seg, 
-                        by = c("gen", "seed", "modelindex"))
+ggplot(d_dpdt,
+       aes(x = meandPdT, y = optPerc, fill = model)) +
+  facet_wrap(vars(nloci)) +
+  geom_density_ridges(alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
+  labs(x = TeX("Mean change in phenotype per generation ($\\frac{\\delta P}{\\delta t}$)"), 
+       y = "Closeness to optimum (%)", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
 
-# Calculate phenotypes
-d_seg_del_add <- CalcAddEffects(d_seg_del %>% filter(modelindex == 1), isFixed = F,
-                                dat_fixed = d_fix_adapted %>% filter(modelindex == 1))
-d_seg_del <- CalcNARPhenotypeEffects(d_seg_del %>% filter(modelindex == 2), isFixed = F, 
-                        dat_fixed = d_fix_adapted %>% filter(modelindex == 2))
 
 # Fitness calculations aren't correct for those before optimum shift: recalculate
 d_seg_del[d_seg_del$gen < 50000,]$wAA <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$AA_pheno, 1, 0.05)
