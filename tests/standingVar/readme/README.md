@@ -160,3 +160,22 @@ Measurements
 - Haplotypes (for heritability estimation)
 - Allele frequencies and effect sizes
 - Pairwise LD
+
+
+## Heritability estimation
+
+To estimate heritability, I looked at a few methods. Bayesian methods are nice because of their error propagation,
+but unfortunately they are just too slow for the number of models I need to fit (21600 models * 4-5 timepoints).
+I previously used ```sommer``` to estimate variance components and heritability via a REML approach which worked
+pretty well. However, when I began testing this for estimating multiple traits (molecular components) and their
+covariances, it became obvious this wasn't feasible either. The fits went from about 10 seconds to 200 seconds when
+estimating additive variance/covariance of two traits vs one.
+
+The reason for the dramatic slowdown is that solving these linear models is a $O(n^3)$ problem. Each iteration of the 
+maximum likelihood estimation requires inverting the covariance matrix of the pedigree, which grows with the number of
+traits. To get around this, we need to remove the covariance structure from the data, which reduces the solution to a
+product of univariate traits (since they are all uncorrelated - covariance structure doesn't need to be taken into 
+account). We can do this by performing an eigendecomposition on the $A$ matrix once at the start of the solution and
+using the resulting eigenvectors to rotate the phenotypes into an orthogonal space when we estimate breeding values.
+This technique is implemented in the ```bWGR::mkr``` function, in addition to other optimisations. It uses a
+randomized Gauss-Seidel algorithm to improve convergence speed. Variance and covariance components were solved using an EM-REML like approach proposed by Schaeffer (1986) called Pseudo-Expectation (Xavier and Habier 2022; Xavier et al. 2020).
