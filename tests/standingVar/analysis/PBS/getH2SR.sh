@@ -1,0 +1,61 @@
+#!/bin/bash -l
+
+module load R/4.0.0
+
+cd $PBS_JOBFS
+SECONDS=0
+
+GDATAPATH=/g/data/ht96/nb9894/standingVar
+SCRATCHPATH=/scratch/ht96/nb9894/standingVar/analysis
+
+# Two arguments: 
+# run number (starts at 0)
+# chunk (starts at 1): 
+#        since we have heaps of files, we want to make sure that we don't write too many for /scratch/
+#        so we chunk our data into sets so we can progressively combine files and delete them without
+#        exceeding the limit.
+RUN=$1
+CHUNK=$2
+
+if [ -f $HOME/tests/standingVar/analysis/done/${RUN}_* ]; then
+    echo "$RUN already done! Moving to next simulation."
+    exit 0
+fi
+
+# Save subset files to work on
+tail -n "+${RUN}" $GDATAPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
+tail -n "+${RUN}" $GDATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
+tail -n "+${RUN}" $GDATAPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
+
+tail -n "+${RUN}" $DATADIR/slim_haplo.csv | head -n 1 > test_haplo.csv
+tail -n "+${RUN}" $DATADIR/slim_sampled_pheno.csv | head -n 1 > test_pheno.csv
+tail -n "+${RUN}" $DATADIR/slim_sampled_moltrait.csv | head -n 1 > test_moltrait.csv
+
+tail -n "+${RUN}" $DATADIR/slim_relPos2452433049787301888_1.csv | head -n 1 > test_rel_relPos2.csv
+tail -n "+${RUN}" $DATADIR/slim_relVals2452433049787301888_1.csv | head -n 1 > test_rel_relVals2.csv
+tail -n "+${RUN}" $DATADIR/slim_haplo2452433049787301888_1.csv | head -n 1 > test_rel_haplo2.csv
+tail -n "+${RUN}" $DATADIR/slim_sampled_pheno2452433049787301888_1.csv | head -n 1 > test_rel_pheno2.csv
+tail -n "+${RUN}" $DATADIR/slim_sampled_moltrait2452433049787301888_1.csv | head -n 1 > test_rel_moltrait2.csv
+
+
+
+RSCRIPTNAME=$HOME/tests/standingVar/analysis/R/calcH2.R
+
+echo "Running RUNindex = $RUN...\n"
+Rscript ${RSCRIPTNAME} ${RUN} ${CHUNK}
+
+# Create file to show what we've already done if we get interrupted
+touch $HOME/tests/standingVar/analysis/done/${RUN}_${CHUNK}
+
+# Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
+# Chunks should consist of 2091 files
+if [ $(ls $HOME/tests/standingVar/analysis/done/*_${CHUNK} | wc -l) == 2091 ]; then
+    echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
+    cat $SCRATCHPATH/*_${CHUNK}.csv >> $SCRATCHPATH/out_h2_${CHUNK}_done.csv
+    rm $SCRATCHPATH/*_${CHUNK}.csv
+fi
+
+
+DURATION=$SECONDS
+echo "Run RUNindex = $RUN, finished!"
+echo "$(($DURATION / 3600)) hours, $((($DURATION / 60) % 60)) minutes, and $(($DURATION % 60)) seconds elapsed."
