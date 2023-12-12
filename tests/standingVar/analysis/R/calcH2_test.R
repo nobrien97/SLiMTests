@@ -232,7 +232,7 @@ library(bWGR)
 relPheno_mat <- as.matrix(relPheno_dat[1:5])
 A <- decompressRel(relPos, relVals, 1000)
 
-mkr_result <- mkr(relPheno_mat[,2:3], A)
+mkr_result <- mkr(relPheno_mat[,1:3], A)
 
 wgr_result <- wgr(relPheno)
 

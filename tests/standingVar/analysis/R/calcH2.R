@@ -1,137 +1,180 @@
 # R Script to calculate heritability given some data
-library(sommer)
+library(bWGR)
 
+# Path to write output
+WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/getH2/out_h2_", run, ".csv")
 # Get command line arguments
+## 1: model (ODE, K, or Additive)
+## 2: run
 args <- commandArgs(trailingOnly = T)
-run <- as.numeric(args[1])
-chunk <- as.numeric(args[2])
+model <- as.numeric(args[1])
+run <- as.numeric(args[2])
 run_chunk <- paste(run, chunk, sep = "_")
 
-# Load function for extracting genotypes
+# Load functions for loading relatedness/haplotype matrices
 source("~/tests/h2/R/helpFns.R")
 
-# Read data and add names
-haplos <- scan(paste0("slim_haplo_sbst_", run, ".csv"), what = integer(), sep = ",")[-(1:3)]
+# Two methods: kernel and ridge regression based on pedigree or loci 
+# Pedigree is really an estimate of breeding values, loci should be more
+# accurate: but we will try both
+
+# Load in haplotypes
+haplos <- scan(paste0("slim_haplo_sbst_", run, ".csv"), sep = ",")[-(1:3)]
+haplos_fix <- scan(paste0("slim_haplo_fix_sbst_", run, ".csv"), sep = ",")[-(1:3)]
+
 haplos <- decompressHap(haplos, 2000, 1024)
 names(haplos) <- paste0("q_", seq_len(ncol(haplos)))
-phenos <- scan(paste0("slim_pheno_sbst_", run, ".csv"), sep = ",")
-names(phenos) <- NULL
-# From the phenos file, extract gen, seed, modelindex and remove them
-## Use these later to identify output
-run_info <- phenos[1:3]
-phenos <- phenos[-(1:3)]
+haplos <- addFixedHaplos(haplos, haplos_fix)
 
-# Check to make sure there is variability in at least one of the loci
-if (all(colVar(haplos) == 0)) {
-    print(paste("No variability in model", run, "- closing R."))
-    q(save = "no")
-}
-
-# Get genotypes from haplos
+# Get genotypes from haplos (0, 1, 2 coded)
 genos <- hapToGen(haplos)
 geno_names <- paste0("i_", seq_len(nrow(genos)))
-pheno_dat <- data.frame(y = phenos,
-                        id = as.factor(geno_names))
+# Centralise genotypes
+X <- CNT(genos)
 
-# Calculate genomic relationship matrices
-A <- A.mat(as.matrix(genos)-1)
-D <- D.mat(as.matrix(genos)-1)
-AA <- A*A
+# Load relatedness matrix and molecular components
+relPos <- scan(paste0("slim_relPos_sbst_", run, ".csv"), what = numeric(), sep = ",")[-(1:3)]
+relVals <- scan(paste0("slim_relVals_sbst_", run, ".csv"), what = numeric(), sep = ",")[-(1:3)]
 
-# Add names to dims
-dimnames(A) <- list(geno_names, geno_names)
-dimnames(D) <- list(geno_names, geno_names)
-dimnames(AA) <- list(geno_names, geno_names)
+# Additive relatedness matrix (Wright coefficients)
+A <- decompressRel(relPos, relVals, 1000)
 
-# Add extra IDs for D and AA
-pheno_dat$idd <- pheno_dat$id
-pheno_dat$ide <- pheno_dat$id
+# Molecular components
+relPheno <- scan(paste0("slim_moltrait_sbst_", run, ".csv"), sep = ",")
+names(relPheno) <- NULL
 
-######################################################################
-# This code is adapted from Onigo et al. 2021, thanks to Akio Onogi
-# for sharing code samples
-
-# Fit models using A, D, and AA GRMs only to avoid overfitting
-Ai <- as(solve(A + diag(1e-4,ncol(A),ncol(A))), Class="dgCMatrix")
-Di <- as(solve(D + diag(1e-4,ncol(D),ncol(D))), Class="dgCMatrix")
-AAi <-as(solve(A + diag(1e-4,ncol(A),ncol(A))), Class="dgCMatrix")
-
-Result.A_D_AA <- mmer(y~1,
-                    random = ~vsr(id, Gu = A, Gtc = diag(1)) +
-                      vsr(idd, Gu = D) +
-                      vsr(ide, Gu = AA),
-                    rcov = ~ units,
-                    data = pheno_dat)
-
-# Make sure we have some results: try to run a simpler model if we don't
-if(!exists("Result.A_D_AA")) {
-    print(paste("Unable to generate mmer in model", run, "- trying VA-VD model"))
-
-Result.A_D_AA <- mmer(y~1,
-                    random = ~vsr(id, Gu = A, Gtc = diag(1)) +
-                      vsr(idd, Gu = D),
-                    rcov = ~ units,
-                    data = pheno_dat)
-
-}
-# Check again
-if(!exists("Result.A_D_AA")) {
-    print(paste("Unable to generate mmer in model", run, "closing"))
-    q(save = "no")
-}
-
-#Extract results
-Result.A_D_AA.Extract <- data.frame(gen = run_info[1],
-                            seed = as.character(run_info[2]),
-                            modelindex = run_info[3],
-                            VarA = unname(Result.A_D_AA$sigma[[1]]), #Variance components
-                            VarD = unname(Result.A_D_AA$sigma[[2]]),
-                            VarAA = unname(Result.A_D_AA$sigma[[3]]),
-                            VarR = unname(Result.A_D_AA$sigma[[4]]),
-                            VarA.SE = sqrt(diag(Result.A_D_AA$sigmaSE))[1],#SE of variance components
-                            VarD.SE = sqrt(diag(Result.A_D_AA$sigmaSE))[2],
-                            VarAA.SE = sqrt(diag(Result.A_D_AA$sigmaSE))[3],
-                            VarR.SE = sqrt(diag(Result.A_D_AA$sigmaSE))[4],
-                            H2.A = predict(Result.A_D_AA, h2 ~ V1 / (V1+V2+V3+V4)),#Proportions
-                            H2.D = predict(Result.A_D_AA, h2 ~ V2 / (V1+V2+V3+V4)),
-                            H2.AA = predict(Result.A_D_AA, h2 ~ V3 / (V1+V2+V3+V4)),
-                            AIC = Result.A_D_AA$AIC
-                            )
-######################################################################
-
-# Measure molecular components
-molPhenos <- scan(paste0("slim_molTrait_sbst_", run, ".csv"), sep = ",")
-names(molPhenos) <- NULL
 # From the phenos file, extract gen, seed, modelindex and remove them
 ## Use these later to identify output
-run_info <- molPhenos[1:3]
-molPhenos <- molPhenos[-(1:3)]
+run_info <- relPheno[1:3]
+relPheno <- relPheno[-(1:3)]
 
-# Convert to data frame
-molPheno_dat <- data.frame(Z   = molPhenos[seq(1, length(molPhenos), by = 5)],
-                           aZ  = molPhenos[seq(2, length(molPhenos), by = 5)],
-                           bZ  = molPhenos[seq(3, length(molPhenos), by = 5)],
-                           KZ  = molPhenos[seq(4, length(molPhenos), by = 5)],
-                           KXZ = molPhenos[seq(5, length(molPhenos), by = 5)],
-                           id = as.factor(geno_names))
+ind_names <- paste0(1:1000)
 
-# Add extra IDs for D and AA
-molPheno_dat$idd <- molPheno_dat$id
-molPheno_dat$ide <- molPheno_dat$id
+# Convert to data frame: log mol trait values to transform to normal
+relPheno_dat <- data.frame(Z   = relPheno[seq(1, length(relPheno), by = 5)],
+                           aZ  = log(relPheno[seq(2, length(relPheno), by = 5)]),
+                           bZ  = log(relPheno[seq(3, length(relPheno), by = 5)]),
+                           KZ  = log(relPheno[seq(4, length(relPheno), by = 5)]),
+                           KXZ = log(relPheno[seq(5, length(relPheno), by = 5)]),
+                           id = as.factor(ind_names))
+
+# Scale variances
+relPheno_dat$aZ_scl <- scale(relPheno_dat$aZ)
+relPheno_dat$bZ_scl <- scale(relPheno_dat$bZ)
+relPheno_dat$KZ_scl <- scale(relPheno_dat$KZ)
+relPheno_dat$KXZ_scl <- scale(relPheno_dat$KXZ)
+
+# Run kernel regression w/ eigendecomposition depending on the model
+relPheno_mat <- as.matrix(relPheno_dat[1:5])
+
+if (model == "Add") {
+  # No molecular components, only phenotype
+  relPheno <- scan(paste0("slim_pheno_sbst_", run, ".csv"), sep = ",")
+  names(relPheno) <- NULL
+  run_info <- relPheno[1:3]
+  relPheno <- relPheno[-(1:3)]
+  ind_names <- paste0(1:1000)
+  relPheno_dat <- data.frame(Z   = relPheno,
+                             id = as.factor(ind_names))
+  relPheno_mat <- as.matrix(relPheno_dat[1])
+  mkr_result <- mkr(relPheno_mat, A)
+  mrr_result <- mrr(relPheno_mat, X)
+} else if (model == "ODE") {
+  # No K values for the regular models
+  mkr_result <- mkr(relPheno_mat[,1:3], A)
+  mrr_result <- mrr(relPheno_mat[,1:3], X)
+  
+} else if (model == "K") {
+  # All K values
+  mkr_result <- mkr(relPheno_mat[,1:5], A)
+  mrr_result <- mrr(relPheno_mat[,1:5], X)
+} else {
+  print(paste("Couldn't find model type in run ", run, "- closing R."))
+  q(save = "no")
+}
+
+# Print output
+if (!exists("mkr_result") & !exists("mrr_result")) {
+  print(paste("Couldn't solve model in run ", run, "- closing R."))
+  q(save = "no")
+}
+
+# Write results to separate files
+if (exists("mkr_result")) {
+  # Expand results with NA for Additive and ODE cases
+  molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
+  colnames(mkr_result$Vb) <- molTraitNames[1:ncol(mkr_result$Vb)]
+  rownames(mkr_result$Vb) <- colnames(mkr_result$Vb)
+  
+  G <- matrix(NA, nrow = 5, ncol = 5)
+  colnames(G) <- molTraitNames
+  rownames(G) <- colnames(G)
+  
+  G[rownames(mkr_result$Vb), colnames(mkr_result$Vb)] <- mkr_result$Vb
+  
+  h2 <- rep(NA, 5)
+  h2[1:length(mkr_result$h2)] <- mkr_result$h2
+  
+  cov_terms <- combn(molTraitNames, 2)
+  cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
+  
+  #Extract results
+  mkr_result_df <- data.frame(gen = run_info[1],
+                              seed = as.character(run_info[2]),
+                              modelindex = run_info[3]
+  )
+  # Get genetic variances
+  mkr_result_df[1, paste("VA", rownames(G), sep = "_")] <- diag(G)
+  
+  # get genetic covariances
+  mkr_result_df[1, cov_terms] <- G[t(upper.tri(G))]
+  
+  # heritability
+  mkr_result_df[1, paste("h2", molTraitNames, sep = "_")] <- h2
+  
+  # Output file
+  print(paste0("Writing mkr output for model ", run, "..."))
+  write.table(mkr_result_df, WRITE_PATH, 
+              sep = ",", row.names = F, col.names = F)
+}
+
+if (exists("mrr_result")) {
+  # Expand results with NA for Additive and ODE cases
+  molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
+  colnames(mrr_result$Vb) <- molTraitNames[1:ncol(mrr_result$Vb)]
+  rownames(mrr_result$Vb) <- colnames(mrr_result$Vb)
+  
+  G <- matrix(NA, nrow = 5, ncol = 5)
+  colnames(G) <- molTraitNames
+  rownames(G) <- colnames(G)
+  
+  G[rownames(mrr_result$Vb), colnames(mrr_result$Vb)] <- mrr_result$Vb
+  
+  h2 <- rep(NA, 5)
+  h2[1:length(mrr_result$h2)] <- mrr_result$h2
+  
+  cov_terms <- combn(molTraitNames, 2)
+  cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
+  
+  #Extract results
+  mrr_result_df <- data.frame(gen = run_info[1],
+                              seed = as.character(run_info[2]),
+                              modelindex = run_info[3]
+  )
+  # Get genetic variances
+  mrr_result_df[1, paste("VA", rownames(G), sep = "_")] <- diag(G)
+  
+  # get genetic covariances
+  mrr_result_df[1, cov_terms] <- G[t(upper.tri(G))]
+  
+  # heritability
+  mrr_result_df[1, paste("h2", molTraitNames, sep = "_")] <- h2
+  
+  # Output file
+  print(paste0("Writing mrr output for model ", run, "..."))
+  write.table(mrr_result_df, WRITE_PATH, 
+              sep = ",", row.names = F, col.names = F)
+}
+######################################################################
 
 
-Result.A_D_AA <- mmer(Z~1,
-                    random = ~vsr(id, Gu = A),
-                    rcov = ~ vsr(units),
-                    data = molPheno_dat)
-
-                      vsr(idd, Gu = D, unsm(5)) +
-                      vsr(ide, Gu = AA, unsm(5)) +,
-
-
-
-rownames(Result.A_D_AA.Extract) <- NULL
-
-# Output file
-print(paste0("Writing output for model ", run, "..."))
-write.table(Result.A_D_AA.Extract, paste0("/scratch/ht96/nb9894/h2_hsfs_nloci/getH2_hsfs_nloci/out_h2_", run_chunk, ".csv"), sep = ",", row.names = F, col.names = F)

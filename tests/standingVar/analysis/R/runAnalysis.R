@@ -5,10 +5,13 @@ dataPath <- "/mnt/d/SLiMTests/tests/standingVar/initial/"
 setwd(repoPath)
 
 # Load functions
-source("./R/helperFunctionsAndSetup.R")
+source("./helperFunctionsAndSetup.R")
 
 # Setup data
 source("./R/wrangle_data.R")
+
+# Calculate heritability
+source("./R/calcH2.R")
 
 # Run mutation screen experiment
 source("./R/mutationScreenExp.R")
