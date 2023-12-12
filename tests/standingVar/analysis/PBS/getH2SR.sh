@@ -4,9 +4,9 @@ module load R/4.0.0
 
 cd $PBS_JOBFS
 SECONDS=0
+JOBNAME=standingVar/analysis
 
-GDATAPATH=/g/data/ht96/nb9894/standingVar
-SCRATCHPATH=/scratch/ht96/nb9894/standingVar/analysis
+SCRATCHPATH=/scratch/user/uqnobri4/${JOBNAME}
 
 # Two arguments: 
 # run number (starts at 0)
@@ -15,7 +15,6 @@ SCRATCHPATH=/scratch/ht96/nb9894/standingVar/analysis
 #        so we chunk our data into sets so we can progressively combine files and delete them without
 #        exceeding the limit.
 RUN=$1
-CHUNK=$2
 
 if [ -f $HOME/tests/standingVar/analysis/done/${RUN}_* ]; then
     echo "$RUN already done! Moving to next simulation."
@@ -23,20 +22,12 @@ if [ -f $HOME/tests/standingVar/analysis/done/${RUN}_* ]; then
 fi
 
 # Save subset files to work on
-tail -n "+${RUN}" $GDATAPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
-tail -n "+${RUN}" $GDATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
-tail -n "+${RUN}" $GDATAPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
-
-tail -n "+${RUN}" $DATADIR/slim_haplo.csv | head -n 1 > test_haplo.csv
-tail -n "+${RUN}" $DATADIR/slim_sampled_pheno.csv | head -n 1 > test_pheno.csv
-tail -n "+${RUN}" $DATADIR/slim_sampled_moltrait.csv | head -n 1 > test_moltrait.csv
-
-tail -n "+${RUN}" $DATADIR/slim_relPos2452433049787301888_1.csv | head -n 1 > test_rel_relPos2.csv
-tail -n "+${RUN}" $DATADIR/slim_relVals2452433049787301888_1.csv | head -n 1 > test_rel_relVals2.csv
-tail -n "+${RUN}" $DATADIR/slim_haplo2452433049787301888_1.csv | head -n 1 > test_rel_haplo2.csv
-tail -n "+${RUN}" $DATADIR/slim_sampled_pheno2452433049787301888_1.csv | head -n 1 > test_rel_pheno2.csv
-tail -n "+${RUN}" $DATADIR/slim_sampled_moltrait2452433049787301888_1.csv | head -n 1 > test_rel_moltrait2.csv
-
+tail -n "+${RUN}" $DATAPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_haplo_fix.csv | head -n 1 > slim_haplo_fix_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_relVals.csv | head -n 1 > slim_relVals_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_relPos.csv | head -n 1 > slim_relPos_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
 
 
 RSCRIPTNAME=$HOME/tests/standingVar/analysis/R/calcH2.R

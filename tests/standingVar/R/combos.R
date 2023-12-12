@@ -93,7 +93,7 @@ write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/PBS/cmds.txt",
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
-nloci <- 4^(0:4)
+nloci <- 4^(1:5)
 tau <- c(0.0125, 0.125, 1.25)
 rwide <- 10^seq(-10, -1, by = 1)
 lhc <- expand.grid(nloci, tau, rwide)

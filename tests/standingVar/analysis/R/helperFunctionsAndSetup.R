@@ -335,65 +335,13 @@ PairwiseEpistasisNAR <- function(dat_fixed, a, b) {
                 ep = ep))  
 }
 
-
-
-# Rank the fixations in order of adaptive step (first step, second, etc.)
-RankFixations <- function(dat, isNAR, dat_burnInFX = dat) {
-  index <- as.integer(isNAR) + 1
+# Calculates the site frequency spectra for mutations
+CalcSFS <- function(dat) {
+  dat$FreqBin <- cut(dat$Freq, breaks = 10)
+  dat$optPerc <- dat$phenomean - 1
+  dat$optPerc <- cut(dat$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.95, Inf))
   
-  if (isNAR) {
-    # Get fixed effects up to each rank
-    dat <- dat %>%
-      group_by(gen, seed) %>%
-      mutate(fixEffectSum_aZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
-                                                    dat_burnInFX$mutType == 3 &
-                                                    dat_burnInFX$seed == cur_group()$seed,]$value)),
-             fixEffectSum_bZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
-                                                    dat_burnInFX$mutType == 4 &
-                                                    dat_burnInFX$seed == cur_group()$seed,]$value)))
-    
-    d_fix_ranked <- dat %>%
-      group_by(seed, modelindex) %>%
-      arrange(gen, .by_group = T) %>%
-      mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, originGen,
-                      value, aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ,
-                      avFX, avFit, avFit_AA, avFX_AA, AA_pheno, Aa_pheno, aa_pheno,
-                      wAA, wAa, waa, s))
-    
-    step0_pheno <- d_adapted %>% 
-      filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
-               interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
-      group_by(gen, seed) %>%
-      mutate(rank = 0, value = NA, mutID = NA, avFit = NA,
-             fixEffectSum_aZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
-                                                    dat_burnInFX$mutType == 3 &
-                                                    dat_burnInFX$seed == cur_group()$seed,]$value)),
-             fixEffectSum_bZ = exp(2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
-                                                    dat_burnInFX$mutType == 4 &
-                                                    dat_burnInFX$seed == cur_group()$seed,]$value))) %>%
-      dplyr::select(gen, rank, seed, modelindex, mutID, value, 
-                    aZ, bZ, phenomean, w, fixEffectSum_aZ, fixEffectSum_bZ, avFit)
-  } else {
-    d_fix_ranked <- dat %>%
-      group_by(seed, modelindex) %>%
-      arrange(gen, .by_group = T) %>%
-      mutate(rank = row_number()) %>%
-      dplyr::select(c(gen, rank, seed, modelindex, mutID, mutType, originGen,
-                      fixEffectSum, value, value_AA, aZ, bZ, phenomean, w, 
-                      avFit, avFit_AA, AA_pheno, Aa_pheno, aa_pheno, 
-                      wAA, wAa, waa, s))
-    
-    step0_pheno <- d_adapted %>% 
-      filter(modelindex == index, gen == 49500, interaction(seed, modelindex) %in%
-               interaction(d_fix_ranked$seed, d_fix_ranked$modelindex)) %>%
-      group_by(gen, seed) %>%
-      mutate(rank = 0, value = NA, mutID = NA, avFit = NA,
-             fixEffectSum = 2 * sum(dat_burnInFX[dat_burnInFX$gen <= cur_group()$gen &
-                                                     dat_burnInFX$seed == cur_group()$seed,]$value)) %>%
-      dplyr::select(gen, rank, seed, modelindex, mutID, value,
-                    aZ, bZ, phenomean, w, fixEffectSum, avFit)
-  }
-  
-  return(rbind(d_fix_ranked, step0_pheno))
+  dat %>% 
+    select(optPerc, seed, modelindex, model, nloci, r, tau, 
+           mutID, mutType, value, Freq, FreqBin)
 }

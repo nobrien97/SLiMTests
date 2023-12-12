@@ -193,6 +193,58 @@ ggplot(d_dpdt,
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
 
+# SFS
+d_SFS <- CalcSFS(d_com_adapted)
+
+ggplot(d_SFS,
+       aes(x = Freq, y = optPerc, height = after_stat(density), fill = model)) +
+  geom_density_ridges(stat = "binline", bins = 20, scale = 0.95, alpha = 0.4) +
+  scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
+  labs(x = TeX("Allele frequency"), 
+       y = "Closeness to optimum (%)", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
+# Deviation plots
+# Calculate control means
+d_h2_ctrl <- d_h2_ctrl %>%
+  group_by(nloci, sigma, width) %>% 
+  summarise(meanH2A_ctrl = mean(H2.A.Estimate),
+            seH2A_ctrl = se(H2.A.Estimate),
+            meanH2D_ctrl = mean(H2.D.Estimate), 
+            seH2D_ctrl = se(H2.D.Estimate),
+            meanH2AA_ctrl = mean(H2.AA.Estimate),
+            seH2AA_ctrl = se(H2.AA.Estimate),
+            meanVarA_ctrl = mean(VarA),
+            seVarA_ctrl = se(VarA),
+            meanVarD_ctrl = mean(VarD),
+            seVarD_ctrl = se(VarD),
+            meanVarAA_ctrl = mean(VarAA),
+            seVarAA_ctrl = se(VarAA)
+  )
+
+# Add to main dataframe
+d_h2_total <- inner_join(d_h2, d_h2_ctrl, by = c("nloci", "sigma", "width"))
+
+# We do want directionality, so not squared deviation
+d_h2_total <- d_h2_total %>% 
+  group_by(nloci, sigma) %>% 
+  mutate(devA = (H2.A.Estimate - meanH2A_ctrl),
+         devD = (H2.D.Estimate - meanH2D_ctrl),
+         devAA = (H2.AA.Estimate - meanH2AA_ctrl))
+
+# summarise
+d_h2_sum_notime <- d_h2_total %>%
+  group_by(fixedEffect, nloci, sigma) %>% 
+  summarise(meanDevH2A = mean(devA),
+            seDevH2A = se(devA),
+            meanDevH2D = mean(devD), 
+            seDevH2D = se(devD),
+            meanDevH2AA = mean(devAA),
+            seDevH2AA = se(devAA),
+  )
+
 
 # Fitness calculations aren't correct for those before optimum shift: recalculate
 d_seg_del[d_seg_del$gen < 50000,]$wAA <- calcAddFitness(d_seg_del[d_seg_del$gen < 50000,]$AA_pheno, 1, 0.05)

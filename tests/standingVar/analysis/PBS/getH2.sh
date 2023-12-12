@@ -22,7 +22,8 @@ SAVEDIR=/QRISdata/Q4117/${JOBNAME}
 
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
-module load nci-parallel/1.0.0a
+module load r/4.2.1
+
 export ncores_per_task=1
 export ncores_per_numanode=12
 
@@ -36,6 +37,7 @@ CMD_MAX=$((($CMD_LEN/($NJOBS+1))*($NJOB+1)))
 sed -n -e "${CMD_MIN},${CMD_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
 
 
+srun --ntasks=14400 --export=ALL 
 mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --dedicated --input-file ./JOB_PATH.txt --timeout 172800
 
 # Combine output into a single file

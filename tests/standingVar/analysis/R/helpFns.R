@@ -51,3 +51,8 @@ colVar <- function(m) {
   }
   return(result)
 }
+
+addFixedHaplos <- function(haplos, fixedPos) {
+  haplos[,fixedPos+1] <- 1
+  return(haplos)
+}

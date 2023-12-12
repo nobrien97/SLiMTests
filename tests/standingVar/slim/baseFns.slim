@@ -581,7 +581,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 
 	writeFile(outHaploFix, haploFixations, append = T);
 
-	// Write FX with the fixed haplotypes
+	// Write FX with the fixed haplotypes included
 	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, StoreBinaryMatrix(haplos), length(inds.genomes), length(qtls)), sep=",");
 
 	// Remove fixed from the haplotype store
