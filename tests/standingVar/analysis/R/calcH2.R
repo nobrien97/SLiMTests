@@ -1,5 +1,6 @@
 # R Script to calculate heritability given some data
 library(bWGR)
+library(purrr)
 
 # Path to write output
 WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/getH2/out_h2_", run, ".csv")
@@ -67,6 +68,11 @@ relPheno_dat$KXZ_scl <- scale(relPheno_dat$KXZ)
 # Run kernel regression w/ eigendecomposition depending on the model
 relPheno_mat <- as.matrix(relPheno_dat[1:5])
 
+# Error catching
+mkrOrError <- possibly(mkr, otherwise = NA)
+mrrOrError <- possibly(mrr, otherwise = NA)
+
+
 if (model == "Add") {
   # No molecular components, only phenotype
   relPheno <- scan(paste0("slim_pheno_sbst_", run, ".csv"), sep = ",")
@@ -77,30 +83,30 @@ if (model == "Add") {
   relPheno_dat <- data.frame(Z   = relPheno,
                              id = as.factor(ind_names))
   relPheno_mat <- as.matrix(relPheno_dat[1])
-  mkr_result <- mkr(relPheno_mat, A)
-  mrr_result <- mrr(relPheno_mat, X)
+  mkr_result <- mkrOrError(relPheno_mat, A)
+  mrr_result <- mrrOrError(relPheno_mat, X)
 } else if (model == "ODE") {
   # No K values for the regular models
-  mkr_result <- mkr(relPheno_mat[,1:3], A)
-  mrr_result <- mrr(relPheno_mat[,1:3], X)
+  mkr_result <- mkrOrError(relPheno_mat[,1:3], A)
+  mrr_result <- mrrOrError(relPheno_mat[,1:3], X)
   
 } else if (model == "K") {
   # All K values
-  mkr_result <- mkr(relPheno_mat[,1:5], A)
-  mrr_result <- mrr(relPheno_mat[,1:5], X)
+  mkr_result <- mkrOrError(relPheno_mat[,1:5], A)
+  mrr_result <- mrrOrError(relPheno_mat[,1:5], X)
 } else {
   print(paste("Couldn't find model type in run ", run, "- closing R."))
   q(save = "no")
 }
 
 # Print output
-if (!exists("mkr_result") & !exists("mrr_result")) {
+if (is.na(mkr_result) & is.na("mrr_result")) {
   print(paste("Couldn't solve model in run ", run, "- closing R."))
   q(save = "no")
 }
 
 # Write results to separate files
-if (exists("mkr_result")) {
+if (!is.na(mkr_result[1])) {
   # Expand results with NA for Additive and ODE cases
   molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
   colnames(mkr_result$Vb) <- molTraitNames[1:ncol(mkr_result$Vb)]
@@ -138,7 +144,7 @@ if (exists("mkr_result")) {
               sep = ",", row.names = F, col.names = F)
 }
 
-if (exists("mrr_result")) {
+if (!is.na(mrr_result[1])) {
   # Expand results with NA for Additive and ODE cases
   molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
   colnames(mrr_result$Vb) <- molTraitNames[1:ncol(mrr_result$Vb)]
