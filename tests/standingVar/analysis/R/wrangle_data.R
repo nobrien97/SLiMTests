@@ -172,7 +172,7 @@ d_dpdt <- d_adapted %>%
   mutate(gen = gen - 50000,
          optPerc = (phenomean - 1))    # percent to optimum
 
-d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.95, Inf))
+d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
 
 d_dpdt %>%
   group_by(optPerc, modelindex, model, nloci, r, tau) %>%
@@ -180,14 +180,14 @@ d_dpdt %>%
          r = as.factor(r),
          tau = as.factor(tau)) %>%
   summarise(meandPdT = mean(dPdT),
-            CIdPdT = CI(dPdT)) -> d_dpdt
+            CIdPdT = CI(dPdT)) -> d_dpdt_sum
 
 ggplot(d_dpdt,
-       aes(x = meandPdT, y = optPerc, fill = model)) +
+       aes(x = dPdT, y = optPerc, fill = model)) +
   facet_wrap(vars(nloci)) +
   geom_density_ridges(alpha = 0.4) +
   scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
-  labs(x = TeX("Mean change in phenotype per generation ($\\frac{\\delta P}{\\delta t}$)"), 
+  labs(x = TeX("Change in phenotype per generation ($\\frac{\\delta P}{\\delta t}$)"), 
        y = "Closeness to optimum (%)", 
        fill = "Model") +
   theme_bw() +
@@ -208,42 +208,39 @@ ggplot(d_SFS,
 
 # Deviation plots
 # Calculate control means
-d_h2_ctrl <- d_h2_ctrl %>%
-  group_by(nloci, sigma, width) %>% 
-  summarise(meanH2A_ctrl = mean(H2.A.Estimate),
-            seH2A_ctrl = se(H2.A.Estimate),
-            meanH2D_ctrl = mean(H2.D.Estimate), 
-            seH2D_ctrl = se(H2.D.Estimate),
-            meanH2AA_ctrl = mean(H2.AA.Estimate),
-            seH2AA_ctrl = se(H2.AA.Estimate),
-            meanVarA_ctrl = mean(VarA),
-            seVarA_ctrl = se(VarA),
-            meanVarD_ctrl = mean(VarD),
-            seVarD_ctrl = se(VarD),
-            meanVarAA_ctrl = mean(VarAA),
-            seVarAA_ctrl = se(VarAA)
+# deviation from grand mean across all groups (nloci, r, tau)
+d_dpdt_ctrl <- d_dpdt %>%
+  group_by(optPerc, model) %>% 
+  summarise(mean_dpdt_ctrl = mean(dPdT),
+            CI_dpdt_ctrl = se(dPdT),
   )
 
 # Add to main dataframe
-d_h2_total <- inner_join(d_h2, d_h2_ctrl, by = c("nloci", "sigma", "width"))
+d_dpdt_total <- inner_join(d_dpdt, d_dpdt_ctrl, 
+                           by = c("optPerc", "model"))
 
 # We do want directionality, so not squared deviation
-d_h2_total <- d_h2_total %>% 
-  group_by(nloci, sigma) %>% 
-  mutate(devA = (H2.A.Estimate - meanH2A_ctrl),
-         devD = (H2.D.Estimate - meanH2D_ctrl),
-         devAA = (H2.AA.Estimate - meanH2AA_ctrl))
+d_dpdt_total <- d_dpdt_total %>% 
+  group_by(optPerc, model) %>% 
+  mutate(devdPdT = (dPdT - mean_dpdt_ctrl))
 
-# summarise
-d_h2_sum_notime <- d_h2_total %>%
-  group_by(fixedEffect, nloci, sigma) %>% 
-  summarise(meanDevH2A = mean(devA),
-            seDevH2A = se(devA),
-            meanDevH2D = mean(devD), 
-            seDevH2D = se(devD),
-            meanDevH2AA = mean(devAA),
-            seDevH2AA = se(devAA),
-  )
+# Plot deviations
+ggplot(d_dpdt_total,
+       aes(x = devdPdT, y = optPerc, colour = model)) +
+  facet_grid(nloci~tau) +
+  scale_x_continuous(sec.axis = sec_axis(~., name = "Mutational effect variance",
+                                         breaks = NULL, labels = NULL)) +
+  guides(y.sec = guide_axis_manual(
+    breaks = NULL, labels = NULL, title = "Number of loci"
+  )) +
+  geom_jitter(size = 0.5) +
+  # geom_density_ridges(alpha = 0.4) +
+  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
+  labs(x = TeX("Deviation from overall mean change in phenotype per generation ($\\frac{\\delta P}{\\delta t}$)"), 
+       y = "Closeness to optimum (%)", 
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
 
 
 # Fitness calculations aren't correct for those before optimum shift: recalculate
