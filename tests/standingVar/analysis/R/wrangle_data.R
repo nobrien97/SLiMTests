@@ -227,8 +227,8 @@ d_dpdt_total <- d_dpdt_total %>%
 # Plot deviations
 ggplot(d_dpdt_total,
        aes(x = devdPdT, y = optPerc, colour = model)) +
-  facet_grid(nloci~tau) +
-  scale_x_continuous(sec.axis = sec_axis(~., name = "Mutational effect variance",
+  facet_grid(nloci~r) +
+  scale_x_continuous(sec.axis = sec_axis(~., name = "Recombination rate",
                                          breaks = NULL, labels = NULL)) +
   guides(y.sec = guide_axis_manual(
     breaks = NULL, labels = NULL, title = "Number of loci"
@@ -241,6 +241,48 @@ ggplot(d_dpdt_total,
        colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
+
+# SFS Deviations
+# Calculate control means: mean proportion of mutations within
+# each bin
+# deviation from grand mean across all groups (nloci, r, tau)
+d_SFS <- d_SFS %>%
+  group_by(optPerc, seed, modelindex) %>%
+  mutate(totalMuts = n()) %>%
+  group_by(optPerc, seed, modelindex, FreqBin) %>%
+  mutate(binProp = n()/totalMuts) %>%
+  ungroup()
+
+d_SFS_ctrl <- d_SFS %>%
+  group_by(optPerc, model, FreqBin) %>%
+  summarise(mean_SFS_ctrl = mean(binProp),
+            CI_SFS_ctrl = CI(binProp)
+  )
+
+# Add to main dataframe
+d_SFS_total <- inner_join(d_SFS, d_SFS_ctrl, 
+                           by = c("optPerc", "model", "FreqBin"))
+
+# We do want directionality, so not squared deviation
+d_SFS_total <- d_SFS_total %>% 
+  group_by(optPerc, modelindex, FreqBin) %>% 
+  mutate(devSFS = (binProp - mean_SFS_ctrl)) %>%
+  ungroup() %>%
+  select(optPerc, model, r, nloci, tau, devSFS, FreqBin) %>%
+  distinct()
+
+# Plot
+ggplot(d_SFS_total,
+       aes(x = FreqBin, y = optPerc, stat = devSFS, fill = model)) +
+  facet_grid(nloci~tau) +
+  geom_bar() +
+  scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
+  labs(x = TeX("Allele frequency"), 
+       y = "Change in Closeness to optimum (%)", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom")
+
 
 
 # Fitness calculations aren't correct for those before optimum shift: recalculate
