@@ -15,7 +15,7 @@ d_qg <- read.table(paste0(dataPath, "slim_qg.csv"), header = F,
                                  "deltaw", "aZ", "bZ", "KZ", "KXZ"), 
                    fill = T)
 
- # Add predictors
+# Add predictors
 d_qg <- AddCombosToDF(d_qg) 
 
 # Filter for models which adapted (within 10% of optimum by the end of the simulation)
@@ -75,10 +75,6 @@ d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in%
 
 # Combine with d_qg
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
-
-# Testing
-d_com_adapted <- d_com_adapted %>%
-  filter(modelindex == 25 | modelindex == 26)
 
 d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen), gen >= 50000)
 # Calculate the fitness effects in additive populations
@@ -273,15 +269,26 @@ d_SFS_total <- d_SFS_total %>%
 
 # Plot
 ggplot(d_SFS_total,
-       aes(x = FreqBin, y = optPerc, stat = devSFS, fill = model)) +
-  facet_grid(nloci~tau) +
-  geom_bar() +
+       aes(x = FreqBin, y = devSFS, fill = model)) +
+  facet_nested(nloci~tau+optPerc) +
+  geom_col(position = position_dodge(0.9)) +
+  guides(x.sec = guide_axis_manual(
+    breaks = NULL, labels = NULL, title =  "Mutational effect variance"
+  ),
+    y.sec = guide_axis_manual(
+    breaks = NULL, labels = NULL, title = "Number of loci"
+  )) +
   scale_fill_paletteer_d("ggsci::nrc_npg", labels = c("Additive", "ODE", "K")) +
+  scale_x_discrete(labels = seq(0.1, 1, by = 0.1)) +
   labs(x = TeX("Allele frequency"), 
-       y = "Change in Closeness to optimum (%)", 
+       y = "Change in proportion of mutations (%)", 
        fill = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
+
+# Plots for effects of increasing parameters in isolation
+
+
 
 
 
