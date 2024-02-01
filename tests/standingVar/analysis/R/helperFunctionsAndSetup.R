@@ -275,9 +275,12 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 10, m = 100) {
 
 # Calculate pairwise epistasis between combinations of network mutational effects
 # relative to their wildtype background
-# a and b are n x 5 dataframes with gen, seed, modelindex, mutType for 
-# matching to dat_fixed
-PairwiseEpistasisNAR <- function(dat_fixed, a, b) {
+# muts is a N x 4 dataframe of mutations with gen, seed, modelindex for matching 
+# to dat_fixed where N is the number of mutants to test
+# will have to do bootstrap methods, since there are a lot of mutations,
+# and we're really only interested in an average
+# n is the number of iterations to do, m = number of mutations to sample each iteration
+PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -287,82 +290,118 @@ PairwiseEpistasisNAR <- function(dat_fixed, a, b) {
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
+  # output dataframe: number of generations/seeds/modelindices * iterations
+  output_len <- nrow(dat) * n
+  out <- tibble(gen = numeric(output_len),
+                seed = rep(dat$seed, each = n),
+                modelindex = rep(dat$modelindex, each = n),
+                mutType = rep(dat$mutType, each = n),
+                meanEP = numeric(output_len),
+                meanEW = numeric(output_len),
+                seEP = numeric(output_len),
+                seEW = numeric(output_len))
+  
+  # Pivot wider for easier access to fixed effects for the result vector
   dat <- dat %>% 
     pivot_wider(names_from = mutType, values_from = fixEffectSum,
                 names_glue = "{.value}_{mutType}", values_fill = 1)
   
   
-  # Add on a and b columns
-  dat <- dat %>%
-    inner_join(., a, by = c("gen", "seed", "modelindex"), 
-               relationship = "many-to-many") %>%
-    inner_join(., b, by = c("gen", "seed", "modelindex"),
-               relationship = "many-to-many") %>%
-    rename(mutType_a = mutType.x,
-           mutType_b = mutType.y)
+  # Iterate bootstrap
+  j = 1
+  while (j <= n) {
+    # Sample m mutations from each of muts for a and b: note: chance to sample the
+    # same mutation twice, so some epistasis might be dominance: chance is low though,
+    # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
+    # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
+    nMutTypes <- nlevels(muts$mutType)
+    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    
+    # Join a and b and add fixed effects
+    result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
+                               relationship = "many-to-many")
+    result <- result %>% rename(a = value.x, b = value.y,
+                                mutType_a = mutType.x, mutType_b = mutType.y)
+    result <- inner_join(result, dat, by = c("gen", "seed", "modelindex")) %>%
+      select(gen, seed, modelindex, mutType_a, mutType_b, a, b, starts_with("fixEffectSum"))
   
   abNames <- paste(c(rep("a", times = 4), rep("b", times = 4)), 3:6, sep = "_")
-  dat[,abNames] <- 0
+  result[,abNames] <- 0
   
   # initialize a and b values for the right molecular component
-  for (i in unique(dat$mutType_a)) {
-    dat[dat$mutType_a == paste0(i), paste0("a_", i)] <- dat[dat$mutType_a == paste0(i), "a"]
-    dat[dat$mutType_b == paste0(i), paste0("b_", i)] <- dat[dat$mutType_b == paste0(i), "b"]
+  for (i in unique(result$mutType_a)) {
+    result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
+    result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
   }
   
   # Add on a, b, ab to the base effect
-  for (i in unique(dat$mutType_a)) {
-    dat[, paste0("value_a_", i)] <- exp(log(dat[,paste0("fixEffectSum_", i)]) + dat[,paste0("a_", i)])
-    dat[, paste0("value_b_", i)] <- exp(log(dat[,paste0("fixEffectSum_", i)]) + dat[,paste0("b_", i)])
-    dat[, paste0("value_ab_", i)] <- exp(log(dat[,paste0("fixEffectSum_", i)]) + dat[,paste0("a_", i)] + dat[,paste0("b_", i)])
+  for (i in unique(result$mutType_a)) {
+    result[, paste0("value_a_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
+    result[, paste0("value_b_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
+    result[, paste0("value_ab_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
   }
   
-  dat$rowID <- as.integer(rownames(dat))
+  # if this is an ODE/not K model, we need to add on fixed effects for KZ and KXZ
+  # TODO: handle this better
+  if (any(dat_fixed$model == "ODE")) {
+    result$fixEffectSum_5 <- 1
+    result$fixEffectSum_6 <- 1
+    result$value_a_5 <- 0
+    result$value_a_6 <- 0
+    result$value_b_5 <- 0
+    result$value_b_6 <- 0
+    result$value_ab_5 <- 0
+    result$value_ab_6 <- 0
+  }
+  
+  result$rowID <- as.integer(rownames(result))
   
   # Run wildtype phenotypes
-  write.table(dat %>% ungroup() %>%
+  data.table::fwrite(result %>% ungroup() %>%
                 dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_wildtype <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
 
   # a phenotypes
-  write.table(dat %>% ungroup() %>%
+  data.table::fwrite(result %>% ungroup() %>%
                 dplyr::select(rowID, value_a_3, value_a_4, value_a_5, value_a_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_a <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
   # b phenotypes
-  write.table(dat %>% ungroup() %>%
+  data.table::fwrite(result %>% ungroup() %>%
                 dplyr::select(rowID, value_b_3, value_b_4, value_b_5, value_b_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_b <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
   # ab phenotypes
-  write.table(dat %>% ungroup() %>%
+  data.table::fwrite(result %>% ungroup() %>%
                 dplyr::select(rowID, value_ab_3, value_ab_4, value_ab_5, value_ab_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   d_ab <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
   # Ensure that the tables are aligned by id before we join them
-  dat <- dat %>% arrange(rowID)
+  result <- result %>% arrange(rowID)
   d_a <- d_a %>% arrange(id)
   d_b <- d_b %>% arrange(id)
   d_ab <- d_ab %>% arrange(id)
   d_wildtype <- d_wildtype %>% arrange(id)
   
   # Epistasis (fitness and trait)
-  ew <- log(d_ab$fitness) - log(d_a$fitness) - log(d_b$fitness)
-  ep <- ( d_ab$pheno - d_wildtype$pheno ) - ( ( d_a$pheno - d_wildtype$pheno ) + ( d_b$pheno - d_wildtype$pheno ) ) 
-
-    return(tibble(gen = dat$gen,
-                seed = dat$seed,
-                modelindex = dat$modelindex,
-                mutType_a = dat$mutType_a,
-                mutType_b = dat$mutType_b,
-                a = dat$a,
-                b = dat$b,
-                ew = ew,
-                ep = ep))  
+  result$ew <- log(d_ab$fitness) - log(d_a$fitness) - log(d_b$fitness)
+  result$ep <- ( d_ab$pheno - d_wildtype$pheno ) - ( ( d_a$pheno - d_wildtype$pheno ) + ( d_b$pheno - d_wildtype$pheno ) ) 
+  
+  thisIterRange <- ( (j-1) * (output_len / n) + 1 ):( j * (output_len / n) )
+  out[thisIterRange,] <- result %>%
+    group_by(gen, seed, modelindex, mutType_a) %>%
+    summarise(    mean_ep <- mean(ep),
+                  mean_ew <- mean(ew),
+                  se_ep <- se(ep),
+                  se_ew <- se(ew))
+  j <- j + 1
+  }
+  return(out)
 }
 
 # Calculates the site frequency spectra for mutations
