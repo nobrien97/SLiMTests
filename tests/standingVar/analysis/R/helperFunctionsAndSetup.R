@@ -198,9 +198,12 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
 
 # Calculate pairwise epistasis between combinations of additive mutational effects
 # relative to their wildtype background
-# a and b are n x 4 dataframes with gen, seed, modelindex for matching to dat_fixed
-PairwiseEpistasisAdditive <- function(dat_fixed, a, b) {
-  
+# muts is a N x 4 dataframe of mutations with gen, seed, modelindex for matching 
+# to dat_fixed where N is the number of mutants to test
+# will have to do bootstrap methods, since there are a lot of mutations,
+# and we're really only interested in an average
+# n is the number of iterations to do, m = number of mutations to sample each iteration
+PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 10, m = 100) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -210,38 +213,64 @@ PairwiseEpistasisAdditive <- function(dat_fixed, a, b) {
     select(gen, seed, modelindex, fixEffectSum) %>%
     ungroup()
   
-  # Add on a and b columns
-  dat <- dat %>%
-    inner_join(., a, by = c("gen", "seed", "modelindex"), 
-               relationship = "many-to-many") %>%
-    inner_join(., b, by = c("gen", "seed", "modelindex"),
-               relationship = "many-to-many")
-  
-  # Calculate phenotype and fitness effects
-  Pw <- dat$fixEffectSum
-  Pa <- dat$fixEffectSum + dat$a
-  Pb <- dat$fixEffectSum + dat$b
-  Pab <- dat$fixEffectSum + dat$a + dat$b
-  wa <- calcAddFitness(Pa, 2, 0.05)
-  wb <- calcAddFitness(Pb, 2, 0.05)
-  wab <- calcAddFitness(Pab, 2, 0.05)
-  
-  # Epistasis (fitness and trait)
-  ew <- log(wab) - log(wa) - log(wb)
-  # ep <- Pab - (dat$fixEffectSum + dat$a + dat$b)  
-  # e_p = (effect due to ab) - (effect due to a + effect due to b)
-  ep <- ( Pab - Pw ) - ( ( Pa - Pw ) + ( Pb - Pw ) ) # should always be zero for additive
-  
-  # Account for floating point error
-  # ep[ep != 0] <- 0
+  # output dataframe: number of generations/seeds/modelindices * iterations
+  output_len <- nrow(dat) * n
+  out <- tibble(gen = numeric(output_len),
+                seed = rep(dat$seed, each = n),
+                modelindex = rep(dat$modelindex, each = n),
+                meanEP = numeric(output_len),
+                meanEW = numeric(output_len),
+                seEP = numeric(output_len),
+                seEW = numeric(output_len))
+                
+  # Iterate bootstrap
+  i = 1
+  while (i <= n) {
+    # Sample m mutations from each of muts for a and b: note: chance to sample the
+    # same mutation twice, so some epistasis might be dominance: chance is low though,
+    # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
+    # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
+    a <- muts %>% group_by(gen, seed, modelindex) %>% slice_sample(n = m)
+    b <- muts %>% group_by(gen, seed, modelindex) %>% slice_sample(n = m)
     
-  return(tibble(gen = dat$gen,
-                seed = dat$seed,
-                modelindex = dat$modelindex,
-                a = dat$a,
-                b = dat$b,
-                ew = ew,
-                ep = ep))  
+    # Join a and b and add fixed effects
+    result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
+                               relationship = "many-to-many")
+    result <- result %>% rename(a = value.x, b = value.y)
+    result <- inner_join(result, dat, by = c("gen", "seed", "modelindex"))
+
+    # Calculate phenotype and fitness effects
+    Pw <- result$fixEffectSum
+    Pa <- result$fixEffectSum + result$a
+    Pb <- result$fixEffectSum + result$b
+    Pab <- result$fixEffectSum + result$a + result$b
+    wa <- calcAddFitness(Pa, 2, 0.05)
+    wb <- calcAddFitness(Pb, 2, 0.05)
+    wab <- calcAddFitness(Pab, 2, 0.05)
+    
+    # Epistasis (fitness and trait)
+    result$ew <- log(wab) - log(wa) - log(wb)
+    # ep <- Pab - (dat$fixEffectSum + dat$a + dat$b)  
+    # e_p = (effect due to ab) - (effect due to a + effect due to b)
+    result$ep <- ( Pab - Pw ) - ( ( Pa - Pw ) + ( Pb - Pw ) ) # should always be zero for additive
+    
+    # Account for floating point error
+    # ep[ep != 0] <- 0
+    
+  
+    # Calculate mean and se for this iteration
+    # put into output vector
+    thisIterRange <- ( (i-1) * nrow(dat) + 1 ):( i * nrow(dat) )
+    out[thisIterRange,] <- result %>%
+      group_by(gen, seed, modelindex) %>%
+      summarise(    mean_ep <- mean(ep),
+                    mean_ew <- mean(ew),
+                    se_ep <- se(ep),
+                    se_ew <- se(ew))
+    i <- i + 1
+  }
+  
+  return(out)
 }
 
 # Calculate pairwise epistasis between combinations of network mutational effects
@@ -340,7 +369,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, a, b) {
 CalcSFS <- function(dat) {
   dat$FreqBin <- cut(dat$Freq, breaks = 10)
   dat$optPerc <- dat$phenomean - 1
-  dat$optPerc <- cut(dat$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.95, Inf))
+  dat$optPerc <- cut(dat$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
   
   dat %>% 
     select(optPerc, seed, modelindex, model, nloci, r, tau, 
