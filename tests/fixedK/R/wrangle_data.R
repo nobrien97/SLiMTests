@@ -47,8 +47,25 @@ d_qg %>% group_by(modelindex) %>%
             pAdapted = mean(isAdapted),
             CIAdapted = CI(isAdapted))
 
-# 719 additive models adapted total
-# 585 network models adapted total
+d_qg %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  ungroup() %>%
+  filter(gen == 49500, isAdapted) %>%
+  summarise(n())
+
+d_qg %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.95, 2.05))) %>%
+  ungroup() %>%
+  filter(gen == 49500, isAdapted) %>%
+  summarise(n())
+
+
+# 1455 additive models adapted total
+# 1181 network models adapted total
 
 d_adapted <- d_qg %>% filter(isAdapted)
 
