@@ -133,6 +133,14 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
     pivot_wider(names_from = mutType2, values_from = value,
                 names_glue = "{.value}_{mutType2}", values_fill = 0)
   
+  if (any(dat$model == "ODE")) {
+    dat$fixEffectSum_5 <- 1
+    dat$fixEffectSum_6 <- 1
+    dat$value_5 <- 0
+    dat$value_6 <- 0
+    }
+    
+  
   dat <- dat %>% inner_join(dat_fixed, 
                             by = c("gen", "seed", "modelindex"))
   
@@ -165,12 +173,12 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   d_dat_withFX$KXZ_AA <- exp(log(d_dat_withFX$fixEffectSum_6) + 2 * d_dat_withFX$value_6)
   
   # Get phenotypes with the mutation
-  write.table(d_dat_withFX %>% ungroup() %>% 
+  data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
   
-  write.table(d_dat_withFX %>% ungroup() %>% 
+  data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
   AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
@@ -357,36 +365,53 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
   
   result$rowID <- as.integer(rownames(result))
   
-  # Run wildtype phenotypes
-  data.table::fwrite(result %>% ungroup() %>%
-                dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_wildtype <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  
+  # Prepare data for landscaper: we add on an identifier for the mutation to rowID
+  # so we can easily identify it (wt = 1; a = 2; b = 3; ab = 4)
+  d_wildtype <- result %>% ungroup() %>%
+    dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, 
+                  fixEffectSum_5, fixEffectSum_6) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 1)))
+  
+  d_a <- result %>% ungroup() %>%
+    dplyr::select(rowID, value_a_3, value_a_4, value_a_5, value_a_6) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 2)))
+  
+  d_b <- result %>% ungroup() %>%
+    dplyr::select(rowID, value_b_3, value_b_4, value_b_5, value_b_6) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 3)))
+  
+  d_ab <- result %>% ungroup() %>%
+    dplyr::select(rowID, value_ab_3, value_ab_4, value_ab_5, value_ab_6) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 4)))
+  
+  # Remove column names so we can join them
+  colnames(d_wildtype) <- paste0("v", 1:5)
+  colnames(d_a) <- paste0("v", 1:5)
+  colnames(d_b) <- paste0("v", 1:5)
+  colnames(d_ab) <- paste0("v", 1:5)
 
-  # a phenotypes
-  data.table::fwrite(result %>% ungroup() %>%
-                dplyr::select(rowID, value_a_3, value_a_4, value_a_5, value_a_6), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_a <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  d_landscaper <- rbind(d_wildtype, d_a, d_b, d_ab)
   
-  # b phenotypes
-  data.table::fwrite(result %>% ungroup() %>%
-                dplyr::select(rowID, value_b_3, value_b_4, value_b_5, value_b_6), 
+  # Run landscaper
+  data.table::fwrite(d_landscaper, 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_b <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  d_phenos <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 16, TRUE)
   
-  # ab phenotypes
-  data.table::fwrite(result %>% ungroup() %>%
-                dplyr::select(rowID, value_ab_3, value_ab_4, value_ab_5, value_ab_6), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_ab <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
-  
+
   # Ensure that the tables are aligned by id before we join them
   result <- result %>% arrange(rowID)
-  d_a <- d_a %>% arrange(id)
-  d_b <- d_b %>% arrange(id)
-  d_ab <- d_ab %>% arrange(id)
-  d_wildtype <- d_wildtype %>% arrange(id)
+
+  # Separate phenos by the rowID value that we assigned earlier and revert to
+  # original id
+  d_wildtype <- d_phenos %>% filter(id %% 10 == 1) %>% 
+    mutate(id = id - 1) %>% arrange(id)
+  d_a <- d_phenos %>% filter(id %% 10 == 2) %>% 
+    mutate(id = id - 2) %>% arrange(id)
+  d_b <- d_phenos %>% filter(id %% 10 == 3) %>% 
+    mutate(id = id - 3) %>% arrange(id)
+  d_ab <- d_phenos %>% filter(id %% 10 == 4) %>% 
+    mutate(id = id - 4) %>% arrange(id)
   
   # Epistasis (fitness and trait)
   result$ew <- log(d_ab$fitness) - log(d_a$fitness) - log(d_b$fitness)
