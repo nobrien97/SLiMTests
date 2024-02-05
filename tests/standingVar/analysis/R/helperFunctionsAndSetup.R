@@ -1,7 +1,7 @@
 # Load packages
 packageList <- c("data.table", "dtplyr", "dplyr", "ggplot2", "tibble", "tidyr", "cowplot", "ggridges", 
 "ggpmisc", "deSolve", "DescTools", "paletteer", "latex2exp", "readr", "RColorBrewer",
-"ggh4x")
+"ggh4x", "progress")
 
 lapply(packageList, require, character.only = T)
 
@@ -298,12 +298,15 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
+  nMutTypes <- nlevels(muts$mutType) # could be 2 or 4, depending on model
+  nPossibleMutTypes <- 4
+
   # output dataframe: number of generations/seeds/modelindices * iterations
-  output_len <- nrow(dat) * n
+  output_len <- nrow(dat) * n * nMutTypes
   out <- tibble(gen = numeric(output_len),
-                seed = rep(dat$seed, each = n),
-                modelindex = rep(dat$modelindex, each = n),
-                mutType = rep(dat$mutType, each = n),
+                seed = rep(dat$seed, each = n * nMutTypes),
+                modelindex = rep(dat$modelindex, each = n * nMutTypes),
+                mutType_ab = rep(as.character(dat$mutType), each = n * nMutTypes),
                 meanEP = numeric(output_len),
                 meanEW = numeric(output_len),
                 seEP = numeric(output_len),
@@ -317,14 +320,16 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
   
   # Iterate bootstrap
   j = 1
+  pb <- progress_bar$new(
+    format = "[:bar] :current/:total (:percent)", total = n)
+  pb$tick(0)
   while (j <= n) {
     # Sample m mutations from each of muts for a and b: note: chance to sample the
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    nMutTypes <- nlevels(muts$mutType)
-    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
-    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    a <<- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    b <<- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
@@ -332,59 +337,67 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
     result <- result %>% rename(a = value.x, b = value.y,
                                 mutType_a = mutType.x, mutType_b = mutType.y)
     result <- inner_join(result, dat, by = c("gen", "seed", "modelindex")) %>%
-      select(gen, seed, modelindex, mutType_a, mutType_b, a, b, starts_with("fixEffectSum"))
+      select(gen, seed, modelindex, mutType_a, mutType_b, a, b, 
+             starts_with("fixEffectSum")) %>%
+      mutate(mutType_ab = paste(mutType_a, mutType_b, sep = "_"))
   
   abNames <- paste(c(rep("a", times = 4), rep("b", times = 4)), 3:6, sep = "_")
   result[,abNames] <- 0
-  
-  # initialize a and b values for the right molecular component
-  for (i in unique(result$mutType_a)) {
-    result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
-    result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
-  }
-  
-  # Add on a, b, ab to the base effect
-  for (i in unique(result$mutType_a)) {
-    result[, paste0("value_a_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
-    result[, paste0("value_b_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
-    result[, paste0("value_ab_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
-  }
   
   # if this is an ODE/not K model, we need to add on fixed effects for KZ and KXZ
   # TODO: handle this better
   if (any(dat_fixed$model == "ODE")) {
     result$fixEffectSum_5 <- 1
     result$fixEffectSum_6 <- 1
-    result$value_a_5 <- 0
-    result$value_a_6 <- 0
-    result$value_b_5 <- 0
-    result$value_b_6 <- 0
-    result$value_ab_5 <- 0
-    result$value_ab_6 <- 0
   }
   
+  # initialize a and b values for the right molecular component
+  for (i in (1:nPossibleMutTypes) + 2) {
+    result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
+    result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
+  }
+  
+  # Add on a, b, ab to the base effect
+  for (i in (1:nPossibleMutTypes) + 2) {
+    result[, paste0("a_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
+    result[, paste0("b_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
+    result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
+  }
   result$rowID <- as.integer(rownames(result))
+  result$mutGroup <- rep(1:(nrow(result)/m), each = m)
   
-  
-  # Prepare data for landscaper: we add on an identifier for the mutation to rowID
-  # so we can easily identify it (wt = 1; a = 2; b = 3; ab = 4)
-  d_wildtype <- result %>% ungroup() %>%
-    dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, 
-                  fixEffectSum_5, fixEffectSum_6) %>%
+  # Split the result into wt, a, b, and ab to reduce non-unique solutions
+  d_wildtype <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    filter(row_number() == 1) %>%
+    select(gen, seed, modelindex, rowID, starts_with("fixEffectSum")) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 1)))
-  
-  d_a <- result %>% ungroup() %>%
-    dplyr::select(rowID, value_a_3, value_a_4, value_a_5, value_a_6) %>%
+    
+  d_a <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    distinct(., mutGroup, .keep_all = T) %>%
+    select(gen, seed, modelindex,
+           rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 2)))
-  
-  d_b <- result %>% ungroup() %>%
-    dplyr::select(rowID, value_b_3, value_b_4, value_b_5, value_b_6) %>%
+
+  d_b <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    #distinct(., mutGroup, .keep_all = T) %>%
+    select(gen, seed, modelindex, 
+           rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 3)))
   
-  d_ab <- result %>% ungroup() %>%
-    dplyr::select(rowID, value_ab_3, value_ab_4, value_ab_5, value_ab_6) %>%
-    mutate(rowID = as.numeric(paste0(rowID, 4)))
   
+  d_ab <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    select(gen, seed, modelindex, 
+           rowID, ab_molComp_3, ab_molComp_4, ab_molComp_5, ab_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 4)))
+
   # Remove column names so we can join them
   colnames(d_wildtype) <- paste0("v", 1:5)
   colnames(d_a) <- paste0("v", 1:5)
@@ -405,25 +418,37 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
   # Separate phenos by the rowID value that we assigned earlier and revert to
   # original id
   d_wildtype <- d_phenos %>% filter(id %% 10 == 1) %>% 
-    mutate(id = id - 1) %>% arrange(id)
+    mutate(id = (id - 1) / 10) %>% arrange(id)
   d_a <- d_phenos %>% filter(id %% 10 == 2) %>% 
-    mutate(id = id - 2) %>% arrange(id)
+    mutate(id = (id - 2) / 10) %>% arrange(id)
   d_b <- d_phenos %>% filter(id %% 10 == 3) %>% 
-    mutate(id = id - 3) %>% arrange(id)
+    mutate(id = (id - 3) / 10) %>% arrange(id)
   d_ab <- d_phenos %>% filter(id %% 10 == 4) %>% 
-    mutate(id = id - 4) %>% arrange(id)
+    mutate(id = (id - 4) / 10) %>% arrange(id)
+  
+  # Fill out results to match ab size
+  d_a <- d_a[rep(seq_len(nrow(d_a)), each = m), ]
+  d_a$id <- d_ab$id
+  
+  d_b <- d_b[rep(seq_len(nrow(d_b)), each = m), ]
+  d_b$id <- d_ab$id
+  
+  d_wildtype <- d_wildtype[rep(seq_len(nrow(d_wildtype)), each = m*m), ]
+  d_wildtype$id <- d_ab$id
+  
   
   # Epistasis (fitness and trait)
   result$ew <- log(d_ab$fitness) - log(d_a$fitness) - log(d_b$fitness)
   result$ep <- ( d_ab$pheno - d_wildtype$pheno ) - ( ( d_a$pheno - d_wildtype$pheno ) + ( d_b$pheno - d_wildtype$pheno ) ) 
   
-  thisIterRange <- ( (j-1) * (output_len / n) + 1 ):( j * (output_len / n) )
+  thisIterRange <- ( (j-1) * (output_len / (n)) + 1 ):( j * (output_len / (n)) )
   out[thisIterRange,] <- result %>%
-    group_by(gen, seed, modelindex, mutType_a) %>%
+    group_by(gen, seed, modelindex, mutType_ab) %>%
     summarise(    mean_ep <- mean(ep),
                   mean_ew <- mean(ew),
                   se_ep <- se(ep),
-                  se_ew <- se(ew))
+                  se_ew <- se(ew), .groups = "keep")
+  pb$tick(1)
   j <- j + 1
   }
   return(out)
