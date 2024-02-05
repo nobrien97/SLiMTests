@@ -364,7 +364,9 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
     result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
   }
   result$rowID <- as.integer(rownames(result))
-  result$mutGroup <- rep(1:(nrow(result)/m), each = m)
+  result$mutGroup_a <- rep(1:(nrow(result)/m), each = m)
+  result$mutGroup_b <- rep(1:m, times = nrow(result)/m)
+  
   
   # Split the result into wt, a, b, and ab to reduce non-unique solutions
   d_wildtype <- result %>%
@@ -376,15 +378,17 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
     
   d_a <- result %>%
     group_by(gen, seed, modelindex) %>%
-    distinct(., mutGroup, .keep_all = T) %>%
+    distinct(., mutGroup_a, .keep_all = T) %>%
     select(gen, seed, modelindex,
            rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
     ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 2)))
 
+  # b is organised differently to a, need to calculate first m for each mutgroup
+  # and repeat that for the remaining
   d_b <- result %>%
     group_by(gen, seed, modelindex) %>%
-    #distinct(., mutGroup, .keep_all = T) %>%
+    distinct(., mutGroup_b, .keep_all = T) %>%
     select(gen, seed, modelindex, 
            rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
     ungroup() %>% select(!(gen:modelindex)) %>%
