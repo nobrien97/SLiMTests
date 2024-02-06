@@ -288,7 +288,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 10, m = 100) {
 # will have to do bootstrap methods, since there are a lot of mutations,
 # and we're really only interested in an average
 # n is the number of iterations to do, m = number of mutations to sample each iteration
-PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
+PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -328,8 +328,8 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 10, m = 100) {
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    a <<- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
-    b <<- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),

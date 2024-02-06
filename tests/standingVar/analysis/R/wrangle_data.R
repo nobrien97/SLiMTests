@@ -28,46 +28,48 @@ d_adapted <- d_qg %>% filter(isAdapted)
 
 # Check how many there are
 View(d_qg %>% group_by(model, nloci, tau, r) %>%
-  filter(gen == 49500) %>%
+  filter(gen == 59950) %>%
   summarise(n = n(),
             pAdapted = mean(isAdapted),
             CIAdapted = CI(isAdapted)))
 
 
-# load in observed heterozygosity data
-d_het <- read.table(paste0(dataPath, "slim_locusHo.csv"), 
-                     header = F, sep = ",", 
-                     colClasses = c("integer", "factor", "factor", rep("numeric", 256)), 
-                                    col.names = c("gen", "seed", "modelindex", paste0("Ho_l", 1:256)), 
-                                    fill = T)
-
-# Pivot to calculate mean heterozygosity across the loci
-d_het %>% pivot_longer(cols = -c(gen, seed, modelindex), names_to = "locus", values_to = "Ho") %>%
-  group_by(modelindex) %>%
-  summarise(meanHo = mean(Ho, na.rm = T),
-            CIHo = CI(Ho, na.rm = T))
-
-d_Ho <- d_het %>% 
-  pivot_longer(cols = -c(gen, seed, modelindex), names_to = "locus", values_to = "Ho")
-
-d_Ho <- AddCombosToDF(d_Ho) 
-
-# Summarise, mean H_O over time
-d_Ho %>%
-  group_by(gen, model, nloci, tau, r) %>%
-  summarise(meanHo = mean(Ho, na.rm = T),
-            CIHo = CI(Ho, na.rm = T)) -> d_Ho_sum
+# # load in observed heterozygosity data
+# d_het <- read.table(paste0(dataPath, "slim_locusHo.csv"), 
+#                      header = F, sep = ",", 
+#                      colClasses = c("integer", "factor", "factor", rep("numeric", 256)), 
+#                                     col.names = c("gen", "seed", "modelindex", paste0("Ho_l", 1:256)), 
+#                                     fill = T)
+# 
+# # Pivot to calculate mean heterozygosity across the loci
+# d_het %>% pivot_longer(cols = -c(gen, seed, modelindex), names_to = "locus", values_to = "Ho") %>%
+#   group_by(modelindex) %>%
+#   summarise(meanHo = mean(Ho, na.rm = T),
+#             CIHo = CI(Ho, na.rm = T))
+# 
+# d_Ho <- d_het %>% 
+#   pivot_longer(cols = -c(gen, seed, modelindex), names_to = "locus", values_to = "Ho")
+# 
+# d_Ho <- AddCombosToDF(d_Ho) 
+# 
+# # Summarise, mean H_O over time
+# d_Ho %>%
+#   group_by(gen, model, nloci, tau, r) %>%
+#   summarise(meanHo = mean(Ho, na.rm = T),
+#             CIHo = CI(Ho, na.rm = T)) -> d_Ho_sum
 
 # Load mutation data
-d_muts <- read.table(paste0(dataPath, "slim_muts.csv"), header = F, 
-                   sep = ",", colClasses = c("integer", "factor", "factor", 
-                                             "factor", rep("integer", times = 4),
-                                             rep("numeric", times = 3),
-                                             rep("integer", times = 2)), 
-                   col.names = c("gen", "seed", "modelindex", "mutType", "mutID",
-                                 "pos", "constraint", "originGen", "value", "chi",
-                                 "Freq", "Count", "fixGen"), 
-                   fill = T)
+# d_muts <- read.table(paste0(dataPath, "slim_muts.csv"), header = F, 
+#                    sep = ",", colClasses = c("integer", "factor", "factor", 
+#                                              "factor", rep("integer", times = 4),
+#                                              rep("numeric", times = 3),
+#                                              rep("integer", times = 2)), 
+#                    col.names = c("gen", "seed", "modelindex", "mutType", "mutID",
+#                                  "pos", "constraint", "originGen", "value", "chi",
+#                                  "Freq", "Count", "fixGen"), 
+#                    fill = T)
+
+
 
 # Filter to include only adapted populations
 d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
@@ -84,79 +86,31 @@ d_add_fx <- CalcAddEffects(d_com_adapted %>% filter(model == "Add",
                            d_fixed_adapted %>% filter(model == "Add"))
 
 # Calculate fitness effects for NAR populations
-d_nar_fx <- CalcNARPhenotypeEffects(d_com_adapted %>% filter(model != "Add",
+d_nar_fx <- CalcNARPhenotypeEffects(d_fixed_adapted %>% filter(model != "Add"), 
+                                    d_com_adapted %>% filter(model != "Add",
                                                               is.na(fixGen),
-                                                              gen >= 50000),
-                                     d_fixed_adapted %>% filter(model != "Add"))
+                                                              gen >= 50000))
+
+# Seed for sampling
+# seed <- sample(0:.Machine$integer.max, 1)
+#   [1] 432851969
+# set.seed(seed)
+set.seed(432851969)
 
 # Calculate pairwise epistasis
 d_add_e <- PairwiseEpistasisAdditive(d_fixed_adapted %>% filter(model == "Add"),
                           d_com_adapted %>% filter(model == "Add",
                                                    is.na(fixGen)) %>%
-                            select(gen, seed, modelindex, value) %>%
-                            rename(a = value),
-                          d_com_adapted %>% filter(model == "Add",
-                                                   is.na(fixGen)) %>%
-                            select(gen, seed, modelindex, value) %>%
-                            rename(b = value))
+                            select(gen, seed, modelindex, value))
 
-d_net_e <- PairwiseEpistasisNAR(d_fixed_adapted %>% filter(model != "Add"),
+d_net_e <- PairwiseEpistasisNAR(d_fixed_adapted %>% filter(model != "Add", gen >= 50000),
                                      d_com_adapted %>% filter(model != "Add",
-                                                              is.na(fixGen)) %>%
-                                       select(gen, seed, modelindex, mutType, value) %>%
-                                       rename(a = value),
-                                     d_com_adapted %>% filter(model != "Add",
-                                                              is.na(fixGen)) %>%
-                                       select(gen, seed, modelindex, mutType, value) %>%
-                                       rename(b = value))
+                                                              is.na(fixGen), gen >= 50000) %>%
+                                       select(gen, seed, modelindex, mutType, value),
+                                m = 10, n = 100)
 
-d_add_e_av <- d_add_e %>%
-  group_by(gen, modelindex) %>%
-  summarise(meanEW = mean(ew),
-            CIEW = CI(ew),
-            meanEP = mean(ep),
-            CIEP = CI(ep))
-
-
-d_net_e_av <- d_net_e %>%
-  mutate(mutTypeAB = interaction(mutType_a, mutType_b)) %>%
-  group_by(gen, modelindex, mutTypeAB) %>%
-  summarise(meanEW = mean(ew),
-            CIEW = CI(ew),
-            meanEP = mean(ep),
-            CIEP = CI(ep))
-
-ggplot(d_net_e_av %>% mutate(gen = gen - 50000) %>%
-         pivot_longer(c(meanEP, meanEW, CIEP, CIEW), 
-                      names_to = c(".value", "EType"),
-                      names_pattern = "(..*)(..$)"),
-       aes(x = gen, y = mean, colour = EType)) +
-  facet_wrap(vars(mutTypeAB)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = mean - CI, ymax = mean + CI, colour = NULL,
-                  fill = EType), alpha = 0.4) +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Phenotype", "Fitness")) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  guides(fill = "none") +
-  labs(x = "Generations post-optimum shift", y = "Mean epistasis", colour = "Epistasis type") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
-
-ggplot(d_add_e_av %>% mutate(gen = gen - 50000) %>%
-         pivot_longer(c(meanEP, meanEW, CIEP, CIEW), 
-                      names_to = c(".value", "EType"),
-                      names_pattern = "(..*)(..$)"),
-       aes(x = gen, y = mean, colour = EType)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = mean - CI, ymax = mean + CI, colour = NULL,
-                  fill = EType), alpha = 0.4) +
-  scale_colour_paletteer_d("ggsci::nrc_npg", labels = c("Phenotype", "Fitness")) +
-  scale_fill_paletteer_d("ggsci::nrc_npg") +
-  guides(fill = "none") +
-  labs(x = "Generations post-optimum shift", y = "Mean epistasis", 
-       colour = "Epistasis type") +
-  theme_bw() +
-  theme(text = element_text(size = 16))
+d_add_e <- AddCombosToDF(d_add_e) 
+d_net_e <- AddCombosToDF(d_net_e) 
 
 # dP/dt
 sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
@@ -287,7 +241,11 @@ ggplot(d_SFS_total,
   theme(text = element_text(size = 16), legend.position = "bottom")
 
 # Plots for effects of increasing parameters in isolation
-
+## First get a baseline level from the mean of the lowest level
+ d_dpdt %>%
+   group_by(optPerc, model) %>%
+   mutate(meanDPDT_base_nloci = 
+            mean(cur_group()[cur_group()$nloci == 4,]$dPdT)) -> d_dpdt
 
 
 
