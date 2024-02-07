@@ -70,15 +70,8 @@ View(d_qg %>% group_by(model, nloci, tau, r) %>%
 #                    fill = T)
 
 
-
-# Filter to include only adapted populations
-d_muts_adapted <- d_muts %>% filter(interaction(seed, modelindex) %in% 
-                                    interaction(d_adapted$seed, d_adapted$modelindex))
-
-# Combine with d_qg
-d_com_adapted <- inner_join(d_adapted, d_muts_adapted, by = c("gen", "seed", "modelindex"))
-
 d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen), gen >= 50000)
+
 # Calculate the fitness effects in additive populations
 d_add_fx <- CalcAddEffects(d_com_adapted %>% filter(model == "Add", 
                                                     is.na(fixGen),

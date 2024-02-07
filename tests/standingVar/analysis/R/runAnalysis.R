@@ -1,6 +1,6 @@
 
 repoPath <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/analysis/R/"
-dataPath <- "/mnt/d/SLiMTests/tests/standingVar/initial/"
+dataPath <- "/mnt/d/SLiMTests/tests/standingVar/dec11/"
 
 setwd(repoPath)
 
@@ -8,7 +8,7 @@ setwd(repoPath)
 source("./helperFunctionsAndSetup.R")
 
 # Setup data
-source("./R/wrangle_data.R")
+source("./wrangle_data.R")
 
 # Calculate heritability
 source("./R/calcH2.R")
