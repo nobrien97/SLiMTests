@@ -2,6 +2,8 @@
 # Runs per model across all seeds of that model
 library(dplyr)
 library(tibble)
+library(tidyr)
+library(data.table)
 
 # Get command line arguments
 ## 1: model (ODE, K, or Additive)
@@ -9,7 +11,7 @@ args <- commandArgs(trailingOnly = T)
 model <- as.numeric(args[1])
 
 # Paths
-R_PATH <- "~/tests/standingVar/analysis/R/"
+R_PATH <- "~/tests/standingVar/calcMutationStats/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/"
 
