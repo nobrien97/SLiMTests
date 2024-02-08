@@ -159,7 +159,7 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -185,12 +185,12 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
   
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
               "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 8, TRUE)
+  AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
 
   
   # Ensure that the tables are aligned by id before we join them
@@ -514,6 +514,6 @@ CalcSFS <- function(dat) {
   dat$optPerc <- cut(dat$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
   
   dat %>% 
-    select(optPerc, seed, modelindex, model, nloci, r, tau, 
-           mutID, mutType, value, freq, freqBin)
+    select(optPerc, seed, modelindex, 
+           mutID, mutType, freqBin)
 }
