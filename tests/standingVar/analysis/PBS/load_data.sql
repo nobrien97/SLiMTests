@@ -1,3 +1,7 @@
+PRAGMA journal_mode = OFF;
+PRAGMA synchronous = OFF;
+PRAGMA cache_size = 7500000;
+
 CREATE TABLE slim_muts(
     gen           INTEGER,
     seed          INTEGER,
@@ -13,8 +17,9 @@ CREATE TABLE slim_muts(
     count         INTEGER,
     fixGen        INTEGER
 );
+
 .mode csv
-.import slim_muts.csv slim_muts
+.import /g/data/ht96/nb9894/standingVar/slim_muts.csv slim_muts
 
 ALTER TABLE slim_muts
 DROP COLUMN const
@@ -39,6 +44,6 @@ CREATE TABLE slim_qg(
 );
 
 .mode csv
-.import slim_qg.csv slim_qg
+.import /g/data/ht96/nb9894/standingVar/slim_qg.csv slim_qg
 
-.backup standingVarMuts.db.bak
+.backup /iointensive/standingVarMuts.db.bak
