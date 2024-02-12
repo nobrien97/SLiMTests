@@ -3,6 +3,7 @@
 library(dplyr)
 library(tibble)
 library(tidyr)
+library(readr)
 library(data.table)
 
 # Get command line arguments
@@ -64,28 +65,27 @@ d_muts_adapted <- d_muts_adapted %>%
 d_adapted$seed <- as.factor(d_adapted$seed)
 d_adapted$modelindex <- as.factor(d_adapted$modelindex)
 
-# inner join the mutation w/ quantitative data
+# inner join the mutation w/ quantitative data + add model info
 d_com_adapted <- inner_join(d_adapted, d_muts_adapted, 
                             by = c("gen", "seed", "modelindex"))
+d_com_adapted <- AddCombosToDF(d_com_adapted)
 
 d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
+
 
 # Calculate phenotype effects
 d_phenofx <- CalcPhenotypeEffects(d_com_adapted %>% filter(is.na(fixGen)),
                                   d_fixed_adapted)
 
 d_phenofx <- d_phenofx %>%
-  select(gen, seed, modelindex, mutType, mutID,
-         value_3, value_4, value_5, value_6, fixEffectSum_3, 
-         fixEffectSum_4, fixEffectSum_5, fixEffectSum_6,
-         AA_pheno, Aa_pheno, aa_pheno, s)
+  select(gen, seed, modelindex, mutType, mutID, s)
 
 
-d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
+pryr::mem_change(d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
                                  d_com_adapted %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, value),
-                                 m = 10, n = 10, T)
+                                 m = 10, n = 10, T))
 
 # write to file
 data.table::fwrite(d_epistasis, 
