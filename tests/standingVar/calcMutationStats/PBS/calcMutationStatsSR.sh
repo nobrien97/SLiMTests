@@ -1,15 +1,17 @@
 #!/bin/bash -l
 
+module load R/4.0.0
+
 cd $PBS_JOBFS
 SECONDS=0
 
 # Rename the first and second arguments passed to this single shot script for clarity 
 MODELINDEX=$1
 FILENAME=${MODELINDEX}
-JOBNAME=calcMutationStats
+JOBNAME=standingVar/calcMutationStats
 TESTDIR=$HOME/tests/$JOBNAME
 
-RSCRIPTNAME=$HOME/tests/standingVar/analysis/R/calcMutationStats.R
+RSCRIPTNAME=$HOME/tests/standingVar/calcMutationStats/R/calcMutationStats.R
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."
