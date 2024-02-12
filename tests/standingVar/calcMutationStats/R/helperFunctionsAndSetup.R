@@ -10,6 +10,16 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
   return(qnorm(quantile) * se(x, na.rm))
 }
 
+# Adds the parameter combination to a dataframe
+AddCombosToDF <- function(df) {
+  df %>% ungroup() %>%
+    mutate(model = d_combos$model[as.numeric(levels(modelindex))[modelindex]],
+           nloci = d_combos$nloci[as.numeric(levels(modelindex))[modelindex]],
+           tau = d_combos$tau[as.numeric(levels(modelindex))[modelindex]],
+           r = d_combos$r[as.numeric(levels(modelindex))[modelindex]])
+}
+
+
 # Fitness effect calculation functions
 ## Gaussian fitness function, used for both models
 calcAddFitness <- function(phenotypes, optimum, width) {
@@ -76,6 +86,7 @@ CalcAddEffects <- function(dat, dat_fixed) {
 ## for many individuals at once.
 runLandscaper <- function(df_path, output, width, optimum, threads, useID = FALSE) {
   command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -w %f -p %f -t %i"
+#  command <- "ODELandscaper -i %s -o ./%s -w %f -p %f -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
@@ -189,10 +200,9 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   return(dat)
 }
 
-PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage) {
+PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage = F) {
   if (dat_fixed[1, "model"] == "Add") {
-    PairwiseEpistasisAdditive(dat_fixed, muts, n, m, returnAverage)
-    return()
+    return(PairwiseEpistasisAdditive(dat_fixed, muts, n, m, returnAverage))
   }
   
   PairwiseEpistasisNAR(dat_fixed, muts, n, m, returnAverage)
@@ -206,7 +216,7 @@ PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage) 
 # will have to do bootstrap methods, since there are a lot of mutations,
 # and we're really only interested in an average
 # n is the number of iterations to do, m = number of mutations to sample each iteration
-PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10) {
+PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage = F) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -223,8 +233,8 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10) {
                 modelindex = rep(dat$modelindex, each = n),
                 meanEP = numeric(output_len),
                 meanEW = numeric(output_len),
-                seEP = numeric(output_len),
-                seEW = numeric(output_len))
+                sdEP = numeric(output_len),
+                sdEW = numeric(output_len))
                 
   # Iterate bootstrap
   i = 1
@@ -243,7 +253,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10) {
     result <- inner_join(result, dat, by = c("gen", "seed", "modelindex"))
 
     # Calculate phenotype and fitness effects
-    Pw <- result$fixEffectSum
+    Pwt <- result$fixEffectSum
     Pa <- result$fixEffectSum + result$a
     Pb <- result$fixEffectSum + result$b
     Pab <- result$fixEffectSum + result$a + result$b
@@ -255,7 +265,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10) {
     result$ew <- log(wab) - log(wa) - log(wb)
     # ep <- Pab - (dat$fixEffectSum + dat$a + dat$b)  
     # e_p = (effect due to ab) - (effect due to a + effect due to b)
-    result$ep <- ( Pab - Pw ) - ( ( Pa - Pw ) + ( Pb - Pw ) ) # should always be zero for additive
+    result$ep <- ( Pab - Pwt ) - ( ( Pa - Pwt ) + ( Pb - Pwt ) ) # should always be zero for additive
     
     # Account for floating point error
     # ep[ep != 0] <- 0
@@ -269,17 +279,17 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10) {
       summarise(    meanEP = mean(ep),
                     meanEW = mean(ew),
                     sdEP = sd(ep),
-                    sdEW = sd(ew))
+                    sdEW = sd(ew), .groups = "keep")
     i <- i + 1
   }
   
   if (returnAverage) {
     out <- out %>%
       group_by(gen, seed, modelindex) %>%
-      summarise(meanEP = mean(mean_ep),
-                meanEW = mean(mean_ew),
-                sdEP = sqrt(sum(sd_ep^2)),
-                sdEW = sqrt(sum(sd_ew^2)))
+      summarise(meanEP = mean(meanEP),
+                meanEW = mean(meanEW),
+                sdEP = sqrt(sum(sdEP^2)),
+                sdEW = sqrt(sum(sdEW^2)))
   }
   
   return(out)
@@ -306,8 +316,8 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverag
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
-  nMutTypes <- nlevels(muts$mutType) # could be 2 or 4, depending on model
-  nPossibleMutTypes <- 4
+  nMutTypes <- length(unique(muts$mutType)) # could be 2 or 4, depending on model
+  nPossibleMutTypes <- 4                    # always 4
 
   # output dataframe: number of generations/seeds/modelindices * iterations
   output_len <- nrow(dat) * n * nMutTypes
@@ -330,9 +340,9 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverag
   
   # Iterate bootstrap
   j = 1
-  pb <- progress_bar$new(
-    format = "[:bar] :current/:total (:percent)", total = n)
-  pb$tick(0)
+  # pb <- progress_bar$new(
+  #   format = "[:bar] :current/:total (:percent)", total = n)
+  # pb$tick(0)
   while (j <= n) {
     # Sample m mutations from each of muts for a and b: note: chance to sample the
     # same mutation twice, so some epistasis might be dominance: chance is low though,
@@ -431,20 +441,20 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverag
   
     # Separate phenos by the rowID value that we assigned earlier and revert to
     # original id
-    d_wildtype <- d_phenos %>% filter(id %% 10 == 1) %>% 
+    d_wildtype <- d_phenos %>% filter((id - 1) %% 10 == 0) %>% 
       mutate(id = (id - 1) / 10) %>% arrange(id)
-    d_a <- d_phenos %>% filter(id %% 10 == 2) %>% 
+    d_a <- d_phenos %>% filter((id - 2) %% 10 == 0) %>% 
       mutate(id = (id - 2) / 10) %>% arrange(id)
-    d_b <- d_phenos %>% filter(id %% 10 == 3) %>% 
+    d_b <- d_phenos %>% filter((id - 3) %% 10 == 0) %>% 
       mutate(id = (id - 3) / 10) %>% arrange(id)
-    d_ab <- d_phenos %>% filter(id %% 10 == 4) %>% 
+    d_ab <- d_phenos %>% filter((id - 4) %% 10 == 0) %>% 
       mutate(id = (id - 4) / 10) %>% arrange(id)
     
     # Fill out results to match ab size
     d_a <- d_a[rep(seq_len(nrow(d_a)), each = m), ]
     d_a$id <- d_ab$id
     
-    d_b <- d_b[rep(seq_len(nrow(d_b)), each = m), ]
+    d_b <- d_b[rep(seq_len(nrow(d_b)), times = m), ]
     d_b$id <- d_ab$id
     
     d_wildtype <- d_wildtype[rep(seq_len(nrow(d_wildtype)), each = m*m), ]
@@ -463,7 +473,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverag
                     meanEW = mean(ew),
                     sdEP = sd(ep),
                     sdEW = sd(ew), .groups = "keep")
-    pb$tick(1)
+    # pb$tick(1)
     j <- j + 1
   }
   
