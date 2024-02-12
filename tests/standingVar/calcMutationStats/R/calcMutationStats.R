@@ -16,8 +16,10 @@ source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/"
 
 WRITE_PATH <- "/scratch/ht96/nb9894/standingVar/calcMutationStats/"
-EPISTASIS_FILE <- paste0(WRITE_PATH, "out_e_", model, ".csv")
-EFFECTS_FILE <- paste0(WRITE_PATH, "out_fx_", model, ".csv")
+EPISTASIS_FILE <- paste0(WRITE_PATH, "d_epistasis_", model, ".csv")
+EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_", model, ".csv")
+DPDT_FILE <- paste0(WRITE_PATH, "d_dpdt_", model, ".csv")
+SFS_FILE <- paste0(WRITE_PATH, "d_SFS_", model, ".csv")
 
 # Load combo information
 d_combos <- read.table(paste0(R_PATH, "combos.csv"), header = F,
@@ -72,6 +74,13 @@ d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
 d_phenofx <- CalcPhenotypeEffects(d_com_adapted %>% filter(is.na(fixGen)),
                                   d_fixed_adapted)
 
+d_phenofx <- d_phenofx %>%
+  select(gen, seed, modelindex, mutType, mutID,
+         value_3, value_4, value_5, value_6, fixEffectSum_3, 
+         fixEffectSum_4, fixEffectSum_5, fixEffectSum_6,
+         AA_pheno, Aa_pheno, aa_pheno, s)
+
+
 d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
                                  d_com_adapted %>% 
                                    filter(is.na(fixGen)) %>%
@@ -80,7 +89,10 @@ d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
 
 # write to file
 data.table::fwrite(d_epistasis, 
-  paste0("d_epistasis_", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  EPISTASIS_FILE, sep = ",", col.names = F, row.names = F)
+
+data.table::fwrite(d_phenofx,
+  EFFECTS_FILE, sep = ",", col.names = F, row.names = F)
 
 # dP/dt
 sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
@@ -101,7 +113,7 @@ d_dpdt %>%
 
 # write
 data.table::fwrite(d_dpdt_sum, 
-                   paste0("d_dpdt_", model, ".csv"), sep = ",", 
+                   DPDT_FILE, sep = ",", 
                    col.names = F, row.names = F)
 
 
@@ -114,5 +126,5 @@ d_SFS %>%
 
 
 data.table::fwrite(d_SFS_sum, 
-                   paste0("d_SFS_", model, ".csv"), sep = ",", 
+                   SFS_FILE, sep = ",", 
                    col.names = F, row.names = F)

@@ -82,11 +82,12 @@ mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/nc
 $ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
-cd $SAVEDIR
+cd /scratch/ht96/nb9894/$JOBNAME
 
-cat ./d_epistasis_* >> ./d_epistasis.csv
-cat ./d_dpdt_* >> ./d_dpdt.csv
-cat ./d_SFS_* >> ./d_SFS.csv
+cat ./d_epistasis_* >> $SAVEDIR/d_epistasis.csv
+cat ./d_dpdt_* >> $SAVEDIR/d_dpdt.csv
+cat ./d_SFS_* >> $SAVEDIR/d_SFS.csv
+cat ./d_fx_* >> $SAVEDIR/d_fx.csv
 
 # 
 # Check the exit status
