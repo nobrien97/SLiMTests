@@ -200,12 +200,15 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   return(dat)
 }
 
-PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage = F) {
+PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, 
+                              returnAverage = F, weightABByFreq = F) {
   if (dat_fixed[1, "model"] == "Add") {
-    return(PairwiseEpistasisAdditive(dat_fixed, muts, n, m, returnAverage))
+    return(PairwiseEpistasisAdditive(dat_fixed, muts, n, m, 
+                                     returnAverage, weightABByFreq))
   }
   
-  PairwiseEpistasisNAR(dat_fixed, muts, n, m, returnAverage)
+  PairwiseEpistasisNAR(dat_fixed, muts, n, m, 
+                       returnAverage, weightABByFreq)
 }
 
 
@@ -216,7 +219,8 @@ PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage =
 # will have to do bootstrap methods, since there are a lot of mutations,
 # and we're really only interested in an average
 # n is the number of iterations to do, m = number of mutations to sample each iteration
-PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage = F) {
+PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, 
+                                      returnAverage = F, weightABByFreq = F) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -243,8 +247,10 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, returnA
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    a <- muts %>% group_by(gen, seed, modelindex) %>% slice_sample(n = m)
-    b <- muts %>% group_by(gen, seed, modelindex) %>% slice_sample(n = m)
+    a <- muts %>% group_by(gen, seed, modelindex) %>% 
+      slice_sample(n = m, weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+    b <- muts %>% group_by(gen, seed, modelindex) %>% 
+      slice_sample(n = m, weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
@@ -306,7 +312,8 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, returnA
 # repetitions and m mutations per repetition. When returnAverage = F, the result is
 # not averaged over the n repetitions (i.e. each replicate gets its own average over
 # the m mutations)
-PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverage = F) {
+PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, 
+                                 returnAverage = F, weightABByFreq = F) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
   
@@ -348,8 +355,12 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, returnAverag
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
-    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% slice_sample(n = m/nMutTypes)
+    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
+      slice_sample(n = m/nMutTypes, 
+                   weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
+      slice_sample(n = m/nMutTypes,
+                   weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),

@@ -18,6 +18,7 @@ GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/"
 
 WRITE_PATH <- "/scratch/ht96/nb9894/standingVar/calcMutationStats/"
 EPISTASIS_FILE <- paste0(WRITE_PATH, "d_epistasis_", model, ".csv")
+EPISTASIS_WEIGHTED_FILE <- paste0(WRITE_PATH, "d_epistasis_freqweight_", model, ".csv")
 EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_", model, ".csv")
 DPDT_FILE <- paste0(WRITE_PATH, "d_dpdt_", model, ".csv")
 SFS_FILE <- paste0(WRITE_PATH, "d_SFS_", model, ".csv")
@@ -73,6 +74,53 @@ d_com_adapted <- AddCombosToDF(d_com_adapted)
 d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
 
 
+# dP/dt
+sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
+d_adapted %>%
+  mutate(dPdT = deltaPheno / sampleRate) -> d_adapted
+
+d_dpdt <- d_adapted %>%
+  filter(gen >= 50000) %>%
+  mutate(optPerc = (phenomean - 1))    # percent to optimum
+
+# Determine when we first reach 25%, 50%, 75%, 90% of the optimum 
+# (90% being our cutoff for adaptation)
+d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.9, Inf),
+                      right = F)
+
+# Mean change within each of these groups (from 25% to 50%, from 50% to 75% etc.)
+d_dpdt %>%
+  group_by(optPerc, modelindex) %>%
+  summarise(meandPdT = mean(dPdT),
+            sddPdT = sd(dPdT)) -> d_dpdt_sum
+
+# write
+data.table::fwrite(d_dpdt_sum, 
+                   DPDT_FILE, sep = ",", 
+                   col.names = F, row.names = F)
+
+# filter by optPerc to select timepoints where populations 
+# first reached 50% adapted etc.
+d_adapted_optPerc <- d_dpdt %>%
+  group_by(optPerc, seed, modelindex) %>%
+  filter(row_number() == 1)
+
+
+
+# SFS
+d_SFS <- CalcSFS(d_com_adapted)
+
+d_SFS %>%
+  group_by(optPerc, modelindex, mutType, freqBin) %>%
+  summarise(countFreqBin = n(),
+            meanF) -> d_SFS_sum
+
+
+data.table::fwrite(d_SFS_sum, 
+                   SFS_FILE, sep = ",", 
+                   col.names = F, row.names = F)
+
+
 # Calculate phenotype effects
 d_phenofx <- CalcPhenotypeEffects(d_com_adapted %>% filter(is.na(fixGen)),
                                   d_fixed_adapted)
@@ -85,46 +133,22 @@ pryr::mem_change(d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
                                  d_com_adapted %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, value),
-                                 m = 10, n = 10, T))
+                                 m = 10, n = 10, T, F))
+
+pryr::mem_change(d_epistasis_freqweight <- PairwiseEpistasis(d_fixed_adapted,
+                                                  d_com_adapted %>% 
+                                                    filter(is.na(fixGen)) %>%
+                                                    select(gen, seed, modelindex, mutType, value),
+                                                  m = 10, n = 10, T, T))
 
 # write to file
 data.table::fwrite(d_epistasis, 
   EPISTASIS_FILE, sep = ",", col.names = F, row.names = F)
 
+data.table::fwrite(d_epistasis_freqweight,
+  EPISTASIS_WEIGHTED_FILE, sep = ",", col.names = F, row.names = F)
+
 data.table::fwrite(d_phenofx,
   EFFECTS_FILE, sep = ",", col.names = F, row.names = F)
 
-# dP/dt
-sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
-d_adapted %>%
-  mutate(dPdT = deltaPheno / 50) -> d_adapted
 
-d_dpdt <- d_adapted %>%
-  filter(gen >= 50000) %>%
-  mutate(gen = gen - 50000,
-         optPerc = (phenomean - 1))    # percent to optimum
-
-d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
-
-d_dpdt %>%
-  group_by(optPerc, modelindex) %>%
-  summarise(meandPdT = mean(dPdT),
-            sddPdT = sd(dPdT)) -> d_dpdt_sum
-
-# write
-data.table::fwrite(d_dpdt_sum, 
-                   DPDT_FILE, sep = ",", 
-                   col.names = F, row.names = F)
-
-
-# SFS
-d_SFS <- CalcSFS(d_com_adapted)
-
-d_SFS %>%
-  group_by(optPerc, modelindex, mutType, freqBin) %>%
-  summarise(countFreqBin = n()) -> d_SFS_sum
-
-
-data.table::fwrite(d_SFS_sum, 
-                   SFS_FILE, sep = ",", 
-                   col.names = F, row.names = F)
