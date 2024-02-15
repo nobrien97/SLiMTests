@@ -6,7 +6,7 @@
 #PBS -l jobfs=1000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
-# Run with -v NJOBS=2 -W depend=beforeok:sqlsetup
+# Run with -v NJOBS=1 -W depend=beforeok:sqlsetup
 
 # Calculates statistics for mutation data
 ECHO=/bin/echo
@@ -69,7 +69,7 @@ export ncores_per_numanode=12
 CMDS_PATH=$HOME/tests/$JOBNAME/PBS/cmds.txt
 CUR_TOT=$(cat $CMDS_PATH | wc -l)
 CUR_MIN=$(( ( ($NJOB*$PBS_NCPUS+1) + ($ncores_per_task-1) ) / $ncores_per_task ))
-CUR_MAX=$(( ( ( ($NJOB+1) * $PBS_NCPUS ) + ($ncores_per_task-1) ) / $ncores_per_task))
+CUR_MAX=$(( ( ( ($NJOB+1) * $PBS_NCPUS ) + ($ncores_per_task-1) ) / $ncores_per_task ))
 
 if [ $CUR_MAX -gt $CUR_TOT ]; then
     CUR_MAX=$CUR_TOT
@@ -85,6 +85,7 @@ $ECHO "All jobs finished, moving output..."
 cd /scratch/ht96/nb9894/$JOBNAME
 
 cat ./d_epistasis_* >> $SAVEDIR/d_epistasis.csv
+cat ./d_freqweight_* >> $SAVEDIR/d_epistasis_freqweight.csv
 cat ./d_dpdt_* >> $SAVEDIR/d_dpdt.csv
 cat ./d_SFS_* >> $SAVEDIR/d_SFS.csv
 cat ./d_fx_* >> $SAVEDIR/d_fx.csv
