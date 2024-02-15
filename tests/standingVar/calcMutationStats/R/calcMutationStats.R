@@ -18,7 +18,7 @@ GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/"
 
 WRITE_PATH <- "/scratch/ht96/nb9894/standingVar/calcMutationStats/"
 EPISTASIS_FILE <- paste0(WRITE_PATH, "d_epistasis_", model, ".csv")
-EPISTASIS_WEIGHTED_FILE <- paste0(WRITE_PATH, "d_epistasis_freqweight_", model, ".csv")
+EPISTASIS_WEIGHTED_FILE <- paste0(WRITE_PATH, "d_freqweight_epistasis_", model, ".csv")
 EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_", model, ".csv")
 DPDT_FILE <- paste0(WRITE_PATH, "d_dpdt_", model, ".csv")
 SFS_FILE <- paste0(WRITE_PATH, "d_SFS_", model, ".csv")
@@ -30,6 +30,8 @@ d_combos <- read.table(paste0(R_PATH, "combos.csv"), header = F,
 # Load mutation data from database
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       dbname = paste0(GDATA_PATH, "standingVarMuts.db"))
+# con <- DBI::dbConnect(RSQLite::SQLite(), 
+#                       dbname = paste0(dataPath, "standingVarMuts.db"))
 
 # Quantitative data
 d_adapted <- tbl(con, "slim_qg") %>%
@@ -66,14 +68,6 @@ d_muts_adapted <- d_muts_adapted %>%
 d_adapted$seed <- as.factor(d_adapted$seed)
 d_adapted$modelindex <- as.factor(d_adapted$modelindex)
 
-# inner join the mutation w/ quantitative data + add model info
-d_com_adapted <- inner_join(d_adapted, d_muts_adapted, 
-                            by = c("gen", "seed", "modelindex"))
-d_com_adapted <- AddCombosToDF(d_com_adapted)
-
-d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
-
-
 # dP/dt
 sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
 d_adapted %>%
@@ -105,7 +99,13 @@ d_adapted_optPerc <- d_dpdt %>%
   group_by(optPerc, seed, modelindex) %>%
   filter(row_number() == 1)
 
+# Filter mutations by optPerc generations
+# inner join the mutation w/ quantitative data + add model info
+d_com_adapted <- inner_join(d_adapted_optPerc, d_muts_adapted, 
+                            by = c("gen", "seed", "modelindex"))
+d_com_adapted <- AddCombosToDF(d_com_adapted)
 
+d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
 
 # SFS
 d_SFS <- CalcSFS(d_com_adapted)
@@ -113,7 +113,8 @@ d_SFS <- CalcSFS(d_com_adapted)
 d_SFS %>%
   group_by(optPerc, modelindex, mutType, freqBin) %>%
   summarise(countFreqBin = n(),
-            meanF) -> d_SFS_sum
+            meanValue = mean(value),
+            sdValue = sd(value)) -> d_SFS_sum
 
 
 data.table::fwrite(d_SFS_sum, 
@@ -129,17 +130,17 @@ d_phenofx <- d_phenofx %>%
   select(gen, seed, modelindex, mutType, mutID, s)
 
 
-pryr::mem_change(d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
+d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
                                  d_com_adapted %>% 
                                    filter(is.na(fixGen)) %>%
-                                   select(gen, seed, modelindex, mutType, value),
-                                 m = 10, n = 10, T, F))
+                                   select(gen, seed, modelindex, mutType, freq, value),
+                                 m = 48, n = 1000, T, F)
 
-pryr::mem_change(d_epistasis_freqweight <- PairwiseEpistasis(d_fixed_adapted,
+d_epistasis_freqweight <- PairwiseEpistasis(d_fixed_adapted,
                                                   d_com_adapted %>% 
                                                     filter(is.na(fixGen)) %>%
-                                                    select(gen, seed, modelindex, mutType, value),
-                                                  m = 10, n = 10, T, T))
+                                                    select(gen, seed, modelindex, mutType, freq, value),
+                                                  m = 48, n = 1000, T, T)
 
 # write to file
 data.table::fwrite(d_epistasis, 
@@ -150,5 +151,3 @@ data.table::fwrite(d_epistasis_freqweight,
 
 data.table::fwrite(d_phenofx,
   EFFECTS_FILE, sep = ",", col.names = F, row.names = F)
-
-
