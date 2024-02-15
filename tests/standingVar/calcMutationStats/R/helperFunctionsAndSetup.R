@@ -320,6 +320,8 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
                                  returnAverage = F, weightABByFreq = F) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
+
+  model <- as.character(dat_fixed$modelindex)
   
   dat <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
