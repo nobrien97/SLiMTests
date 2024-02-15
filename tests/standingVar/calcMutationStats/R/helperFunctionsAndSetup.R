@@ -29,8 +29,7 @@ calcAddFitness <- function(phenotypes, optimum, width) {
 
 CalcPhenotypeEffects <- function(dat, dat_fixed) {
   if (dat[1, "model"] == "Add") {
-    CalcAddEffects(dat, dat_fixed)
-    return()
+    return(CalcAddEffects(dat, dat_fixed))
   }
   
   CalcNARPhenotypeEffects(dat, dat_fixed)
@@ -109,7 +108,8 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # multiply by 2 because diploid
   dat <- as.data.table(dat)
   dat_fixed <- as.data.table(dat_fixed)
-  
+  model <- as.character(dat$modelindex)
+
   dat_fixed <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
     summarise(fixEffectSum = exp(2 * sum(value))) %>%
@@ -145,8 +145,8 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  d_popfx <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
+              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -171,13 +171,13 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # Get phenotypes with the mutation
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  Aa <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
-  
+              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  Aa <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
-              "d_grid.csv", sep = ",", col.names = F, row.names = F)
-  AA <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 4, TRUE)
+              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  AA <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
 
   
   # Ensure that the tables are aligned by id before we join them
@@ -248,9 +248,13 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
     a <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+      slice_sample(n = m, 
+                   weight_by = case_when(weightABByFreq == T ~ freq, 
+                                         weightABByFreq == F ~ rep(1, times = n())))
     b <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+      slice_sample(n = m, 
+                   weight_by = case_when(weightABByFreq == T ~ freq, 
+                                         weightABByFreq == F ~ rep(1, times = n())))
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
@@ -357,10 +361,13 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
     a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
       slice_sample(n = m/nMutTypes, 
-                   weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+                   weight_by = case_when(weightABByFreq == T ~ freq, 
+                                         weightABByFreq == F ~ rep(1, times = n())))
     b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
       slice_sample(n = m/nMutTypes,
-                   weight_by = ifelse(weightABByFreq, Freq, rep(1, each = n())))
+                   weight_by = case_when(weightABByFreq == T ~ freq, 
+                                         weightABByFreq == F ~ rep(1, times = n())))
+
     
     # Join a and b and add fixed effects
     result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
@@ -443,8 +450,8 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     
     # Run landscaper
     data.table::fwrite(d_landscaper, 
-                "d_grid.csv", sep = ",", col.names = F, row.names = F)
-    d_phenos <- runLandscaper("d_grid.csv", "data_popfx.csv", 0.05, 2, 16, TRUE)
+                paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+    d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
     
   
     # Ensure that the tables are aligned by id before we join them
@@ -512,5 +519,5 @@ CalcSFS <- function(dat) {
   
   dat %>% 
     select(optPerc, seed, modelindex, 
-           mutID, mutType, freqBin)
+           mutID, mutType, value, freqBin)
 }
