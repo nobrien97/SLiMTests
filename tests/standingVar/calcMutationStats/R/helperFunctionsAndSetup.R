@@ -108,7 +108,7 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # multiply by 2 because diploid
   dat <- as.data.table(dat)
   dat_fixed <- as.data.table(dat_fixed)
-  model <- as.character(dat$modelindex)
+  model <- as.character(dat$modelindex)[1]
 
   dat_fixed <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
@@ -321,7 +321,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
 
-  model <- as.character(dat_fixed$modelindex)
+  model <- as.character(dat_fixed$modelindex)[1]
   
   dat <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
