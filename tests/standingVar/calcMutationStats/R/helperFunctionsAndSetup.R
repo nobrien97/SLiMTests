@@ -282,14 +282,9 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     
     # Epistasis (fitness and trait)
     result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
-    # ep <- Pab - (dat$fixEffectSum + dat$a + dat$b)  
-    # e_p = (effect due to ab) - (effect due to a + effect due to b)
     result$ep <- ( result$Pab - result$Pwt ) - 
       ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) # should always be zero for additive
-    
-    # Account for floating point error
-    # ep[ep != 0] <- 0
-    
+        
   
     # Calculate mean and se for this iteration
     # put into output vector
@@ -299,7 +294,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     pb$tick(1)
     i <- i + 1
   }
-  
+    
   if (returnAverage) {
     out <- out %>%
       group_by(gen, seed, modelindex) %>%
@@ -431,7 +426,6 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     }
     result$rowID <- as.integer(rownames(result))
     
-    
     # Split the result into wt, a, b, and ab to reduce non-unique solutions
     d_wildtype <- result %>%
       group_by(gen, seed, modelindex) %>%
@@ -546,7 +540,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
                 sdwb = sd(wb),
                 sdwab = sd(wab))
   }
-  
+
   return(out)
 }
 
