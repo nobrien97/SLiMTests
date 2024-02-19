@@ -134,13 +134,13 @@ d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
                                  d_com_adapted %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, freq, value),
-                                 m = 48, n = 1000, T, F)
+                                 m = 48, n = 1000, F, F)
 
 d_epistasis_freqweight <- PairwiseEpistasis(d_fixed_adapted,
                                                   d_com_adapted %>% 
                                                     filter(is.na(fixGen)) %>%
                                                     select(gen, seed, modelindex, mutType, freq, value),
-                                                  m = 48, n = 1000, T, T)
+                                                  m = 48, n = 1000, F, T)
 
 # write to file
 data.table::fwrite(d_epistasis, 
