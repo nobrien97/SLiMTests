@@ -231,51 +231,61 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     ungroup()
   
   # output dataframe: number of generations/seeds/modelindices * iterations
-  output_len <- nrow(dat) * n
+  output_len <- nrow(dat) * n * m
   out <- tibble(gen = numeric(output_len),
-                seed = rep(dat$seed, each = n),
-                modelindex = rep(dat$modelindex, each = n),
-                meanEP = numeric(output_len),
-                meanEW = numeric(output_len),
-                sdEP = numeric(output_len),
-                sdEW = numeric(output_len))
+                seed = rep(dat$seed, each = n * m),
+                modelindex = rep(dat$modelindex, each = n * m),
+                wa = numeric(output_len),
+                wb = numeric(output_len),
+                wab = numeric(output_len),
+                Pwt = numeric(output_len),
+                Pa = numeric(output_len),
+                Pb = numeric(output_len),
+                Pab = numeric(output_len),
+                ew = numeric(output_len),
+                ep = numeric(output_len))
                 
   # Iterate bootstrap
   i = 1
+  pb <- progress::progress_bar$new(
+    format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
+  pb$tick(0)
   while (i <= n) {
     # Sample m mutations from each of muts for a and b: note: chance to sample the
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
     a <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, 
+      slice_sample(n = m, replace = T,
                    weight_by = case_when(weightABByFreq == T ~ freq, 
-                                         weightABByFreq == F ~ rep(1, times = n())))
+                                         weightABByFreq == F ~ rep(1, times = n()))) %>%
+      rename(a = value)
     b <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, 
+      slice_sample(n = m, replace = T,
                    weight_by = case_when(weightABByFreq == T ~ freq, 
-                                         weightABByFreq == F ~ rep(1, times = n())))
+                                         weightABByFreq == F ~ rep(1, times = n()))) %>%
+      rename(b = value)
     
     # Join a and b and add fixed effects
-    result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
-                               relationship = "many-to-many")
-    result <- result %>% rename(a = value.x, b = value.y)
+    result <- a %>% select(-freq)
+    result$b <- b$b
     result <- inner_join(result, dat, by = c("gen", "seed", "modelindex"))
 
     # Calculate phenotype and fitness effects
-    Pwt <- result$fixEffectSum
-    Pa <- result$fixEffectSum + result$a
-    Pb <- result$fixEffectSum + result$b
-    Pab <- result$fixEffectSum + result$a + result$b
-    wa <- calcAddFitness(Pa, 2, 0.05)
-    wb <- calcAddFitness(Pb, 2, 0.05)
-    wab <- calcAddFitness(Pab, 2, 0.05)
+    result$Pwt <- result$fixEffectSum
+    result$Pa <- result$fixEffectSum + result$a
+    result$Pb <- result$fixEffectSum + result$b
+    result$Pab <- result$fixEffectSum + result$a + result$b
+    result$wa <- calcAddFitness(result$Pa, 2, 0.05)
+    result$wb <- calcAddFitness(result$Pb, 2, 0.05)
+    result$wab <- calcAddFitness(result$Pab, 2, 0.05)
     
     # Epistasis (fitness and trait)
-    result$ew <- log(wab) - log(wa) - log(wb)
+    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
     # ep <- Pab - (dat$fixEffectSum + dat$a + dat$b)  
     # e_p = (effect due to ab) - (effect due to a + effect due to b)
-    result$ep <- ( Pab - Pwt ) - ( ( Pa - Pwt ) + ( Pb - Pwt ) ) # should always be zero for additive
+    result$ep <- ( result$Pab - result$Pwt ) - 
+      ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) # should always be zero for additive
     
     # Account for floating point error
     # ep[ep != 0] <- 0
@@ -283,23 +293,34 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
   
     # Calculate mean and se for this iteration
     # put into output vector
-    thisIterRange <- ( (i-1) * nrow(dat) + 1 ):( i * nrow(dat) )
+    thisIterRange <- ( (i-1) * (nrow(dat) * m) + 1 ):( i * (nrow(dat) * m) )
     out[thisIterRange,] <- result %>%
-      group_by(gen, seed, modelindex) %>%
-      summarise(    meanEP = mean(ep),
-                    meanEW = mean(ew),
-                    sdEP = sd(ep),
-                    sdEW = sd(ew), .groups = "keep")
+      select(gen, seed, modelindex, wa, wb, wab, Pwt, Pa, Pb, Pab, ew, ep)
+    pb$tick(1)
     i <- i + 1
   }
   
   if (returnAverage) {
     out <- out %>%
       group_by(gen, seed, modelindex) %>%
-      summarise(meanEP = mean(meanEP),
-                meanEW = mean(meanEW),
-                sdEP = sqrt(sum(sdEP^2)),
-                sdEW = sqrt(sum(sdEW^2)))
+      summarise(meanEP = mean(ep),
+                meanEW = mean(ew),
+                meanPwt = mean(Pwt),
+                meanPa = mean(Pa),
+                meanPb = mean(Pb),
+                meanPab = mean(Pab),
+                meanwa = mean(wa),
+                meanwb = mean(wb),
+                meanwab = mean(wab),
+                sdEP = sd(ep),
+                sdEW = sd(ew),
+                sdPwt = sd(Pwt),
+                sdPa = sd(Pa),
+                sdPb = sd(Pb),
+                sdPab = sd(Pab),
+                sdwa = sd(wa),
+                sdwb = sd(wb),
+                sdwab = sd(wab))
   }
   
   return(out)
@@ -323,7 +344,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
 
   model <- as.character(dat_fixed$modelindex)[1]
   
-  dat <- dat_fixed %>%
+  fixEffectDat <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
     summarise(fixEffectSum = exp(2 * sum(value))) %>%
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
@@ -333,50 +354,55 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   nPossibleMutTypes <- 4                    # always 4
 
   # output dataframe: number of generations/seeds/modelindices * iterations
-  output_len <- nrow(dat) * n * nMutTypes
-  output_len_each <- n * nMutTypes
+  output_len <- nrow(fixEffectDat) / nMutTypes * n * m
+  output_len_each <- ( n * m ) / nMutTypes
   
   out <- tibble(gen = numeric(output_len),
-                seed = rep(dat$seed, each = output_len_each),
-                modelindex = rep(dat$modelindex, each = output_len_each),
-                mutType_ab = rep(as.character(dat$mutType), each = output_len_each),
-                meanEP = numeric(output_len),
-                meanEW = numeric(output_len),
-                sdEP = numeric(output_len),
-                sdEW = numeric(output_len))
+                seed = rep(fixEffectDat$seed, each = output_len_each),
+                modelindex = rep(fixEffectDat$modelindex, each = output_len_each),
+                mutType_ab = rep(as.character(fixEffectDat$mutType), each = output_len_each),
+                wa = numeric(output_len),
+                wb = numeric(output_len),
+                wab = numeric(output_len),
+                Pwt = numeric(output_len),
+                Pa = numeric(output_len),
+                Pb = numeric(output_len),
+                Pab = numeric(output_len),
+                ew = numeric(output_len),
+                ep = numeric(output_len))
   
   # Pivot wider for easier access to fixed effects for the result vector
-  dat <- dat %>% 
+  fixEffectDat <- fixEffectDat %>% 
     pivot_wider(names_from = mutType, values_from = fixEffectSum,
                 names_glue = "{.value}_{mutType}", values_fill = 1)
   
   
   # Iterate bootstrap
   j = 1
-  # pb <- progress_bar$new(
-  #   format = "[:bar] :current/:total (:percent)", total = n)
-  # pb$tick(0)
+  pb <- progress::progress_bar$new(
+   format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
+  pb$tick(0)
   while (j <= n) {
     # Sample m mutations from each of muts for a and b: note: chance to sample the
     # same mutation twice, so some epistasis might be dominance: chance is low though,
     # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
     # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    a <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
-      slice_sample(n = m/nMutTypes, 
+    a <- muts %>% group_by(gen, seed, modelindex) %>% 
+      slice_sample(n = m, replace = T,
                    weight_by = case_when(weightABByFreq == T ~ freq, 
                                          weightABByFreq == F ~ rep(1, times = n())))
-    b <- muts %>% group_by(gen, seed, modelindex, mutType) %>% 
-      slice_sample(n = m/nMutTypes,
+    b <- muts %>% group_by(gen, seed, modelindex) %>% 
+      slice_sample(n = m, replace = T,
                    weight_by = case_when(weightABByFreq == T ~ freq, 
                                          weightABByFreq == F ~ rep(1, times = n())))
 
     
     # Join a and b and add fixed effects
-    result <- a %>% inner_join(., b, by = c("gen", "seed", "modelindex"),
-                               relationship = "many-to-many")
-    result <- result %>% rename(a = value.x, b = value.y,
-                                mutType_a = mutType.x, mutType_b = mutType.y)
-    result <- inner_join(result, dat, by = c("gen", "seed", "modelindex")) %>%
+    result <- a %>% select(-freq)
+    result <- result %>% rename(a = value, mutType_a = mutType)
+    result$mutType_b <- b$mutType
+    result$b <- b$value
+    result <- inner_join(result, fixEffectDat, by = c("gen", "seed", "modelindex")) %>%
       select(gen, seed, modelindex, mutType_a, mutType_b, a, b, 
              starts_with("fixEffectSum")) %>%
       mutate(mutType_ab = paste(mutType_a, mutType_b, sep = "_"))
@@ -404,8 +430,6 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
       result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
     }
     result$rowID <- as.integer(rownames(result))
-    result$mutGroup_a <- rep(1:(nrow(result)/m), each = m)
-    result$mutGroup_b <- rep(1:m, times = nrow(result)/m)
     
     
     # Split the result into wt, a, b, and ab to reduce non-unique solutions
@@ -418,7 +442,6 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
       
     d_a <- result %>%
       group_by(gen, seed, modelindex) %>%
-      distinct(., mutGroup_a, .keep_all = T) %>%
       select(gen, seed, modelindex,
              rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
       ungroup() %>% select(!(gen:modelindex)) %>%
@@ -428,7 +451,6 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     # and repeat that for the remaining
     d_b <- result %>%
       group_by(gen, seed, modelindex) %>%
-      distinct(., mutGroup_b, .keep_all = T) %>%
       select(gen, seed, modelindex, 
              rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
       ungroup() %>% select(!(gen:modelindex)) %>%
@@ -470,30 +492,32 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     d_ab <- d_phenos %>% filter((id - 4) %% 10 == 0) %>% 
       mutate(id = (id - 4) / 10) %>% arrange(id)
     
-    # Fill out results to match ab size
-    d_a <- d_a[rep(seq_len(nrow(d_a)), each = m), ]
-    d_a$id <- d_ab$id
-    
-    d_b <- d_b[rep(seq_len(nrow(d_b)), times = m), ]
-    d_b$id <- d_ab$id
-    
-    d_wildtype <- d_wildtype[rep(seq_len(nrow(d_wildtype)), each = m*m), ]
+    # Repeat wildtype to match the a b pairs
+    d_wildtype <- d_wildtype[rep(seq_len(nrow(d_wildtype)), each = m), ]
     d_wildtype$id <- d_ab$id
     
     
     # Epistasis (fitness and trait)
-    result$ew <- log(d_ab$fitness) - log(d_a$fitness) - log(d_b$fitness)
-    result$ep <- ( d_ab$pheno - d_wildtype$pheno ) - ( ( d_a$pheno - d_wildtype$pheno ) + ( d_b$pheno - d_wildtype$pheno ) ) 
+    result$wa <- d_a$fitness
+    result$wb <- d_b$fitness
+    result$wab <- d_ab$fitness
+    result$Pwt <- d_wildtype$pheno
+    result$Pa <- d_a$pheno
+    result$Pb <- d_b$pheno
+    result$Pab <- d_ab$pheno
+    
+    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
+    result$ep <- ( result$Pab - result$Pwt ) - 
+      ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) 
     
     # Fill output: figure out which range of the output vector to fill
-    thisIterRange <- ( (j-1) * (output_len / (n)) + 1 ):( j * (output_len / (n)) )
+    thisIterRange <- ( (j-1) * (nrow(fixEffectDat) * m) + 1 ):( j * (nrow(fixEffectDat) * m) )
+    
     out[thisIterRange,] <- result %>%
-      group_by(gen, seed, modelindex, mutType_ab) %>%
-      summarise(    meanEP = mean(ep),
-                    meanEW = mean(ew),
-                    sdEP = sd(ep),
-                    sdEW = sd(ew), .groups = "keep")
-    # pb$tick(1)
+      ungroup() %>%
+      select(gen, seed, modelindex, mutType_ab, wa, wb, wab, Pwt, Pa, Pb, Pab, ew, ep)
+
+    pb$tick(1)
     j <- j + 1
   }
   
@@ -503,12 +527,25 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   if (returnAverage) {
     out <- out %>%
       group_by(gen, seed, modelindex, mutType_ab) %>%
-      summarise(meanEP = mean(meanEP),
-                meanEW = mean(meanEW),
-                sdEP = sqrt(sum(sdEP^2)),
-                sdEW = sqrt(sum(sdEW^2)))
+      summarise(meanEP = mean(ep),
+                meanEW = mean(ew),
+                meanPwt = mean(Pwt),
+                meanPa = mean(Pa),
+                meanPb = mean(Pb),
+                meanPab = mean(Pab),
+                meanwa = mean(wa),
+                meanwb = mean(wb),
+                meanwab = mean(wab),
+                sdEP = sd(ep),
+                sdEW = sd(ew),
+                sdPwt = sd(Pwt),
+                sdPa = sd(Pa),
+                sdPb = sd(Pb),
+                sdPab = sd(Pab),
+                sdwa = sd(wa),
+                sdwb = sd(wb),
+                sdwab = sd(wab))
   }
-
   
   return(out)
 }
