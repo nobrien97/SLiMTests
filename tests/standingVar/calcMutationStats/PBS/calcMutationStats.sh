@@ -10,7 +10,9 @@
 
 # Calculates statistics for mutation data
 ECHO=/bin/echo
-JOBNAME=standingVar/calcMutationStats
+SUBJOBNAME=standingVar
+JOBNAME=calcMutationStats
+TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
@@ -30,9 +32,9 @@ if [ X$NJOB == X ]; then
     cd $PBS_O_WORKDIR
 
     # Make output folder
-    mkdir -p /scratch/ht96/nb9894/$JOBNAME
-    mkdir -p /g/data/ht96/nb9894/$JOBNAME
-    mkdir -p $HOME/tests/$JOBNAME/done
+    mkdir -p /scratch/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p /g/data/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p $HOME/tests/$TOTALJOBNAME/done
 
 fi
 
@@ -50,7 +52,7 @@ $ECHO "Starting job $NJOB of $NJOBS"
 # 
 # INSERT CODE
 cd $PBS_O_WORKDIR
-SAVEDIR=/g/data/ht96/nb9894/$JOBNAME
+SAVEDIR=/g/data/ht96/nb9894/$TOTALJOBNAME
 
 
 # ========================================================================
@@ -66,7 +68,7 @@ export ncores_per_task=4
 export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
-CMDS_PATH=$HOME/tests/$JOBNAME/PBS/cmds.txt
+CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
 CUR_TOT=$(cat $CMDS_PATH | wc -l)
 CUR_MIN=$(( ( ($NJOB*$PBS_NCPUS+1) + ($ncores_per_task-1) ) / $ncores_per_task ))
 CUR_MAX=$(( ( ( ($NJOB+1) * $PBS_NCPUS ) + ($ncores_per_task-1) ) / $ncores_per_task ))
@@ -82,7 +84,7 @@ mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/nc
 $ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
-cd /scratch/ht96/nb9894/$JOBNAME
+cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
 cat ./d_epistasis_* >> $SAVEDIR/d_epistasis.csv
 cat ./d_freqweight_* >> $SAVEDIR/d_epistasis_freqweight.csv
