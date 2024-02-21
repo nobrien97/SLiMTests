@@ -7,7 +7,7 @@
 #PBS -l jobfs=1000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
-# Run with -v NJOBS=1 -W depend=beforeok:sqlsetup
+# Run with -v NJOBS=0
 
 # Calculates statistics for mutation data
 ECHO=/bin/echo
@@ -65,7 +65,7 @@ $ECHO "Running nci-parallel..."
 # Use 1 core per SLiM run
 module load nci-parallel/1.0.0a
 export ncores_per_task=1
-export ncores_per_numanode=12
+export ncores_per_numanode=13           # 13 cores per NUMA node for sapphire rapids nodes
 
 # Calculate the range of parameter combinations we are exploring this job
 CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
@@ -88,8 +88,8 @@ cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
 cat ./d_epi_density* >> $SAVEDIR/d_epi_density.csv
 cat ./d_epi_freqweight_density* >> $SAVEDIR/d_epi_freqweight_density.csv
-cat ./d_epi_hist* >> $SAVEDIR/d_epi_hist.csv
-cat ./d_epi_freqweight_hist* >> $SAVEDIR/d_epi_freqweight_hist.csv
+cat ./d_epi_mean* >> $SAVEDIR/d_epi_mean.csv
+cat ./d_epi_freqweight_mean* >> $SAVEDIR/d_epi_freqweight_mean.csv
 
 # 
 # Check the exit status
