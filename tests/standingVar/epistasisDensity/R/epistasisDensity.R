@@ -33,6 +33,24 @@ if (nrow(d_epistasis) < 1) {
   q(save = "no")
 }
 
+# if additive, we need to rearrange some of the data since it wasn't stored correctly:
+# mutType_ab is not right and everything needs to be shifted
+isAdditive <- ((model - 1) %% 3 == 0)
+
+if (isAdditive) {
+  d_epistasis <- d_epistasis %>%
+    mutate(ep = ew,
+           ew = Pab,
+           Pab = Pb,
+           Pb = Pa,
+           Pa = Pwt,
+           Pwt = wab,
+           wab = wb,
+           wb = wa,
+           wa = as.numeric(mutType_ab),
+           mutType_ab = "3_3")
+}
+
 # Add optPerc labels to use instead of gen
 dpdt <- read.csv(paste0(GDATA_PATH, "d_dpdt.csv"), header = F)
 dpdt <- dpdt %>% filter(V2 == model)
@@ -78,6 +96,21 @@ rm(d_epistasis)
 d_epistasis_freq <- tbl(con, "tab_epistasis_freq") %>% 
   filter(modelindex == model) %>%
   collect()
+
+# Same problem with mutType_ab being wrong
+if (isAdditive) {
+  d_epistasis_freq <- d_epistasis_freq %>%
+    mutate(ep = ew,
+           ew = Pab,
+           Pab = Pb,
+           Pb = Pa,
+           Pa = Pwt,
+           Pwt = wab,
+           wab = wb,
+           wb = wa,
+           wa = as.numeric(mutType_ab),
+           mutType_ab = "3_3")
+}
 
 d_epistasis_freq$optPerc <- rep(dpdt$V1, each = nrow(d_epistasis_freq)/nrow(dpdt))
 
