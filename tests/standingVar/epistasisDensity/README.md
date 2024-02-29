@@ -11,6 +11,7 @@ I calculated epistasis by randomly sampling pairs of mutations. However, some of
 The below figures show the means and selected distributions of epistasis at the final timepoint, where populations had just reached the optimum (+/- 10%). One model (index 396: 16 loci, 1.25 mutational variance, 0.01 recombination, K+ model) was removed due to outlier combinations creating very large phenotypes
 
 First, I explored the mean behaviour of epistasis across all models. Each point is an average of a model across all simulation replicates (seeds) and mutation pairs:
+
 ![](./figures/mean_ep_box.png)
 
 Mostly, trait epistasis was on average close to 0. This is the case by definition with the additive model, but in both NAR models, it rarely deviated. This could be because of averaging across alleles with both positive and negative epistasis, which we will explore when we look at the distributions. There are also a couple of outliers in the K- model which produce large amounts of synergistic trait epistasis. 
