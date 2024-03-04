@@ -35,3 +35,12 @@ View(d_qg %>% group_by(model, nloci, tau, r) %>%
        summarise(n = n(),
                  pAdapted = mean(isAdapted),
                  CIAdapted = CI(isAdapted)))
+
+ggplot(d_qg %>% filter(isAdapted, gen >= 49500),
+       aes(x = gen - 50000, y = phenomean, colour = interaction(model, tau)),
+       group = as.factor(seed)) +
+  facet_nested(r~nloci) +
+  geom_line() +
+  labs(x = "Generations post-optimum shift", y = "Mean phenotype", colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
