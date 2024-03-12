@@ -419,9 +419,18 @@ function (float) lerp(fi xmin, fi xmax, fi ymin, fi ymax, fi x) {
 function (void) writeLDmat(o<Subpopulation> pop, l$ isBurnin) {
 	// Writes the pairwise LD matrix into a .tsv file
 	// isBurnin: is this the burnin matrix or the final matrix: just sets the filename
-	LDMat = matrix(sim.pairwiseR2(pop), nrow = genomelength, ncol = genomelength, byrow = T);
+	LDMat = matrix(sim.calcLD(pop), nrow = genomelength, ncol = genomelength, byrow = T);
 	l = sapply(seqLen(nrow(LDMat)), "paste(LDMat[applyValue,], sep = '\t');");
 	writeFile(outLD[asInteger(!isBurnin)], l);
+}
+
+function (void) writeLDComp(o<Subpopulation> pop, l$ isD) {
+	// Writes a pairwise LD matrix in compressed columnwise format
+	// isD: 	whether to calculate r^2 or D' 
+	LDResult = matrix(sim.calcLD(pop, isD), nrow = genomelength, ncol = genomelength, byrow = T);
+	LDCompressed = CompressLDMatrix(LDResult[c(upperTri(LDResult))]);
+	writeFile(outLDComp_Pos, LDCompressed[0], append = T);
+	writeFile(outLDComp_Val, LDCompressed[1], append = T);
 }
 
 
@@ -711,4 +720,13 @@ function (integer) CompressRelatednessList(float upperTri) {
 // Get the relationship coefficients at a given position in the upper triangle
 function (float) GetRelValues(float upperTri, integer pos) {
 	return upperTri[pos];
+}
+
+// Compress LD matrix to columnwise indices and nonzero LD: input is upper triangle of the 
+// pairwise LD matrix excluding diagonals 
+function (string) CompressLDMatrix(float LDUpperTri) {
+	indicesFile = paste(sim.cycle, asString(seed), modelindex, CompressRelatednessList(LDUpperTri), sep = ",");
+	valuesFile = paste(sim.cycle, asString(seed), modelindex, LDUpperTri[c(LDUpperTri != 0)], sep = ",");
+
+	return c(indicesFile, valuesFile);
 }
