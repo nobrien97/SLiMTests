@@ -11,6 +11,7 @@ BASENAME=standingVar
 JOBNAME=calcLD
 BASEDIR=$HOME/tests/$BASENAME
 TESTDIR=$BASEDIR/$JOBNAME
+DATAPATH=/g/data/ht96/nb9894/standingVar
 
 echo "Beginning run modelindex = $MODELINDEX, seed = $SEED at $(date)"
 
@@ -25,16 +26,10 @@ MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
 SEED_FILE=$TESTDIR/R/${BASENAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
-# Extract necessary files from /g/data
-SEED=1251567054
-MODELINDEX=29
-awk -F, '$1 == 29 && $2 == 1251567054' slim_pos.csv > slim_pos${SEED}_${MODELINDEX}.csv
-
-# Everything I can find says this SHOULD WORK but it DOESN'T so we're going to do an R script instead
-# I hate this
-#awk -F',' -v a="$SEED" -v b="$MODELINDEX" '$1 == a && $2 == b' slim_pos.csv > slim_pos${SEED}_${MODELINDEX}.csv
-
-
+# Extract data from /g/data
+awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == a && $2 == b' $DATAPATH/slim_pos.csv > slim_pos${SEED}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == a && $2 == b' $DATAPATH/slim_dict.csv > slim_dict${SEED}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == b && $2 == a' $DATAPATH/slim_opt.csv > slim_opt${SEED}_${MODELINDEX}.csv
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
