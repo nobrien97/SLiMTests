@@ -27,22 +27,20 @@ SEED_FILE=$BASEDIR/R/${BASENAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Extract data from /g/data
-awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == a && $2 == b' $DATAPATH/slim_pos.csv > slim_pos${SEED}_${MODELINDEX}.csv
-awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == a && $2 == b' $DATAPATH/slim_dict.csv > slim_dict${SEED}_${MODELINDEX}.csv
-awk -F',' -v a="$MODELINDEX" -v b="$SEED" '$1 == b && $2 == a' $DATAPATH/slim_opt.csv > slim_opt${SEED}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == a && $2 == b' $DATAPATH/slim_pos.csv > slim_pos${SEED_NUM}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == a && $2 == b' $DATAPATH/slim_dict.csv > slim_dict${SEED_NUM}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == b && $2 == a' $DATAPATH/slim_opt.csv > slim_opt${SEED_NUM}_${MODELINDEX}.csv
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 
-# Convert PBS_JOBFS to a string for SLiM to read
-JOBFS_STR=\'$PBS_JOBFS\'
 
 # If we have a K model, we need to disable molTraitFix by setting it to -1
 if [[ "${MODEL_NUM[3]}" == "'K'" ]]
 then
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d posPath="${JOBFS_STR}" -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/calcLD.slim
+    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/calcLD.slim
 else
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d posPath="${JOBFS_STR}" -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/calcLD.slim
+    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/calcLD.slim
 fi
 
 DURATION=$SECONDS
