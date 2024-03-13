@@ -1,19 +1,20 @@
 #!/bin/bash -l
 #PBS -P ht96
-#PBS -l walltime=24:00:00
-#PBS -l ncpus=1440
-#PBS -l mem=2000GB
-#PBS -l jobfs=1000GB
+#PBS -l walltime=5:00:00
+#PBS -l ncpus=10800
+#PBS -l mem=42750GB
+#PBS -l jobfs=10000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
   
 ECHO=/bin/echo
 JOBNAME=standingVar/calcLD
+
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
-#   For this job, NJOBS should = 4
+#   For this job, NJOBS should = 1
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -111,7 +112,7 @@ if [ $NJOB -lt $NJOBS ]; then
     NJOB=$(($NJOB+1))
     $ECHO "Submitting job number $NJOB in sequence of $NJOBS jobs"
     cd $PBS_O_WORKDIR
-    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./$JOBNAME.sh
+    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./calcLD.sh
 else
     $ECHO "Finished last job in sequence of $NJOBS jobs"
 fi
