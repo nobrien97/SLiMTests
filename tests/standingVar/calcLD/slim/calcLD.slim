@@ -16,6 +16,7 @@ initialize() {
 	
 	setCfgParam("debug", F);
 	setCfgParam("inputPath", "/g/data/ht96/nb9894/standingVar/popstates/"); // "~/Desktop/"); // input population file to load
+	setCfgParam("posPath", "."); // path to the	pos, opt, dict files extracted with awk
 	setCfgParam("inputSeed", 1251567054);
 	setCfgParam("inputModel", 29);
 	setCfgParam("inputID", paste0(inputSeed, "_", inputModel));
@@ -248,19 +249,19 @@ function (void) LoadPopulation(void) {
 	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, ".bin"));
 	
 	// QTL positions
-	pos = readCSV(paste0("./slim_pos", inputID, ".csv"), colNames = F);
+	pos = readCSV(paste0(posPath, "/slim_pos", inputID, ".csv"), colNames = F);
 	pos_QTL = c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix());
 	sim.setValue("pos_QTL", pos_QTL);
 	
 	// Constraint dictionary
-	dict = readCSV(paste0("./slim_dict", inputID, ".csv"), colNames = F);
+	dict = readCSV(paste0(posPath, "/slim_dict", inputID, ".csv"), colNames = F);
 	dict_genes = c(dict.subsetColumns(2:(genomelength+1)).asMatrix());
 	dict_constraint = c(dict.subsetColumns((genomelength+3):(dict.ncol-1)).asMatrix());
 	con_dict = matrix(c(dict_genes, dict_constraint), ncol = genomelength, byrow = T);	
 	sim.setValue("con_dict", con_dict);
 	
 	// Optimum
-	opt = readCSV(paste0("./slim_opt", inputID, ".csv"), colNames = F);
+	opt = readCSV(paste0(posPath, "/slim_opt", inputID, ".csv"), colNames = F);
 	opt = opt.subset(0, 2);
 	
 	sim.setValue("optimum", opt);

@@ -36,9 +36,9 @@ echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # If we have a K model, we need to disable molTraitFix by setting it to -1
 if [[ "${MODEL_NUM[3]}" == "'K'" ]]
 then
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/calcLD.slim
+    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d posPath="${PBS_JOBFS}" -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/calcLD.slim
 else
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/calcLD.slim
+    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=${SEED_NUM} -d inputModel=$MODELINDEX -d posPath="${PBS_JOBFS}" -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/calcLD.slim
 fi
 
 DURATION=$SECONDS
