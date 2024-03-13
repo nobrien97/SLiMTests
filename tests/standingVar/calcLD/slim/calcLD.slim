@@ -210,8 +210,8 @@ s2 late() {
 		
 		// Move output to scratch storage
 		
-		system(paste0("mv ./", outLD[0], " ", moveDir));
-		system(paste0("mv ./", outLD[1], " ", moveDir));
+		system(paste0("mv ./", outLDComp_Pos, " ", moveDir));
+		system(paste0("mv ./", outLDComp_Val, " ", moveDir));
 		
 		sim.simulationFinished();
 		return;
