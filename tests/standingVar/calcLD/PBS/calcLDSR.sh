@@ -23,7 +23,7 @@ fi
 # Get the correct modelindex from the file: put into array
 MODEL_FILE=$BASEDIR/R/combos.csv
 MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
-SEED_FILE=$TESTDIR/R/${BASENAME}_seeds.csv
+SEED_FILE=$BASEDIR/R/${BASENAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Extract data from /g/data
