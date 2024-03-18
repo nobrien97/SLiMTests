@@ -147,10 +147,10 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
 
 }
 
-function (void) writeLDComp(o<Subpopulation> pop, l$ isD) {
+function (void) writeLDComp(o<Subpopulation> pop, s$ statistic) {
 	// Writes a pairwise LD matrix in compressed columnwise format
-	// isD: 	whether to calculate r^2 or D' 
-	LDResult = matrix(sim.calcLD(pop, isD), nrow = genomelength, ncol = genomelength, byrow = T);
+	// statistic: 	The statistic to calculate (r^2, D, D')
+	LDResult = matrix(sim.calcLD(pop, statistic), nrow = genomelength, ncol = genomelength, byrow = T);
 	LDCompressed = CompressLDMatrix(LDResult[c(upperTri(LDResult))]);
 	writeFile(outLDComp_Pos, LDCompressed[0], append = T);
 	writeFile(outLDComp_Val, LDCompressed[1], append = T);

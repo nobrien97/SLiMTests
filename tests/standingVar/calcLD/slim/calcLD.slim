@@ -204,7 +204,7 @@ s2 late() {
 		
 		// Write LD output and pedigree/heritability stuff
 		calcPhenotype(p2.individuals, modelType);
-		writeLDComp(p1, T);
+		writeLDComp(p1, "D");
 		//writeGenMap();
 		writeHaploRel(p2, N_samp);		
 		
@@ -229,7 +229,7 @@ s2 late() {
 	if (!isNULL(curCheckpoint)) {
 		if (checkpoints[curCheckpoint, 1] < 1) {
 			writeHaploRel(p2, N_samp);
-			writeLDComp(p1, T);
+			writeLDComp(p1, "D");
 			// make sure we don't write again, also write any that we might have skipped (e.g. if we
 			// went straight from 25% to 75%, we need to write 50%)
 			for (i in curCheckpoint:0) {
