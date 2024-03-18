@@ -12,13 +12,13 @@ GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/calcLD/"
 FILE_NAME <- paste0("/scratch/ht96/nb9894/standingVar/calcLD/LDsummarise/sumLD", model, ".csv")
 
 # TODO: check model off by one error
-ld_val <- unlist(fread(paste0(GDATA_PATH, "slim_ld_val.csv"), 
+ld_val <- unlist(fread(paste0(GDATA_PATH, "slim_ld_val_d.csv"), 
                skip = model, nrows = 1, sep = ","))
 
 model_info <- ld_val[1:3]
 ld_val <- ld_val[-(1:3)]
 
-ld_pos <- unlist(fread(paste0(GDATA_PATH, "slim_ld_pos.csv"), 
+ld_pos <- unlist(fread(paste0(GDATA_PATH, "slim_ld_pos_d.csv"), 
                 skip = model, nrows = 1, sep = ","))[-(1:3)]
 
 # Expand to matrix form

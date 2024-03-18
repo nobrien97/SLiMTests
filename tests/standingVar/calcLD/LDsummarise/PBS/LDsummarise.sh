@@ -85,7 +85,7 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
-cat ./sumLD* >> $SAVEDIR/sumLD.csv
+cat ./sumLD* >> $SAVEDIR/sumLD_d.csv
 
 # 
 # Check the exit status
