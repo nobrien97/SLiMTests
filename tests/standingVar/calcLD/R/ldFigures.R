@@ -15,7 +15,7 @@ d_combos <- read.table("../../R/combos.csv", header = F,
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
 
-d_ld <- read.table(paste0(DATA_PATH, "calcLD/sumLD.csv"), header = F,
+d_ld <- read.table(paste0(DATA_PATH, "calcLD/sumLD_d.csv"), header = F,
                           col.names = c("gen", "seed", "modelindex", "meanD", "sdD",
                                         "meanDZeros", "sdDZeros", "nD",
                                         "nDP", "nDN", "nDHalf", 
@@ -57,7 +57,7 @@ d_ld_sum <- d_ld %>%
 
 # plot average distributions
 
-bins <- seq(-1, 1, by = 0.1)
+bins <- seq(-0.1, 0.1, length.out = 21)
 d_ld_dist <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 14:34) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_dist$col <- bins[as.numeric(str_extract(d_ld_dist$col, "[[0-9]]*(?=_)"))]
@@ -84,7 +84,7 @@ ggplot(d_ld_dist %>% filter(optPerc == "(0.75, Inf]", tau == 0.0125),
                            labels = c("Additive", "K+", "K-")) +
   geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
   ggtitle("Tau = 0.0125") +
-  labs(x = "D'", y = "Count", colour = "Model") +
+  labs(x = "D", y = "Count", colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 14)) -> D_smlFX
 
@@ -102,7 +102,7 @@ ggplot(d_ld_dist %>% filter(optPerc == "(0.75, Inf]", tau == 0.125),
                            labels = c("Additive", "K+", "K-")) +
   geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
   ggtitle("Tau = 0.125") +
-  labs(x = "D'", y = "Count", colour = "Model") +
+  labs(x = "D", y = "Count", colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 14)) -> D_medFX
 
@@ -120,14 +120,14 @@ ggplot(d_ld_dist %>% filter(optPerc == "(0.75, Inf]", tau == 1.25),
                            labels = c("Additive", "K+", "K-")) +
   geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
   ggtitle("Tau = 1.25") +
-  labs(x = "D'", y = "Count", colour = "Model") +
+  labs(x = "D", y = "Count", colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 14)) -> D_lrgFX
 
 D_grid <- plot_grid(D_smlFX, D_medFX, D_lrgFX,
                         nrow = 3)
 
-ggsave("LD_grid.png", D_grid, width = 14, height = 30, device = png)
+ggsave("LD_grid_d.png", D_grid, width = 14, height = 30, device = png)
 }
 
 # Mean counts - before adaptation
@@ -146,7 +146,7 @@ ggsave("LD_grid.png", D_grid, width = 14, height = 30, device = png)
                              labels = c("Additive", "K+", "K-")) +
     geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
     ggtitle("Tau = 0.0125") +
-    labs(x = "D'", y = "Count", colour = "Model") +
+    labs(x = "D", y = "Count", colour = "Model") +
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14)) -> D_smlFX
   
@@ -164,7 +164,7 @@ ggsave("LD_grid.png", D_grid, width = 14, height = 30, device = png)
                              labels = c("Additive", "K+", "K-")) +
     geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
     ggtitle("Tau = 0.125") +
-    labs(x = "D'", y = "Count", colour = "Model") +
+    labs(x = "D", y = "Count", colour = "Model") +
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14)) -> D_medFX
   
@@ -182,12 +182,12 @@ ggsave("LD_grid.png", D_grid, width = 14, height = 30, device = png)
                              labels = c("Additive", "K+", "K-")) +
     geom_errorbar(aes(ymin = count - count_sd, ymax = count + count_sd)) +
     ggtitle("Tau = 1.25") +
-    labs(x = "D'", y = "Count", colour = "Model") +
+    labs(x = "D", y = "Count", colour = "Model") +
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14)) -> D_lrgFX
   
   D_grid <- plot_grid(D_smlFX, D_medFX, D_lrgFX,
                       nrow = 3)
   
-  ggsave("LD_grid_beforeshift.png", D_grid, width = 14, height = 30, device = png)
+  ggsave("LD_grid_d_beforeshift.png", D_grid, width = 14, height = 30, device = png)
 }
