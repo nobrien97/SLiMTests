@@ -69,7 +69,7 @@ initialize() {
 	
 	setCfgParam("outLDComp_Pos", c(paste0('slim_ld_pos', identifier, '.csv'))); // Output filename/path for LD matrix
 	setCfgParam("outLDComp_Val", c(paste0('slim_ld_val', identifier, '.csv'))); // Output filename/path for LD matrix
-	
+	setCfgParam("outLD", c(paste0('slim_ld_freq', identifier, '.csv'))); // Output filename/path for LD matrix
 	setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/calcLD/"); // Directory to move output to at end of simulation
 				
 	initializeSLiMModelType("nonWF");
@@ -204,14 +204,16 @@ s2 late() {
 		
 		// Write LD output and pedigree/heritability stuff
 		calcPhenotype(p2.individuals, modelType);
-		writeLDComp(p1, "D");
+		//writeLDComp(p1, "D");
+		writeLDPairFile(p1, "D");
 		//writeGenMap();
 		writeHaploRel(p2, N_samp);		
 		
 		// Move output to scratch storage
 		
-		system(paste0("mv ./", outLDComp_Pos, " ", moveDir));
-		system(paste0("mv ./", outLDComp_Val, " ", moveDir));
+		//system(paste0("mv ./", outLDComp_Pos, " ", moveDir));
+		//system(paste0("mv ./", outLDComp_Val, " ", moveDir));
+		system(paste0("mv ./", outLD, " ", moveDir));
 		
 		sim.simulationFinished();
 		return;
@@ -229,7 +231,8 @@ s2 late() {
 	if (!isNULL(curCheckpoint)) {
 		if (checkpoints[curCheckpoint, 1] < 1) {
 			writeHaploRel(p2, N_samp);
-			writeLDComp(p1, "D");
+			//writeLDComp(p1, "D");
+			writeLDPairFile(p1, "D");
 			// make sure we don't write again, also write any that we might have skipped (e.g. if we
 			// went straight from 25% to 75%, we need to write 50%)
 			for (i in curCheckpoint:0) {

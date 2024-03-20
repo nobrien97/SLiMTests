@@ -147,6 +147,46 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
 
 }
 
+function (integer) encodeCantorPairs(i x, i y) {
+	return asInteger(0.5 * (x + y) * (x + y + 1) + y);
+}
+
+function (integer) decodeCantorPairs(i z) {
+	w = floor((sqrt(8*z+1)-1) * 0.5);
+	t = (w*w + w) * 0.5;
+	
+	y = asInteger(z - t);
+	x = asInteger(w - y);
+	return matrix(c(x, y), ncol = length(z), byrow = T);
+}
+
+// Return pairwise permutations of a vector
+function (integer) perm(i x, [l$ includeDiag = F]) {
+	// Create output matrix with all combinations
+	y = rep(x, length(x));
+	z = repEach(x, length(x));
+	
+	// Encode values with Cantor pair
+	comb = encodeCantorPairs(y, z);	
+
+	comboMatrix = matrix(comb, nrow = length(x));
+	
+	// Remove duplicates
+	comboMatrix = comboMatrix[c(upperTri(comboMatrix, includeDiag))];
+	
+	// return matrix of x and y
+	return decodeCantorPairs(comboMatrix); 
+}
+
+function (void) writeLDPairFile(o<Subpopulation> pop, s$ stat) {
+	// Writes vector of pairwise LD comparisons sorted by frequency
+	pos = sim.getValue("pos_QTL");
+	comp = perm(pos);
+	LDResult = sim.calcLDBetweenSitePairs(pop, comp[0,], comp[1,], statistic = stat, byFreq = T);
+	LDLine = paste(sim.cycle, asString(seed), modelindex, LDResult, sep = ",");
+	writeFile(outLD, LDLine, append = T);
+}
+
 function (void) writeLDComp(o<Subpopulation> pop, s$ statistic) {
 	// Writes a pairwise LD matrix in compressed columnwise format
 	// statistic: 	The statistic to calculate (r^2, D, D')
