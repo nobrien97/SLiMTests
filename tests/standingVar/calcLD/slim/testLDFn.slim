@@ -16,26 +16,35 @@ initialize() {
 	initializeRecombinationRate(1e-8);
 }
 
+function (integer) encodeCantorPairs(i x, i y) {
+	return asInteger(0.5 * (x + y) * (x + y + 1) + y);
+}
+
+function (integer) decodeCantorPairs(i z) {
+	w = floor((sqrt(8*z+1)-1) * 0.5);
+	t = (w*w + w) * 0.5;
+	
+	y = asInteger(z - t);
+	x = asInteger(w - y);
+	return matrix(c(x, y), ncol = length(z), byrow = T);
+}
+
 // Return pairwise permutations of a vector
 function (integer) perm(i x, [l$ includeDiag = F]) {
 	// Create output matrix with all combinations
 	y = rep(x, length(x));
 	z = repEach(x, length(x));
-	comb = string(length(x)*length(x));
-	for (i in seqAlong(comb)) {
-		comb[i] = paste(y[i], z[i], sep = ",");
-	}
+	
+	// Encode values with Cantor pair
+	comb = encodeCantorPairs(y, z);	
+
 	comboMatrix = matrix(comb, nrow = length(x));
 	
 	// Remove duplicates
 	comboMatrix = comboMatrix[c(upperTri(comboMatrix, includeDiag))];
 	
 	// return matrix of x and y
-	xPos = asInteger(grep("[0-9]+(?=,)", comboMatrix, value = "matches"));
-	yPos = asInteger(grep("[0-9]+$", comboMatrix, value = "matches"));
-	
-	return matrix(c(xPos, yPos), ncol = length(xPos), byrow = T);
-	
+	return decodeCantorPairs(comboMatrix); 
 }
  
 
