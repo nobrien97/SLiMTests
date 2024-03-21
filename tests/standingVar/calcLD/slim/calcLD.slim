@@ -10,14 +10,14 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/standingVar/calcLD/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/slim/"); // 
+	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/slim/"); // "/home/564/nb9894/tests/standingVar/calcLD/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	
 	setCfgParam("debug", F);
 	setCfgParam("inputPath", "/g/data/ht96/nb9894/standingVar/popstates/"); // "~/Desktop/"); // input population file to load
-	setCfgParam("inputSeed", 1251567054);
-	setCfgParam("inputModel", 29);
+	setCfgParam("inputSeed", 3729735954);
+	setCfgParam("inputModel", 40);
 	setCfgParam("inputID", paste0(inputSeed, "_", inputModel));
 	setCfgParam("modelType", "ODE"); // The model type
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
@@ -29,11 +29,11 @@ initialize() {
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 1e-10); // Whole genome recombination rate
-	setCfgParam("nloci", 1024); // Number of U and E sites along the chromosome
+	setCfgParam("nloci", 256); // Number of U and E sites along the chromosome
 	setCfgParam("molMutProp", c(1/4, 1/4, 1/4, 1/4)); // proportion of molecular trait loci
 	setCfgParam("genomelength", 1024); // Loci across the genome - some are deleterious, others QTL, others neutral
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
-	setCfgParam("locisigma", 0.125); // Variance used for QTL effect pulls - the effect size distribution
+	setCfgParam("locisigma", 1.25); // Variance used for QTL effect pulls - the effect size distribution
 	//setCfgParam("locidist", paste0("exp(rnorm(1,", locimu, ",", locisigma, "));"));
 	setCfgParam("con_props", c(1.0, 0.0, 0.0)); // Proportion of genes that have low/medium/high substitution rate
 	setCfgParam("constraints", matrix(c(1.0, 0.0, 1.0, 1.0, 1.0, 1.0,
@@ -320,7 +320,9 @@ function (void) LoadPopulation(void) {
 
 	defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
 	
-	ends = findMutBreakpoints(pos_QTL);
+	ends = unique(findMutBreakpoints(pos_QTL));
+	
+	
 
 	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
 	if (sort(pos_QTL)[0] == 0) {
