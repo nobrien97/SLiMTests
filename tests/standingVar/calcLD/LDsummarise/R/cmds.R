@@ -13,3 +13,11 @@ cmds <- data.frame(sr = singleRunBashName,
 
 write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/LDsummarise/PBS/cmds.txt", 
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+singleRunBashName <- "./LDsummariseFreqSR.sh"
+
+cmds <- data.frame(sr = singleRunBashName,
+                   model = 0:61350)
+
+write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/LDsummarise/PBS/cmds_freq.txt", 
+            sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
