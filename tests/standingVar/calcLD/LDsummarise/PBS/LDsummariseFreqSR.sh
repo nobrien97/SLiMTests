@@ -13,7 +13,7 @@ TESTDIR=$HOME/tests/$JOBNAME
 
 echo "Beginning run $MODELINDEX at $(date)"
 
-RSCRIPTNAME=$HOME/tests/standingVar/calcLD/LDsummarise/R/sumLDFreq.R
+RSCRIPTNAME=$HOME/tests/standingVar/calcLD/LDsummarise/R/sumLDfreq.R
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."

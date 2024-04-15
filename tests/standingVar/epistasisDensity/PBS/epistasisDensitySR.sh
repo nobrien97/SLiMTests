@@ -5,13 +5,13 @@ module load R/4.0.0
 cd $PBS_JOBFS
 SECONDS=0
 
-echo "Beginning run modelindex = $MODELINDEX at $(date)"
-
 # Rename the first and second arguments passed to this single shot script for clarity 
 MODELINDEX=$1
 FILENAME=${MODELINDEX}
 JOBNAME=standingVar/epistasisDensity
 TESTDIR=$HOME/tests/$JOBNAME
+
+echo "Beginning run modelindex = $MODELINDEX at $(date)"
 
 RSCRIPTNAME=$HOME/tests/standingVar/epistasisDensity/R/epistasisDensity.R
 

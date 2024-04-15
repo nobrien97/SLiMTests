@@ -137,7 +137,6 @@ d_epistasis_freq %>%
             sdEW = sd(ew),
             n = n()) -> d_epistasis_mean
 
-
 # write
 data.table::fwrite(d_epistasis_density,
                    EPISTASIS_WEIGHTED_DENSITY_FILE, sep = ",", 

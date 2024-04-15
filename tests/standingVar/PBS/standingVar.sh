@@ -100,8 +100,8 @@ cat ./slim_relPos* >> $SAVEDIR/slim_relPos.csv
 cat ./slim_relVals* >> $SAVEDIR/slim_relVals.csv
 
 
-# Zip LD matrices
-/bin/zip -q -Z bzip2 $SAVEDIR/slim_ld.zip ./slim_ld* 
+# Zip LD matrices: takes too long to add to the zip
+# /bin/zip -q -Z bzip2 $SAVEDIR/slim_ld.zip ./slim_ld* 
 
 mkdir -p $SAVEDIR/popstates
 mv ./slim_popstate* $SAVEDIR/popstates
