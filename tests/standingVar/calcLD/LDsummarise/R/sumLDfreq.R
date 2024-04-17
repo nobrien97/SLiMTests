@@ -36,9 +36,9 @@ result <- ld_frame %>%
             meanDZeros = sum(D) / (max_elements),
             sdDZeros = sqrt( ( sum((D - meanDZeros)^2) ) / max_elements ),
             nD = length(D),
-            nDP = length(D[D > 0]),
-            nDN = length(D[D < 0]),
-            nDHalf = length(D[abs(D) > 0.5]))
+            nDP = length(D[D > 0.05]),
+            nDN = length(D[D < -0.05]),
+            nDHalf = length(D[abs(D) > 0.05]))
 
 result$gen <- model_info[1]
 result$seed <- model_info[2]

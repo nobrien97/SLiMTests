@@ -50,9 +50,9 @@ result <- tibble(
         meanDZeros = sum(LDmat) / (max_elements),
         sdDZeros = sqrt( ( sum((LDmat - meanDZeros)^2) ) / max_elements ),
         nD = length(LDmat),
-        nDP = length(LDmat[LDmat > 0]),
-        nDN = length(LDmat[LDmat < 0]),
-        nDHalf = length(LDmat[abs(LDmat) > 0.5])
+        nDP = length(LDmat[LDmat > 0.05]),
+        nDN = length(LDmat[LDmat < -0.05]),
+        nDHalf = length(LDmat[abs(LDmat) > 0.05])
     )
 
 # Add counts of 10% groups for a histogram with 21 bins
