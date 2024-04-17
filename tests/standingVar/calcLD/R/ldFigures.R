@@ -1,5 +1,4 @@
 # Load in summary data
-
 library(tidyverse)
 library(data.table)
 library(latex2exp)
@@ -7,6 +6,7 @@ library(paletteer)
 library(ggridges)
 library(ggh4x)
 library(cowplot)
+setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R")
 
 source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/helperFunctionsAndSetup.R")
 
@@ -137,7 +137,74 @@ d_ld_dist$count_sd <- d_ld_dist_sd$count_sd
   
   mean_LD_grid <- plot_grid(plt_mean_LD_sml, plt_mean_LD_med, plt_mean_LD_lrg,
                           nrow = 3)
-  ggsave("mean_LD_grid.png", mean_LD_grid, width = 14, height = 30, device = png)
+  ggsave("mean_LD_grid_end.png", mean_LD_grid, width = 14, height = 30, device = png)
+}
+
+# Mean counts - before adaptation, mean plots
+{
+  ggplot(d_ld_sum %>% 
+           mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
+           filter(as.numeric(optPerc) < 3, tau == 0.0125),
+         aes(x = meanD_mean, y = nD_mean, colour = model)) +
+    facet_grid(log10(r)~nloci) +
+    geom_point(shape = 1) +
+    coord_cartesian(xlim = c(-0.25, 0.25)) +
+    scale_y_continuous(labels = scales::comma,
+                       sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_x_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                             labels = c("Additive", "K+", "K-")) +
+    #geom_errorbar(aes(ymin = nD_mean - nD_sd, ymax = nD_mean + nD_sd)) +
+    #geom_errorbar(aes(xmin = meanD_mean - meanD_sd, xmax = meanD_mean + meanD_sd)) +
+    ggtitle("Tau = 0.0125") +
+    labs(x = "D", y = "Log Mean Count", colour = "Model", linetype = "Allele frequency") +
+    theme_bw() +
+    theme(legend.position = "bottom", text = element_text(size = 14)) -> plt_mean_LD_sml
+  
+  ggplot(d_ld_sum %>% 
+           mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
+           filter(as.numeric(optPerc) < 3, tau == 0.125),
+         aes(x = meanD_mean, y = nD_mean, colour = model)) +
+    facet_grid(log10(r)~nloci) +
+    geom_point(shape = 1) +
+    coord_cartesian(xlim = c(-0.25, 0.25)) +
+    scale_y_continuous(labels = scales::comma,
+                       sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_x_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                             labels = c("Additive", "K+", "K-")) +
+    ggtitle("Tau = 0.125") +
+    labs(x = "D", y = "Log Mean Count", colour = "Model", linetype = "Allele frequency") +
+    theme_bw() +
+    theme(legend.position = "bottom", text = element_text(size = 14)) -> plt_mean_LD_med
+  
+  ggplot(d_ld_sum %>% 
+           mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
+           filter(as.numeric(optPerc) < 3, tau == 1.25),
+         aes(x = meanD_mean, y = nD_mean, colour = model)) +
+    facet_grid(log10(r)~nloci) +
+    geom_point(shape = 1) +
+    coord_cartesian(xlim = c(-0.25, 0.25)) +
+    scale_y_continuous(labels = scales::comma,
+                       sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_x_continuous(sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                             labels = c("Additive", "K+", "K-")) +
+    ggtitle("Tau = 1.25") +
+    labs(x = "D", y = "Log Mean Count", colour = "Model", linetype = "Allele frequency") +
+    theme_bw() +
+    theme(legend.position = "bottom", text = element_text(size = 14)) -> plt_mean_LD_lrg
+  
+  mean_LD_grid <- plot_grid(plt_mean_LD_sml, plt_mean_LD_med, plt_mean_LD_lrg,
+                            nrow = 3)
+  ggsave("mean_LD_grid_beforeshift.png", mean_LD_grid, width = 14, height = 30, device = png)
+  
 }
 
 
@@ -206,7 +273,7 @@ D_grid <- plot_grid(D_smlFX, D_medFX, D_lrgFX,
 ggsave("LD_grid_d_end.png", D_grid, width = 14, height = 30, device = png)
 }
 
-# Mean counts - before adaptation
+# Mean counts - before adaptation, distribution
 {
   ggplot(d_ld_dist %>% mutate(count = log10(count), count_sd = log10(count_sd)) %>% 
            filter(optPerc == "(-Inf,0.25]", tau == 0.0125),
@@ -302,6 +369,11 @@ d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 43:
 
 d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
 
+# Normalise mean counts by max elements
+MAX_ELEMENTS <- 1024 * 1024
+d_ld_freq_sum <- d_ld_freq_sum %>%
+  mutate(nD_maxel_prop = nD_mean / MAX_ELEMENTS)
+
 # Mean counts - after adaptation, sum data: check variance of means
 {
   ggplot(d_ld_freq_sum %>% 
@@ -389,11 +461,11 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
   
 }
 
-# Mean counts - after adaptation, sum data: check variance of means
+# Mean counts - before adaptation, sum data: check variance of means
 {
   ggplot(d_ld_freq_sum %>% 
            mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
-           filter(optPerc == "(-Inf,0.25]", tau == 0.0125),
+           filter(as.numeric(optPerc) < 3, tau == 0.0125),
          aes(x = meanD_mean, y = nD_mean, colour = model, size = as.factor(freqBin))) +
     facet_grid(log10(r)~nloci) +
     geom_point(shape = 1) +
@@ -419,7 +491,7 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
   
   ggplot(d_ld_freq_sum %>% 
            mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
-           filter(optPerc == "(-Inf,0.25]", tau == 0.125),
+           filter(as.numeric(optPerc) < 3, tau == 0.125),
          aes(x = meanD_mean, y = nD_mean, colour = model, size = as.factor(freqBin))) +
     facet_grid(log10(r)~nloci) +
     geom_point(shape = 1) +
@@ -445,7 +517,7 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
   
   ggplot(d_ld_freq_sum %>% 
            mutate(nD_mean = log(nD_mean), nD_sd = log(nD_sd)) %>%
-           filter(optPerc == "(-Inf,0.25]", tau == 1.25),
+           filter(as.numeric(optPerc) < 3, tau == 1.25),
          aes(x = meanD_mean, y = nD_mean, colour = model, size = as.factor(freqBin))) +
     facet_grid(log10(r)~nloci) +
     geom_point(shape = 1) +
@@ -542,7 +614,7 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
 
 # Mean counts - before adaptation
 {
-  ggplot(d_ld_dist %>% filter(optPerc == "(-Inf,0.25]", tau == 0.0125),
+  ggplot(d_ld_dist %>% filter(as.numeric(optPerc) < 3, tau == 0.0125),
          aes(x = col, y = count, colour = model)) +
     facet_grid(log10(r)~nloci) +
     geom_point() +
@@ -560,7 +632,7 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14)) -> D_smlFX
   
-  ggplot(d_ld_dist %>% filter(optPerc == "(-Inf,0.25]", tau == 0.125),
+  ggplot(d_ld_dist %>% filter(as.numeric(optPerc) < 3, tau == 0.125),
          aes(x = col, y = count, colour = model)) +
     facet_grid(log10(r)~nloci) +
     geom_point() +
@@ -578,7 +650,7 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14)) -> D_medFX
   
-  ggplot(d_ld_dist %>% filter(optPerc == "(-Inf,0.25]", tau == 1.25),
+  ggplot(d_ld_dist %>% filter(as.numeric(optPerc) < 3, tau == 1.25),
          aes(x = col, y = count, colour = model)) +
     facet_grid(log10(r)~nloci) +
     geom_point() +
