@@ -1,5 +1,5 @@
 # File name
-filename <- "./getH2_newTestCrossSR.sh"
+filename <- "./getH2SR.sh"
 
 #  wc -l slim_haplo_fix.csv -> 132174 samples / 3147 = 42 chunks 
 

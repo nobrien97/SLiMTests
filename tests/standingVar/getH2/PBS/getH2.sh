@@ -9,6 +9,7 @@
 SUBJOBNAME=standingVar
 JOBNAME=getH2
 TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
+TASKS_THIS_ITERATION=5
 ECHO=/bin/echo
 
 if [ X$NJOBS == X ]; then
@@ -36,11 +37,12 @@ if [ -f STOP_SEQUENCE ] ; then
     exit 0
 fi
 
-
+cd $PBS_O_WORKDIR
 SAVEDIR=/g/data/ht96/nb9894/${TOTALJOBNAME}
 
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
+module load nci-parallel/1.0.0a
 export ncores_per_task=1
 export ncores_per_numanode=12
 
@@ -49,8 +51,8 @@ export ncores_per_numanode=12
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
 CMDS_PATH=$HOME/tests/${TOTALJOBNAME}/PBS/cmds.txt
 CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+CUR_MIN=$(($NJOB*$PBS_NCPUS*$TASKS_THIS_ITERATION+1))
+CUR_MAX=$((($NJOB+1)*$PBS_NCPUS*$TASKS_THIS_ITERATION))
 
 if [ $CUR_MAX -gt $CUR_TOT ]; then
     CUR_MAX=$CUR_TOT

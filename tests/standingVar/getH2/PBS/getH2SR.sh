@@ -9,7 +9,6 @@ JOBNAME=getH2
 TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
 
 
-SCRATCHPATH=/scratch/ht96/nb9894/${TOTALJOBNAME}
 
 # Two arguments: 
 # run number (starts at 0)
@@ -25,13 +24,16 @@ if [ -f $HOME/tests/${TOTALJOBNAME}/done/${RUN}_* ]; then
     exit 0
 fi
 
+SCRATCHPATH=/scratch/ht96/nb9894/${SUBJOBNAME}
+DATAPATH=/g/data/ht96/nb9894/${SUBJOBNAME}
+
 # Save subset files to work on
-tail -n "+${RUN}" $SCRATCHPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
-tail -n "+${RUN}" $SCRATCHPATH/slim_haplo_fix.csv | head -n 1 > slim_haplo_fix_sbst_$RUN.csv
-tail -n "+${RUN}" $SCRATCHPATH/slim_relVals.csv | head -n 1 > slim_relVals_sbst_$RUN.csv
-tail -n "+${RUN}" $SCRATCHPATH/slim_relPos.csv | head -n 1 > slim_relPos_sbst_$RUN.csv
-tail -n "+${RUN}" $SCRATCHPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
-tail -n "+${RUN}" $SCRATCHPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_haplo_fix.csv | head -n 1 > slim_haplo_fix_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_relVals.csv | head -n 1 > slim_relVals_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_relPos.csv | head -n 1 > slim_relPos_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
+tail -n "+${RUN}" $DATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
 
 
 RSCRIPTNAME=$HOME/tests/${TOTALJOBNAME}/R/calcH2.R
@@ -43,13 +45,13 @@ Rscript ${RSCRIPTNAME} ${RUN} ${CHUNK}
 touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
 
 # Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
-# Chunks should consist of 2091 files
+# Chunks should consist of 3147 files
 if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) == 3147 ]; then
     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
-    cat $SCRATCHPATH/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
-    cat $SCRATCHPATH/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
-    rm $SCRATCHPATH/*_${CHUNK}_mrr.csv
-    rm $SCRATCHPATH/*_${CHUNK}_mkr.csv
+    cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
+    cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
+    rm $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mrr.csv
+    rm $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mkr.csv
 fi
 
 DURATION=$SECONDS
