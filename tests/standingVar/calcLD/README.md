@@ -30,3 +30,25 @@ Overall what have we seen?
   - moderate effects: NAR models similar, additive increases and stays stable over time
   - large effects: K+ is unstable, K- can't maintain as much variance, big spike in variance with increased recombination in K- and additive
 - LD seems to decrease with recombination under K- and additive more readily than K+
+
+## D and frequency-dependent LD
+
+Because D' is susceptible to skewing by low allele frequencies, I reran the analysis with D instead, which ranges from -0.25 to 0.25 instead of -1 - 1. I also calculated D between alleles with similar frequencies (within 10% of each other) to investigate if alleles at certain frequencies contributed differently to LD.
+
+First, the distribution across all frequencies:
+![](./figures/LD_grid_d_end.png)
+
+So across all models, increasing recombination reduces the magnitude of LD. What is that really high variance negative LD spike in all of them? Why is it consistent? Why are there few mutations with that D?
+Very similar across all models - not exactly the same. Effect size doesn't appear to have much impact, neither does number of loci: so even though the response to selection appears to depend on number of loci/recombination interaction, not the case for LD (nor epistasis? Have to check)
+
+Now frequency dependent LD. The allele frequency here refers to the upper limit of allele frequency for both loci being measured (e.g. an allele frequency of 0.1 means that both loci have minor allele frequencies between 0 and 0.1). Each circle is a mean across 48 replicate simulations.
+
+![](./figures/LD_freq_grid_d_end.png)
+
+So in this case, we see that number of loci does have an effect: because there are fewer loci, it is less likely for pairs to have similar frequencies, so there are far fewer samples, making it harder to interpret the results.
+For the other cases though, what we see is that the three models are similar: loci with intermediate allele frequencies contribute to positive LD when there is low recombination, but there is little difference under high recombination. This could be a survivorship bias problem: when recombination is low, even though two loci might be in positive LD, they might be in negative LD with other loci along the genome. This is a Hill-Robertson effect. Under high recombination, the positive LD is not constrained to a deleterious background and so it is quickly fixed/purged by selection. How do we test this? What are the alternative explanations?
+
+This result mirrors the epistasis finding pretty well: an excess of positive epistasis with an excess of positive LD (for some allele frequencies). However, all three models are pretty similar in this LD measurement, whereas there was more difference between them in epistasis. Potentially due to the masking of the genetic background?
+
+The plot before the optimum shift is similar:
+![](./figures/LD_freq_grid_d_beforeshift.png)
