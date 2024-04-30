@@ -47,10 +47,37 @@ function (integer) perm(i x, [l$ includeDiag = F]) {
 	return decodeCantorPairs(comboMatrix); 
 }
  
+function (string$) sharedFreq(o<Mutation>$ A, o<Mutation>$ B) {
+	pA = sim.mutationFrequencies(p1, A);
+	pB = sim.mutationFrequencies(p1, B);
+	
+	pa = 1 - pA;
+	pb = 1 - pB;
+	
+	pAB = size(p1.genomes[p1.genomes.containsMutations(A) & p1.genomes.containsMutations(B)])/size(p1.genomes);
+	pAb = size(p1.genomes[p1.genomes.containsMutations(A) & !p1.genomes.containsMutations(B)])/size(p1.genomes);
+	paB = size(p1.genomes[!p1.genomes.containsMutations(A) & p1.genomes.containsMutations(B)])/size(p1.genomes);
+	pab = size(p1.genomes[!p1.genomes.containsMutations(A) & !p1.genomes.containsMutations(B)])/size(p1.genomes);
+	
+	DAB = pAB - pA * pB;
+	DAb = pAb - pA * pb;
+	DaB = paB - pa * pB;
+	Dab = pab - pa * pb;
+	
+	return paste("pA:", pA, "pB:", pB, "pa:", pa, "pb:", pb, "pAB:", pAB, "pAb:", pAb, "paB:", paB, "pab:", pab,
+					 "DAB:", DAB, "DAb:", DAb, "DaB:", DaB, "Dab", Dab);
+}
 
 // create a population of 500 individuals
 1 early() {
 	sim.addSubpop("p1", 500);
+	
+	/* Test expectation in console
+	B = sim.mutations[0];
+	A = sim.mutations[1];
+	sharedFreq(A, B);
+	sim.calcLDBetweenSitePairs(p1, 2, 3, "D", T);
+	*/	
 	
 	// Add a mutation to half the genomes, a different one to the other half: -1 LD expected
 	
@@ -113,12 +140,10 @@ function (integer) perm(i x, [l$ includeDiag = F]) {
 	mut2 = sim.mutations[sim.mutations.position == 2];
 
 	inds = c(inds, inds2);
-	inds2 = setDifference(p1.individuals, inds)[0:49];
+	inds2 = setDifference(p1.individuals, inds)[0:9];
 	inds2.genomes.addMutations(mut1);
 	inds2.genomes.addMutations(mut2);
 	*/
-
-	
 }
 
 // output samples of 10 genomes periodically, all fixed mutations at end
