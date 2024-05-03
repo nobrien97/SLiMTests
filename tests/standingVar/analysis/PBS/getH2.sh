@@ -1,47 +1,72 @@
 #!/bin/bash -l
-#SBATCH --account a_ortiz_barrientos_coe
-#SBATCH --ntasks=14400
-#SBATCH --cpus-per-task=1
-#SBATCH --time=5:00:00
-#SBATCH --mem-per-cpu=1G
-#SBATCH --constraint=epyc3
-#SBATCH --batch=epyc3
-#SBATCH --partition=general
+#PBS -P ht96
+#PBS -l walltime=5:00:00
+#PBS -l ncpus=9840
+#PBS -l mem=25000GB
+#PBS -l jobfs=9840GB
+#PBS -l storage=scratch/ht96+gdata/ht96
 
-JOBNAME=standingVar/analysis
+SUBJOBNAME=standingVar
+JOBNAME=getH2
+TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
 ECHO=/bin/echo
 
-$ECHO "Creating outputs folders..."
+if [ X$NJOBS == X ]; then
+    $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
+    export NJOBS=1
+fi
+  
+if [ X$NJOB == X ]; then
+    $ECHO "NJOB (current job number in sequence) is not set - defaulting to 0"
+    export NJOB=0
+    # Since this is the first iteration, create our folders
+    $ECHO "Creating outputs folders..."
+    cd $PBS_O_WORKDIR
 
-# Make output folder
-mkdir /scratch/user/uqnobri4/${JOBNAME}
-mkdir /QRISdata/Q4117/${JOBNAME}
-mkdir $HOME/tests/${JOBNAME}/done
+    # Make output folder
+    mkdir /scratch/ht96/nb9894/${SUBJOBNAME}/${TOTALJOBNAME}
+    mkdir /g/data/ht96/nb9894/${SUBJOBNAME}/${TOTALJOBNAME}
+    mkdir $HOME/tests/${SUBJOBNAME}/${TOTALJOBNAME}/done
 
-SAVEDIR=/QRISdata/Q4117/${JOBNAME}
+    # Go to /g/data/ and split the input into 8 pieces: 
+    cd /g/data/ht96/nb9894/${SUBJOBNAME}
+    split -d -l 14760000 slim_haplo.csv 
+
+fi
+
+# Quick terminate job sequence
+if [ -f STOP_SEQUENCE ] ; then
+    $ECHO  "Terminating sequence at job number $NJOB"
+    exit 0
+fi
+
+
+SAVEDIR=/g/data/ht96/nb9894/${TOTALJOBNAME}
 
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
-module load r/4.2.1
-
 export ncores_per_task=1
 export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
 
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
-CMDS_PATH=$HOME/tests/${JOBNAME}/PBS/cmds.txt
-CMD_LEN=$(cat $CMDS_PATH | wc -l)
-CMD_MIN=$((($CMD_LEN/($NJOBS+1))*($NJOB) + 1))
-CMD_MAX=$((($CMD_LEN/($NJOBS+1))*($NJOB+1)))
-sed -n -e "${CMD_MIN},${CMD_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
+CMDS_PATH=$HOME/tests/${TOTALJOBNAME}/PBS/cmds.txt
+CUR_TOT=$(cat $CMDS_PATH | wc -l)
+CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
+CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
 
+if [ $CUR_MAX -gt $CUR_TOT ]; then
+    CUR_MAX=$CUR_TOT
+fi
 
-srun --ntasks=14400 --export=ALL 
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --dedicated --input-file ./JOB_PATH.txt --timeout 172800
+sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+
+$ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
-cd /scratch/user/uqnobri4/${JOBNAME}
+cd /scratch/ht96/nb9894/$TOTALJOBNAME/
 
 cat ./*_done.csv >> $SAVEDIR/out_h2.csv
 
@@ -70,7 +95,7 @@ if [ $NJOB -lt $NJOBS ]; then
     NJOB=$(($NJOB+1))
     $ECHO "Submitting job number $NJOB in sequence of $NJOBS jobs"
     cd $PBS_O_WORKDIR
-    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./getH2_hsfs_nloci_split.sh
+    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./${JOBNAME}.sh
 else
     $ECHO "Finished last job in sequence of $NJOBS jobs"
 fi

@@ -22,12 +22,12 @@ if [ -f $HOME/tests/standingVar/analysis/done/${RUN}_* ]; then
 fi
 
 # Save subset files to work on
-tail -n "+${RUN}" $DATAPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
-tail -n "+${RUN}" $DATAPATH/slim_haplo_fix.csv | head -n 1 > slim_haplo_fix_sbst_$RUN.csv
-tail -n "+${RUN}" $DATAPATH/slim_relVals.csv | head -n 1 > slim_relVals_sbst_$RUN.csv
-tail -n "+${RUN}" $DATAPATH/slim_relPos.csv | head -n 1 > slim_relPos_sbst_$RUN.csv
-tail -n "+${RUN}" $DATAPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
-tail -n "+${RUN}" $DATAPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_haplo.csv | head -n 1 > slim_haplo_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_haplo_fix.csv | head -n 1 > slim_haplo_fix_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_relVals.csv | head -n 1 > slim_relVals_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_relPos.csv | head -n 1 > slim_relPos_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_sampled_moltrait.csv | head -n 1 > slim_moltrait_sbst_$RUN.csv
+tail -n "+${RUN}" $SCRATCHPATH/slim_sampled_pheno.csv | head -n 1 > slim_pheno_sbst_$RUN.csv
 
 
 RSCRIPTNAME=$HOME/tests/standingVar/analysis/R/calcH2.R
