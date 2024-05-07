@@ -4,8 +4,8 @@ cd $PBS_JOBFS
 SECONDS=0
 
 # Rename the first and second arguments passed to this single shot script for clarity 
-SEED=$1
-MODELINDEX=$2
+MODELINDEX=$1
+SEED=$2
 FILENAME=${SEED}_${MODELINDEX}
 
 BASENAME=standingVar/calcLD
