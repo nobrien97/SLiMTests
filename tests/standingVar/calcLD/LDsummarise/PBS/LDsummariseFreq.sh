@@ -85,7 +85,7 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
-cat ./sumLD* >> $SAVEDIR/sumLD_df.csv
+cat ./sumLD* >> $SAVEDIR/sumLD_df_new.csv
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]+.csv" -delete
