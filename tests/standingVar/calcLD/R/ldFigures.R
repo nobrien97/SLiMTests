@@ -74,6 +74,34 @@ d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 43:62) %>%
 
 d_ld_dist$count_sd <- d_ld_dist_sd$count_sd
 
+# Outliers: histogram of all estimates
+d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, nloci, tau, r, 12:32) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
+  group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci") %>%
+         filter(between(col, -0.1, 0.1), as.numeric(optPerc) < 3), 
+       aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_boxplot(position = position_identity()) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model, colour = model)
+    #position = position_dodge(width = 0.9)
+  ) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
+
 # Mean counts - after adaptation, mean plots
 {
   ggplot(d_ld_sum %>% 
@@ -273,6 +301,7 @@ D_grid <- plot_grid(D_smlFX, D_medFX, D_lrgFX,
 ggsave("LD_grid_d_end.png", D_grid, width = 14, height = 30, device = png)
 }
 
+
 # Mean counts - before adaptation, distribution
 {
   ggplot(d_ld_dist %>% mutate(count = log10(count), count_sd = log10(count_sd)) %>% 
@@ -337,6 +366,9 @@ ggsave("LD_grid_d_end.png", D_grid, width = 14, height = 30, device = png)
   
   ggsave("LD_grid_d_beforeshift.png", D_grid, width = 14, height = 30, device = png)
 }
+
+# 
+
 
 ##### 
 # Frequency adjusted
