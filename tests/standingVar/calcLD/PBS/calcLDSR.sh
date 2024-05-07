@@ -27,9 +27,10 @@ SEED_FILE=$BASEDIR/R/${BASENAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Extract data from /g/data
-awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == a && $2 == b' $DATAPATH/slim_pos.csv > slim_pos${SEED_NUM}_${MODELINDEX}.csv
-awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == a && $2 == b' $DATAPATH/slim_dict.csv > slim_dict${SEED_NUM}_${MODELINDEX}.csv
-awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '$1 == b && $2 == a' $DATAPATH/slim_opt.csv > slim_opt${SEED_NUM}_${MODELINDEX}.csv
+# Ensure that all three only have one row, if not choose the first (can happen if a simulation is repeated)
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == a && $2 == b){print;exit;}}' $DATAPATH/slim_pos.csv > slim_pos${SEED_NUM}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == a && $2 == b){print;exit;}}' $DATAPATH/slim_dict.csv > slim_dict${SEED_NUM}_${MODELINDEX}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == b && $2 == a){print;exit;}}' $DATAPATH/slim_opt.csv > slim_opt${SEED_NUM}_${MODELINDEX}.csv
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
