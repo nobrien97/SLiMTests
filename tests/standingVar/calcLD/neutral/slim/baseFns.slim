@@ -499,7 +499,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	
 	// Write output
 	writeFile(outHaplo, haplos, append = T);
-	writeFile(outFX, fx, append = T);
+	//writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
 	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
@@ -544,7 +544,7 @@ function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
 	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
 	
 	writeFile(outHaplo, haplos, append = T);
-	writeFile(outFX, fx, append = T);
+	//writeFile(outFX, fx, append = T);
 	
 	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
 	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
@@ -557,6 +557,22 @@ function (integer) colSums(integer mat) {
 	result = integer(ncol(mat));
 	for (i in seqLen(ncol(mat))) {
 		result[i] = sum(mat[,i]);
+	}
+	return result;
+}
+
+// Get phenotypic effects (additive scale) from a compressed binary haplotype matrix
+function (float) getFX(integer pos, integer haplos, integer$ n, integer$ m) {
+	if (length(haplos) == 0) {
+		return float(0);
+	}
+	posToGet = pos[asLogical(binaryMatrixLoci(haplos, n, m))];
+	result = float(length(posToGet));
+	muts = sim.mutations[sim.mutations.mutationType != m1 & sim.mutations.mutationType != m2];
+	
+	for (i in seqLen(length(posToGet))) {
+		result[i] = sum(muts[muts.position == posToGet[i]].selectionCoeff);
+	
 	}
 	return result;
 }

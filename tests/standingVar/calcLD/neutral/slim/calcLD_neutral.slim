@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/standingVar/calcLD/neutral/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/standingVar/calcLD/neutral/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/neutral/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -231,7 +231,6 @@ s1 late() {
 		writeLDPairFile(p1, "D");
 		writeLDComp(p1, "D");
 		writeHaploRel(p2, N_samp);
-		writePMMatrix(p2);
 		savePopState();
 		setSeed(seed); // Reset the seed so its the same when we reload the file to calculate h2
 
