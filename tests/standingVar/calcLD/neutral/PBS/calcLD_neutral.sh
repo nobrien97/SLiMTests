@@ -102,7 +102,7 @@ mkdir -p $SAVEDIR/popstates
 mv ./slim_popstate* $SAVEDIR/popstates
 
 # Delete loose files with seed and model indices
-find -regex ".*[0-9]*_*[0-9].csv+" -delete
+#find -regex ".*[0-9]*_*[0-9].csv+" -delete
 
 # 
 # Check the exit status
