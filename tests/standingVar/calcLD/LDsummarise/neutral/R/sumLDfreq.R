@@ -9,7 +9,7 @@ model <- as.numeric(args[1])
 
 GDATA_PATH <- "/g/data/ht96/nb9894/standingVar/calcLD/neutral/"
 
-FILE_NAME <- paste0("/scratch/ht96/nb9894/standingVar/calcLD/LDsummarise/sumLD_f", model, ".csv")
+FILE_NAME <- paste0("/scratch/ht96/nb9894/standingVar/calcLD/LDsummarise/neutral/sumLD_f", model, ".csv")
 
 # TODO: check model off by one error
 ld_val <- unlist(fread(paste0(GDATA_PATH, "slim_ld_freq.csv"), 

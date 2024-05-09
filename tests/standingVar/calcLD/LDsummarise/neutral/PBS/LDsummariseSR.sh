@@ -13,8 +13,8 @@ TESTDIR=$HOME/tests/$JOBNAME
 
 echo "Beginning run $MODELINDEX at $(date)"
 
-RSCRIPTNAME1=$HOME/tests/standingVar/calcLD/LDsummarise/neutral/R/sumLD.R
-RSCRIPTNAME2=$HOME/tests/standingVar/calcLD/LDsummarise/neutral/R/sumLDfreq.R
+RSCRIPTNAME1=$TESTDIR/R/sumLD.R
+RSCRIPTNAME2=$TESTDIR/R/sumLDfreq.R
 
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
