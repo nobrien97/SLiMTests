@@ -28,6 +28,11 @@ calcAddFitness <- function(phenotypes, optimum, width) {
 }
 
 CalcPhenotypeEffects <- function(dat, dat_fixed) {
+  if (nrow(dat_fixed) == 0) {
+    dat_fixed[1,] <- dat[1,]
+    dat_fixed %>% mutate(value = 0)
+  }
+  
   if (dat[1, "model"] == "Add") {
     return(CalcAddEffects(dat, dat_fixed))
   }
@@ -198,6 +203,14 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   dat$waa <- d_popfx$fitness
   dat$s <- dat$wAA - dat$waa
   return(dat)
+}
+
+PairwiseFitnessRank <- function(dat_fixed, muts, A_ids, B_ids) {
+  if (muts[1, "model"] == "Add") {
+    return(PairwiseFitnessRankAdditive(dat_fixed, muts, A_ids, B_ids))
+  }
+  
+  PairwiseFitnessRankNAR(dat_fixed, muts)
 }
 
 PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, 
@@ -542,6 +555,60 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   }
 
   return(out)
+}
+
+PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
+  # Get fixed effects/wildtype
+  dat_fixed <- as.data.table(dat_fixed)
+  
+  if (nrow(dat_fixed) == 0) {
+    dat_fixed <- dat_fixed %>% add_row(muts[1,])
+    dat_fixed$value <- 0
+  }
+
+  dat <- dat_fixed %>%
+    group_by(gen, seed, modelindex) %>%
+    summarise(fixEffectSum = 2 * sum(value)) %>%
+    select(gen, seed, modelindex, fixEffectSum) %>%
+    ungroup()
+  
+  
+  # split mutations into A and B
+  A_pos <- match(A_ids, muts$mutID)
+  B_pos <- match(B_ids, muts$mutID)
+  mutsA <- muts[A_pos,]
+  mutsB <- muts[B_pos,]
+  
+  # output dataframe: ranking fitness of parental ab/AB
+  # parab = parental alleles, parAB = derived alleles
+  # solve for fitness of each genotype, which we can then use to 
+  # rearrange the LD genotypes according to fitness (so ab lowest fitness, AB highest)
+  output_len <- nrow(mutsA)
+  out <- tibble(gen = dat$gen, # assumes there is only one gen/seed/modelindex
+                seed = dat$seed,
+                modelindex = dat$modelindex,
+                mutIDA = numeric(output_len),
+                mutIDB = numeric(output_len),
+                wparab = numeric(output_len),
+                wparaB = numeric(output_len),
+                wparAb = numeric(output_len),
+                wparAB = numeric(output_len)
+                )
+  
+    # Calculate phenotype and fitness effects
+    Pab <- dat$fixEffectSum
+    PAb <- dat$fixEffectSum + mutsA$value
+    PaB <- dat$fixEffectSum + mutsB$value
+    PAB <- dat$fixEffectSum + mutsA$value + mutsB$value
+    
+    out$mutIDA <- mutsA$mutID
+    out$mutIDB <- mutsB$mutID
+    out$wparab <- calcAddFitness(Pab, 2, 0.05)
+    out$wparaB <- calcAddFitness(PaB, 2, 0.05)
+    out$wparAb <- calcAddFitness(PAb, 2, 0.05)
+    out$wparAB <- calcAddFitness(PAB, 2, 0.05)
+    
+    return(out)
 }
 
 # Calculates the site frequency spectra for mutations
