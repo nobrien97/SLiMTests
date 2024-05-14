@@ -84,7 +84,7 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$JOBNAME/
 
-cat ./slim_ld_freq* >> $SAVEDIR/slim_ld_freq.csv
+cat ./slim_sharedmutfreqs* >> $SAVEDIR/slim_sharedmutfreqs.csv
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete

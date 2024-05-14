@@ -196,6 +196,15 @@ function (void) writeLDComp(o<Subpopulation> pop, s$ statistic) {
 	writeFile(outLDComp_Val, LDCompressed[1], append = T);
 }
 
+// Writes the frequencies and shared frequencies of pairs of mutations A and B
+function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
+	pos = 0:(genomelength-1);
+	comb = perm(pos);
+	result = sim.sharedMutFreqs(pop, comb[0,], comb[1,]);
+
+	out = paste(sim.cycle, asString(inputSeed), inputModel, result, sep = ",");
+	writeFile(outSharedMutFreqs, out, append = T);
+}
 
 // Helper function to fix floating point rounding error
 function (float) setSmallValToZero(float i) {
