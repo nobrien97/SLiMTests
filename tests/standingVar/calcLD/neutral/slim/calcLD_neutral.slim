@@ -77,6 +77,7 @@ initialize() {
 	setCfgParam("outMolSample", paste0('slim_sampled_moltrait', identifier, '.csv')); // Output filepath for sampled molecular trait values
 	setCfgParam("outRelPos", paste0('slim_relPos', identifier, '.csv')); // Output filepath for relatedness matrix non zero positions (columnwise upper triangle
 	setCfgParam("outRelVals", paste0('slim_relVals', identifier, '.csv')); // Output filepath for relatedness matrix values
+	setCfgParam("outSharedMutFreqs", c(paste0('slim_sharedmutfreqs', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
 	setCfgParam("outLDComp_Pos", c(paste0('slim_ld_pos', identifier, '.csv'))); // Output filename/path for LD matrix
 	setCfgParam("outLDComp_Val", c(paste0('slim_ld_val', identifier, '.csv'))); // Output filename/path for LD matrix
 	setCfgParam("outLD", c(paste0('slim_ld_freq', identifier, '.csv'))); // Output filename/path for LD matrix
@@ -222,14 +223,15 @@ survival() {
 s1 late() {
 	inds = p1.individuals;
 	calcPhenotype(inds, modelType);
-	calcFitnessGaussian(inds, optBurn);
+	//calcFitnessGaussian(inds, optBurn);
 	
 	// Check if we're at the end of burn-in
 	if (sim.cycle == burnTime) {
 		calcPhenotype(p2.individuals, modelType); // need to calculate phenotypes for p2 when we write
 		writeIndOutput(p1);
-		writeLDPairFile(p1, "D");
-		writeLDComp(p1, "D");
+		//writeLDPairFile(p1, "D");
+		//writeLDComp(p1, "D");
+		writeSharedMutFreqs(p1);
 		writeHaploRel(p2, N_samp);
 		savePopState();
 		setSeed(seed); // Reset the seed so its the same when we reload the file to calculate h2
@@ -245,9 +247,10 @@ s1 late() {
 		system(paste0("mv ./", outPopState, " ", moveDir));
 		system(paste0("mv ./", outRelPos, " ", moveDir)); 
 		system(paste0("mv ./", outRelVals, " ", moveDir)); 
-		system(paste0("mv ./", outLDComp_Pos, " ", moveDir));
-		system(paste0("mv ./", outLDComp_Val, " ", moveDir));
-		system(paste0("mv ./", outLD, " ", moveDir));
+		system(paste0("mv ./", outSharedMutFreqs, " ", moveDir));
+		//system(paste0("mv ./", outLDComp_Pos, " ", moveDir));
+		//system(paste0("mv ./", outLDComp_Val, " ", moveDir));
+		//system(paste0("mv ./", outLD, " ", moveDir));
 
 		sim.simulationFinished();
 		return;

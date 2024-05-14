@@ -84,9 +84,7 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$JOBNAME/
 
-cat ./slim_ld_freq* >> $SAVEDIR/slim_ld_freq.csv
-cat ./slim_ld_pos* >> $SAVEDIR/slim_ld_pos.csv
-cat ./slim_ld_val* >> $SAVEDIR/slim_ld_val.csv
+cat ./slim_sharedmutfreqs* >> $SAVEDIR/slim_sharedmutfreqs.csv
 cat ./slim_pos* >> $SAVEDIR/slim_pos.csv
 cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
 cat ./slim_dict* >> $SAVEDIR/slim_dict.csv
