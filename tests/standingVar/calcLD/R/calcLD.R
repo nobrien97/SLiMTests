@@ -1,5 +1,6 @@
 # R Script to calculate LD from allele frequencies and effect sizes
 library(tidyverse)
+library(data.table)
 
 # Get command line arguments
 ## 1: run
@@ -19,13 +20,14 @@ FNS_PATH <- "~/tests/standingVar/calcMutationStats/R/"
 source(paste0(FNS_PATH, "helperFunctionsAndSetup.R"))
 
 # Load functions for loading relatedness/haplotype matrices
-source("~/tests/standingVar/calcLD/LDHelpFns.R")
+source("~/tests/standingVar/calcLD/R/LDHelpFns.R")
+source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R/LDHelpFns.R")
 
 # Load in correct line
 d_freqs <- scan(paste0(WRITE_PATH, "slim_sharedmutfreqs.csv"), skip = run - 1, 
                     nlines = 1, sep = ",")
 
-d_freqs <- scan(paste0("~/Desktop/slim_sharedmutfreqs4190440546994487296_1.csv"), skip = 0,
+d_freqs <- scan(paste0("~/Desktop/slim_sharedmutfreqs4536158911153045504_1.csv"), skip = 0,
                 nlines = 1, sep = ",")
 
 model_info <- d_freqs[1:3]
@@ -49,6 +51,11 @@ mutpaB <- d_freqs[seq(from = 6, to = n*7, by = 7)]
 mutpAb <- d_freqs[seq(from = 7, to = n*7, by = 7)]
 mutpAB <- 1 - (mutpab + mutpAb + mutpaB)
 mutIDs <- unique(c(mutAID, mutBID))
+
+mut_freqs <- list(pAB = mutpAB,
+                  pAb = mutpAb,
+                  paB = mutpaB,
+                  pab = mutpab)
 
 # Get mutational effects
 con <- DBI::dbConnect(RSQLite::SQLite(), 
@@ -96,7 +103,7 @@ d_muts$fixGen <- as.numeric(d_muts$fixGen)
 
 
 d_muts <- AddCombosToDF(d_muts)
-d_muts$model <- "Add"
+d_muts$model <- "ODE"
 # From the mutations, calculate the fitness of genotypes to determine which is AB/ab
 
 # Calculate parental genotype, intermediates, and derived
@@ -105,14 +112,51 @@ d_rank <- PairwiseFitnessRank(d_muts %>% filter(!is.na(fixGen)),
                              d_muts %>% filter(is.na(fixGen)),
                              mutAID, mutBID)
 
-# Rerank genotypes from parental-based to fitness-based
-genotype_names <- substr(colnames(d_rank)[6:9], 5, 6)
-ab_id <- genotype_names[apply(d_rank[, 6:9], 1, which.min)]
-AB_id <- genotype_names[apply(d_rank[, 6:9], 1, which.max)]
+relabeled_freqs <- RelabelGenotypeFrequencies(d_rank, mut_freqs)
 
-# Intermediates can be randomly assigned, doesn't matter too much
-Ab_id <- genotype_names[apply(d_rank[, 6:9], 1, function(x) {(1:4)[-c(which.max(x), which.min(x))][1]})]
-aB_id <- genotype_names[apply(d_rank[, 6:9], 1, function(x) {(1:4)[-c(which.max(x), which.min(x))][2]})]
+# With the relabelled frequencies, calculate D
+D <- CalcLD(relabeled_freqs)
 
-# Now with the correct reranking, we need to reassign our frequencies
-pAB <- sym(paste0("mutp", AB_id))
+d_LD <- data.frame(gen = rep(model_info[1], times = length(D)),
+                   seed = rep(model_info[2], times = length(D)),
+                   modelindex = rep(model_info[3], times = length(D)),
+                   mutID_A = d_rank$mutIDA,
+                   mutID_B = d_rank$mutIDB,
+                   freq_A = mutpA,
+                   freq_B = mutpB,
+                   mutType_AB = d_rank$mutType_ab,
+                   D = D,
+                   fixGen = NA)
+
+# Summarise
+result <- d_LD %>%
+  mutate(freqBin = factor(freqBin)) %>%
+  group_by(freqBin) %>%
+  summarise(meanD = mean(D),
+            sdD = sd(D),
+            meanDZeros = sum(D) / (max_elements),
+            sdDZeros = sqrt( ( sum((D - meanDZeros)^2) ) / max_elements ),
+            nD = length(D),
+            nDP = length(D[D > 0.05]),
+            nDN = length(D[D < -0.05]),
+            nDHalf = length(D[abs(D) > 0.05]))
+
+result$gen <- model_info[1]
+result$seed <- model_info[2]
+result$modelindex <- model_info[3]
+
+result <- result %>% relocate(gen, seed, modelindex)
+
+# Add counts of 10% groups for a histogram with 21 bins
+labels <- paste0("n", 1:21)
+bins <- seq(-0.25, 0.25, length.out = 21)
+
+LDbins <- cut(ld_frame$D, breaks = bins, right = F)
+bin_labels <- levels(LDbins)
+
+for (i in seq_along(bin_labels)) {
+  result[,labels[i]] <- length(LDbins[LDbins == bin_labels[i]])
+}
+
+# Write output
+write.table(result, FILE_NAME, row.names = F, col.names = F)
