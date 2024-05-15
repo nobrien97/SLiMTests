@@ -210,7 +210,7 @@ PairwiseFitnessRank <- function(dat_fixed, muts, A_ids, B_ids) {
     return(PairwiseFitnessRankAdditive(dat_fixed, muts, A_ids, B_ids))
   }
   
-  PairwiseFitnessRankNAR(dat_fixed, muts)
+  PairwiseFitnessRankNAR(dat_fixed, muts, A_ids, B_ids)
 }
 
 PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, 
@@ -609,6 +609,169 @@ PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
     out$wparAB <- calcAddFitness(PAB, 2, 0.05)
     
     return(out)
+}
+
+PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
+  # Get fixed effects/wildtype
+  dat_fixed <- as.data.table(dat_fixed)
+  
+  if (nrow(dat_fixed) == 0) {
+    dat_fixed <- dat_fixed %>% add_row(muts[1,])
+    dat_fixed$value <- 0
+  }
+  
+  model <- paste0(as.character(dat_fixed$modelindex)[1], "_", as.character(dat_fixed$seed)[1])
+  
+  dat <- dat_fixed %>%
+    group_by(gen, seed, modelindex, mutType) %>%
+    summarise(fixEffectSum = exp(2 * sum(value))) %>%
+    select(gen, seed, modelindex, mutType, fixEffectSum) %>%
+    ungroup()
+  
+  nMutTypes <- length(unique(muts$mutType)) # could be 2 or 4, depending on model
+  nPossibleMutTypes <- 4                    # always 4
+  
+  
+  # split mutations into A and B
+  A_pos <- match(A_ids, muts$mutID)
+  B_pos <- match(B_ids, muts$mutID)
+  mutsA <- muts[A_pos,]
+  mutsB <- muts[B_pos,]
+  
+  # output dataframe: ranking fitness of parental ab/AB
+  # parab = parental alleles, parAB = derived alleles
+  # solve for fitness of each genotype, which we can then use to 
+  # rearrange the LD genotypes according to fitness (so ab lowest fitness, AB highest)
+  output_len <- nrow(mutsA)
+  out <- tibble(gen = dat$gen, # assumes there is only one gen/seed/modelindex
+                seed = dat$seed,
+                modelindex = dat$modelindex,
+                mutType_ab = rep("", times = output_len),
+                mutIDA = numeric(output_len),
+                mutIDB = numeric(output_len),
+                wparab = numeric(output_len),
+                wparaB = numeric(output_len),
+                wparAb = numeric(output_len),
+                wparAB = numeric(output_len)
+  )
+  
+  # Pivot wider for easier access to fixed effects for the result vector
+  
+  dat <- dat %>% 
+    pivot_wider(names_from = mutType, values_from = fixEffectSum,
+                names_glue = "{.value}_{mutType}", values_fill = 1)
+    
+  columns_to_add <- c(
+    fixEffectSum_3 = 1,
+    fixEffectSum_4 = 1,
+    fixEffectSum_5 = 1,
+    fixEffectSum_6 = 1
+  )
+  
+  # Add other fixed effects (that might be missing)  
+  dat <- dat %>%
+    add_column(!!!columns_to_add[!names(columns_to_add) %in% names(.)])
+
+  result <- mutsA
+  result <- result %>% rename(a = value, mutType_a = mutType)
+  result$mutType_b <- mutsB$mutType
+  result$b <- mutsB$value
+  result <- inner_join(result, dat, by = c("gen", "seed", "modelindex")) %>%
+    select(gen, seed, modelindex, mutType_a, mutType_b, a, b, 
+           starts_with("fixEffectSum")) %>%
+    mutate(mutType_ab = paste(mutType_a, mutType_b, sep = "_"))
+  
+  abNames <- paste(c(rep("a", times = 4), rep("b", times = 4)), 3:6, sep = "_")
+  result[,abNames] <- 0
+  
+  # initialize a and b values for the right molecular component
+  for (i in (1:nPossibleMutTypes) + 2) {
+    result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
+    result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
+  }
+  
+  # Add on a, b, ab to the base effect
+  for (i in (1:nPossibleMutTypes) + 2) {
+    result[, paste0("a_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
+    result[, paste0("b_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
+    result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
+  }
+  result$rowID <- as.integer(rownames(result))
+  
+  # Split the result into wt, a, b, and ab to reduce non-unique solutions
+  d_wildtype <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    filter(row_number() == 1) %>%
+    select(gen, seed, modelindex, rowID, starts_with("fixEffectSum")) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 1)))
+  
+  d_a <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    select(gen, seed, modelindex,
+           rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 2)))
+  
+  # b is organised differently to a, need to calculate first m for each mutgroup
+  # and repeat that for the remaining
+  d_b <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    select(gen, seed, modelindex, 
+           rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 3)))
+  
+  
+  d_ab <- result %>%
+    group_by(gen, seed, modelindex) %>%
+    select(gen, seed, modelindex, 
+           rowID, ab_molComp_3, ab_molComp_4, ab_molComp_5, ab_molComp_6) %>%
+    ungroup() %>% select(!(gen:modelindex)) %>%
+    mutate(rowID = as.numeric(paste0(rowID, 4)))
+  
+  # Remove column names so we can join them
+  colnames(d_wildtype) <- paste0("v", 1:5)
+  colnames(d_a) <- paste0("v", 1:5)
+  colnames(d_b) <- paste0("v", 1:5)
+  colnames(d_ab) <- paste0("v", 1:5)
+  
+  d_landscaper <- rbind(d_wildtype, d_a, d_b, d_ab)
+  
+  # Run landscaper
+  data.table::fwrite(d_landscaper, 
+                     paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+  
+  
+  # Ensure that the tables are aligned by id before we join them
+  result <- result %>% arrange(rowID)
+  
+  # Separate phenos by the rowID value that we assigned earlier and revert to
+  # original id
+  d_wildtype <- d_phenos %>% filter((id - 1) %% 10 == 0) %>% 
+    mutate(id = (id - 1) / 10) %>% arrange(id)
+  d_a <- d_phenos %>% filter((id - 2) %% 10 == 0) %>% 
+    mutate(id = (id - 2) / 10) %>% arrange(id)
+  d_b <- d_phenos %>% filter((id - 3) %% 10 == 0) %>% 
+    mutate(id = (id - 3) / 10) %>% arrange(id)
+  d_ab <- d_phenos %>% filter((id - 4) %% 10 == 0) %>% 
+    mutate(id = (id - 4) / 10) %>% arrange(id)
+  
+  # Repeat wildtype to match the a b pairs
+  d_wildtype <- d_wildtype[rep(seq_len(nrow(d_wildtype)), each = nrow(d_a)), ]
+  d_wildtype$id <- d_ab$id
+
+  # Save to output
+  out$mutIDA <- mutsA$mutID
+  out$mutIDB <- mutsB$mutID
+  out$mutType_ab <- paste0(mutsA$mutType, "_", mutsB$mutType)
+  out$wparab <- d_wildtype$fitness
+  out$wparaB <- d_b$fitness
+  out$wparAb <- d_a$fitness
+  out$wparAB <- d_ab$fitness
+  
+  return(out)
 }
 
 # Calculates the site frequency spectra for mutations
