@@ -12,7 +12,7 @@ run <- as.numeric(args[1])
 WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/calcLD/")
 GDATA_PATH <- paste0("/g/data/ht96/nb9894/standingVar/")
 FILE_LD <- paste0(WRITE_PATH, "out_LD_", run, ".csv")
-FILE_FX <- paste0(WRITE_PATH, "out_fx_", run, ".csv")
+FILE_LD_F <- paste0(WRITE_PATH, "out_LD_", run, "f.csv")
 
 FNS_PATH <- "~/tests/standingVar/calcMutationStats/R/"
 #FNS_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
@@ -21,17 +21,30 @@ source(paste0(FNS_PATH, "helperFunctionsAndSetup.R"))
 
 # Load functions for loading relatedness/haplotype matrices
 source("~/tests/standingVar/calcLD/R/LDHelpFns.R")
-source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R/LDHelpFns.R")
+#source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R/LDHelpFns.R")
 
 # Load in correct line
-d_freqs <- scan(paste0(WRITE_PATH, "slim_sharedmutfreqs.csv"), skip = run - 1, 
+d_freqs <- scan(paste0(GDATA_PATH, "calcLD/slim_sharedmutfreqs.csv"), skip = run - 1, 
                     nlines = 1, sep = ",")
 
-d_freqs <- scan(paste0("~/Desktop/slim_sharedmutfreqs4536158911153045504_1.csv"), skip = 0,
-                nlines = 1, sep = ",")
+# d_freqs <- scan(paste0("slim_sharedmutfreqs_test.csv"), skip = 0, 
+#                 nlines = 1, sep = ",")
+# 
+# d_freqs <- scan(paste0("~/Desktop/slim_sharedmutfreqs1294780864189693952_1.csv"), skip = 0,
+#                 nlines = 1, sep = ",")
 
 model_info <- d_freqs[1:3]
 d_freqs <- d_freqs[-(1:3)]
+
+# Model info into separate variables for dbplyr
+run_gen <- model_info[1]
+run_seed <- model_info[2]
+run_modelindex <- model_info[3]
+
+# Slight mismatch after loading population: adjust 
+if (run_gen == 50001) {
+  run_gen <- 50000
+}
 
 # Get number of entries
 n <- length(d_freqs) / 7
@@ -60,19 +73,13 @@ mut_freqs <- list(pAB = mutpAB,
 # Get mutational effects
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       dbname = paste0(GDATA_PATH, "standingVarMuts.db"))
-
-# Quantitative data
-d_qg <- tbl(con, "slim_qg") %>%
-  filter(modelindex == model_info[3], gen == model_info[1], seed == model_info[2]) %>%
-  distinct() %>%
-  ungroup()
-d_qg <- d_qg %>% collect()
-
 # Load mutation data: matching mutIDs, or fixations for the parental genotype
 d_muts <- tbl(con, "slim_muts") %>% 
-  filter(modelindex == model_info[3], gen == model_info[1], seed == model_info[2],
-         mutID %in% mutIDs || freq == 1)
-d_muts <- d_muts %>% collect()
+  filter(gen == run_gen, seed == run_seed, modelindex == run_modelindex, 
+         mutID %in% mutIDs | fixGen != "NA")
+d_muts <- d_muts %>% collect() %>% distinct()
+# write_csv(d_muts, "d_muts_test.csv")
+# d_muts <- read_csv("d_muts_test.csv")
 
 d_muts$seed <- as.factor(d_muts$seed)
 d_muts$modelindex <- as.factor(d_muts$modelindex)
@@ -85,25 +92,25 @@ d_muts <- d_muts %>%
 d_combos <- read.table("~/tests/standingVar/R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
 #testing
-d_combos <- read.table("/mnt/c/GitHub/SLiMTests/tests/standingVar/R/combos.csv", header = F,
-                       col.names = c("nloci", "tau", "r", "model"))
+# d_combos <- read.table("/mnt/c/GitHub/SLiMTests/tests/standingVar/R/combos.csv", header = F,
+#                        col.names = c("nloci", "tau", "r", "model"))
 
 ## Generate some effects for testing, otherwise load from d_muts ##
-d_muts <- data.frame(gen = rep(model_info[1], times = length(mutIDs)),
-                     seed = rep(model_info[2], times = length(mutIDs)),
-                     modelindex = rep(model_info[3], times = length(mutIDs)),
-                     mutID = mutIDs,
-                     mutType = 3,
-                     value = rnorm(length(mutIDs)),
-                     fixGen = NA)
-d_muts$seed <- as.factor(d_muts$seed)
-d_muts$modelindex <- as.factor(d_muts$modelindex)
-d_muts$mutType <- as.factor(d_muts$mutType)
-d_muts$fixGen <- as.numeric(d_muts$fixGen)
+# d_muts <- data.frame(gen = rep(model_info[1], times = length(mutIDs)),
+#                      seed = rep(model_info[2], times = length(mutIDs)),
+#                      modelindex = rep(model_info[3], times = length(mutIDs)),
+#                      mutID = mutIDs,
+#                      mutType = 3,
+#                      value = rnorm(length(mutIDs)),
+#                      fixGen = NA)
+# d_muts$seed <- as.factor(d_muts$seed)
+# d_muts$modelindex <- as.factor(d_muts$modelindex)
+# d_muts$mutType <- as.factor(d_muts$mutType)
+# d_muts$fixGen <- as.numeric(d_muts$fixGen)
 
 
 d_muts <- AddCombosToDF(d_muts)
-d_muts$model <- "ODE"
+# d_muts$model <- "ODE"
 # From the mutations, calculate the fitness of genotypes to determine which is AB/ab
 
 # Calculate parental genotype, intermediates, and derived
@@ -122,41 +129,63 @@ d_LD <- data.frame(gen = rep(model_info[1], times = length(D)),
                    modelindex = rep(model_info[3], times = length(D)),
                    mutID_A = d_rank$mutIDA,
                    mutID_B = d_rank$mutIDB,
-                   freq_A = mutpA,
-                   freq_B = mutpB,
+                   freqDiff = mutpA - mutpB,
+                   freqBin = round(mutpA, 1),
+                   freq_intermediateFit = d_rank$wparAb * d_rank$wparaB,
+                   freq_extremeFit = d_rank$wparAB * d_rank$wparab,
                    mutType_AB = d_rank$mutType_ab,
-                   D = D,
-                   fixGen = NA)
+                   D = D)
 
-# Summarise
-result <- d_LD %>%
-  mutate(freqBin = factor(freqBin)) %>%
-  group_by(freqBin) %>%
+# Summarise: overall
+sum_LD <- d_LD %>%
   summarise(meanD = mean(D),
             sdD = sd(D),
-            meanDZeros = sum(D) / (max_elements),
-            sdDZeros = sqrt( ( sum((D - meanDZeros)^2) ) / max_elements ),
             nD = length(D),
             nDP = length(D[D > 0.05]),
             nDN = length(D[D < -0.05]),
             nDHalf = length(D[abs(D) > 0.05]))
 
-result$gen <- model_info[1]
-result$seed <- model_info[2]
-result$modelindex <- model_info[3]
+sum_LD$gen <- model_info[1]
+sum_LD$seed <- model_info[2]
+sum_LD$modelindex <- model_info[3]
 
-result <- result %>% relocate(gen, seed, modelindex)
+sum_LD <- sum_LD %>% relocate(gen, seed, modelindex)
 
 # Add counts of 10% groups for a histogram with 21 bins
 labels <- paste0("n", 1:21)
 bins <- seq(-0.25, 0.25, length.out = 21)
 
-LDbins <- cut(ld_frame$D, breaks = bins, right = F)
+LDbins <- cut(d_LD$D, breaks = bins, right = F)
 bin_labels <- levels(LDbins)
 
 for (i in seq_along(bin_labels)) {
-  result[,labels[i]] <- length(LDbins[LDbins == bin_labels[i]])
+  sum_LD[,labels[i]] <- length(LDbins[LDbins == bin_labels[i]])
+}
+
+
+
+# Summarise: by frequency
+sum_LD_f <- d_LD %>%
+  filter(abs(freqDiff) <= 0.1) %>%
+  mutate(freqBin = factor(freqBin)) %>%
+  group_by(freqBin) %>%
+  summarise(meanD = mean(D),
+            sdD = sd(D),
+            nD = length(D),
+            nDP = length(D[D > 0.05]),
+            nDN = length(D[D < -0.05]),
+            nDHalf = length(D[abs(D) > 0.05]))
+
+sum_LD_f$gen <- model_info[1]
+sum_LD_f$seed <- model_info[2]
+sum_LD_f$modelindex <- model_info[3]
+
+sum_LD_f <- sum_LD_f %>% relocate(gen, seed, modelindex)
+
+for (i in seq_along(bin_labels)) {
+  sum_LD_f[,labels[i]] <- length(LDbins[LDbins == bin_labels[i]])
 }
 
 # Write output
-write.table(result, FILE_NAME, row.names = F, col.names = F)
+write.table(sum_LD, FILE_LD, row.names = F, col.names = F)
+write.table(sum_LD_f, FILE_LD_F, row.names = F, col.names = F)

@@ -613,7 +613,8 @@ PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
 
 PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   # Get fixed effects/wildtype
-  dat_fixed <- as.data.table(dat_fixed)
+  dat_fixed <- as.data.table(dat_fixed) %>% distinct()
+  muts <- muts %>% distinct()
   
   if (nrow(dat_fixed) == 0) {
     dat_fixed <- dat_fixed %>% add_row(muts[1,])
@@ -633,19 +634,19 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   
   
   # split mutations into A and B
-  A_pos <- match(A_ids, muts$mutID)
-  B_pos <- match(B_ids, muts$mutID)
-  mutsA <- muts[A_pos,]
-  mutsB <- muts[B_pos,]
+  A_pos <- match(A_ids, muts$mutID, nomatch = 0)
+  B_pos <- match(B_ids, muts$mutID, nomatch = 0)
+  mutsA <- muts[A_pos[A_pos > 0],]
+  mutsB <- muts[B_pos[A_pos > 0],]
   
   # output dataframe: ranking fitness of parental ab/AB
   # parab = parental alleles, parAB = derived alleles
   # solve for fitness of each genotype, which we can then use to 
   # rearrange the LD genotypes according to fitness (so ab lowest fitness, AB highest)
   output_len <- nrow(mutsA)
-  out <- tibble(gen = dat$gen, # assumes there is only one gen/seed/modelindex
-                seed = dat$seed,
-                modelindex = dat$modelindex,
+  out <- tibble(gen = dat$gen[1], # assumes there is only one gen/seed/modelindex
+                seed = dat$seed[1],
+                modelindex = dat$modelindex[1],
                 mutType_ab = rep("", times = output_len),
                 mutIDA = numeric(output_len),
                 mutIDB = numeric(output_len),
