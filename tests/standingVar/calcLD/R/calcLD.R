@@ -130,17 +130,22 @@ relabeled_freqs <- RelabelGenotypeFrequencies(d_rank, mut_freqs)
 # With the relabelled frequencies, calculate D
 D <- CalcLD(relabeled_freqs)
 
+# Check if the comparison is valid
+mutA_valid <- match(mutAID, d_rank$mutIDA, nomatch = 0) > 0
+mutB_valid <- match(mutBID, d_rank$mutIDB, nomatch = 0) > 0
+
 d_LD <- data.frame(gen = rep(model_info[1], times = length(D)),
                    seed = rep(model_info[2], times = length(D)),
                    modelindex = rep(model_info[3], times = length(D)),
                    mutID_A = d_rank$mutIDA,
                    mutID_B = d_rank$mutIDB,
-                   freqDiff = mutpA - mutpB,
-                   freqBin = round(mutpA, 1),
+                   freqDiff = mutpA[mutA_valid & mutB_valid] - mutpB[mutA_valid & mutB_valid],
+                   freqBin = round(mutpA[mutA_valid & mutB_valid], 1),
                    freq_intermediateFit = d_rank$wparAb * d_rank$wparaB,
                    freq_extremeFit = d_rank$wparAB * d_rank$wparab,
                    mutType_AB = d_rank$mutType_ab,
                    D = D)
+
 
 # Summarise: overall
 sum_LD <- d_LD %>%
