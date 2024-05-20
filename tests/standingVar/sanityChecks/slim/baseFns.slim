@@ -518,7 +518,7 @@ function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
 
 	result2 = c(rbind(idA, idB, pA, pB, pab, paB, pAb));
 
-	out = paste(sim.cycle, asString(inputSeed), inputModel, result2, sep = ",");
+	out = paste(sim.cycle, asString(seed), modelindex, result2, sep = ",");
 	writeFile(outSharedMutFreqs, out, append = T);
 }
 
