@@ -3,7 +3,6 @@
 # Relabel genotypes according to fitness
 
 RelabelGenotypeFrequencies <- function(d_rankings, l_parentalFreqs) {
-  
   ranks <- d_rankings %>% select(starts_with("wpar"))
   # Get the labels
   genotype_names <- paste0("p", substr(colnames(ranks), 5, 6))

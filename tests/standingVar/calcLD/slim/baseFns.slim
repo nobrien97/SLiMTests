@@ -198,11 +198,25 @@ function (void) writeLDComp(o<Subpopulation> pop, s$ statistic) {
 
 // Writes the frequencies and shared frequencies of pairs of mutations A and B
 function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
-	pos = 0:(genomelength-1);
+	pos = unique(sim.getValue("pos_QTL"));
 	comb = perm(pos);
 	result = sim.sharedMutFreqs(pop, comb[0,], comb[1,]);
 
-	out = paste(sim.cycle, asString(inputSeed), inputModel, result, sep = ",");
+	n = length(result);
+
+	// First two values for every pair in results are integers: we need to cast so writing
+	// doesn't round and store an incorrect mutation id
+	idA = asString(asInteger(result[seq(from = 0, to = n-1, by = 7)]));
+	idB = asString(asInteger(result[seq(from = 1, to = n-1, by = 7)]));
+	pA = asString(result[seq(from = 2, to = n-1, by = 7)]);
+	pB = asString(result[seq(from = 3, to = n-1, by = 7)]);
+	pab = asString(result[seq(from = 4, to = n-1, by = 7)]);
+	paB = asString(result[seq(from = 5, to = n-1, by = 7)]);
+	pAb = asString(result[seq(from = 6, to = n-1, by = 7)]);
+
+	result2 = c(rbind(idA, idB, pA, pB, pab, paB, pAb));
+
+	out = paste(sim.cycle, asString(inputSeed), inputModel, result2, sep = ",");
 	writeFile(outSharedMutFreqs, out, append = T);
 }
 

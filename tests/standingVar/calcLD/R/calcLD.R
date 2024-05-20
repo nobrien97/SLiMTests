@@ -9,10 +9,11 @@ args <- commandArgs(trailingOnly = T)
 run <- as.numeric(args[1])
 
 # Path to write output
-WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/calcLD/")
+WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/calcLDR/")
 GDATA_PATH <- paste0("/g/data/ht96/nb9894/standingVar/")
+#GDATA_PATH <- paste0("/mnt/d/SLiMTests/tests/standingVar/calcLD/")
 FILE_LD <- paste0(WRITE_PATH, "out_LD_", run, ".csv")
-FILE_LD_F <- paste0(WRITE_PATH, "out_LD_", run, "f.csv")
+FILE_LD_F <- paste0(WRITE_PATH, "out_LDf_", run, ".csv")
 
 FNS_PATH <- "~/tests/standingVar/calcMutationStats/R/"
 #FNS_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
@@ -24,14 +25,13 @@ source("~/tests/standingVar/calcLD/R/LDHelpFns.R")
 #source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R/LDHelpFns.R")
 
 # Load in correct line
-d_freqs <- scan(paste0(GDATA_PATH, "calcLD/slim_sharedmutfreqs.csv"), skip = run - 1, 
+d_freqs <- scan(paste0(GDATA_PATH, "calcLD/slim_sharedmutfreqs.csv"), skip = run, 
                     nlines = 1, sep = ",")
 
-# d_freqs <- scan(paste0("slim_sharedmutfreqs_test.csv"), skip = 0, 
+# d_freqs <- scan(paste0(GDATA_PATH, "frequencies_test/slim_sharedmutfreqs.csv"), skip = run, 
 #                 nlines = 1, sep = ",")
-# 
-# d_freqs <- scan(paste0("~/Desktop/slim_sharedmutfreqs1294780864189693952_1.csv"), skip = 0,
-#                 nlines = 1, sep = ",")
+
+# e.g. failed run: 2268
 
 model_info <- d_freqs[1:3]
 d_freqs <- d_freqs[-(1:3)]
@@ -79,7 +79,7 @@ d_muts <- tbl(con, "slim_muts") %>%
          mutID %in% mutIDs | fixGen != "NA")
 d_muts <- d_muts %>% collect() %>% distinct()
 # write_csv(d_muts, "d_muts_test.csv")
-# d_muts <- read_csv("d_muts_test.csv")
+# d_muts <- read_csv(paste0(GDATA_PATH, "frequencies_test/d_muts_test.csv"))
 
 d_muts$seed <- as.factor(d_muts$seed)
 d_muts$modelindex <- as.factor(d_muts$modelindex)
@@ -87,6 +87,12 @@ d_muts$mutType <- as.factor(d_muts$mutType)
 d_muts$fixGen <- as.numeric(d_muts$fixGen)
 d_muts <- d_muts %>% 
   rename(value = effect)
+
+# If there are no segregating mutations, exit early
+if (nrow(d_muts %>% filter(is.na(fixGen))) < 2) {
+  stop(paste0("<2 segregating mutations for run", run, "!"))
+  q(save = "n")
+}
 
 # Read in combos
 d_combos <- read.table("~/tests/standingVar/R/combos.csv", header = F,
