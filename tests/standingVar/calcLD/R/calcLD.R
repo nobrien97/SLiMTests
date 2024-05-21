@@ -14,6 +14,7 @@ GDATA_PATH <- paste0("/g/data/ht96/nb9894/standingVar/")
 #GDATA_PATH <- paste0("/mnt/d/SLiMTests/tests/standingVar/calcLD/")
 FILE_LD <- paste0(WRITE_PATH, "out_LD_", run, ".csv")
 FILE_LD_F <- paste0(WRITE_PATH, "out_LDf_", run, ".csv")
+FILE_LD_TABLE <- paste0(WRITE_PATH, "out_LD_raw_", run, ".csv")
 
 FNS_PATH <- "~/tests/standingVar/calcMutationStats/R/"
 #FNS_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
@@ -143,9 +144,12 @@ d_LD <- data.frame(gen = rep(model_info[1], times = length(D)),
                    freqBin = round(mutpA[mutA_valid & mutB_valid], 1),
                    freq_intermediateFit = d_rank$wparAb * d_rank$wparaB,
                    freq_extremeFit = d_rank$wparAB * d_rank$wparab,
-                   mutType_AB = d_rank$mutType_ab,
+                   mutType_AB = rep("3_3", times = length(D)),
                    D = D)
 
+if (d_muts$model != "Add") {
+  d_LD$mutType_AB <- d_rank$mutType_ab
+}
 
 # Summarise: overall
 sum_LD <- d_LD %>%
@@ -200,3 +204,4 @@ for (i in seq_along(bin_labels)) {
 # Write output
 write.table(sum_LD, FILE_LD, row.names = F, col.names = F)
 write.table(sum_LD_f, FILE_LD_F, row.names = F, col.names = F)
+write.table(LD, FILE_LD_TABLE, row.names = F, col.names = F)
