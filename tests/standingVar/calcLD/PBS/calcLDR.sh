@@ -86,6 +86,7 @@ cd /scratch/ht96/nb9894/${JOBNAME}R/
 
 cat ./out_LD_* >> $SAVEDIR/out_LD.csv
 cat ./out_LDf_* >> $SAVEDIR/out_LDf.csv
+cat ./out_LD_raw_* >> $SAVEDIR/out_LD_raw.csv
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete
