@@ -369,6 +369,127 @@ ggsave("LD_grid_d_end.png", D_grid, width = 14, height = 30, device = png)
 
 # 
 
+#### Neutral
+# modelindices are different:
+neutral_models <- rep(c("Add", "ODE", "K"), times = 2)
+d_ld_neu$model <- neutral_models[d_ld_neu$modelindex]
+d_ld_neu <- d_ld_neu %>%
+  mutate(
+         r = if_else(as.numeric(modelindex) > 3, 0.1, 1e-10),
+         nloci = 1024,
+         tau = 0.0125)
+
+d_ld_neu_sum <- d_ld_neu %>%
+  group_by(optPerc, model, nloci, tau, r) %>%
+  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
+
+
+d_ld_neu_dist <- d_ld_neu_sum %>% select(optPerc, model, nloci, tau, r, 15:34) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
+d_ld_neu_dist$col <- bins[as.numeric(str_extract(d_ld_neu_dist$col, "[[0-9]]*(?=_)"))]
+
+d_ld_neu_dist_sd <- d_ld_neu_sum %>% select(optPerc, model, nloci, tau, r, 43:62) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
+
+d_ld_neu_dist$count_sd <- d_ld_neu_dist_sd$count_sd
+
+# Outliers: histogram of all estimates
+d_ld_neu_dist_hist <- d_ld_neu %>% select(gen, seed, optPerc, model, nloci, tau, r, 12:32) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
+  group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+model_labels <- c(
+  "Add"="Additive",
+  "K"="K+",
+  "ODE"="K-"
+)
+
+ggplot(d_ld_neu_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)") %>%
+         filter(between(col, -0.1, 0.1), as.numeric(optPerc) < 3), 
+       aes(x = col, y = prop, group = col)) +
+  facet_nested(r_title + log10(r) ~ model, 
+               labeller = labeller(model = as_labeller(model_labels))) +
+  geom_boxplot(position = position_identity()) +
+  ggtitle("nloci = 1024, tau = 0.0125") +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model)
+  ) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+ggsave("LD_neutral_boxplot.png", device = png, width = 6, height = 4)
+
+# Freq adjusted neutral
+d_ld_neu_freq <- d_ld_neu_freq %>% 
+  filter(seed > 0.01) %>%
+  mutate(seed = as.factor(seed),
+         modelindex = as.factor(modelindex)) %>%
+  distinct()
+d_ld_neu_freq <- left_join(d_ld_neu_freq, d_qg, by = c("gen", "seed", "modelindex"))
+
+d_ld_neu_freq$model <- neutral_models[d_ld_neu_freq$modelindex]
+d_ld_neu_freq <- d_ld_neu_freq %>%
+  mutate(
+    r = if_else(as.numeric(modelindex) > 3, 0.1, 1e-10),
+    nloci = 1024,
+    tau = 0.0125)
+
+d_ld_neu_freq_sum <- d_ld_neu_freq %>%
+  group_by(optPerc, freqBin, model, nloci, tau, r) %>%
+  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
+
+# plot average distributions
+
+d_ld_neu_freq_dist <- d_ld_neu_freq_sum %>% select(optPerc, model, nloci, tau, r, 15:34) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
+d_ld_neu_freq_dist$col <- bins[as.numeric(str_extract(d_ld_neu_freq_dist$col, "[[0-9]]*(?=_)"))]
+
+d_ld_neu_freq_dist_sd <- d_ld_neu_freq_sum %>% select(optPerc, model, nloci, tau, r, 43:62) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
+
+d_ld_neu_freq_dist$count_sd <- d_ld_neu_freq_dist_sd$count_sd
+
+# Normalise mean counts by max elements
+MAX_ELEMENTS <- 1024 * 1024
+d_ld_neu_freq_sum <- d_ld_neu_freq_sum %>%
+  mutate(nD_maxel_prop = nD_mean / MAX_ELEMENTS)
+
+
+# Outliers: histogram of all estimates
+d_ld_neu_freq_hist <- d_ld_neu_freq %>% select(gen, seed, optPerc, freqBin, model, nloci, tau, r, 13:32) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
+  group_by(gen, seed, optPerc, freqBin, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+
+ggplot(d_ld_neu_freq_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci",
+                                 freqBin = as.factor(freqBin)),
+       aes(x = col, y = prop, colour = freqBin, group = interaction(col, freqBin))) +
+  facet_nested(r_title + log10(r) ~ model, 
+               labeller = labeller(model = as_labeller(model_labels))) +
+  geom_boxplot(position = position_identity()) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = freqBin, colour = freqBin)
+    #position = position_dodge(width = 0.9)
+  ) +
+  scale_colour_paletteer_d("ggprism::viridis") +
+  labs(x = "D", y = "Proportion of estimates", colour = "Frequency range") +
+  #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
 
 ##### 
 # Frequency adjusted
