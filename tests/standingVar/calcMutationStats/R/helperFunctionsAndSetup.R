@@ -576,9 +576,10 @@ PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
   # split mutations into A and B
   A_pos <- match(A_ids, muts$mutID)
   B_pos <- match(B_ids, muts$mutID)
-  mutsA <- muts[A_pos,]
-  mutsB <- muts[B_pos,]
+  mutsA <- muts[A_pos[A_pos > 0 & B_pos > 0],]
+  mutsB <- muts[B_pos[A_pos > 0 & B_pos > 0],]
   
+
   # output dataframe: ranking fitness of parental ab/AB
   # parab = parental alleles, parAB = derived alleles
   # solve for fitness of each genotype, which we can then use to 
@@ -608,6 +609,9 @@ PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
     out$wparAb <- calcAddFitness(PAb, 2, 0.05)
     out$wparAB <- calcAddFitness(PAB, 2, 0.05)
     
+    # Filter NA results
+    out <- out %>% filter(!is.na(mutIDA), !is.na(mutIDB))
+    
     return(out)
 }
 
@@ -621,7 +625,9 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
     dat_fixed$value <- 0
   }
   
-  model <- paste0(as.character(dat_fixed$modelindex)[1], "_", as.character(dat_fixed$seed)[1])
+  model <- paste0(as.character(dat_fixed$gen)[1], "_", 
+                  as.character(dat_fixed$modelindex)[1], "_", 
+                  as.character(dat_fixed$seed)[1])
   
   dat <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
@@ -636,8 +642,10 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   # split mutations into A and B
   A_pos <- match(A_ids, muts$mutID, nomatch = 0)
   B_pos <- match(B_ids, muts$mutID, nomatch = 0)
-  mutsA <- muts[A_pos[A_pos > 0],]
-  mutsB <- muts[B_pos[A_pos > 0],]
+  
+  # Remove pairs with at least one 0
+  mutsA <- muts[A_pos[A_pos > 0 & B_pos > 0],]
+  mutsB <- muts[B_pos[A_pos > 0 & B_pos > 0],]
   
   # output dataframe: ranking fitness of parental ab/AB
   # parab = parental alleles, parAB = derived alleles
@@ -771,6 +779,8 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   out$wparaB <- d_b$fitness
   out$wparAb <- d_a$fitness
   out$wparAB <- d_ab$fitness
+  
+  out <- out %>% filter(!is.na(mutIDA), !is.na(mutIDB))
   
   return(out)
 }
