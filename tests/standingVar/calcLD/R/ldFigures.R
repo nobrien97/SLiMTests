@@ -5,6 +5,7 @@ library(latex2exp)
 library(paletteer)
 library(ggridges)
 library(ggh4x)
+library(ggbeeswarm)
 library(cowplot)
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/R")
 
@@ -15,18 +16,50 @@ d_combos <- read.table("../../R/combos.csv", header = F,
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
 
-d_ld <- read.table(paste0(DATA_PATH, "calcLD/sumLD_d.csv"), header = F,
-                          col.names = c("gen", "seed", "modelindex", "meanD", "sdD",
-                                        "meanDZeros", "sdDZeros", "nD",
-                                        "nDP", "nDN", "nDHalf", 
-                                        paste0("n", 1:21)))
+# d_ld <- read.table(paste0(DATA_PATH, "calcLD/sumLD_d.csv"), header = F,
+#                           col.names = c("gen", "seed", "modelindex", "meanD", "sdD",
+#                                         "meanDZeros", "sdDZeros", "nD",
+#                                         "nDP", "nDN", "nDHalf", 
+#                                         paste0("n", 1:21)))
 
-d_ld_freq <- data.table::fread(paste0(DATA_PATH, "calcLD/sumLD_df.csv"), header = F,
-                   col.names = c("gen", "seed", "modelindex", "freqBin", 
-                                 "meanD", "sdD",
-                                 "meanDZeros", "sdDZeros", "nD",
+# Fitness adjusted frequencies
+d_ld <- read.table(paste0(DATA_PATH, "calcLD/fitness_adjusted/out_LD.csv"), header = F,
+                   col.names = c("gen", "seed", "modelindex", 
+                                 "meanD", "sdD", "nD",
                                  "nDP", "nDN", "nDHalf", 
                                  paste0("n", 1:20)))
+
+
+d_ld_neu <- data.table::fread(paste0(DATA_PATH, "calcLD/sumLD_d_neu.csv"), header = F,
+                              col.names = c("gen", "seed", "modelindex", 
+                                            "meanD", "sdD",
+                                            "meanDZeros", "sdDZeros", "nD",
+                                            "nDP", "nDN", "nDHalf", 
+                                            paste0("n", 1:21)))
+
+
+
+# d_ld_freq <- data.table::fread(paste0(DATA_PATH, "calcLD/sumLD_df_new.csv"), header = F,
+#                    col.names = c("gen", "seed", "modelindex", "freqBin", 
+#                                  "meanD", "sdD",
+#                                  "meanDZeros", "sdDZeros", "nD",
+#                                  "nDP", "nDN", "nDHalf", 
+#                                  paste0("n", 1:20)))
+
+# Fitness adjusted
+d_ld_freq <- data.table::fread(paste0(DATA_PATH, "calcLD/fitness_adjusted/out_LDf.csv"), header = F,
+                   col.names = c("gen", "seed", "modelindex", "freqBin",
+                                 "meanD", "sdD", "nD",
+                                 "nDP", "nDN", "nDHalf",
+                                 paste0("n", 1:20)))
+
+
+d_ld_neu_freq <- data.table::fread(paste0(DATA_PATH, "calcLD/sumLD_df_neu.csv"), header = F,
+                               col.names = c("gen", "seed", "modelindex", "freqBin", 
+                                             "meanD", "sdD",
+                                             "meanDZeros", "sdDZeros", "nD",
+                                             "nDP", "nDN", "nDHalf", 
+                                             paste0("n", 1:20)))
 
 d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
                      sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -51,8 +84,16 @@ d_ld <- d_ld %>%
   mutate(seed = as.factor(seed),
          modelindex = as.factor(modelindex))
 
+d_ld_neu <- d_ld_neu %>% 
+  filter(seed > 0.01) %>%
+  mutate(seed = as.factor(seed),
+         modelindex = as.factor(modelindex))
+
+
 # inner join optPerc
 d_ld <- left_join(d_ld, d_qg, by = c("gen", "seed", "modelindex"))
+d_ld_neu <- left_join(d_ld_neu, d_qg, by = c("gen", "seed", "modelindex"))
+
 
 # Add on variables
 d_ld <- AddCombosToDF(d_ld)
@@ -62,31 +103,36 @@ d_ld_sum <- d_ld %>%
   group_by(optPerc, model, nloci, tau, r) %>%
   summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
 
+
+
 # plot average distributions
 
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_dist <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 15:34) %>%
+d_ld_dist <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 12:31) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_dist$col <- bins[as.numeric(str_extract(d_ld_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 43:62) %>%
+d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 38:57) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_dist$count_sd <- d_ld_dist_sd$count_sd
 
 # Outliers: histogram of all estimates
-d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, nloci, tau, r, 12:32) %>%
+d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, nloci, tau, r, 10:29) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
   group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
   mutate(prop = count / sum(count)) %>%
   ungroup()
 
+# Number of loci doesn't matter - focus on n = 1024 since it has most samples
+# Doesn't appear to be related to effect size variance
 ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
                                  r_title = "Recombination rate (log10)",
-                                 nloci_title = "Number of loci") %>%
-         filter(between(col, -0.1, 0.1), as.numeric(optPerc) < 3), 
+                                 nloci_title = "Number of loci",
+                                 tau_title = "Mutational effect size variance") %>%
+         filter(log10(r) > -7, tau == 0.0125), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
-  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  facet_nested(r_title + log10(r) ~ optPerc) +
   geom_boxplot(position = position_identity()) +
   stat_summary(
     fun = median,
@@ -98,6 +144,27 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
                            labels = c("Additive", "K+", "K-")) +
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
+# Counts instead of prop
+ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci") %>%
+         filter(between(col, -0.1, 0.1), as.numeric(optPerc) < 3), 
+       aes(x = col, y = count, colour = model, group = interaction(col, model))) +
+  #facet_nested(r_title + log10(r) ~ nloci_title + nloci, scales = "free") +
+  facet_wrap(log10(r) ~ nloci, scales = "free") +
+  geom_boxplot(position = position_identity()) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model, colour = model)
+  ) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  #coord_cartesian(ylim = c(0, 20000)) +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
 
@@ -497,7 +564,8 @@ ggplot(d_ld_neu_freq_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-
 d_ld_freq <- d_ld_freq %>% 
   filter(seed > 0.01) %>%
   mutate(seed = as.factor(seed),
-         modelindex = as.factor(modelindex))
+         modelindex = as.factor(modelindex)) %>%
+  distinct()
 
 # inner join optPerc
 d_ld_freq <- left_join(d_ld_freq, d_qg, by = c("gen", "seed", "modelindex"))
@@ -513,11 +581,11 @@ d_ld_freq_sum <- d_ld_freq %>%
 # plot average distributions
 
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_freq_dist <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 15:34) %>%
+d_ld_freq_dist <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 13:32) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_freq_dist$col <- bins[as.numeric(str_extract(d_ld_freq_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 43:62) %>%
+d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 39:58) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
@@ -526,6 +594,39 @@ d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
 MAX_ELEMENTS <- 1024 * 1024
 d_ld_freq_sum <- d_ld_freq_sum %>%
   mutate(nD_maxel_prop = nD_mean / MAX_ELEMENTS)
+
+
+# Outliers: histogram of all estimates
+d_ld_freq_hist <- d_ld_freq %>% select(gen, seed, optPerc, freqBin, model, nloci, tau, r, 13:32) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
+  group_by(gen, seed, optPerc, freqBin, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+# Fold the frequency bins
+d_ld_freq_hist <- d_ld_freq_hist %>%
+  mutate(freqBin = if_else(freqBin > 0.5, 1 - freqBin, freqBin))
+
+ggplot(d_ld_freq_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci",
+                                 freqBin = as.factor(freqBin)) %>%
+         filter(model == "K"), 
+         #filter(as.numeric(optPerc) >= 3, model == "ODE"),
+       aes(x = col, y = prop, colour = freqBin, group = interaction(col, freqBin))) +
+  facet_nested(r_title + log10(r) ~ optPerc) +
+  #geom_boxplot(position = position_identity()) +
+  geom_quasirandom(shape = 1) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = freqBin, colour = freqBin)
+  ) +
+  scale_colour_paletteer_d("ggprism::viridis") +
+  labs(x = "D", y = "Proportion of estimates", colour = "Frequency range") +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
 
 # Mean counts - after adaptation, sum data: check variance of means
 {
