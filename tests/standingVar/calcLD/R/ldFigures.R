@@ -98,6 +98,12 @@ d_ld_neu <- left_join(d_ld_neu, d_qg, by = c("gen", "seed", "modelindex"))
 # Add on variables
 d_ld <- AddCombosToDF(d_ld)
 
+# Proportion of estimates with positive/negative D
+d_ld <- d_ld %>%
+  group_by(optPerc, model, nloci, tau, r) %>%
+  mutate(propDP = nDP / nD,
+         propDN = nDN / nD)
+
 # average across replicates
 d_ld_sum <- d_ld %>%
   group_by(optPerc, model, nloci, tau, r) %>%
@@ -112,7 +118,7 @@ d_ld_dist <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 12:31) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_dist$col <- bins[as.numeric(str_extract(d_ld_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 38:57) %>%
+d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 40:59) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_dist$count_sd <- d_ld_dist_sd$count_sd
@@ -130,9 +136,9 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
                                  r_title = "Recombination rate (log10)",
                                  nloci_title = "Number of loci",
                                  tau_title = "Mutational effect size variance") %>%
-         filter(log10(r) > -7, tau == 0.0125), 
+         filter(log10(r) > -7), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
-  facet_nested(r_title + log10(r) ~ optPerc) +
+  facet_nested(r_title + log10(r) ~ .) +
   geom_boxplot(position = position_identity()) +
   stat_summary(
     fun = median,
@@ -147,27 +153,132 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
 
-# Counts instead of prop
-ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
-                                 r_title = "Recombination rate (log10)",
-                                 nloci_title = "Number of loci") %>%
-         filter(between(col, -0.1, 0.1), as.numeric(optPerc) < 3), 
-       aes(x = col, y = count, colour = model, group = interaction(col, model))) +
-  #facet_nested(r_title + log10(r) ~ nloci_title + nloci, scales = "free") +
-  facet_wrap(log10(r) ~ nloci, scales = "free") +
-  geom_boxplot(position = position_identity()) +
-  stat_summary(
-    fun = median,
-    geom = "line",
-    aes(group = model, colour = model)
-  ) +
+# Proportion of D estimates > 0.05 or < 0.05: i.e. there is non-zero LD
+# tau has very little effect, so we will average over that
+# nloci has little effect as well, aside from nloci = 4 being very noisy, so average
+# over that, excluding nloci = 4
+ggplot(d_ld %>%
+         ungroup() %>%
+         complete(optPerc, model, nloci, tau, r) %>%
+         group_by(optPerc, model, nloci, tau, r) %>%
+         mutate(propDP = nDP / nD,
+                propDN = nDN / nD) %>%
+         filter(nloci > 4) %>%
+         group_by(optPerc, model, tau, r) %>%
+         summarise_at(vars(-seed,-gen,-modelindex), 
+                      list(mean = mean, sd = se), na.rm = T) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = propDP_mean,
+           colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = propDP_mean - propDP_sd, ymax = propDP_mean + propDP_sd),
+                position = position_dodge(preserve = 'single')) +
+  scale_y_continuous(labels = scales::comma,
+                     sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
   scale_colour_paletteer_d("nationalparkcolors::Badlands",
                            labels = c("Additive", "K+", "K-")) +
-  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
-  #coord_cartesian(ylim = c(0, 20000)) +
+  labs(x = "Progress to optimum", y = "Proportion of positive D estimates", 
+       colour = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "bottom")
+  theme(legend.position = "bottom", text = element_text(size = 14))
 
+# Negative LD
+ggplot(d_ld %>%
+         ungroup() %>%
+         complete(optPerc, model, nloci, tau, r) %>%
+         group_by(optPerc, model, nloci, tau, r) %>%
+         mutate(propDP = nDP / nD,
+                propDN = nDN / nD) %>%
+         filter(nloci > 4) %>%
+         group_by(optPerc, model, tau, r) %>%
+         summarise_at(vars(-seed,-gen,-modelindex), 
+                      list(mean = mean, sd = se), na.rm = T) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = propDN_mean,
+           colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = propDN_mean - propDN_sd, ymax = propDN_mean + propDN_sd),
+                position = position_dodge(preserve = 'single')) +
+  scale_y_continuous(labels = scales::comma,
+                     sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "Progress to optimum", y = "Proportion of negative D estimates", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+# Non-zero LD
+ggplot(d_ld %>%
+         ungroup() %>%
+         complete(optPerc, model, nloci, tau, r) %>%
+         group_by(optPerc, model, nloci, tau, r) %>%
+         mutate(propDP = nDP / nD,
+                propDN = nDN / nD,
+                propDPN = (nDP + nDN) / nD,
+                propD0 = ( nD - ( nDP + nDN ) ) / nD) %>%
+         filter(nloci > 4) %>%
+         group_by(optPerc, model, tau, r) %>%
+         summarise_at(vars(-seed,-gen,-modelindex), 
+                      list(mean = mean, sd = se), na.rm = T) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = propDPN_mean,
+           colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = propDPN_mean - propDPN_sd, ymax = propDPN_mean + propDPN_sd),
+                position = position_dodge(preserve = 'single')) +
+  scale_y_continuous(labels = scales::comma,
+                     sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "Progress to optimum", y = "Proportion of non-zero D estimates", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+# Zero LD
+ggplot(d_ld %>%
+         ungroup() %>%
+         complete(optPerc, model, nloci, tau, r) %>%
+         group_by(optPerc, model, nloci, tau, r) %>%
+         mutate(propDP = nDP / nD,
+                propDN = nDN / nD,
+                propDPN = (nDP + nDN) / nD,
+                propD0 = ( nD - ( nDP + nDN ) ) / nD) %>%
+         filter(nloci > 4) %>%
+         group_by(optPerc, model, tau, r) %>%
+         summarise_at(vars(-seed,-gen,-modelindex), 
+                      list(mean = mean, sd = se), na.rm = T) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = propD0_mean,
+           colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = propD0_mean - propD0_sd, ymax = propD0_mean + propD0_sd),
+                position = position_dodge(preserve = 'single')) +
+  scale_y_continuous(labels = scales::comma,
+                     sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
+  labs(x = "Progress to optimum", y = "Proportion of zero D estimates", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
 
 # Mean counts - after adaptation, mean plots
 {
@@ -576,6 +687,16 @@ d_ld_freq <- AddCombosToDF(d_ld_freq)
 # average across replicates
 d_ld_freq_sum <- d_ld_freq %>%
   group_by(optPerc, freqBin, model, nloci, tau, r) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
+
+
+d_ld_freq_sum <- d_ld_freq_sum %>%
+  mutate(freqBin = if_else(freqBin > 0.5, 1 - freqBin, freqBin))
+
+d_ld_freq_sum$col <- bins[as.numeric(str_extract(d_ld_freq_sum$col, "[[0-9]]+"))]
+d_ld_freq_sum <- d_ld_freq_sum %>%  
+  group_by(optPerc, freqBin, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
   summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
 
 # plot average distributions
@@ -626,6 +747,8 @@ ggplot(d_ld_freq_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   labs(x = "D", y = "Proportion of estimates", colour = "Frequency range") +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
+
+# Table
 
 
 # Mean counts - after adaptation, sum data: check variance of means
