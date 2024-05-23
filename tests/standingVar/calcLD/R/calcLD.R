@@ -204,4 +204,4 @@ for (i in seq_along(bin_labels)) {
 # Write output
 write.table(sum_LD, FILE_LD, row.names = F, col.names = F)
 write.table(sum_LD_f, FILE_LD_F, row.names = F, col.names = F)
-write.table(LD, FILE_LD_TABLE, row.names = F, col.names = F)
+write.table(d_LD, FILE_LD_TABLE, row.names = F, col.names = F)
