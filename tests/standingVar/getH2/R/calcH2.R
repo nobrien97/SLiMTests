@@ -105,7 +105,7 @@ if (model == "ODE") {
   # All K values
   mkr_result <- mkrOrError(relPheno_mat[,1:5], A)
   mrr_result <- mrrOrError(relPheno_mat[,1:5], X)
-} else {
+} else if (model != "Add") {
   print(paste("Couldn't find model type in run ", run, "- closing R."))
   q(save = "no")
 }
