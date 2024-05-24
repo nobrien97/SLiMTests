@@ -75,23 +75,27 @@ d_h2 <- d_h2 %>%
   distinct(gen, seed, modelindex, method, .keep_all = T) %>%
   mutate(modelindex = as.factor(modelindex),
          seed = as.factor(seed)) %>%
-  drop_na(VA_Z)
+  drop_na(VA_Z) %>% distinct()
 
 # inner join optPerc
 d_h2 <- left_join(d_h2, d_qg, by = c("gen", "seed", "modelindex"))
 
 d_h2 <- AddCombosToDF(d_h2)
+table(d_h2$model)
 
 # Distribution, how different are the estimates
 ggplot(d_h2 %>% 
-         select(gen, seed, modelindex, optPerc, h2_Z, method) %>% drop_na() %>%
+         select(gen, seed, modelindex, optPerc, h2_Z, method, model) %>% drop_na() %>%
          distinct() %>%
          pivot_wider(names_from = method, values_from = h2_Z), 
-       aes(x = mkr, y = mrr)) +
+       aes(x = mkr, y = mrr, colour = model)) +
   geom_point(shape = 1) +
-  geom_abline(slope = 1, intercept = 0) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands",
+                           labels = c("Additive", "K+", "K-")) +
   labs(x = TeX("Kernel regression heritability $(h^2)$"), 
-       y = TeX("Ridge regression heritability $(h^2)$")) +
+       y = TeX("Ridge regression heritability $(h^2)$"),
+       colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 14))
 
@@ -140,7 +144,7 @@ ggplot(d_h2 %>%
        y = TeX("Narrow-sense heritability $(h^2)$"),
        colour = "Model") +
   scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("K+", "K-")) +
+                           labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -151,23 +155,23 @@ ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr"),
+         filter(method == "mkr", tau == 1.25),
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
-  geom_quasirandom(shape = 1, dodge.width = 1) +
+  geom_beeswarm(shape = 1, dodge.width = 1) +
   geom_point(data = d_h2_sum %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
-               filter(method == "mkr"), 
+               filter(method == "mkr", tau == 1.25), 
              aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(1)) +
-  coord_cartesian(ylim = c(0, 2)) +
+  coord_cartesian(ylim = c(0, 0.5)) +
   labs(x = "Progress to the optimum", 
        y = TeX("Additive variance $(V_A)$"),
        colour = "Model") +
   scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("K+", "K-")) +
+                           labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
