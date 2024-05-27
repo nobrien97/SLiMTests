@@ -8,6 +8,32 @@ library(cowplot)
 library(ggbeeswarm)
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R")
 
+# Cowplot 1.1.3 bug: won't get legend, this fixes
+get_legend <- function(plot, legend = NULL) {
+  
+  gt <- ggplotGrob(plot)
+  
+  pattern <- "guide-box"
+  if (!is.null(legend)) {
+    pattern <- paste0(pattern, "-", legend)
+  }
+  
+  indices <- grep(pattern, gt$layout$name)
+  
+  not_empty <- !vapply(
+    gt$grobs[indices], 
+    inherits, what = "zeroGrob", 
+    FUN.VALUE = logical(1)
+  )
+  indices <- indices[not_empty]
+  
+  if (length(indices) > 0) {
+    return(gt$grobs[[indices[1]]])
+  }
+  return(NULL)
+}
+
+
 d_combos <- read.table("../../R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
 
@@ -58,7 +84,7 @@ d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F,
 d_qg$optPerc <- d_qg$phenomean - 1
 d_qg$optPerc <- cut(d_qg$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
 
-d_qg <- d_qg %>% select(gen, seed, modelindex, optPerc) %>% filter(gen >= 49500)
+d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, optPerc) %>% filter(gen >= 49500)
 
 
 # Combine
@@ -78,10 +104,15 @@ d_h2 <- d_h2 %>%
   drop_na(VA_Z) %>% distinct()
 
 # inner join optPerc
-d_h2 <- left_join(d_h2, d_qg, by = c("gen", "seed", "modelindex"))
+d_h2 <- left_join(d_h2, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
 
 d_h2 <- AddCombosToDF(d_h2)
+
+# Counts for each model type: K+ harder to estimate than the other two
 table(d_h2$model)
+
+# We have many recombination rates: choose a few
+r_subsample <- c(1e-10, 1e-5, 1e-1)
 
 # Distribution, how different are the estimates
 ggplot(d_h2 %>% 
@@ -115,8 +146,10 @@ ggplot(d_h2 %>%
 
 
 boxplot(d_h2$VA_Z)
+
 # Remove outliers, summarise
-d_h2_sum <- d_h2 %>% 
+d_h2_sum <- d_h2 %>%
+  filter(r %in% r_subsample) %>%
   group_by(optPerc, model, tau, r, method) %>%
   filter(VA_Z < 50) %>% 
   summarise(meanH2Z = mean(h2_Z, na.rm = T),
@@ -129,17 +162,17 @@ ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr"),
+         filter(method == "mkr", r %in% r_subsample),
        aes(x = optPerc, y = h2_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
-  geom_quasirandom(shape = 1, dodge.width = 1) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9) +
   geom_point(data = d_h2_sum %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
-               filter(method == "mkr"), 
+               filter(method == "mkr", r %in% r_subsample), 
              aes(x = optPerc, y = meanH2Z, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(1)) +
+             shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Progress to the optimum", 
        y = TeX("Narrow-sense heritability $(h^2)$"),
        colour = "Model") +
@@ -150,25 +183,142 @@ ggplot(d_h2 %>%
         legend.position = "bottom")
 
 # Additive variance
-# Again, nloci not too important
+# Again, nloci not important
 ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr", tau == 1.25),
+         filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
-  geom_beeswarm(shape = 1, dodge.width = 1) +
+  geom_quasirandom(dodge.width = 0.9) +
   geom_point(data = d_h2_sum %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
-               filter(method == "mkr", tau == 1.25), 
+               filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
              aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(1)) +
-  coord_cartesian(ylim = c(0, 0.5)) +
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 0.2)) +
   labs(x = "Progress to the optimum", 
        y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_sml
+
+ggplot(d_h2 %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 0.125),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 0.125),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 0.7)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_med
+
+ggplot(d_h2 %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 1.25),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 1.25),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 3, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 1.25)) +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+                           labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_lrg
+
+leg <- get_legend(plt_add_va_lrg)
+
+plt_add_va <- plot_grid(plt_add_va_sml + theme(legend.position = "none"),
+          plt_add_va_med + theme(legend.position = "none"),
+          plt_add_va_lrg + theme(legend.position = "none"),
+          ncol = 1, labels = "AUTO")
+
+plt_add_va <- plot_grid(plt_add_va,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_add_va
+ggsave("plt_va.png", device = png, bg = "white",
+       width = 560*4, height = 980*4, units = "px")
+
+
+# Paixao and Barton 2016 (regarding a polygenic trait with each QTL under 
+# negligible selection): "Drift will disperse allele frequencies, decreasing the
+# additive variance by a factor (1 - 1/2Ne) per generation"
+
+# Infinitesimal expects zero change in additive variance due to selection
+# So see how much it changes between timepoints
+# Scale by the total variance as well -> a large effect model will produce a lot
+# of variance, so the differences are more likely to be greater
+d_h2 %>%
+  group_by(model, seed, tau, r, nloci, method) %>%
+  summarise(totalDeltaVA = sum(diff(VA_Z))/sum(VA_Z)) -> d_h2_deltaVA
+
+# total distribution
+boxplot(d_h2_deltaVA$totalDeltaVA)
+
+d_h2_deltaVA %>%
+  group_by(model, tau, r, method) %>%
+  summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
+            seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_sum
+
+
+# nloci doesn't matter again
+ggplot(d_h2_deltaVA %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample),
+       aes(x = as.factor(tau), y = totalDeltaVA, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  geom_quasirandom(dodge.width = 0.9) +
+  #coord_cartesian(ylim = c(0, 1)) +
+  geom_point(data = d_h2_deltaVA_sum %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample),
+             aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Mutational effect size variance", 
+       y = TeX("Change in additive variance $(\\Delta V_A)$"),
        colour = "Model") +
   scale_colour_paletteer_d("nationalparkcolors::Badlands",
                            labels = c("Additive", "K+", "K-")) +
@@ -176,33 +326,50 @@ ggplot(d_h2 %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
-# Infinitesimal expects zero change in additive variance due to selection
-# So see how much it changes between timepoints
-d_h2 %>%
-  group_by(model, tau, r, nloci, method) %>%
-  summarise(totalDeltaVA = )
+# Correlation of genetic variance to time to adaptation
+d_pheno_va <- left_join(d_h2, 
+                        d_qg %>% select(gen, seed, modelindex, optPerc,
+                                            deltaPheno, deltaw) %>% 
+                          filter(gen >= 49500),
+                        by = c("gen", "seed", "modelindex", "optPerc"))
 
+d_pheno_va <- d_pheno_va %>%
+  filter(as.numeric(optPerc) == 4, VA_Z < 50) %>%
+  group_by(seed, model, tau, r, nloci, method) %>%
+  mutate(timeToAdaptation = gen - 50000)
 
-ggplot(d_h2 %>% 
-         group_by(optPerc, model, tau, r, method) %>% 
-         summarise(meanVAZ = mean(VA_Z, na.rm = T),
-                   seVAZ = se(VA_Z, na.rm = T)) %>%
+d_pheno_va_cor <- d_pheno_va %>%
+  group_by(model, tau, r, method) %>%
+  summarise(corVAw = cor(timeToAdaptation, VA_Z))
+
+# linear model: time to adaptation vs VA
+lm_VA <- lm(timeToAdaptation ~ VA_Z * model * tau + r, data = d_pheno_va)
+summary(lm_VA)
+plot(timeToAdaptation ~ VA_Z * model * tau + r, data = d_pheno_va)
+
+# plot
+ggplot(d_pheno_va_cor %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr"),
-       aes(x = optPerc, y = meanVAZ, colour = model)) +
-  facet_nested(r_title + log10(r) ~ tau_title + tau) +
-  geom_point() +
-  coord_cartesian(ylim = c(0, 1)) +
-  geom_errorbar(aes(ymin = meanVAZ - seVAZ, ymax = meanVAZ + seVAZ),
-                width = 0.3) +
-  labs(x = "Progress to the optimum", 
-       y = TeX("Additive variance $(V_A)$"),
+         filter(method == "mkr", r %in% r_subsample),
+       aes(x = as.factor(tau), y = corVAw, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  #coord_cartesian(ylim = c(0, 1)) +
+  # geom_point(data = d_h2_deltaVA_sum %>%
+  #              mutate(r_title = "Recombination rate (log10)",
+  #                     nloci_title = "Number of loci",
+  #                     tau_title = "Mutational effect size variance") %>%
+  #              filter(method == "mkr", r %in% r_subsample),
+  #            aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
+  #            shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Mutational effect size variance", 
+       y = TeX("Correlation between additive\nvariance and fitness"),
        colour = "Model") +
   scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("K+", "K-")) +
+                           labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
-
