@@ -122,8 +122,8 @@ ggplot(d_h2 %>%
        aes(x = mkr, y = mrr, colour = model)) +
   geom_point(shape = 1) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
   labs(x = TeX("Kernel regression heritability $(h^2)$"), 
        y = TeX("Ridge regression heritability $(h^2)$"),
        colour = "Model") +
@@ -144,14 +144,54 @@ ggplot(d_h2 %>%
 # Can we trust either? Maybe a parent-offspring regression is the safest bet
 # Kernel regression seems most accurate: ridge is almost always at 0 heritability
 
+d_h2 <- d_h2 %>% filter(method == "mkr")
 
 boxplot(d_h2$VA_Z)
+d_h2_all <- d_h2
 
-# Remove outliers, summarise
+# Detect outliers: Hampel filter
+# variance depends on the tau group mainly - check outliers within groups
+library(DMwR2)
+# lower_bound <- list(3)
+# upper_bound <- list(3)
+# tau_lvls <- unique(d_h2$tau)
+# outlier_ind <- list(3)
+# 
+# for (i in 1:3) {
+#   lower_bound[[i]] <- median(d_h2[d_h2$tau == tau_lvls[i],]$VA_Z) - 3 * mad(d_h2[d_h2$tau == tau_lvls[i],]$VA_Z, constant = 1)
+#   upper_bound[[i]] <- median(d_h2[d_h2$tau == tau_lvls[i],]$VA_Z) + 3 * mad(d_h2[d_h2$tau == tau_lvls[i],]$VA_Z, constant = 1)
+#   outlier_ind[[i]] <- which(d_h2[d_h2$tau == tau_lvls[i],]$VA_Z < lower_bound[[i]] | d_h2[d_h2$tau == tau_lvls[i],]$VA_Z > upper_bound[[i]])
+# }
+# 
+# # This is quite a lot of data to remove: ~12% are outliers?
+# length(unlist(outlier_ind))
+# 
+# # Remove outliers
+# d_h2 <- d_h2 %>%
+#   filter((tau == 0.0125 & VA_Z >= lower_bound[[1]] & VA_Z <= upper_bound[[1]])|
+#          (tau == 0.125  & VA_Z >= lower_bound[[2]] & VA_Z <= upper_bound[[2]])|
+#          (tau == 1.25   & VA_Z >= lower_bound[[3]] & VA_Z <= upper_bound[[3]]))
+
+
+lofscores <- lofactor(scale(d_h2$VA_Z), 10)
+threshold <- 1.6
+outliers <- lofscores > threshold
+
+plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
+     main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
+     ylab = "LOF Score")
+legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
+       pch = 1)
+
+# filter out outliers
+d_h2 <- d_h2[!outliers,]
+
+boxplot(d_h2[!outliers,]$VA_Z)
+
+# summarise
 d_h2_sum <- d_h2 %>%
   filter(r %in% r_subsample) %>%
   group_by(optPerc, model, tau, r, method) %>%
-  filter(VA_Z < 50) %>% 
   summarise(meanH2Z = mean(h2_Z, na.rm = T),
             seH2Z = se(h2_Z, na.rm = T),
             meanVAZ = mean(VA_Z, na.rm = T),
@@ -159,25 +199,27 @@ d_h2_sum <- d_h2 %>%
 
 # Number of loci doesn't seem to affect it too much, average across
 ggplot(d_h2 %>%
+         filter(method == "mkr", r %in% r_subsample) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
-                tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr", r %in% r_subsample),
+                tau_title = "Mutational effect size variance"),
        aes(x = optPerc, y = h2_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9) +
-  geom_point(data = d_h2_sum %>%
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_h2_sum %>% ungroup() %>%
+               filter(method == "mkr", r %in% r_subsample) %>% 
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance") %>%
-               filter(method == "mkr", r %in% r_subsample), 
+                      tau_title = "Mutational effect size variance"),
              aes(x = optPerc, y = meanH2Z, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Progress to the optimum", 
        y = TeX("Narrow-sense heritability $(h^2)$"),
        colour = "Model") +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -204,7 +246,7 @@ ggplot(d_h2 %>%
        y = TeX("Additive variance $(V_A)$"),
        colour = "Model") +
   scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
                       labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
@@ -231,7 +273,7 @@ ggplot(d_h2 %>%
        y = TeX("Additive variance $(V_A)$"),
        colour = "Model") +
   scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
                       labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
@@ -252,14 +294,14 @@ ggplot(d_h2 %>%
                       tau_title = "Mutational effect size variance") %>%
                filter(method == "mkr", r %in% r_subsample, tau == 1.25),
              aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
-             shape = 3, size = 3, position = position_dodge(0.9)) +
-  coord_cartesian(ylim = c(0, 1.25)) +
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 2.5)) +
   scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
   labs(x = "Progress to the optimum", 
        y = TeX("Additive variance $(V_A)$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
-                           labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
   theme(text = element_text(size = 14),
@@ -283,10 +325,15 @@ ggsave("plt_va.png", device = png, bg = "white",
 # negligible selection): "Drift will disperse allele frequencies, decreasing the
 # additive variance by a factor (1 - 1/2Ne) per generation"
 
+# Hossjer et al 2016: Ne estimate from VA:
+# 1 - (1 - 1/2Ne)^tau = (VA_t - VA_{t+tau})/VA_t
+
 # Infinitesimal expects zero change in additive variance due to selection
 # So see how much it changes between timepoints
 # Scale by the total variance as well -> a large effect model will produce a lot
 # of variance, so the differences are more likely to be greater
+# Also account for drift: estimate Ne via Hossjer et al.
+
 d_h2 %>%
   group_by(model, seed, tau, r, nloci, method) %>%
   summarise(totalDeltaVA = sum(diff(VA_Z))/sum(VA_Z)) -> d_h2_deltaVA
@@ -320,8 +367,8 @@ ggplot(d_h2_deltaVA %>%
   labs(x = "Mutational effect size variance", 
        y = TeX("Change in additive variance $(\\Delta V_A)$"),
        colour = "Model") +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+                      labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -366,10 +413,10 @@ ggplot(d_pheno_va_cor %>%
   #            aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
   #            shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Mutational effect size variance", 
-       y = TeX("Correlation between additive\nvariance and fitness"),
+       y = "Correlation between additive\nvariance and fitness",
        colour = "Model") +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
