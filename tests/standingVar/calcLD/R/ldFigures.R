@@ -146,8 +146,8 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
     aes(group = model, colour = model)
     #position = position_dodge(width = 0.9)
   ) +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("MoMAColors::Panton")[4:6],
+                      labels = c("Additive", "K+", "K-")) +
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
@@ -687,34 +687,59 @@ d_ld_freq <- AddCombosToDF(d_ld_freq)
 # average across replicates
 d_ld_freq_sum <- d_ld_freq %>%
   group_by(optPerc, freqBin, model, nloci, tau, r) %>%
-  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
-
+  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
 
 d_ld_freq_sum <- d_ld_freq_sum %>%
   mutate(freqBin = if_else(freqBin > 0.5, 1 - freqBin, freqBin))
 
-d_ld_freq_sum$col <- bins[as.numeric(str_extract(d_ld_freq_sum$col, "[[0-9]]+"))]
-d_ld_freq_sum <- d_ld_freq_sum %>%  
-  group_by(optPerc, freqBin, model, nloci, tau, r) %>%
-  mutate(prop = count / sum(count)) %>%
-  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
-
 # plot average distributions
-
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_freq_dist <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 13:32) %>%
+d_ld_freq_dist <- d_ld_freq_sum %>% select(optPerc, freqBin, model, nloci, tau, r, 13:32) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_freq_dist$col <- bins[as.numeric(str_extract(d_ld_freq_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, model, nloci, tau, r, 39:58) %>%
+d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, freqBin, model, nloci, tau, r, 39:58) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
+
+# Outliers: histogram of all estimates
+d_ld_freq_dist_hist <- d_ld_freq %>% select(gen, seed, freqBin, optPerc, model, nloci, tau, r, 11:30) %>%
+  pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
+  group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+# Number of loci doesn't matter - focus on n = 1024 since it has most samples
+# Doesn't appear to be related to effect size variance
+ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci",
+                                 tau_title = "Mutational effect size variance") %>%
+         filter(nloci == 1024, tau == 0.0125), 
+       aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
+  facet_nested(r_title + log10(r) ~ freqBin) +
+  geom_boxplot(position = position_identity()) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model, colour = model)
+    #position = position_dodge(width = 0.9)
+  ) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
 
 # Normalise mean counts by max elements
 MAX_ELEMENTS <- 1024 * 1024
 d_ld_freq_sum <- d_ld_freq_sum %>%
   mutate(nD_maxel_prop = nD_mean / MAX_ELEMENTS)
+
+
 
 
 # Outliers: histogram of all estimates
