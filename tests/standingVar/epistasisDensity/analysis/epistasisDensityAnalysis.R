@@ -99,9 +99,9 @@ d_epi_diff <- d_epi_diff %>%
 
 d_epi_diff_plt <- d_epi_diff %>%
   filter(r_diff >= 0, tau_diff >= 0, nloci_diff >= 0) %>%
-  mutate(model_diff = ordered(model_diff, levels = c("ODE_ODE", "K_K", "Add_Add", 
-                                                    "ODE_K", "ODE_Add", "K_Add",
-                                                    "K_ODE", "Add_ODE", "Add_K")))
+  mutate(model_diff = ordered(model_diff, levels = c("K-_K-", "K+_K+", "Add_Add", 
+                                                    "K-_K+", "K-_Add", "K+_Add",
+                                                    "K+_K-", "Add_K-", "Add_K+")))
 
 ggplot(d_epi_diff_plt  %>%
          group_by(optPerc, r_diff, model_diff) %>%
@@ -152,7 +152,6 @@ ggplot(d_epi_diff_plt %>%
 
 # Differences between models in number of loci doesn't have any effect on epistasis
 # probably because of the standardised mutation rate
-
 
 ggplot(d_epi_diff_plt %>% 
          group_by(optPerc, r_1, r_2, nloci_diff, model_diff) %>%
