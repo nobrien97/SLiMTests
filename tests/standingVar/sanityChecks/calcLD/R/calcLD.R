@@ -126,7 +126,7 @@ d_LD <- data.frame(gen = rep(model_info[1], times = length(D)),
                    mutType_AB = rep("3_3", times = length(D)),
                    D = D)
 
-if (d_muts$model != "Add") {
+if (d_muts$model[1] != "Add") {
   d_LD$mutType_AB <- d_rank$mutType_ab
 }
 
@@ -155,7 +155,6 @@ bin_labels <- levels(LDbins)
 for (i in seq_along(bin_labels)) {
   sum_LD[,labels[i]] <- length(LDbins[LDbins == bin_labels[i]])
 }
-
 
 
 # Summarise: by frequency
