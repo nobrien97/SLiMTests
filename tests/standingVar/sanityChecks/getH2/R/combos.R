@@ -1,0 +1,21 @@
+# File name
+filename <- "./getH2SR.sh"
+
+#  wc -l slim_haplo_fix.csv -> 1969 samples
+
+# When combining outputs, slim_haplo.csv joined both fixations and non-fixations
+# Fixations all at the bottom of the file
+# So ignore the last 1969 rows of slim_haplo.csv
+
+# Run numbers to extract haplotypes
+run <- 0:1968
+
+# Chunk numbers to collect output: from 1 to 42, which is 3147 files per chunk
+
+cmd_df <- data.frame(
+    filename = filename,
+    run = run
+)
+
+write.table(cmd_df, "/mnt/c/GitHub/SLiMTests/tests/standingVar/sanityChecks/getH2/PBS/cmds.txt", 
+            sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
