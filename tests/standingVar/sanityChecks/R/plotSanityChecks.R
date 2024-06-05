@@ -449,3 +449,72 @@ ggplot(d_h2 %>%
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
+
+# Additive variance
+# Again, nloci not important
+ggplot(d_h2 %>%
+         mutate(r_title = "Recombination rate (log10)",
+                width_title = "Selection strength",
+                tau_title = "Mutational effect size variance") %>%
+         filter(tau == 0.0125),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested(r_title + r ~ width_title + width) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      width_title = "Selection strength",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(tau == 0.0125),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 0.2)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_sml
+
+ggplot(d_h2 %>%
+         mutate(r_title = "Recombination rate",
+                width_title = "Selection strength",
+                tau_title = "Mutational effect size variance") %>%
+         filter(tau == 1.25),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested(r_title + r ~ width_title + width) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>%
+               mutate(r_title = "Recombination rate",
+                      width_title = "Selection strength",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(tau == 1.25),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  #coord_cartesian(ylim = c(0, 2.5)) +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_lrg
+
+leg <- get_legend(plt_add_va_lrg)
+
+plt_add_va <- plot_grid(plt_add_va_sml + theme(legend.position = "none"),
+                        plt_add_va_med + theme(legend.position = "none"),
+                        plt_add_va_lrg + theme(legend.position = "none"),
+                        ncol = 1, labels = "AUTO")
+
+plt_add_va <- plot_grid(plt_add_va,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_add_va
+ggsave("plt_va.png", device = png, bg = "white",
+       width = 560*4, height = 980*4, units = "px")
