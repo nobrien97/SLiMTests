@@ -51,6 +51,7 @@ d_qg <- data.table::fread(paste0(GDATA_PATH, "slim_qg.csv"), header = F,
 # Quantitative data
 d_qg %>%
   distinct() %>%
+  filter(modelindex == model) %>%
   group_by(seed, modelindex) %>%
   filter(gen >= 49500) %>% distinct() %>%
   ungroup() -> d_adapted

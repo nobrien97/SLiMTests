@@ -19,7 +19,7 @@ CREATE TABLE tab_epistasis(
 );
 
 .mode csv
-.import /g/data/ht96/nb9894/standingVar/calcMutationStats/d_epistasis.csv tab_epistasis
+.import /g/data/ht96/nb9894/standingVar/sanityChecks/calcMutationStats/d_epistasis.csv tab_epistasis
 
 CREATE TABLE tab_epistasis_freq(
     gen             INTEGER,
@@ -38,4 +38,4 @@ CREATE TABLE tab_epistasis_freq(
 );
 
 .mode csv
-.import /g/data/ht96/nb9894/standingVar/calcMutationStats/d_epistasis_freqweight.csv tab_epistasis_freq
+.import /g/data/ht96/nb9894/standingVar/sanityChecks/calcMutationStats/d_epistasis_freqweight.csv tab_epistasis_freq

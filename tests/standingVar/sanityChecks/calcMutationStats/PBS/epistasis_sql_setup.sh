@@ -2,7 +2,7 @@
 #PBS -P ht96
 #PBS -q hugemem
 #PBS -l walltime=48:00:00
-#PBS -l ncpus=4
+#PBS -l ncpus=1
 #PBS -l mem=1470GB
 #PBS -l iointensive=1
 #PBS -l storage=scratch/ht96+gdata/ht96
@@ -11,7 +11,7 @@
 
 # Path to updated version of sqlite
 SQLITE3=~/Tools/sqlite/sqlite3
-SAVEDIR=/g/data/ht96/nb9894/standingVar/calcMutationStats
+SAVEDIR=/g/data/ht96/nb9894/standingVar/sanityChecks/calcMutationStats
 RUNDIR=/iointensive
 
 cd $PBS_O_WORKDIR
