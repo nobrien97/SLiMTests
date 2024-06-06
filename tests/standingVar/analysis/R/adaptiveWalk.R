@@ -1,5 +1,4 @@
 # Figures of adaptive walk
-
 library(tidyverse)
 library(data.table)
 library(latex2exp)
@@ -7,6 +6,7 @@ library(paletteer)
 library(ggridges)
 library(ggh4x)
 library(cowplot)
+library(ggbeeswarm)
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
@@ -16,7 +16,7 @@ d_combos <- read.table("../../R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
 
 # load trait evolution data
-d_qg <- fread::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
+d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
                    sep = ",", colClasses = c("integer", "factor", "factor", 
                                              rep("numeric", times = 12)), 
                    col.names = c("gen", "seed", "modelindex", "meanH", "VA",
@@ -67,10 +67,10 @@ ggplot(d_adapted_sum %>% filter(tau == 0.0125),
   scale_x_continuous(labels = scales::comma, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
-  scale_fill_paletteer_d("nationalparkcolors::Badlands",
-                         guide = "none") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
   labs(x = "Generations post-optimum shift", y = "Mean phenotype", 
        colour = "Model") +
   theme_bw() +
@@ -91,10 +91,10 @@ ggplot(d_adapted_sum %>% filter(tau == 0.125),
   scale_x_continuous(labels = scales::comma, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
-  scale_fill_paletteer_d("nationalparkcolors::Badlands",
-                         guide = "none") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-"), guide = "none") +
   labs(x = "Generations post-optimum shift", y = "Mean phenotype", 
        colour = "Model") +
   theme_bw() +
@@ -115,10 +115,10 @@ ggplot(d_adapted_sum %>% filter(tau == 1.25),
   scale_x_continuous(labels = scales::comma, 
                      sec.axis = sec_axis(~ ., name = "Number of QTLs", 
                                          breaks = NULL, labels = NULL)) +
-  scale_colour_paletteer_d("nationalparkcolors::Badlands",
-                           labels = c("Additive", "K+", "K-")) +
-  scale_fill_paletteer_d("nationalparkcolors::Badlands",
-                         guide = "none") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-"), guide = "none") +
   labs(x = "Generations post-optimum shift", y = "Mean phenotype", 
        colour = "Model") +
   theme_bw() +
@@ -128,7 +128,7 @@ adapt_grid <- plot_grid(adapt_grid_smlFX, adapt_grid_medFX, adapt_grid_lrgFX,
           nrow = 3)
 
 ggsave("adapt_grid.png", adapt_grid, width = 14, height = 30, device = png)
-  }
+}
 
 # Within-population phenotype variance figures
 {
@@ -233,6 +233,28 @@ ggsave("adapt_grid.png", adapt_grid, width = 14, height = 30, device = png)
          colour = "Model") +
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 14))
+  
+  # variance: are the spikes in K+ tau = 1.25 consistent or random among models?
+  ggplot(d_qg %>% AddCombosToDF(.) %>% filter(gen >= 49500, tau == 1.25, model == "K"),
+         aes(x = gen - 50000, y = phenovar, colour = as.factor(seed)),
+         group = as.factor(seed)) +
+    facet_grid(log10(r)~nloci) +
+    geom_line() +
+    ggtitle("Tau = 1.25") +
+    scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_x_continuous(labels = scales::comma, 
+                       sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                           breaks = NULL, labels = NULL)) +
+    scale_colour_discrete(guide = "none") +
+    labs(x = "Generations post-optimum shift", 
+         y = "Mean within-population\nphenotypic variance", 
+         colour = "Replicate") +
+    theme_bw() +
+    theme(legend.position = "bottom", text = element_text(size = 14)) -> phenovar_K
+
+  phenovar_K
+  phenovar_K + coord_cartesian(ylim = c(0, 5))
 }
 
 # dpdt data
@@ -348,3 +370,79 @@ ggsave("dpdt_grid_scaled.png", dpdt_grid_scaled, width = 14, height = 30, device
 }
 
 
+# allele frequency spectrum
+d_SFS <- data.table::fread(paste0(DATA_PATH, "mutationStats/d_SFS.csv"), header = F, 
+                          sep = ",", colClasses = c("factor", "factor", "numeric", 
+                                                    "factor",
+                                                    rep("numeric", times = 3)), 
+                          col.names = c("optPerc", "modelindex", "mutType", "freqBin",
+                                        "countFreqBin", "meanValue", "sdValue"), 
+                          fill = T)
+
+d_SFS <- AddCombosToDF(d_SFS)
+
+freqBins <- seq(from = 0.1, to = 1, by = 0.1)
+d_SFS <- d_SFS %>%
+  mutate(freqBin = freqBins[as.numeric(freqBin)])
+
+# change in SFS over the walk
+d_deltaSFS <- d_SFS %>%
+  group_by(mutType, freqBin, model, nloci, tau, r) %>%
+  summarise(deltaCount = sum(diff(countFreqBin)))
+
+ggplot(d_deltaSFS %>% 
+         mutate(freqBin = freqBin - 0.1) %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE"),
+                mutType = as.factor(mutType),
+                mutType = fct_recode(mutType, "$\\alpha_Z$" = "3",
+                                     "$\\beta_Z$" = "4",
+                                     "K_Z" = "5",
+                                     "K_{XZ}" = "6")) %>%
+         filter(tau == 0.0125, 
+                nloci == 1024, r %in% r_subsample) %>%
+         uncount(countFreqBin),
+       aes(x = freqBin, y = deltaCount, fill = model)) +
+  facet_nested(log10(r) ~ model + mutType) +
+  geom_col(position = position_nudge(x = 0.05)) +
+  #stat_binline(bins = 10, binwidth = 0.1, position = position_nudge(x = 0.05), 
+  #             scale = 0.95) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, 
+                                         direction = -1),
+                    labels = c("Additive", "K+", "K-")) +
+  scale_y_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  labs(x = "Allele frequency", y = "Progress to the optimum", 
+       fill = "Model") +
+  coord_cartesian(xlim = c(0, 1)) +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+
+ggplot(d_SFS %>% 
+         mutate(freqBin = freqBin - 0.1) %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE"),
+                mutType = as.factor(mutType),
+                mutType = fct_recode(mutType, "$\\alpha_Z$" = "3",
+                                     "$\\beta_Z$" = "4",
+                                     "K_Z" = "5",
+                                     "K_{XZ}" = "6")) %>%
+         filter(tau == 0.0125, 
+                nloci == 1024, r %in% r_subsample) %>%
+         uncount(countFreqBin),
+       aes(x = freqBin, y = optPerc, fill = model)) +
+  facet_nested(log10(r) ~ model + mutType) +
+  stat_binline(bins = 10, binwidth = 0.1, position = position_nudge(x = 0.05), 
+                      scale = 0.95) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, 
+                                         direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_y_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  labs(x = "Allele frequency", y = "Progress to the optimum", 
+       fill = "Model") +
+  coord_cartesian(xlim = c(0, 1)) +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 12))
+ggsave("plt_sfs.png", device = png, width = 10, height = 4)

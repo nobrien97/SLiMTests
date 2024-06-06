@@ -2,8 +2,6 @@
 library(bWGR)
 library(purrr)
 
-# Path to write output
-WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/getH2/out_h2_", run, ".csv")
 # Get command line arguments
 ## 1: model (ODE, K, or Additive)
 ## 2: run
@@ -11,6 +9,9 @@ args <- commandArgs(trailingOnly = T)
 model <- as.numeric(args[1])
 run <- as.numeric(args[2])
 run_chunk <- paste(run, chunk, sep = "_")
+
+# Path to write output
+WRITE_PATH <- paste0("/scratch/ht96/nb9894/standingVar/getH2/out_h2_", run, ".csv")
 
 # Load functions for loading relatedness/haplotype matrices
 source("~/tests/h2/R/helpFns.R")
@@ -100,7 +101,7 @@ if (model == "Add") {
 }
 
 # Print output
-if (is.na(mkr_result) & is.na("mrr_result")) {
+if (is.na(mkr_result[1]) & is.na(mrr_result[1])) {
   print(paste("Couldn't solve model in run ", run, "- closing R."))
   q(save = "no")
 }
