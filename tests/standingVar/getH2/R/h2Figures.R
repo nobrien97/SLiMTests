@@ -336,7 +336,9 @@ ggsave("plt_va.png", device = png, bg = "white",
 
 d_h2 %>%
   group_by(model, seed, tau, r, nloci, method) %>%
+  filter(n() > 1) %>%
   summarise(totalDeltaVA = sum(diff(VA_Z))/sum(VA_Z)) -> d_h2_deltaVA
+
 
 # total distribution
 boxplot(d_h2_deltaVA$totalDeltaVA)
@@ -352,8 +354,8 @@ ggplot(d_h2_deltaVA %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
-         filter(method == "mkr", r %in% r_subsample),
-       aes(x = as.factor(tau), y = totalDeltaVA, colour = model)) +
+         filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+       aes(x = model, y = totalDeltaVA, colour = model)) +
   facet_nested(r_title + log10(r) ~ .) +
   geom_quasirandom(dodge.width = 0.9) +
   #coord_cartesian(ylim = c(0, 1)) +
@@ -361,17 +363,22 @@ ggplot(d_h2_deltaVA %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
-               filter(method == "mkr", r %in% r_subsample),
-             aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
+               filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+             aes(x = model, y = meanDeltaVA, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
-  labs(x = "Mutational effect size variance", 
+  labs(x = "Model", 
        y = TeX("Change in additive variance $(\\Delta V_A)$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::ArcticGates", 3),
+  scale_x_discrete(labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           3, direction = -1),
+                      guide = "none",
                       labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
+
+ggsave("plt_deltaVA.png", device = png, width = 9, height = 4)
 
 # Correlation of genetic variance to time to adaptation
 d_pheno_va <- left_join(d_h2, 
