@@ -83,6 +83,73 @@ ggplot(d_qg %>% filter(tau == 0.0125),
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 14))
+ggsave("plt_neu_phenomean.png", device = png, width = 9, height = 4)
+
+ggplot(d_qg %>% filter(tau == 1.25),
+       aes(x = gen, y = phenomean, colour = model, 
+           group = interaction(modelindex, as.factor(seed)))) +
+  facet_grid(r~width) +
+  geom_line() +
+  gghighlight(seed == sample(unique(d_qg$seed), 1), calculate_per_facet = T,
+              unhighlighted_params = list(colour = NULL, alpha = 0.1)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  ggtitle("Tau = 1.25") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = scales::comma, 
+                     sec.axis = sec_axis(~ ., name = "Selection strength", 
+                                         breaks = NULL, labels = NULL)) +
+  coord_cartesian(ylim = c(0, 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = "Generations post-optimum shift", y = "Population mean phenotype", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+ggplot(d_qg %>% filter(tau == 0.0125),
+       aes(x = gen, y = phenovar, colour = model, 
+           group = interaction(modelindex, as.factor(seed)))) +
+  facet_grid(r~width) +
+  geom_line() +
+  gghighlight(seed == sample(unique(d_qg$seed), 1), calculate_per_facet = T,
+              unhighlighted_params = list(colour = NULL, alpha = 0.1)) +
+  ggtitle("Tau = 0.0125") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = scales::comma, 
+                     sec.axis = sec_axis(~ ., name = "Selection strength", 
+                                         breaks = NULL, labels = NULL)) +
+  coord_cartesian(ylim = c(0, 0.5)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = "Generations post-optimum shift", y = "Population phenotypic variance", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+ggsave("plt_neu_phenovar.png", device = png, width = 9, height = 4)
+
+ggplot(d_qg %>% filter(tau == 1.25),
+       aes(x = gen, y = phenovar, colour = model, 
+           group = interaction(modelindex, as.factor(seed)))) +
+  facet_grid(r~width) +
+  geom_line() +
+  gghighlight(seed == sample(unique(d_qg$seed), 1), calculate_per_facet = T,
+              unhighlighted_params = list(colour = NULL, alpha = 0.1)) +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  ggtitle("Tau = 1.25") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = scales::comma, 
+                     sec.axis = sec_axis(~ ., name = "Selection strength", 
+                                         breaks = NULL, labels = NULL)) +
+  coord_cartesian(ylim = c(0, 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = "Generations post-optimum shift", y = "Population phenotypic variance", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
 
 # epistasis figures
 d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_mean.csv"), header = F, sep = ",",
@@ -92,23 +159,6 @@ d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_mean.csv"), header = F, sep =
 d_epi_means_sbst <- d_epi_means %>% 
   distinct()
 
-
-d_epi_diff <- crossing(optPerc = d_epi_means_sbst$optPerc,
-                       modelindex1 = d_epi_means_sbst$modelindex, 
-                       modelindex2 = d_epi_means_sbst$modelindex)
-
-d_epi_diff <- d_epi_diff %>%
-  group_by(modelindex1, modelindex2) %>%
-  mutate(meanEP_1 = d_epi_means_sbst$meanEP[d_epi_means_sbst$modelindex == modelindex1],
-         meanEP_2 = d_epi_means_sbst$meanEP[d_epi_means_sbst$modelindex == modelindex2],
-         meanEW_1 = d_epi_means_sbst$meanEW[d_epi_means_sbst$modelindex == modelindex1],
-         meanEW_2 = d_epi_means_sbst$meanEW[d_epi_means_sbst$modelindex == modelindex2],
-         diffEP = meanEP_2 - meanEP_1,
-         diffEW = meanEW_2 - meanEW_1)
-
-# Outliers: model 396 generated some huge phenotypes...
-boxplot(d_epi_diff$diffEP)
-
 d_epi_means_plt <- AddCombosToDF(d_epi_means_sbst %>% 
                                    mutate(modelindex = as.factor(modelindex)))
 
@@ -116,21 +166,24 @@ d_epi_means_plt <- AddCombosToDF(d_epi_means_sbst %>%
 ggplot(d_epi_means_plt, aes(x = model, y = meanEW)) +
   facet_grid(.~optPerc) +
   geom_boxplot() +
-  labs(x = "Model", y = "Average trait epistasis") +
+  labs(x = "Model", y = "Average fitness epistasis") +
   scale_x_discrete(labels = c("Additive", "K+", "K-")) +
   theme_bw() +
   theme(text = element_text(size = 14))
 
 # Zoom in, ignore big outlier
-ggplot(d_epi_means_plt %>% filter(meanEW < 3), 
-       aes(x = model, y = meanEW, colour = model)) +
-  facet_grid(r~width) +
+ggplot(d_epi_means_plt %>% filter(meanEP < 3) %>%
+         mutate(r_title = "Recombination rate",
+                width_title = "Selection strength"), 
+       aes(x = model, y = meanEP, colour = model)) +
+  facet_nested(r_title + r ~ width_title + width) +
   geom_boxplot() +
   labs(x = "Model", y = "Average trait epistasis", colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
                       labels = c("Additive", "K+", "K-")) +
   theme_bw() +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 14), legend.position = "bottom")
+ggsave("plt_neu_ep.png", device = png)
 
 # frequency adjusted
 d_epi_freq_means <- read.table(paste0(DATA_PATH, "d_epi_freqweight_mean.csv"), header = F, sep = ",",
@@ -159,7 +212,7 @@ ggplot(d_epi_freq_means_plt %>% filter(meanEP < 3),
   geom_boxplot(position = position_dodge(0.9)) +
   geom_errorbar(aes(ymin = meanEP - sdEP/sqrt(count), 
                     ymax = meanEP + sdEP/sqrt(count)), position = position_dodge(0.9)) +
-  labs(x = "Model", y = "Average trait epistasis", colour = "Model") +
+  labs(x = "Mutational effect variance", y = "Average trait epistasis", colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
                       labels = c("Additive", "K+", "K-")) +
   theme_bw() +
@@ -219,7 +272,6 @@ d_ld_sum <- d_ld %>%
 # Outliers: histogram of all estimates
 bins <- seq(-0.25, 0.25, length.out = 21)
 
-
 d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, width, tau, r, 10:29) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
   group_by(gen, seed, optPerc, model, width, tau, r) %>%
@@ -229,7 +281,8 @@ d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, width, tau, r, 10:2
 ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
                                  r_title = "Recombination rate (log10)",
                                  width_title = "Selection strength",
-                                 tau_title = "Mutational effect size variance"), 
+                                 tau_title = "Mutational effect size variance") %>%
+         filter(tau == 1.25), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
   facet_nested(r_title + r ~ width_title + width) +
   geom_boxplot(position = position_identity()) +
@@ -245,6 +298,33 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
+
+ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 r_title = "Recombination rate",
+                                 width_title = "Selection strength",
+                                 tau_title = "Mutational effect size variance") %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")), 
+       aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
+  facet_nested(r_title + r ~ width_title + width + model) +
+  geom_boxplot(position = position_identity(), outlier.shape = 1,
+               outlier.alpha = 0.2) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model, colour = model)
+    #position = position_dodge(width = 0.9)
+  ) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+ggsave("plt_neu_ld.png", device = png, width = 14, height = 5)
+
+
 
 # Proportion of D estimates > 0.05 or < 0.05: i.e. there is non-zero LD
 ggplot(d_ld %>%
@@ -478,7 +558,7 @@ ggplot(d_h2 %>%
   guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_add_va_sml
-
+ggsave("plt_neu_va.png", plt_add_va_sml, device = png, width = 9, height = 4)
 ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate",
                 width_title = "Selection strength",
@@ -509,7 +589,6 @@ ggplot(d_h2 %>%
 leg <- get_legend(plt_add_va_lrg)
 
 plt_add_va <- plot_grid(plt_add_va_sml + theme(legend.position = "none"),
-                        plt_add_va_med + theme(legend.position = "none"),
                         plt_add_va_lrg + theme(legend.position = "none"),
                         ncol = 1, labels = "AUTO")
 
@@ -518,3 +597,40 @@ plt_add_va <- plot_grid(plt_add_va,
 plt_add_va
 ggsave("plt_va.png", device = png, bg = "white",
        width = 560*4, height = 980*4, units = "px")
+
+# compare VA to VI
+d_epi_means_plt <- d_epi_means_plt %>% 
+  mutate(VI = sdEP^2,
+         optPerc = as.factor(optPerc))
+  
+
+d_VA_VI <- inner_join(d_h2 %>% 
+                        group_by(modelindex, model, 
+                                 nloci, tau, r, width) %>%
+                        summarise(VA = mean(VA_Z)), 
+                      d_epi_means_plt %>%
+                        group_by(modelindex, model, 
+                               nloci, tau, r, width) %>%
+                        summarise(VI = mean(VI)),  # mean across time points
+                      by = c("modelindex", 
+                             "model", "nloci", "tau", "r", "width"))
+
+# Proportions of VA vs VI
+ggplot(d_VA_VI %>% 
+         rowwise() %>%
+         mutate(propVA = VA / ( VI),
+                propVI = VI / ( VA)) %>%
+         mutate(r_title = "Recombination rate",
+                width_title = "Selection strength",
+                tau_title = "Mutational effect size variance"),
+       aes(x = as.factor(r), y = propVI, colour = model)) +
+  facet_nested(tau_title + tau ~ width_title + width, scales = "free") +
+  geom_point(position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  #coord_cartesian(ylim = c(0, 0.0001)) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
