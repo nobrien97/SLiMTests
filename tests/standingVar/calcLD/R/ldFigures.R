@@ -136,22 +136,54 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
                                  r_title = "Recombination rate (log10)",
                                  nloci_title = "Number of loci",
                                  tau_title = "Mutational effect size variance") %>%
-         filter(log10(r) > -7), 
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")) %>%
+         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
-  facet_nested(r_title + log10(r) ~ .) +
-  geom_boxplot(position = position_identity()) +
+  facet_nested(r_title + log10(r) ~ model) +
+  geom_boxplot(position = position_identity(), outlier.shape = 1,
+               outlier.alpha = 0.2) +
   stat_summary(
     fun = median,
     geom = "line",
     aes(group = model, colour = model)
     #position = position_dodge(width = 0.9)
   ) +
-  scale_colour_manual(values = paletteer_d("MoMAColors::Panton")[4:6],
-                      labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
+ggsave("plt_ld.png", device = png, width = 9, height = 4)
+
+# what about averages?
+
+ggplot(d_ld %>%
+         filter(tau == 0.0125) %>%
+         group_by(model, r) %>%
+         summarise(meanD_mean = mean(meanD),
+                   meanD_se = se(meanD)) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                           nloci_title = "Number of loci",
+                           tau_title = "Mutational effect size variance") %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")) %>%
+         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1), 
+       aes(x = model, y = meanD_mean, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  geom_point(position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  #scale_x_continuous(labels = bins[7:15]) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+ggsave("plt_ld_sum.png", device = png, width = 9, height = 4)
+
+
 
 # Proportion of D estimates > 0.05 or < 0.05: i.e. there is non-zero LD
 # tau has very little effect, so we will average over that
@@ -704,7 +736,8 @@ d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, freqBin, model, nloci, ta
 d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
 
 # Outliers: histogram of all estimates
-d_ld_freq_dist_hist <- d_ld_freq %>% select(gen, seed, freqBin, optPerc, model, nloci, tau, r, 11:30) %>%
+d_ld_freq_dist_hist <- d_ld_freq %>% filter(freqBin > 0.1) %>% 
+  select(gen, seed, optPerc, model, nloci, tau, r, 11:30) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
   group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
   mutate(prop = count / sum(count)) %>%
@@ -716,9 +749,13 @@ ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0
                                  r_title = "Recombination rate (log10)",
                                  nloci_title = "Number of loci",
                                  tau_title = "Mutational effect size variance") %>%
-         filter(nloci == 1024, tau == 0.0125), 
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")) %>%
+         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1) %>%
+         filter(tau == 0.0125), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
-  facet_nested(r_title + log10(r) ~ freqBin) +
+  facet_nested(r_title + log10(r) ~ model) +
   geom_boxplot(position = position_identity()) +
   stat_summary(
     fun = median,
@@ -727,11 +764,14 @@ ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0
     #position = position_dodge(width = 0.9)
   ) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
-                      labels = c("Additive", "K+", "K-")) +
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
   theme(text = element_text(size = 12), legend.position = "bottom")
+
+ggsave("plt_ld_freq.png", device = png, width = 9, height = 4)
+
 
 
 # Normalise mean counts by max elements
