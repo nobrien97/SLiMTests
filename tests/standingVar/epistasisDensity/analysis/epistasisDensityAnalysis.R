@@ -309,6 +309,47 @@ ggplot(d_epi_means_plt %>% filter(sdEP < 15),
   guides(fill = guide_colourbar(barwidth = 10)) +
   theme(legend.position = "bottom", text = element_text(size = 16))
 
+
+# compare VA to VI
+d_epi_means_plt <- d_epi_means_plt %>% 
+  mutate(VI = sdEP^2,
+         optPerc = as.factor(optPerc))
+
+source("h2Figures.R")
+
+d_VA_VI <- inner_join(d_h2 %>% 
+                        group_by(modelindex, model, 
+                                 nloci, tau, r, width) %>%
+                        summarise(VA = mean(VA_Z)), 
+                      d_epi_means_plt %>%
+                        group_by(modelindex, model, 
+                                 nloci, tau, r, width) %>%
+                        summarise(VI = mean(VI)),  # mean across time points
+                      by = c("modelindex", 
+                             "model", "nloci", "tau", "r", "width"))
+
+# Proportions of VA vs VI
+ggplot(d_VA_VI %>% 
+         rowwise() %>%
+         mutate(propVA = VA / ( VI),
+                propVI = VI / ( VA)) %>%
+         mutate(r_title = "Recombination rate",
+                width_title = "Selection strength",
+                tau_title = "Mutational effect size variance"),
+       aes(x = as.factor(r), y = propVI, colour = model)) +
+  facet_nested(tau_title + tau ~ width_title + width, scales = "free") +
+  geom_point(position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  #coord_cartesian(ylim = c(0, 0.0001)) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
+
 # Now the frequency-weighted sampling data:
 # Not much difference to the non-weighted results
 {
