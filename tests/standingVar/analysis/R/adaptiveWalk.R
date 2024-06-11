@@ -8,12 +8,42 @@ library(ggh4x)
 library(cowplot)
 library(ggbeeswarm)
 
+setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/analysis/R")
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
+# Cowplot 1.1.3 bug: won't get legend, this fixes
+get_legend <- function(plot, legend = NULL) {
+  
+  gt <- ggplotGrob(plot)
+  
+  pattern <- "guide-box"
+  if (!is.null(legend)) {
+    pattern <- paste0(pattern, "-", legend)
+  }
+  
+  indices <- grep(pattern, gt$layout$name)
+  
+  not_empty <- !vapply(
+    gt$grobs[indices], 
+    inherits, what = "zeroGrob", 
+    FUN.VALUE = logical(1)
+  )
+  indices <- indices[not_empty]
+  
+  if (length(indices) > 0) {
+    return(gt$grobs[[indices[1]]])
+  }
+  return(NULL)
+}
+
+
 d_combos <- read.table("../../R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
+
+# d_combos <- read.table("~/tests/standingVar/R/combos.csv", header = F,
+#                        col.names = c("nloci", "tau", "r", "model"))
 
 # load trait evolution data
 d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
@@ -33,13 +63,50 @@ d_qg %>%
   mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
   ungroup() -> d_qg
 
-View(d_qg %>% group_by(model, nloci, tau, r) %>%
+
+d_prop_adapted <- d_qg %>% group_by(model, nloci, tau, r) %>%
        filter(gen == 59950) %>%
        summarise(n = n(),
                  nAdapted = sum(isAdapted),
                  pAdapted = mean(isAdapted)
                  )
-     )
+
+# Plot adapted populations - almost all populations adapted, except the small effect
+# additive case with low recombination. High recombination allows the additive to 
+# recover
+ggplot(d_prop_adapted %>% mutate(r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci",
+                                 tau_title = "Mutational effect size variance"),
+       aes(x = as.factor(tau), y = pAdapted, colour = model)) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_point(position = position_dodge(0.7), size = 2) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = "Mutational effect size variance", 
+       y = "Probability of adaptation", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+ggsave("pAdapted.png", width = 12, height = 10, device = png)
+
+
+ggplot(d_prop_adapted %>% filter(tau == 0.0125) %>% 
+         mutate(r_title = "Recombination rate (log10)",
+                                 nloci_title = "Number of loci",
+                                 tau_title = "Mutational effect size variance") %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")),
+       aes(x = model, y = pAdapted, colour = model)) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_point(position = position_dodge(0.7), size = 2) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      guide = "none") +
+  labs(x = "Model", 
+       y = "Probability of adaptation", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+ggsave("pAdapted_sml.png", width = 10, height = 10, device = png)
+
 
 d_adapted_sum <- d_qg %>% 
   filter(isAdapted, gen >= 49500) %>%
@@ -446,3 +513,188 @@ ggplot(d_SFS %>%
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 12))
 ggsave("plt_sfs.png", device = png, width = 10, height = 4)
+
+# Heterozygosity
+# add header row with maximum number of columns
+head_name <- c("gen","seed",c("gen", "seed", "modelindex", paste0("Ho_", 1:1024)))
+write.csv(het_header, "het_header")
+
+
+# load in observed heterozygosity data
+d_het <- data.table::fread(paste0(DATA_PATH, "slim_locusHo_hdr.csv"), 
+                    header = T, sep = ",", 
+                    colClasses = c("integer", "factor", "factor", 
+                                   rep("numeric", times = 1024)), 
+                    col.names = c("gen", "seed", "modelindex", paste0("Ho_", 1:1024)), 
+                    fill = T)
+
+d_qg$optPerc <- d_qg$phenomean - 1
+d_qg$optPerc <- cut(d_qg$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
+d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, optPerc) %>% filter(gen >= 49500)
+
+d_het <- left_join(d_het, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
+
+d_het <- AddCombosToDF(d_het)
+
+# Summarise, mean H_O over time
+d_het %>%
+  group_by(optPerc, seed, model, nloci, tau, r) %>%
+  summarise(meanHo = mean(cbind(select(starts_with("Ho"))), na.rm = T),
+            CIHo = CI(cbind(select(starts_with("Ho"))), na.rm = T)) -> d_Ho_sum
+
+# Mean heterozygosity across all contributing loci
+d_het %>%
+  rowwise() %>%
+  mutate(meanHo = mean(c_across(4:1027), na.rm = T),
+         CIHo = CI(c_across(4:1027), na.rm = T)) %>%
+  select(1:3, meanHo, CIHo) -> d_Ho_sum
+
+# Define a custom function to compute mean and confidence interval
+compute_stats <- function(row) {
+  mean_val <- mean(row, na.rm = TRUE)
+  ci_val <- CI(row, na.rm = TRUE)
+  return(list(meanHo = mean_val, CIHo = ci_val))
+}
+
+setDT(d_het)
+
+# Apply the function to each row and store the results in two new columns
+result <- d_het[, .(meanHo = mean(unlist(.SD), na.rm = TRUE), 
+                    CIHo = CI(unlist(.SD), na.rm = TRUE)), 
+                .SDcols = 4:1027, by = 1:nrow(d_het)]
+
+# Combine the results with the first 3 columns
+d_Ho_sum <- cbind(d_het[, 1:3], result[, -1, with = FALSE])
+
+# Optionally convert back to a dataframe
+d_Ho_sum <- as.data.frame(d_Ho_sum)
+
+write.table(d_Ho_sum, "d_Ho_sum.csv", sep = ",", col.names = F, row.names = F)
+
+d_Ho_sum <- data.table::fread(paste0(DATA_PATH, "d_Ho_sum.csv"), 
+                           header = F, sep = ",", 
+                           colClasses = c("integer", "factor", "factor", 
+                                          "numeric", "numeric"), 
+                           col.names = c("gen", "seed", "modelindex", "meanHo", "CIH"), 
+                           fill = T)
+
+d_Ho_sum <- left_join(d_Ho_sum, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
+d_Ho_sum <- AddCombosToDF(d_Ho_sum)
+
+
+# Distribution
+ggplot(d_Ho_sum %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = meanHo, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  coord_cartesian(ylim = c(0, 0.2)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Heterozygosity $(H)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") -> plt_Ho_sml
+
+ggplot(d_qg %>% 
+         mutate(gen = gen - 50000) %>%
+         filter(gen > -1000) %>%
+         group_by(gen, model, tau, r, nloci) %>%
+         summarise(CIH = CI(meanH),
+                   meanH = mean(meanH)) %>%
+         filter(tau == 0.0125) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+         aes(x = gen, y = meanH, colour = model)) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanH - CIH, ymax = meanH + CIH, fill = model), 
+              alpha = 0.2, colour = NA) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post optimum shift", 
+       y = TeX("Heterozygosity $(H)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-"), guide = "none") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") -> plt_het_sml
+
+ggplot(d_qg %>% 
+         mutate(gen = gen - 50000) %>%
+         filter(gen > -1000) %>%
+         group_by(gen, model, tau, r, nloci) %>%
+         summarise(CIH = CI(meanH),
+                   meanH = mean(meanH)) %>%
+         filter(tau == 0.125) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = gen, y = meanH, colour = model)) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanH - CIH, ymax = meanH + CIH, fill = model), 
+              alpha = 0.2, colour = NA) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post optimum shift", 
+       y = TeX("Heterozygosity $(H)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-"), guide = "none") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") -> plt_het_med
+
+ggplot(d_qg %>% 
+         mutate(gen = gen - 50000) %>%
+         filter(gen > -1000) %>%
+         group_by(gen, model, tau, r, nloci) %>%
+         summarise(CIH = CI(meanH),
+                   meanH = mean(meanH)) %>%
+         filter(tau == 1.25) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = gen, y = meanH, colour = model)) +
+  facet_nested(r_title + log10(r) ~ nloci_title + nloci) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanH - CIH, ymax = meanH + CIH, fill = model), 
+              alpha = 0.2, colour = NA) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post optimum shift", 
+       y = TeX("Heterozygosity $(H)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-"), guide = "none") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") -> plt_het_lrg
+
+leg <- get_legend(plt_het_lrg)
+
+plt_het <- plot_grid(plt_het_sml + theme(legend.position = "none"),
+                     plt_het_med + theme(legend.position = "none"),
+                     plt_het_lrg + theme(legend.position = "none"),
+                        ncol = 1, labels = "AUTO")
+
+plt_het <- plot_grid(plt_het,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_het
+ggsave("plt_het.png", device = png, bg = "white",
+       width = 560*6, height = 980*6, units = "px")
