@@ -187,7 +187,7 @@ ggplot(d_h2 %>%
                 tau_title = "Mutational effect size variance") %>%
          filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
        aes(x = optPerc, y = VA_Z, colour = model)) +
-  facet_nested(r_title + log10(r) ~ .) +
+  facet_nested(model ~ r_title + log10(r), scales = "free") +
   geom_quasirandom(dodge.width = 0.8) +
   geom_point(data = d_h2_sum %>%
                mutate(r_title = "Recombination rate (log10)",

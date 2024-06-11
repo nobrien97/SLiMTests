@@ -182,11 +182,11 @@ plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
      ylab = "LOF Score")
 legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
        pch = 1)
+boxplot(d_h2[!outliers,]$VA_Z)
 
 # filter out outliers
 d_h2 <- d_h2[!outliers,]
-
-boxplot(d_h2[!outliers,]$VA_Z)
+write.csv(d_h2, "d_h2_outliersremoved.csv")
 
 # summarise
 d_h2_sum <- d_h2 %>%
@@ -320,6 +320,46 @@ plt_add_va
 ggsave("plt_va.png", device = png, bg = "white",
        width = 560*4, height = 980*4, units = "px")
 
+# Only small effects
+library(lemon)
+# Additive variance
+# Again, nloci not important
+ggplot(d_h2 %>% 
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         mutate(model = fct_recode(model, "Additive" = "Add", 
+                                   "K+" = "K",
+                                   "K-" = "ODE")) %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested_wrap(model ~ r_title + log10(r), scales = "free") +
+  geom_quasirandom(dodge.width = 0.8) +
+  geom_point(data = d_h2_sum %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               mutate(model = fct_recode(model, "Additive" = "Add", 
+                                         "K+" = "K",
+                                         "K-" = "ODE")) %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.8)) +
+  #coord_cartesian(ylim = c(0, 0.2)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14), panel.spacing.y = unit(1, "line"),
+        legend.position = "bottom") -> plt_add_va_sml_scl
+plt_add_va_sml_scl
+ggsave("VA_sml_scl.png", plt_add_va_sml_scl, width = 8, height = 8, device = png)
+
+
 
 # Paixao and Barton 2016 (regarding a polygenic trait with each QTL under 
 # negligible selection): "Drift will disperse allele frequencies, decreasing the
@@ -427,3 +467,9 @@ ggplot(d_pheno_va_cor %>%
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
+
+# Molecular G: extract to array of matrices
+
+d_h2 %>%
+  filter(model != "Add") %>%
+  mutate()

@@ -559,6 +559,7 @@ ggplot(d_h2 %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_add_va_sml
 ggsave("plt_neu_va.png", plt_add_va_sml, device = png, width = 9, height = 4)
+
 ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate",
                 width_title = "Selection strength",
