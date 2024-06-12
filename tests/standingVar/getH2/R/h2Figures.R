@@ -469,7 +469,59 @@ ggplot(d_pheno_va_cor %>%
         legend.position = "bottom")
 
 # Molecular G: extract to array of matrices
-
 d_h2 %>%
   filter(model != "Add") %>%
-  mutate()
+
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(modelindex, optPerc, method) %>%
+  group_split(.) -> split_h2
+
+
+# Separate into model indices
+# each sublist is replicates of a model index
+lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
+
+# We want to know if certain architectures are more/less important for describing
+# variation between simulations and which components are most important for describing
+# those differences
+
+# So eigentensor analysis: sample random combinations of seeds to get a distribution
+# of eigenvectors telling us the models which have the largest difference in variation
+# then projection to find the important components
+
+# First sample a matrix from each group
+test <- sapply(cov_matrices, sample, 1)
+
+array(unlist(cov_matrices), 
+      dim = c(nrow(cov_matrices[[1]][[1]]),
+              ncol(cov_matrices[[1]][[1]]),
+              length(cov_matrices))) -> cov_array
+
+# eigenanalysis
+eqg <- evolqg::EigenTensorDecomposition(cov_array[,,1000:1003], return.projection = T)
+
+
+# Eigentensor analysis -
+# G is a list of lists of covariance matrices
+# cores is number of cores to use concurrently when calculating eigentensors and eigenvalues
+# nmats for the number of eigentensors to keep and do an eigenanalysis on
+MCG_ET <- function(G, cores, nmats) {
+  require(evolqg)
+  Gmax <- parallel::mclapply(G, function(x) {
+    lapply(x, function(y) {
+      eigen(evolqg::EigenTensorDecomposition(simplify2array(y), return.projection = F)$matrices[,,1:nmats], 
+            symmetric = T, only.values = F)
+    })
+  }, mc.cores = cores)
+  
+  Gmax
+}
+
+test_cov_matrices <- MCG_ET(cov_matrices[1:3], 6, 1)
+
+eg_covarray <- array(unlist(cov_matrices[1]), 
+                            dim = c(nrow(cov_matrices[[1]][[1]]),
+                                    ncol(cov_matrices[[1]][[1]]),
+                                    length(cov_matrices[[1]])))
