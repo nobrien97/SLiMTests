@@ -43,9 +43,6 @@ List extractCovarianceMatrices(DataFrame df) {
   // Initialize a list to store the covariance matrices
   List covariance_matrices(num_rows);
   
-  // vector to keep track of which columns have NA values
-  std::vector<bool> has_na(n, false);
-  
   // Fill the list with covariance matrices for each row
   for (int row = 0; row < num_rows; ++row) {
     // Initialize an empty matrix to store covariances
@@ -59,11 +56,17 @@ List extractCovarianceMatrices(DataFrame df) {
         std::string var = col_name.substr(3);
         int idx = var_index[var];
         double value = Rcpp::as<NumericVector>(df[i])[row];
+        
+        // If the variance for this variable is NA, mark it 0
+        if (NumericVector::is_na(value)) {
+          value = 0;
+        }
+        
         covariance_matrix(idx, idx) = value;
         
-        // If the variance for this variable is NA, mark it for removal later
+        // If the variance for this variable is NA, mark it 0
         if (NumericVector::is_na(value)) {
-          has_na[idx] = true;
+          covariance_matrix(idx, idx) = 0;
         }
       } else if (col_name.substr(0, 3) == "CVA") {
         // Off-diagonal elements
@@ -74,34 +77,19 @@ List extractCovarianceMatrices(DataFrame df) {
         int idx2 = var_index[var2];
         double value = Rcpp::as<NumericVector>(df[i])[row];
 
+        // If the variance for this variable is NA, mark it 0
+        if (NumericVector::is_na(value)) {
+          value = 0;
+        }
+  
         covariance_matrix(idx1, idx2) = value;
         covariance_matrix(idx2, idx1) = value; // Because covariance matrices are symmetric
       }
     }
     
-    // Remove NA
-    std::vector<int> keep_indices;
-    for (int i = 0; i < n; ++i) {
-      if (!has_na[i]) {
-        keep_indices.push_back(i);
-      }
-    }
-    
-    // Create a smaller matrix discarding NA values
-    int m = keep_indices.size();
-    NumericMatrix out_matrix(m, m);
-    CharacterVector out_var_names(m);
-    
-    for (int i = 0; i < m; ++i) {
-      for (int j = 0; j < m; ++j) {
-        out_matrix(i, j) = covariance_matrix(keep_indices[i], keep_indices[j]);
-      }
-      out_var_names[i] = variables[keep_indices[i]];
-    }
-    
     // Store the covariance matrix in the list
-    covariance_matrices[row] = out_matrix;
-    colnames(covariance_matrices[row]) = out_var_names;
+    covariance_matrices[row] = covariance_matrix;
+    colnames(covariance_matrices[row]) = wrap(variables);
     rownames(covariance_matrices[row]) = colnames(covariance_matrices[row]);
   }
   
