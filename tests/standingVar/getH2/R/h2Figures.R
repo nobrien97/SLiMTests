@@ -481,7 +481,10 @@ d_h2 %>%
 
 # Separate into model indices
 # each sublist is replicates of a model index
+Rcpp::sourceCpp("./getCovarianceMatrices.cpp")
 lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
+lapply(split_h2, function(x) {list(optPerc = x$optPerc[1], seed = x$seed[1], modelindex = x$modelindex[1])}) -> cov_matrix_modelindex
+
 
 # We want to know if certain architectures are more/less important for describing
 # variation between simulations and which components are most important for describing
@@ -492,36 +495,128 @@ lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> c
 # then projection to find the important components
 
 # First sample a matrix from each group
-test <- sapply(cov_matrices, sample, 1)
+test_indices <- sapply(cov_matrices, function(x) {
+  sample(1:length(x), 1)
+  }, simplify = F)
+
+test <- sapply(1:length(cov_matrices), function(x) {
+  cov_matrices[[x]][[test_indices[[x]]]]
+}, simplify = F)
 
 array(unlist(cov_matrices), 
       dim = c(nrow(cov_matrices[[1]][[1]]),
               ncol(cov_matrices[[1]][[1]]),
               length(cov_matrices))) -> cov_array
 
-# eigenanalysis
-eqg <- evolqg::EigenTensorDecomposition(cov_array[,,1000:1003], return.projection = T)
 
+# KrzSubspaceBootstrap w/ G matrices
+# x is a list of matrices
 
-# Eigentensor analysis -
-# G is a list of lists of covariance matrices
-# cores is number of cores to use concurrently when calculating eigentensors and eigenvalues
-# nmats for the number of eigentensors to keep and do an eigenanalysis on
-MCG_ET <- function(G, cores, nmats) {
-  require(evolqg)
-  Gmax <- parallel::mclapply(G, function(x) {
-    lapply(x, function(y) {
-      eigen(evolqg::EigenTensorDecomposition(simplify2array(y), return.projection = F)$matrices[,,1:nmats], 
-            symmetric = T, only.values = F)
-    })
-  }, mc.cores = cores)
+x <- cov_array[3:5,3:5,1:100]
+
+doParallel::registerDoParallel(cores = 8)
+test <- KrzSubspaceBootstrap(x, 10, parallel = T)
+doParallel::stopImplicitCluster()
+
+KrzSubspaceBootstrap = function(cov_array, rep = 1, MCMCsamples = 1000, parallel = FALSE){
+  n_matrices <- dim(cov_array)[3]
+  P_list = laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(cov_array[,,i], samples = MCMCsamples)$Ps)
+  P_list = aperm(P_list, c(3, 4, 1, 2))
+
+  Hs = llply(alply(P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
+  avgH = Reduce("+", Hs)/length(Hs)
+  avgH.vec <- eigen(avgH)$vectors
+  MCMC.H.val = laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
   
-  Gmax
+  rand = laply(1:rep, function(i) randomKrz(cov_array, MCMCsamples), .parallel = parallel)
+  
+  MCMC.H.val.random = do.call(rbind, alply(rand, 1, identity))
+  list(observed = MCMC.H.val, random = MCMC.H.val.random)
 }
 
-test_cov_matrices <- MCG_ET(cov_matrices[1:3], 6, 1)
+randomKrz = function(cov_array, samples) {
+  n_matrices <- dim(cov_array)[3]
+  
+  # Resample covariance matrices
+  random_indices <- sample(1:n_matrices, n_matrices, replace = TRUE)
+  random_cov_matrices <- cov_array[,,random_indices]
+  random_P_list <- laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(random_cov_matrices[,,i], samples = samples)$Ps)
+  random_P_list <- aperm(random_P_list, c(3, 4, 1, 2))
+  
+  Hs <- llply(alply(random_P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
+  avgH <- Reduce("+", Hs) / length(Hs)
+  avgH.vec <- eigen(avgH)$vectors
+  MCMC.H.val.random <- laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
+  MCMC.H.val.random
+}
 
-eg_covarray <- array(unlist(cov_matrices[1]), 
-                            dim = c(nrow(cov_matrices[[1]][[1]]),
-                                    ncol(cov_matrices[[1]][[1]]),
-                                    length(cov_matrices[[1]])))
+BayesianCalculateMatrixCov <- function(S_x, samples = NULL, nu = NULL, S_0 = NULL){
+  N = dim(S_x)[1]
+  p = dim(S_x)[2]
+  if(is.null(nu)) nu = p
+  if(is.null(S_0)){
+    S_0 = diag(0, p)
+    diag(S_0) = diag(S_x/N) * nu
+  }
+  S_N <- S_0 + S_x
+  nu_N <- nu + N
+  MAP <- (S_0 + S_x) / (nu + N)
+  MLE <- S_x / N
+  if(!is.null(samples)){
+    S_sample <- laply(rlply(samples, MCMCpack::riwish(nu_N, S_N)), identity)
+    median.P <- aaply(S_sample, 2:3, median)
+    class(S_sample) <- "mcmc_sample"
+    return(list(MAP = MAP, 
+                MLE = MLE, 
+                P = median.P, 
+                Ps = S_sample))
+  }
+  else return(list(MAP = MAP, MLE = MLE))
+}
+
+
+d_test <- KrzSubspaceDataFrame(test)
+PlotKrzSubspace(d_test)
+
+PCAS <- PCAsimilarity(test[1:100])
+
+# Distance between G matrices
+library(ape)
+frobenius_distance <- function(A, B) {
+  return(sqrt(sum((A - B)^2)))
+}
+
+compute_distance_matrix <- function(list_of_matrices) {
+  n <- length(list_of_matrices)
+  distance_matrix <- matrix(0, n, n)
+  
+  for (i in 1:(n-1)) {
+    for (j in (i+1):n) {
+      distance <- frobenius_distance(list_of_matrices[[i]], list_of_matrices[[j]])
+      distance_matrix[i, j] <- distance
+      distance_matrix[j, i] <- distance
+    }
+  }
+  
+  rownames(distance_matrix) <- colnames(distance_matrix) <- paste("Matrix", 1:n)
+  return(distance_matrix)
+}
+
+library(ape)
+library(tidytree)
+library(ggtree)
+dist_matrix <- compute_distance_matrix(test)
+hc <- hclust(as.dist(dist_matrix), method="average")
+plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+
+id <- rbindlist(cov_matrix_modelindex, fill = T)
+id$label <- 1:nrow(id)
+phylo <- full_join(phylo, id, by = "label")
+
+phylo <- AddCombosToDF(phylo)
+
+ggtree(phylo)
