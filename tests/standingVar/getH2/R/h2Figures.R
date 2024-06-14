@@ -187,6 +187,8 @@ boxplot(d_h2[!outliers,]$VA_Z)
 # filter out outliers
 d_h2 <- d_h2[!outliers,]
 write.csv(d_h2, "d_h2_outliersremoved.csv")
+d_h2 <- read.csv("d_h2_outliersremoved.csv")
+d_h2 <- d_h2[,-1]
 
 # summarise
 d_h2_sum <- d_h2 %>%
@@ -470,8 +472,7 @@ ggplot(d_pheno_va_cor %>%
 
 # Molecular G: extract to array of matrices
 d_h2 %>%
-  filter(model != "Add") %>%
-
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   mutate(tmpCVA = CVA_a_b,
          CVA_a_b = CVA_a_KZ,
          CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
@@ -592,7 +593,7 @@ compute_distance_matrix <- function(list_of_matrices) {
   
   for (i in 1:(n-1)) {
     for (j in (i+1):n) {
-      distance <- frobenius_distance(list_of_matrices[[i]], list_of_matrices[[j]])
+      distance <- shapes::distcov(list_of_matrices[[i]], list_of_matrices[[j]], "Power")
       distance_matrix[i, j] <- distance
       distance_matrix[j, i] <- distance
     }
@@ -602,21 +603,159 @@ compute_distance_matrix <- function(list_of_matrices) {
   return(distance_matrix)
 }
 
-library(ape)
+
 library(tidytree)
 library(ggtree)
+library(phytools)
+
 dist_matrix <- compute_distance_matrix(test)
 hc <- hclust(as.dist(dist_matrix), method="average")
 plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
+clus <- cutree(hc, 4)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
 phylo <- as.phylo(hc)
 phylo <- as_tibble(phylo)
 phylo$label <- as.numeric(substring(phylo$label, 8))
-
+phylo <- as.phylo(phylo)
 id <- rbindlist(cov_matrix_modelindex, fill = T)
-id$label <- 1:nrow(id)
-phylo <- full_join(phylo, id, by = "label")
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$nloci_group <- "[4, 64)"
+id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
+id$nloci_group[id$nloci == 1024] <- "[1024]"
+id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
 
-phylo <- AddCombosToDF(phylo)
+id$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id[idx,"clus"] <- i
+}
 
-ggtree(phylo)
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id$clus, id$nloci_group, id$r, id$model)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model")
+tab <- as.data.frame(tab)
+
+model <- glm(Freq~cluster*nloci,family=poisson(),data=tab)
+summary(model)
+
+id %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+phylo <- full_join(as.phylo(phylo), id, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 4)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id$clus)) {
+  if(length(id$clus[id$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id$clus)) {
+  if(length(id$clus[id$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+       x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                       color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                        tree_nloci,
+                        ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix.png", device = png, bg = "white",
+       width = 10, height = 5)
+
