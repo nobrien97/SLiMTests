@@ -477,7 +477,10 @@ ggplot(d_pheno_va_cor %>%
         legend.position = "bottom")
 
 # Molecular G: extract to array of matrices
-d_h2 %>%
+# small cluster of non-adapted pops in cluster 1, otherwise isAdapted
+# doesn't predict cluster, removing
+
+d_h2 %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   mutate(tmpCVA = CVA_a_b,
          CVA_a_b = CVA_a_KZ,
@@ -515,75 +518,22 @@ array(unlist(cov_matrices),
               ncol(cov_matrices[[1]][[1]]),
               length(cov_matrices))) -> cov_array
 
+# Repeat with all matrices
+h2_mat <- unlist(cov_matrices, recursive = F)
 
-# KrzSubspaceBootstrap w/ G matrices
-# x is a list of matrices
+# get ids
+lapply(split_h2, function(x) {
+  data.frame(optPerc = x$optPerc, 
+       seed = x$seed, 
+       modelindex = x$modelindex, 
+       isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_full
 
-# x <- cov_array[3:5,3:5,1:100]
-# 
-# doParallel::registerDoParallel(cores = 8)
-# test <- KrzSubspaceBootstrap(x, 10, parallel = T)
-# doParallel::stopImplicitCluster()
-# 
-# KrzSubspaceBootstrap = function(cov_array, rep = 1, MCMCsamples = 1000, parallel = FALSE){
-#   n_matrices <- dim(cov_array)[3]
-#   P_list = laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(cov_array[,,i], samples = MCMCsamples)$Ps)
-#   P_list = aperm(P_list, c(3, 4, 1, 2))
-# 
-#   Hs = llply(alply(P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
-#   avgH = Reduce("+", Hs)/length(Hs)
-#   avgH.vec <- eigen(avgH)$vectors
-#   MCMC.H.val = laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
-#   
-#   rand = laply(1:rep, function(i) randomKrz(cov_array, MCMCsamples), .parallel = parallel)
-#   
-#   MCMC.H.val.random = do.call(rbind, alply(rand, 1, identity))
-#   list(observed = MCMC.H.val, random = MCMC.H.val.random)
-# }
-# 
-# randomKrz = function(cov_array, samples) {
-#   n_matrices <- dim(cov_array)[3]
-#   
-#   # Resample covariance matrices
-#   random_indices <- sample(1:n_matrices, n_matrices, replace = TRUE)
-#   random_cov_matrices <- cov_array[,,random_indices]
-#   random_P_list <- laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(random_cov_matrices[,,i], samples = samples)$Ps)
-#   random_P_list <- aperm(random_P_list, c(3, 4, 1, 2))
-#   
-#   Hs <- llply(alply(random_P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
-#   avgH <- Reduce("+", Hs) / length(Hs)
-#   avgH.vec <- eigen(avgH)$vectors
-#   MCMC.H.val.random <- laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
-#   MCMC.H.val.random
-# }
-# 
-# BayesianCalculateMatrixCov <- function(S_x, samples = NULL, nu = NULL, S_0 = NULL){
-#   N = dim(S_x)[1]
-#   p = dim(S_x)[2]
-#   if(is.null(nu)) nu = p
-#   if(is.null(S_0)){
-#     S_0 = diag(0, p)
-#     diag(S_0) = diag(S_x/N) * nu
-#   }
-#   S_N <- S_0 + S_x
-#   nu_N <- nu + N
-#   MAP <- (S_0 + S_x) / (nu + N)
-#   MLE <- S_x / N
-#   if(!is.null(samples)){
-#     S_sample <- laply(rlply(samples, MCMCpack::riwish(nu_N, S_N)), identity)
-#     median.P <- aaply(S_sample, 2:3, median)
-#     class(S_sample) <- "mcmc_sample"
-#     return(list(MAP = MAP, 
-#                 MLE = MLE, 
-#                 P = median.P, 
-#                 Ps = S_sample))
-#   }
-#   else return(list(MAP = MAP, MLE = MLE))
-# }
-
-
-# d_test <- KrzSubspaceDataFrame(test)
-# PlotKrzSubspace(d_test)
+# Split data frames of replicates to individual lists of dataframes with 1 row
+lapply(cov_matrix_modelindex_full, function(x) {
+  split(x, seq(nrow(x)))
+}) -> cov_matrix_modelindex_full
+# unlist to full form
+cov_matrix_modelindex_full <- unlist(cov_matrix_modelindex_full, recursive = F)
 
 # PCAS <- PCAsimilarity(test[1:100])
 
@@ -609,16 +559,44 @@ compute_distance_matrix <- function(list_of_matrices) {
   return(distance_matrix)
 }
 
+microbenchmark::microbenchmark(times = 30, 
+                               compute_distance_matrix(h2_mat[1:100]),
+                               distanceMatrix(h2_mat[1:100]))
+
+# ensure results are the same - distance should be 0 (with some precision error)
+shapes::distcov(compute_distance_matrix(h2_mat[1:100]), 
+                distanceMatrix(h2_mat[1:100]), "Power")
 
 library(tidytree)
 library(ggtree)
 library(phytools)
 
-dist_matrix <- compute_distance_matrix(test)
+dist_matrix <- distanceMatrix(h2_mat)
+colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
+rownames(dist_matrix) <- colnames(dist_matrix)
+
+fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
 hc <- hclust(as.dist(dist_matrix), method="average")
 plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-clus <- cutree(hc, 4)
+# number of clusters: 3 seems to be the best
+library(factoextra)
+# elbow plot
+fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 3, border = 2:3)
+
+# gap stat
+gap_stat <- cluster::clusGap(dist_matrix, FUN = kmeans, nstart = 30, K.max = 24, B = 50)
+fviz_gap_stat(gap_stat) + theme_minimal() + ggtitle("fviz_gap_stat: Gap Statistic")
+
+# silhouette
+fviz_nbclust(dist_matrix, kmeans, method = "silhouette", k.max = 24) + theme_minimal() + ggtitle("The Silhouette Plot")
+
+clus <- cutree(hc, 3)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -626,7 +604,7 @@ phylo <- as.phylo(hc)
 phylo <- as_tibble(phylo)
 phylo$label <- as.numeric(substring(phylo$label, 8))
 phylo <- as.phylo(phylo)
-id <- rbindlist(cov_matrix_modelindex, fill = T)
+id <- rbindlist(cov_matrix_modelindex_full, fill = T)
 id$label <- as.character(1:nrow(id))
 id$modelindex <- as.factor(id$modelindex)
 id <- AddCombosToDF(id)
@@ -647,7 +625,7 @@ tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
 names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
 tab <- as.data.frame(tab)
 
-model <- glm(Freq~cluster*nloci*isAdapted,family=poisson(),data=tab)
+model <- glm(Freq~cluster*nloci,family=poisson(),data=tab)
 summary(model)
 
 id %>% ungroup() %>%
@@ -666,9 +644,9 @@ id %>% ungroup() %>%
 
 phylo <- full_join(as.phylo(phylo), id, by = "label")
 
-clus_palette <- paletteer_d("ggsci::nrc_npg", 4)
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
 
-ggtree(phylo, aes(colour = as.factor(clus), linetype = isAdapted), layout="equal_angle") +
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
   #geom_text(aes(label=node)) +
   # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
   #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
@@ -680,6 +658,8 @@ ggtree(phylo, aes(colour = as.factor(clus), linetype = isAdapted), layout="equal
   guides(colour = guide_legend(order = 1),
          size = guide_legend(order = 2)) -> tree_clus
 tree_clus
+
+ggsave("tree_clus_full.png", device = png, width = 4, height = 4)
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
