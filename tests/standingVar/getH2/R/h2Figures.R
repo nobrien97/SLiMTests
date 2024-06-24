@@ -81,11 +81,16 @@ d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F,
                           fill = T)
 
 # Add on optPerc
+d_qg %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  ungroup() -> d_qg
+
 d_qg$optPerc <- d_qg$phenomean - 1
 d_qg$optPerc <- cut(d_qg$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
 
-d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, optPerc) %>% filter(gen >= 49500)
-
+d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, optPerc, isAdapted) %>% filter(gen >= 49500)
 
 # Combine
 d_h2_mkr <- rbind(d_h2_mkr, d_h2_mkr_pt1) %>% distinct()
@@ -109,13 +114,13 @@ d_h2 <- left_join(d_h2, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
 d_h2 <- AddCombosToDF(d_h2)
 
 # Counts for each model type: K+ harder to estimate than the other two
-table(d_h2$model)
+table(d_h2$model, d_h2$isAdapted)
 
 # We have many recombination rates: choose a few
 r_subsample <- c(1e-10, 1e-5, 1e-1)
 
 # Distribution, how different are the estimates
-ggplot(d_h2 %>% 
+ggplot(d_h2 %>% filter(isAdapted) %>%
          select(gen, seed, modelindex, optPerc, h2_Z, method, model) %>% drop_na() %>%
          distinct() %>%
          pivot_wider(names_from = method, values_from = h2_Z), 
@@ -193,14 +198,14 @@ d_h2 <- d_h2[,-1]
 # summarise
 d_h2_sum <- d_h2 %>%
   filter(r %in% r_subsample) %>%
-  group_by(optPerc, model, tau, r, method) %>%
+  group_by(optPerc, model, tau, r, method, isAdapted) %>%
   summarise(meanH2Z = mean(h2_Z, na.rm = T),
             seH2Z = se(h2_Z, na.rm = T),
             meanVAZ = mean(VA_Z, na.rm = T),
             seVAZ = se(VA_Z, na.rm = T))
 
 # Number of loci doesn't seem to affect it too much, average across
-ggplot(d_h2 %>%
+ggplot(d_h2 %>% filter(isAdapted) %>%
          filter(method == "mkr", r %in% r_subsample) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
@@ -209,7 +214,7 @@ ggplot(d_h2 %>%
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_sum %>% ungroup() %>%
-               filter(method == "mkr", r %in% r_subsample) %>% 
+               filter(method == "mkr", r %in% r_subsample, isAdapted) %>% 
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance"),
@@ -228,7 +233,7 @@ ggplot(d_h2 %>%
 
 # Additive variance
 # Again, nloci not important
-ggplot(d_h2 %>%
+ggplot(d_h2 %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
@@ -236,7 +241,7 @@ ggplot(d_h2 %>%
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
   geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_h2_sum %>%
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
@@ -255,7 +260,7 @@ ggplot(d_h2 %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_add_va_sml
 
-ggplot(d_h2 %>%
+ggplot(d_h2 %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
@@ -263,7 +268,7 @@ ggplot(d_h2 %>%
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
   geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_h2_sum %>%
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
@@ -282,7 +287,7 @@ ggplot(d_h2 %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_add_va_med
 
-ggplot(d_h2 %>%
+ggplot(d_h2 %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
@@ -290,7 +295,7 @@ ggplot(d_h2 %>%
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested(r_title + log10(r) ~ tau_title + tau) +
   geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_h2_sum %>%
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
@@ -326,7 +331,7 @@ ggsave("plt_va.png", device = png, bg = "white",
 library(lemon)
 # Additive variance
 # Again, nloci not important
-ggplot(d_h2 %>% 
+ggplot(d_h2 %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
@@ -337,7 +342,7 @@ ggplot(d_h2 %>%
        aes(x = optPerc, y = VA_Z, colour = model)) +
   facet_nested_wrap(model ~ r_title + log10(r), scales = "free") +
   geom_quasirandom(dodge.width = 0.8) +
-  geom_point(data = d_h2_sum %>%
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
@@ -377,7 +382,7 @@ ggsave("VA_sml_scl.png", plt_add_va_sml_scl, width = 8, height = 8, device = png
 # Also account for drift: estimate Ne via Hossjer et al.
 
 d_h2 %>%
-  group_by(model, seed, tau, r, nloci, method) %>%
+  group_by(model, seed, tau, r, nloci, isAdapted, method) %>%
   filter(n() > 1) %>%
   summarise(totalDeltaVA = sum(diff(VA_Z))/sum(VA_Z)) -> d_h2_deltaVA
 
@@ -386,13 +391,13 @@ d_h2 %>%
 boxplot(d_h2_deltaVA$totalDeltaVA)
 
 d_h2_deltaVA %>%
-  group_by(model, tau, r, method) %>%
+  group_by(model, tau, r, method, isAdapted) %>%
   summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
             seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_sum
 
 
 # nloci doesn't matter again
-ggplot(d_h2_deltaVA %>%
+ggplot(d_h2_deltaVA %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance") %>%
@@ -401,7 +406,7 @@ ggplot(d_h2_deltaVA %>%
   facet_nested(r_title + log10(r) ~ .) +
   geom_quasirandom(dodge.width = 0.9) +
   #coord_cartesian(ylim = c(0, 1)) +
-  geom_point(data = d_h2_deltaVA_sum %>%
+  geom_point(data = d_h2_deltaVA_sum %>% filter(isAdapted) %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance") %>%
@@ -424,24 +429,25 @@ ggsave("plt_deltaVA.png", device = png, width = 9, height = 4)
 
 # Correlation of genetic variance to time to adaptation
 d_pheno_va <- left_join(d_h2, 
-                        d_qg %>% select(gen, seed, modelindex, optPerc,
+                        d_qg %>% select(gen, seed, modelindex, optPerc, isAdapted,
                                             deltaPheno, deltaw) %>% 
                           filter(gen >= 49500),
-                        by = c("gen", "seed", "modelindex", "optPerc"))
+                        by = c("gen", "seed", "modelindex", "optPerc", "isAdapted"))
 
 d_pheno_va <- d_pheno_va %>%
-  filter(as.numeric(optPerc) == 4, VA_Z < 50) %>%
+  filter(as.numeric(optPerc) == 4, VA_Z < 50, isAdapted) %>%
   group_by(seed, model, tau, r, nloci, method) %>%
   mutate(timeToAdaptation = gen - 50000)
 
 d_pheno_va_cor <- d_pheno_va %>%
   group_by(model, tau, r, method) %>%
-  summarise(corVAw = cor(timeToAdaptation, VA_Z))
+  summarise(corVAw = cor(1/timeToAdaptation, VA_Z))
 
 # linear model: time to adaptation vs VA
-lm_VA <- lm(timeToAdaptation ~ VA_Z * model * tau + r, data = d_pheno_va)
+lm_VA <- lm(timeToAdaptation ~ log(VA_Z) * model * tau + r, data = d_pheno_va)
 summary(lm_VA)
-plot(timeToAdaptation ~ VA_Z * model * tau + r, data = d_pheno_va)
+plot(timeToAdaptation ~ log(VA_Z), data = d_pheno_va)# * model * tau + r, data = d_pheno_va)
+emmeans::emmeans(lm_VA, specs = pairwise ~ VA_Z|model|tau)
 
 # plot
 ggplot(d_pheno_va_cor %>%
@@ -462,7 +468,7 @@ ggplot(d_pheno_va_cor %>%
   #            aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
   #            shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Mutational effect size variance", 
-       y = "Correlation between additive\nvariance and fitness",
+       y = "Correlation between additive\nvariance and time to adaptation",
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
                       labels = c("Additive", "K+", "K-")) +
@@ -476,7 +482,7 @@ d_h2 %>%
   mutate(tmpCVA = CVA_a_b,
          CVA_a_b = CVA_a_KZ,
          CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
-  group_by(modelindex, optPerc, method) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2
 
 
@@ -484,7 +490,7 @@ d_h2 %>%
 # each sublist is replicates of a model index
 Rcpp::sourceCpp("./getCovarianceMatrices.cpp")
 lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
-lapply(split_h2, function(x) {list(optPerc = x$optPerc[1], seed = x$seed[1], modelindex = x$modelindex[1])}) -> cov_matrix_modelindex
+lapply(split_h2, function(x) {list(optPerc = x$optPerc[1], seed = x$seed[1], modelindex = x$modelindex[1], isAdapted = x$isAdapted[1])}) -> cov_matrix_modelindex
 
 
 # We want to know if certain architectures are more/less important for describing
@@ -513,73 +519,73 @@ array(unlist(cov_matrices),
 # KrzSubspaceBootstrap w/ G matrices
 # x is a list of matrices
 
-x <- cov_array[3:5,3:5,1:100]
+# x <- cov_array[3:5,3:5,1:100]
+# 
+# doParallel::registerDoParallel(cores = 8)
+# test <- KrzSubspaceBootstrap(x, 10, parallel = T)
+# doParallel::stopImplicitCluster()
+# 
+# KrzSubspaceBootstrap = function(cov_array, rep = 1, MCMCsamples = 1000, parallel = FALSE){
+#   n_matrices <- dim(cov_array)[3]
+#   P_list = laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(cov_array[,,i], samples = MCMCsamples)$Ps)
+#   P_list = aperm(P_list, c(3, 4, 1, 2))
+# 
+#   Hs = llply(alply(P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
+#   avgH = Reduce("+", Hs)/length(Hs)
+#   avgH.vec <- eigen(avgH)$vectors
+#   MCMC.H.val = laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
+#   
+#   rand = laply(1:rep, function(i) randomKrz(cov_array, MCMCsamples), .parallel = parallel)
+#   
+#   MCMC.H.val.random = do.call(rbind, alply(rand, 1, identity))
+#   list(observed = MCMC.H.val, random = MCMC.H.val.random)
+# }
+# 
+# randomKrz = function(cov_array, samples) {
+#   n_matrices <- dim(cov_array)[3]
+#   
+#   # Resample covariance matrices
+#   random_indices <- sample(1:n_matrices, n_matrices, replace = TRUE)
+#   random_cov_matrices <- cov_array[,,random_indices]
+#   random_P_list <- laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(random_cov_matrices[,,i], samples = samples)$Ps)
+#   random_P_list <- aperm(random_P_list, c(3, 4, 1, 2))
+#   
+#   Hs <- llply(alply(random_P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
+#   avgH <- Reduce("+", Hs) / length(Hs)
+#   avgH.vec <- eigen(avgH)$vectors
+#   MCMC.H.val.random <- laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
+#   MCMC.H.val.random
+# }
+# 
+# BayesianCalculateMatrixCov <- function(S_x, samples = NULL, nu = NULL, S_0 = NULL){
+#   N = dim(S_x)[1]
+#   p = dim(S_x)[2]
+#   if(is.null(nu)) nu = p
+#   if(is.null(S_0)){
+#     S_0 = diag(0, p)
+#     diag(S_0) = diag(S_x/N) * nu
+#   }
+#   S_N <- S_0 + S_x
+#   nu_N <- nu + N
+#   MAP <- (S_0 + S_x) / (nu + N)
+#   MLE <- S_x / N
+#   if(!is.null(samples)){
+#     S_sample <- laply(rlply(samples, MCMCpack::riwish(nu_N, S_N)), identity)
+#     median.P <- aaply(S_sample, 2:3, median)
+#     class(S_sample) <- "mcmc_sample"
+#     return(list(MAP = MAP, 
+#                 MLE = MLE, 
+#                 P = median.P, 
+#                 Ps = S_sample))
+#   }
+#   else return(list(MAP = MAP, MLE = MLE))
+# }
 
-doParallel::registerDoParallel(cores = 8)
-test <- KrzSubspaceBootstrap(x, 10, parallel = T)
-doParallel::stopImplicitCluster()
 
-KrzSubspaceBootstrap = function(cov_array, rep = 1, MCMCsamples = 1000, parallel = FALSE){
-  n_matrices <- dim(cov_array)[3]
-  P_list = laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(cov_array[,,i], samples = MCMCsamples)$Ps)
-  P_list = aperm(P_list, c(3, 4, 1, 2))
+# d_test <- KrzSubspaceDataFrame(test)
+# PlotKrzSubspace(d_test)
 
-  Hs = llply(alply(P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
-  avgH = Reduce("+", Hs)/length(Hs)
-  avgH.vec <- eigen(avgH)$vectors
-  MCMC.H.val = laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
-  
-  rand = laply(1:rep, function(i) randomKrz(cov_array, MCMCsamples), .parallel = parallel)
-  
-  MCMC.H.val.random = do.call(rbind, alply(rand, 1, identity))
-  list(observed = MCMC.H.val, random = MCMC.H.val.random)
-}
-
-randomKrz = function(cov_array, samples) {
-  n_matrices <- dim(cov_array)[3]
-  
-  # Resample covariance matrices
-  random_indices <- sample(1:n_matrices, n_matrices, replace = TRUE)
-  random_cov_matrices <- cov_array[,,random_indices]
-  random_P_list <- laply(1:n_matrices, function(i) BayesianCalculateMatrixCov(random_cov_matrices[,,i], samples = samples)$Ps)
-  random_P_list <- aperm(random_P_list, c(3, 4, 1, 2))
-  
-  Hs <- llply(alply(random_P_list, 4, function(x) alply(x, 3)), function(x) KrzSubspace(x, 3)$H)
-  avgH <- Reduce("+", Hs) / length(Hs)
-  avgH.vec <- eigen(avgH)$vectors
-  MCMC.H.val.random <- laply(Hs, function(mat) diag(t(avgH.vec) %*% mat %*% avgH.vec))
-  MCMC.H.val.random
-}
-
-BayesianCalculateMatrixCov <- function(S_x, samples = NULL, nu = NULL, S_0 = NULL){
-  N = dim(S_x)[1]
-  p = dim(S_x)[2]
-  if(is.null(nu)) nu = p
-  if(is.null(S_0)){
-    S_0 = diag(0, p)
-    diag(S_0) = diag(S_x/N) * nu
-  }
-  S_N <- S_0 + S_x
-  nu_N <- nu + N
-  MAP <- (S_0 + S_x) / (nu + N)
-  MLE <- S_x / N
-  if(!is.null(samples)){
-    S_sample <- laply(rlply(samples, MCMCpack::riwish(nu_N, S_N)), identity)
-    median.P <- aaply(S_sample, 2:3, median)
-    class(S_sample) <- "mcmc_sample"
-    return(list(MAP = MAP, 
-                MLE = MLE, 
-                P = median.P, 
-                Ps = S_sample))
-  }
-  else return(list(MAP = MAP, MLE = MLE))
-}
-
-
-d_test <- KrzSubspaceDataFrame(test)
-PlotKrzSubspace(d_test)
-
-PCAS <- PCAsimilarity(test[1:100])
+# PCAS <- PCAsimilarity(test[1:100])
 
 # Distance between G matrices
 library(ape)
@@ -637,11 +643,11 @@ for (i in 1:length(g)) {
 }
 
 # with id, check how frequent genetic architectures are with the clusters
-tab <- table(id$clus, id$nloci_group, id$r, id$model)
-names(dimnames(tab)) <- c("cluster", "nloci", "r", "model")
+tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
 tab <- as.data.frame(tab)
 
-model <- glm(Freq~cluster*nloci,family=poisson(),data=tab)
+model <- glm(Freq~cluster*nloci*isAdapted,family=poisson(),data=tab)
 summary(model)
 
 id %>% ungroup() %>%
@@ -662,8 +668,8 @@ phylo <- full_join(as.phylo(phylo), id, by = "label")
 
 clus_palette <- paletteer_d("ggsci::nrc_npg", 4)
 
-ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
-  geom_text(aes(label=node)) +
+ggtree(phylo, aes(colour = as.factor(clus), linetype = isAdapted), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
   # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
   #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
   labs(colour = "Model", size = "Recombination rate (log10)") +
@@ -674,9 +680,6 @@ ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
   guides(colour = guide_legend(order = 1),
          size = guide_legend(order = 2)) -> tree_clus
 tree_clus
-
-
-
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
@@ -712,11 +715,11 @@ for (i in unique(id$clus)) {
                                         color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
   }
 }
-
+tree_r
 
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
-  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
                       labels = c("K+", "K-"), breaks = c("K", "ODE")) +
   labs(colour = "Model", shape = "Number of loci") +
