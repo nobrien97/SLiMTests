@@ -620,6 +620,24 @@ for (i in 1:length(g)) {
   id[idx,"clus"] <- i
 }
 
+id_test <- rbindlist(cov_matrix_modelindex, fill = T)
+id_test$label <- as.character(1:nrow(id_test))
+id_test$modelindex <- as.factor(id_test$modelindex)
+id_test <- AddCombosToDF(id_test)
+id_test$nloci_group <- "[4, 64)"
+id_test$nloci_group[id_test$nloci >= 64 & id_test$nloci < 1024] <- "[64, 256]"
+id_test$nloci_group[id_test$nloci == 1024] <- "[1024]"
+id_test$nloci_group <- factor(id_test$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id_test$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id_test[idx,"clus"] <- i
+}
+
+
+
 # with id, check how frequent genetic architectures are with the clusters
 tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
 names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
@@ -739,6 +757,131 @@ plt_trees <- plot_grid(tree_r,
                         ncol = 2, labels = "AUTO")
 
 plt_trees
-ggsave("plt_tree_gmatrix.png", device = png, bg = "white",
-       width = 10, height = 5)
+ggsave("plt_tree_gmatrix_full.png", device = png, bg = "white",
+       width = 12, height = 6)
 
+# Full one very similar to subset, run analysis on sample
+
+
+angle <- function(x,y){
+  dot.prod <- x%*%y 
+  norm.x <- norm(x,type="2")
+  norm.y <- norm(y,type="2")
+  theta <- acos(dot.prod / (norm.x * norm.y))
+  as.numeric(theta)
+}
+
+# Want to find the similarities in structure between models in these clusters
+# PCA of each covariance matrix to find proportion of variance explained in PC1 PC2,
+# contributions of each to PC1 PC2, total variance in each matrix,
+# major/minor axis
+CovMatrixPCA <- function(matList, id) {
+  PCAdata <- data.frame(
+    totalVariation = numeric(length(matList)),
+    pc1_prop = numeric(length(matList)),
+    pc2_prop = numeric(length(matList)),
+    pc1_contrib_KXZ = numeric(length(matList)),
+    pc1_contrib_KZ = numeric(length(matList)),
+    pc1_contrib_Z = numeric(length(matList)),
+    pc1_contrib_a = numeric(length(matList)),
+    pc1_contrib_b = numeric(length(matList)),
+    pc2_contrib_KXZ = numeric(length(matList)),
+    pc2_contrib_KZ = numeric(length(matList)),
+    pc2_contrib_Z = numeric(length(matList)),
+    pc2_contrib_a = numeric(length(matList)),
+    pc2_contrib_b = numeric(length(matList)),
+    pc_majorlength = numeric(length(matList)),
+    pc_minorlength = numeric(length(matList)),
+    pc_majorangle = numeric(length(matList)),
+    pc_minorangle = numeric(length(matList))
+  )
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    pca <- eigen(matList[[i]])
+    
+    PCAdata[i,]$totalVariation <- sum(pca$values)
+    PCAdata[i,2:3] <- (pca$values/PCAdata[i,]$totalVariation)[1:2]
+    
+    pc_sqr <- pca$vectors^2
+    
+    pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
+    PCAdata[i,4:13] <- c(pc_contrib[,1:2])
+    PCAdata[i,]$pc_majorlength <- ( qnorm(0.975) * test_pca$values[1] )
+    PCAdata[i,]$pc_minorlength <- ( qnorm(0.975) * test_pca$values[2] )
+    
+    PCAdata[i,]$pc_majorangle <- angle(pca$vectors[,1], pca$vectors[,2])
+    PCAdata[i,]$pc_minorangle <- PCAdata[i,]$pc_majorangle - 90
+  }
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = id$optPerc,
+           seed = id$seed,
+           modelindex = id$modelindex,
+           clus = id$clus)
+  
+  return(PCAdata)
+}
+
+
+test_angle <- angle(test_pca$vectors[,1], test_pca$vectors[,2])
+
+# 95% confidence ellipse axis length
+test_major_len <- ( qnorm(0.975) * test_pca$values[1] )
+test_minor_len <- ( qnorm(0.975) * test_pca$values[2] )
+
+test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
+                            vert_y = sin(test_angle * pi/180) * test_major_len,
+                            covert_x = cos((test_angle - 90) * pi/180) * test_minor_len,
+                            covert_y = sin((test_angle - 90) * pi/180) * test_minor_len,
+                            mean_t1 = 0,
+                            mean_t2 = 0,
+                            theta = test_angle,
+                            major_len = test_major_len,
+                            minor_len = test_minor_len)
+
+
+ggplot(test_dplot_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  geom_point(data = test_scores,
+             aes(x = PC1, y = PC2)) + 
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+
+covpca_test <- CovMatrixPCA(h2_mat, id)
+covpca_test <- AddCombosToDF(covpca_test)
+
+covpca_sum <- covpca_test %>%
+  group_by(optPerc, r, nloci, tau, model, clus) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
+
+covpca_sum <- covpca_sum %>%
+  group_by(optPerc, r, nloci, tau, model, clus) %>%
+  mutate(vert_x = cos())
+
+test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
+                            vert_y = sin(test_angle * pi/180) * test_major_len,
+                            covert_x = cos((test_angle - 90) * pi/180) * test_minor_len,
+                            covert_y = sin((test_angle - 90) * pi/180) * test_minor_len,
+                            mean_t1 = 0,
+                            mean_t2 = 0,
+                            theta = test_angle,
+                            major_len = test_major_len,
+                            minor_len = test_minor_len)
+
+
+
+ggplot(covpca_sum %>% 
+         filter(tau == 0.0125),
+       aes(x = ))
