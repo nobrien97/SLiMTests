@@ -792,13 +792,23 @@ CovMatrixPCA <- function(matList, id) {
     pc2_contrib_b = numeric(length(matList)),
     pc_majorlength = numeric(length(matList)),
     pc_minorlength = numeric(length(matList)),
-    pc_majorangle = numeric(length(matList)),
-    pc_minorangle = numeric(length(matList))
+    pc_majorangle_KXZ_KZ = numeric(length(matList)),
+    pc_majorangle_KXZ_Z = numeric(length(matList)),
+    pc_majorangle_KXZ_a = numeric(length(matList)),
+    pc_majorangle_KXZ_b = numeric(length(matList)),
+    pc_majorangle_KZ_Z = numeric(length(matList)),
+    pc_majorangle_KZ_a = numeric(length(matList)),
+    pc_majorangle_KZ_b = numeric(length(matList)),
+    pc_majorangle_Z_a = numeric(length(matList)),
+    pc_majorangle_Z_b = numeric(length(matList)),
+    pc_majorangle_a_b = numeric(length(matList))
+
   )
   
   for (i in seq_along(matList)) {
     # Run PCA
-    pca <- eigen(matList[[i]])
+    g <- matList[[i]]
+    pca <- eigen(g)
     
     PCAdata[i,]$totalVariation <- sum(pca$values)
     PCAdata[i,2:3] <- (pca$values/PCAdata[i,]$totalVariation)[1:2]
@@ -810,8 +820,8 @@ CovMatrixPCA <- function(matList, id) {
     PCAdata[i,]$pc_majorlength <- ( qnorm(0.975) * test_pca$values[1] )
     PCAdata[i,]$pc_minorlength <- ( qnorm(0.975) * test_pca$values[2] )
     
-    PCAdata[i,]$pc_majorangle <- angle(pca$vectors[,1], pca$vectors[,2])
-    PCAdata[i,]$pc_minorangle <- PCAdata[i,]$pc_majorangle - 90
+    # Rotation angles relative to each trait axis (in radians)
+    PCAdata[i,16:25] <- atan2((pca$values[1] - diag(g)), g[upper.tri(g)])
   }
   
   PCAdata <- PCAdata %>%
@@ -866,9 +876,15 @@ covpca_sum <- covpca_test %>%
   group_by(optPerc, r, nloci, tau, model, clus) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
+# Angles for each pair of traits, do a comparison plot, look at similarity of
+# angle with clusters, nloci, r, tau etc.
+# compare proportion contributing to PC1 and PC2: similar within clusters?
+# what are the most constrained populations? Is K+ less constrained?
+
 covpca_sum <- covpca_sum %>%
   group_by(optPerc, r, nloci, tau, model, clus) %>%
   mutate(vert_x = cos())
+
 
 test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
                             vert_y = sin(test_angle * pi/180) * test_major_len,
