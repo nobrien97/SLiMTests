@@ -428,6 +428,10 @@ ggplot(d_h2_deltaVA %>% filter(isAdapted) %>%
 ggsave("plt_deltaVA.png", device = png, width = 9, height = 4)
 
 # Correlation of genetic variance to time to adaptation
+d_h2$seed <- as.factor(d_h2$seed)
+d_h2$modelindex <- as.factor(d_h2$modelindex)
+d_h2$optPerc <- as.factor(d_h2$optPerc)
+
 d_pheno_va <- left_join(d_h2, 
                         d_qg %>% select(gen, seed, modelindex, optPerc, isAdapted,
                                             deltaPheno, deltaw) %>% 
@@ -513,10 +517,6 @@ test <- sapply(1:length(cov_matrices), function(x) {
   cov_matrices[[x]][[test_indices[[x]]]]
 }, simplify = F)
 
-array(unlist(cov_matrices), 
-      dim = c(nrow(cov_matrices[[1]][[1]]),
-              ncol(cov_matrices[[1]][[1]]),
-              length(cov_matrices))) -> cov_array
 
 # Repeat with all matrices
 h2_mat <- unlist(cov_matrices, recursive = F)
@@ -559,42 +559,43 @@ compute_distance_matrix <- function(list_of_matrices) {
   return(distance_matrix)
 }
 
-microbenchmark::microbenchmark(times = 30, 
-                               compute_distance_matrix(h2_mat[1:100]),
-                               distanceMatrix(h2_mat[1:100]))
-
-# ensure results are the same - distance should be 0 (with some precision error)
-shapes::distcov(compute_distance_matrix(h2_mat[1:100]), 
-                distanceMatrix(h2_mat[1:100]), "Power")
+# microbenchmark::microbenchmark(times = 30, 
+#                                compute_distance_matrix(h2_mat[1:100]),
+#                                distanceMatrix(h2_mat[1:100]))
+# 
+# # ensure results are the same - distance should be 0 (with some precision error)
+# shapes::distcov(compute_distance_matrix(h2_mat[1:100]), 
+#                 distanceMatrix(h2_mat[1:100]), "Power")
 
 library(tidytree)
 library(ggtree)
 library(phytools)
 
+Rcpp::sourceCpp("./distanceFunctions.cpp")
 dist_matrix <- distanceMatrix(h2_mat)
 colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
 rownames(dist_matrix) <- colnames(dist_matrix)
 
-fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+#fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
 hc <- hclust(as.dist(dist_matrix), method="average")
-plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
 # number of clusters: 3 seems to be the best
 library(factoextra)
 # elbow plot
-fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+#fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
 # dendrogram
-plot(hc)
-rect.hclust(hc, 3, border = 2:3)
+#plot(hc)
+#rect.hclust(hc, 3, border = 2:3)
 
 # gap stat
-gap_stat <- cluster::clusGap(dist_matrix, FUN = kmeans, nstart = 30, K.max = 24, B = 50)
-fviz_gap_stat(gap_stat) + theme_minimal() + ggtitle("fviz_gap_stat: Gap Statistic")
+#gap_stat <- cluster::clusGap(dist_matrix, FUN = kmeans, nstart = 30, K.max = 24, B = 50)
+#fviz_gap_stat(gap_stat) + theme_minimal() + ggtitle("fviz_gap_stat: Gap Statistic")
 
 # silhouette
-fviz_nbclust(dist_matrix, kmeans, method = "silhouette", k.max = 24) + theme_minimal() + ggtitle("The Silhouette Plot")
+#fviz_nbclust(dist_matrix, kmeans, method = "silhouette", k.max = 24) + theme_minimal() + ggtitle("The Silhouette Plot")
 
 clus <- cutree(hc, 3)
 g <- split(names(clus), clus)
@@ -620,21 +621,21 @@ for (i in 1:length(g)) {
   id[idx,"clus"] <- i
 }
 
-id_test <- rbindlist(cov_matrix_modelindex, fill = T)
-id_test$label <- as.character(1:nrow(id_test))
-id_test$modelindex <- as.factor(id_test$modelindex)
-id_test <- AddCombosToDF(id_test)
-id_test$nloci_group <- "[4, 64)"
-id_test$nloci_group[id_test$nloci >= 64 & id_test$nloci < 1024] <- "[64, 256]"
-id_test$nloci_group[id_test$nloci == 1024] <- "[1024]"
-id_test$nloci_group <- factor(id_test$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
-
-id_test$clus <- -1
-# add cluster
-for (i in 1:length(g)) {
-  idx <- g[[i]]
-  id_test[idx,"clus"] <- i
-}
+# id_test <- rbindlist(cov_matrix_modelindex, fill = T)
+# id_test$label <- as.character(1:nrow(id_test))
+# id_test$modelindex <- as.factor(id_test$modelindex)
+# id_test <- AddCombosToDF(id_test)
+# id_test$nloci_group <- "[4, 64)"
+# id_test$nloci_group[id_test$nloci >= 64 & id_test$nloci < 1024] <- "[64, 256]"
+# id_test$nloci_group[id_test$nloci == 1024] <- "[1024]"
+# id_test$nloci_group <- factor(id_test$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+# 
+# id_test$clus <- -1
+# # add cluster
+# for (i in 1:length(g)) {
+#   idx <- g[[i]]
+#   id_test[idx,"clus"] <- i
+# }
 
 
 
@@ -776,64 +777,99 @@ angle <- function(x,y){
 # contributions of each to PC1 PC2, total variance in each matrix,
 # major/minor axis
 CovMatrixPCA <- function(matList, id) {
-  PCAdata <- data.frame(
-    totalVariation = numeric(length(matList)),
-    pc1_prop = numeric(length(matList)),
-    pc2_prop = numeric(length(matList)),
-    pc1_contrib_KXZ = numeric(length(matList)),
-    pc1_contrib_KZ = numeric(length(matList)),
-    pc1_contrib_Z = numeric(length(matList)),
-    pc1_contrib_a = numeric(length(matList)),
-    pc1_contrib_b = numeric(length(matList)),
-    pc2_contrib_KXZ = numeric(length(matList)),
-    pc2_contrib_KZ = numeric(length(matList)),
-    pc2_contrib_Z = numeric(length(matList)),
-    pc2_contrib_a = numeric(length(matList)),
-    pc2_contrib_b = numeric(length(matList)),
-    pc_majorlength = numeric(length(matList)),
-    pc_minorlength = numeric(length(matList)),
-    pc_majorangle_KXZ_KZ = numeric(length(matList)),
-    pc_majorangle_KXZ_Z = numeric(length(matList)),
-    pc_majorangle_KXZ_a = numeric(length(matList)),
-    pc_majorangle_KXZ_b = numeric(length(matList)),
-    pc_majorangle_KZ_Z = numeric(length(matList)),
-    pc_majorangle_KZ_a = numeric(length(matList)),
-    pc_majorangle_KZ_b = numeric(length(matList)),
-    pc_majorangle_Z_a = numeric(length(matList)),
-    pc_majorangle_Z_b = numeric(length(matList)),
-    pc_majorangle_a_b = numeric(length(matList))
-
+  traitMap = list(
+    "KXZ_KZ" = c(1,2),
+    "KXZ_Z" = c(1,3),
+    "KXZ_a" = c(1,4),
+    "KXZ_b" = c(1,5),
+    "KZ_Z" = c(2,3),
+    "KZ_a" = c(2,4),
+    "KZ_b" = c(2,5),
+    "Z_a" = c(3,4),
+    "Z_b" = c(3,5),
+    "a_b" = c(4,5)
   )
   
+  singleTraitsMap <- c(
+    "KXZ",
+    "KZ",
+    "Z",
+    "a",
+    "b"
+  )
+  
+  PCAdata <- data.frame(
+    trait1 = numeric(length(matList) * length(traitMap)),
+    trait2 = numeric(length(matList) * length(traitMap)),
+    totalVariation = numeric(length(matList) * length(traitMap)),
+    pc1_prop = numeric(length(matList) * length(traitMap)),
+    pc2_prop = numeric(length(matList) * length(traitMap)),
+    pc1_contrib_t1 = numeric(length(matList) * length(traitMap)),
+    pc1_contrib_t2 = numeric(length(matList) * length(traitMap)),
+    pc2_contrib_t1 = numeric(length(matList) * length(traitMap)),
+    pc2_contrib_t2 = numeric(length(matList) * length(traitMap)),
+    pc_majorlength_t1 = numeric(length(matList) * length(traitMap)),
+    pc_majorlength_t2 = numeric(length(matList) * length(traitMap)),
+    pc_minorlength_t1 = numeric(length(matList) * length(traitMap)),
+    pc_minorlength_t2 = numeric(length(matList) * length(traitMap)),
+    pc_majorangle = numeric(length(matList) * length(traitMap))
+  )
+  
+  # Set trait columns: keep as number for indexing
+  t1 <- unlist(lapply(traitMap, function(x) {x[1]}))
+  t2 <- unlist(lapply(traitMap, function(x) {x[2]}))
+  PCAdata$trait1 <- rep(t1, times = length(matList))
+  PCAdata$trait2 <- rep(t2, times = length(matList))
+  
+  # Iterate through matrices for PCA
   for (i in seq_along(matList)) {
     # Run PCA
     g <- matList[[i]]
     pca <- eigen(g)
     
-    PCAdata[i,]$totalVariation <- sum(pca$values)
-    PCAdata[i,2:3] <- (pca$values/PCAdata[i,]$totalVariation)[1:2]
+    # Rows to fill for all traits
+    i_range <- ( (i-1)*length(traitMap) + 1 ):(i * length(traitMap))
+    
+    totalVar <- sum(pca$values)
+    PCAdata[i_range,]$totalVariation <- totalVar
+    PCAdata[i_range,4:5] <- matrix(rep((pca$values/totalVar)[1:2], 
+                                       each = length(i_range)), ncol = 2)
     
     pc_sqr <- pca$vectors^2
     
     pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
-    PCAdata[i,4:13] <- c(pc_contrib[,1:2])
-    PCAdata[i,]$pc_majorlength <- ( qnorm(0.975) * test_pca$values[1] )
-    PCAdata[i,]$pc_minorlength <- ( qnorm(0.975) * test_pca$values[2] )
     
-    # Rotation angles relative to each trait axis (in radians)
-    PCAdata[i,16:25] <- atan2((pca$values[1] - diag(g)), g[upper.tri(g)])
+    # Contributions
+    ## PC1
+    PCAdata[i_range,6] <- c(pc_contrib[t1,1])
+    PCAdata[i_range,7] <- c(pc_contrib[t2,1])
+    
+    ## PC2
+    PCAdata[i_range,8] <- c(pc_contrib[t1,2])
+    PCAdata[i_range,9] <- c(pc_contrib[t2,2])
+    
+    # Major length
+    PCAdata[i_range,10] <- pca$vector[t1,1] * sqrt(pca$values[1])
+    PCAdata[i_range,11] <- pca$vector[t2,1] * sqrt(pca$values[1])
+    
+    # Minor length
+    PCAdata[i_range,12] <- pca$vector[t1,2] * sqrt(pca$values[2])
+    PCAdata[i_range,13] <- pca$vector[t2,2] * sqrt(pca$values[2])
+    
+    # Angle of rotation (relative to trait 1, second axis orthogonal)
+    PCAdata[i_range,14] <- diag(atan2((pca$values[1] - diag(g)[t1]), g[t1,t2]))
   }
   
   PCAdata <- PCAdata %>%
-    mutate(optPerc = id$optPerc,
-           seed = id$seed,
-           modelindex = id$modelindex,
-           clus = id$clus)
+    mutate(optPerc = rep(id$optPerc, each = length(traitMap)),
+           seed = rep(id$seed, each = length(traitMap)),
+           modelindex = rep(id$modelindex, each = length(traitMap)),
+           clus = rep(id$clus, each = length(traitMap)))
   
   return(PCAdata)
 }
 
-
+test_pca <- eigen(h2_mat[[1]])
 test_angle <- angle(test_pca$vectors[,1], test_pca$vectors[,2])
 
 # 95% confidence ellipse axis length
@@ -872,18 +908,248 @@ ggplot(test_dplot_ellipse, aes(x = mean_t1, y = mean_t2)) +
 covpca_test <- CovMatrixPCA(h2_mat, id)
 covpca_test <- AddCombosToDF(covpca_test)
 
+# Summarise
 covpca_sum <- covpca_test %>%
-  group_by(optPerc, r, nloci, tau, model, clus) %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
+
+# Calculate ellipse x and y coordinates after rotation
+ellipse_points <- function(x_center, y_center, major_axis, minor_axis, angle, n_points = 100) {
+  theta <- seq(0, 2 * pi, length.out = n_points)
+  x <- major_axis * cos(theta)
+  y <- minor_axis * sin(theta)
+  rotated_x <- x * cos(angle) - y * sin(angle)
+  rotated_y <- x * sin(angle) + y * cos(angle)
+  data.frame(x = rotated_x + x_center, y = rotated_y + y_center)
+}
+
+# normal direction at point t on an ellipse with major axis length a pointing
+# in direction u1, and minor axis length b in direction u2
+ellipse_normal <- function(t, a, b, u1, u2) {
+  return(a * sin(t) * u2 + b * cos(t) * u1)
+}
+
+# Length of the normal of an ellipse at point t with major/minor lengths a and b
+ellipse_normal_len <- function(t, a, b) {
+  return(sqrt(a^2 * (sin(t)^2) + b^2 * (cos(t)^2)))
+}
+
+# Get unit vector directions of major/minor axes
+getAxisDirections <- function(angle) {
+  u1 <- c(cos(angle), sin(angle))
+  u2 <- c(-sin(angle), cos(angle))
+  return(list(u1 = u1, u2 = u2))
+}
+
+# Solve O(t) for the outer boundary
+outer_boundary <- function(t, a, b, u1, u2, h) {
+  P_t <- a * cos(t) * u1 + b * sin(t) * u2
+  normal <- ellipse_normal(t, a, b, u1, u2)
+  normal_len <- ellipse_normal_len(t, a, b)
+  O_t <- P_t + (h / normal_len) * normal
+  return(O_t)
+}
+
+# Solve I(t) for the inner boundary
+inner_boundary <- function(t, a, b, u1, u2, h) {
+  P_t <- a * cos(t) * u1 + b * sin(t) * u2
+  normal <- ellipse_normal(t, a, b, u1, u2)
+  normal_len <- ellipse_normal_len(t, a, b)
+  I_t <- P_t - (h / normal_len) * normal
+  return(I_t)
+}
+
+ribbon_points <- function(major_axis_mean, minor_axis_mean, major_axis_se, minor_axis_se, angle_mean, n_points = 100) {
+  theta <- seq(0, 2 * pi, length.out = n_points)
+  
+  u <- getAxisDirections(angle_mean)
+  u1 <- u$u1
+  u2 <- u$u2
+  
+  outer_points <- t(sapply(theta, outer_boundary, a = major_axis_mean, 
+                         b = minor_axis_mean, u1 = u1, u2 = u2,
+                         h = major_axis_se))
+  inner_points <- t(sapply(theta, inner_boundary, a = major_axis_mean, 
+                         b = minor_axis_mean, u1 = u1, u2 = u2,
+                         h = major_axis_se))
+  
+  upper_df <- data.frame(x = outer_points[,1], y = outer_points[,2])
+  lower_df <- data.frame(x = inner_points[,1], y = inner_points[,2])
+  
+  ribbon_df <- rbind(upper_df, lower_df[nrow(lower_df):1, ])
+  return(ribbon_df)
+}
+
+# Major and minor lines
+axis_lines <- function(major_axis, minor_axis, angle) {
+  
+  vert_x = cos(angle) * major_axis
+  vert_y = sin(angle) * major_axis
+  covert_x = cos((angle - (90 * pi/180))) * minor_axis
+  covert_y = sin((angle - (90 * pi/180))) * minor_axis
+
+  return(data.frame(maj_xend = vert_x, maj_yend = vert_y,
+                              min_xend = covert_x, min_yend = covert_y))
+
+}
+
+# Run ellipse function on data
+## Mean ellipse
+covpca_dplot <- covpca_sum %>% ungroup() %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  mutate(
+  mean_ellipse = pmap(list(0,0,pc_majorlength_t1_mean,pc_minorlength_t1_mean,pc_majorangle_mean), ellipse_points),
+  ribbon_ellipse = pmap(list(pc_majorlength_t1_mean, pc_minorlength_t1_mean, pc_majorlength_t1_se/2, pc_minorlength_t1_se/2, pc_majorangle_mean), ribbon_points)) %>%
+  pivot_longer(cols = ends_with("ellipse"), names_to = "ellipse_type", values_to = "data") %>%
+  unnest(data)
+
+# Average over nloci, doesn't matter; only 1 tau group being looked at
+covpca_dplot_axes <- covpca_sum %>% ungroup() %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  mutate(mean_axes = pmap(list(pc_majorlength_t1_mean, 
+                               pc_minorlength_t1_mean, pc_majorangle_mean), 
+                          axis_lines)) %>%
+  unnest(mean_axes)
+
+sbst_plt <- covpca_dplot %>% filter(trait1 == 4, trait2 == 5, 
+                        as.numeric(optPerc) == 1) %>%
+  mutate(r_title = "Recombination rate (log10)",
+         model_title = "Model (cluster)",
+         model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
+
+axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == 4, trait2 == 5, 
+                                         as.numeric(optPerc) == 1) %>%
+  mutate(r_title = "Recombination rate (log10)",
+         model_title = "Model (cluster)",
+         model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
+
+
+# A, B, C for different clusters, shapes of the clusters
+# overlaid ellipses for optPerc
+
+
+# Trait contributions
+# text: percent the trait contributed to pc1 and pc2
+
+traitContribs <- function(matList, id) {
+  
+  nTraits <- 5
+  
+  PCAdata <- data.frame(
+    trait = numeric(length(matList) * nTraits * 2),
+    pc = numeric(length(matList) * nTraits * 2),
+    totalVar = numeric(length(matList) * nTraits * 2),
+    pc_prop = numeric(length(matList) * nTraits * 2),
+    contrib = numeric(length(matList) * nTraits * 2)
+  )
+  
+  PCAdata$trait <- rep(1:nTraits, times = 2 * length(matList))
+  PCAdata$pc <- rep(1:2, each = nTraits)
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    pca <- eigen(g)
+    
+    # Rows to fill for all traits
+    i_range <- ( (i-1)*nTraits * 2 + 1 ):(i * nTraits * 2)
+
+    totalVar <- sum(pca$values)
+    PCAdata[i_range,]$totalVar <- totalVar
+    PCAdata[i_range,4] <- rep((pca$values/totalVar)[1:2], 
+                                       each = nTraits)
+    
+    pc_sqr <- pca$vectors^2
+    
+    pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
+    
+    # Contributions
+    PCAdata[i_range,5] <- c(pc_contrib[,1:2])
+    }
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = id$optPerc,
+           seed = id$seed,
+           modelindex = id$modelindex,
+           clus = id$clus)
+  
+  return(PCAdata)
+}
+
+# Get trait contributions
+covpca_traitprops <- traitContribs(h2_mat, id)
+covpca_traitprops <- AddCombosToDF(covpca_traitprops)
+
+
+# Summarise
+covpca_traitprops %>%
+  select(-nloci, -seed, -tau) %>%
+  group_by(optPerc, r, model, clus, trait, pc) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se)) -> covpca_traitprops_sum
+
+covpca_traitprops_sum <- covpca_traitprops_sum %>%
+  mutate(trait = traitMap[trait])
+
+ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                model_title = "Model (cluster)",
+                model = fct_recode(model, "K+" = "K", "K-" = "ODE")),
+       aes(x = trait, y = contrib_mean, colour = model, shape = as.factor(pc))) +
+  facet_nested(r_title + log10(r) ~ model_title + model + as.factor(clus)) +
+  geom_point(size = 1.5, position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = contrib_mean - contrib_se, ymax = contrib_mean + contrib_se),
+                width = 0.3, position = position_dodge(0.3)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
+                                           direction = -1)[2:3],
+                      labels = c("K+", "K-"), guide = "none") +
+  scale_shape_manual(values = c(0, 15)) +
+  labs(x = "Molecular Trait", y = "Contribution to PC", 
+       shape = "Principal Component") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+# Contributions are more or less the same across clusters, models, r
+# Z is the largest contributor to PC1
+# PC2 is mainly a and b
+# KZ and KXZ do not contribute much to additive variation
+
+# plot
+ggplot(sbst_plt,
+       aes(x = x, y = y, colour = as.factor(clus))) +
+  facet_nested(r_title + log10(r) ~ model_title + model + as.factor(clus)) +
+  geom_polygon(data = filter(sbst_plt, ellipse_type == "ribbon_ellipse"),
+              aes(fill = as.factor(clus)), linetype = "dashed", colour = NA, alpha = 0.3) +
+  geom_polygon(data = filter(sbst_plt, ellipse_type == "mean_ellipse"),
+               fill = NA) + 
+  geom_segment(data = axes_sbst_plt, x = 0, y = 0, 
+               aes(xend = (maj_xend), yend = (maj_yend)),
+               linetype = "dashed") +
+  geom_segment(data = axes_sbst_plt, x = 0, y = 0, 
+               aes(xend = (-maj_xend), yend = (-maj_yend)),
+               linetype = "dashed") +
+  geom_segment(data = axes_sbst_plt, x = 0, y = 0, 
+               aes(xend = (min_xend), yend = (min_yend)),
+               linetype = "dashed") +
+  geom_segment(data = axes_sbst_plt, x = 0, y = 0, 
+               aes(xend = (-min_xend), yend = (-min_yend)),
+               linetype = "dashed") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
+                                           direction = -1),
+                      labels = c("Cluster 1", "Cluster 2", "Cluster 3")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
+                                           direction = -1),
+                      guide = "none") +
+  coord_equal() +
+  labs(x = TeX("$\\alpha_Z$"), y = TeX("$\\beta_Z$"), colour = "Cluster") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 16))
+
 
 # Angles for each pair of traits, do a comparison plot, look at similarity of
 # angle with clusters, nloci, r, tau etc.
 # compare proportion contributing to PC1 and PC2: similar within clusters?
 # what are the most constrained populations? Is K+ less constrained?
 
-covpca_sum <- covpca_sum %>%
-  group_by(optPerc, r, nloci, tau, model, clus) %>%
-  mutate(vert_x = cos())
 
 
 test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
@@ -897,7 +1163,7 @@ test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_
                             minor_len = test_minor_len)
 
 
-
+  
 ggplot(covpca_sum %>% 
          filter(tau == 0.0125),
        aes(x = ))
