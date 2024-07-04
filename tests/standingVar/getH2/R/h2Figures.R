@@ -581,14 +581,14 @@ rownames(dist_matrix) <- colnames(dist_matrix)
 hc <- hclust(as.dist(dist_matrix), method="average")
 #plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-# number of clusters: 3 seems to be the best
+# number of clusters: 2 seems to be the best
 library(factoextra)
 # elbow plot
-#fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
 # dendrogram
-#plot(hc)
-#rect.hclust(hc, 3, border = 2:3)
+plot(hc)
+rect.hclust(hc, 2, border = 2)
 
 # gap stat
 #gap_stat <- cluster::clusGap(dist_matrix, FUN = kmeans, nstart = 30, K.max = 24, B = 50)
@@ -597,7 +597,7 @@ library(factoextra)
 # silhouette
 #fviz_nbclust(dist_matrix, kmeans, method = "silhouette", k.max = 24) + theme_minimal() + ggtitle("The Silhouette Plot")
 
-clus <- cutree(hc, 3)
+clus <- cutree(hc, 2)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -621,21 +621,6 @@ for (i in 1:length(g)) {
   id[idx,"clus"] <- i
 }
 
-# id_test <- rbindlist(cov_matrix_modelindex, fill = T)
-# id_test$label <- as.character(1:nrow(id_test))
-# id_test$modelindex <- as.factor(id_test$modelindex)
-# id_test <- AddCombosToDF(id_test)
-# id_test$nloci_group <- "[4, 64)"
-# id_test$nloci_group[id_test$nloci >= 64 & id_test$nloci < 1024] <- "[64, 256]"
-# id_test$nloci_group[id_test$nloci == 1024] <- "[1024]"
-# id_test$nloci_group <- factor(id_test$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
-# 
-# id_test$clus <- -1
-# # add cluster
-# for (i in 1:length(g)) {
-#   idx <- g[[i]]
-#   id_test[idx,"clus"] <- i
-# }
 
 
 
@@ -758,7 +743,7 @@ plt_trees <- plot_grid(tree_r,
                         ncol = 2, labels = "AUTO")
 
 plt_trees
-ggsave("plt_tree_gmatrix_full.png", device = png, bg = "white",
+ggsave("plt_tree_gmatrix_full_2clus.png", device = png, bg = "white",
        width = 12, height = 6)
 
 # Full one very similar to subset, run analysis on sample
@@ -1011,14 +996,42 @@ covpca_dplot_axes <- covpca_sum %>% ungroup() %>%
                           axis_lines)) %>%
   unnest(mean_axes)
 
-sbst_plt <- covpca_dplot %>% filter(trait1 == 4, trait2 == 5, 
-                        as.numeric(optPerc) == 1) %>%
+# Iterate over all 10 combinations of traits
+traitCombos <- list(
+  c(1,2),
+  c(1,3),
+  c(1,4),
+  c(1,5),
+  c(2,3),
+  c(2,4),
+  c(2,5),
+  c(3,4),
+  c(3,5),
+  c(4,5)
+)
+
+traitLabels <- c(TeX("$K_{XZ}$", output = "expression"), 
+                 TeX("$K_Z$", output = "expression"),
+                 TeX("$Z$", output = "expression"),
+                 TeX("$\\alpha_Z$", output = "expression"),
+                 TeX("$\\beta_Z$", output = "expression")
+                 )
+# Iterate over 2 time points (<25% optimum, >=75%)
+traitCombos <- rep(traitCombos, each = 2)
+res_plt <- vector("list", length(traitCombos) * 2)
+
+for (i in seq_along(traitCombos)) {
+  combo <- traitCombos[[i]]
+  timepoint <- ifelse(i %% 2 != 0, 1, 4)
+  # Subset data
+sbst_plt <- covpca_dplot %>% filter(trait1 == combo[1], trait2 == combo[2], 
+                        as.numeric(optPerc) == timepoint) %>%
   mutate(r_title = "Recombination rate (log10)",
          model_title = "Model (cluster)",
          model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
 
-axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == 4, trait2 == 5, 
-                                         as.numeric(optPerc) == 1) %>%
+axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == combo[1], trait2 == combo[2], 
+                                         as.numeric(optPerc) == timepoint) %>%
   mutate(r_title = "Recombination rate (log10)",
          model_title = "Model (cluster)",
          model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
@@ -1026,92 +1039,6 @@ axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == 4, trait2 == 5,
 
 # A, B, C for different clusters, shapes of the clusters
 # overlaid ellipses for optPerc
-
-
-# Trait contributions
-# text: percent the trait contributed to pc1 and pc2
-
-traitContribs <- function(matList, id) {
-  
-  nTraits <- 5
-  
-  PCAdata <- data.frame(
-    trait = numeric(length(matList) * nTraits * 2),
-    pc = numeric(length(matList) * nTraits * 2),
-    totalVar = numeric(length(matList) * nTraits * 2),
-    pc_prop = numeric(length(matList) * nTraits * 2),
-    contrib = numeric(length(matList) * nTraits * 2)
-  )
-  
-  PCAdata$trait <- rep(1:nTraits, times = 2 * length(matList))
-  PCAdata$pc <- rep(1:2, each = nTraits)
-  
-  for (i in seq_along(matList)) {
-    # Run PCA
-    g <- matList[[i]]
-    pca <- eigen(g)
-    
-    # Rows to fill for all traits
-    i_range <- ( (i-1)*nTraits * 2 + 1 ):(i * nTraits * 2)
-
-    totalVar <- sum(pca$values)
-    PCAdata[i_range,]$totalVar <- totalVar
-    PCAdata[i_range,4] <- rep((pca$values/totalVar)[1:2], 
-                                       each = nTraits)
-    
-    pc_sqr <- pca$vectors^2
-    
-    pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
-    
-    # Contributions
-    PCAdata[i_range,5] <- c(pc_contrib[,1:2])
-    }
-  
-  PCAdata <- PCAdata %>%
-    mutate(optPerc = id$optPerc,
-           seed = id$seed,
-           modelindex = id$modelindex,
-           clus = id$clus)
-  
-  return(PCAdata)
-}
-
-# Get trait contributions
-covpca_traitprops <- traitContribs(h2_mat, id)
-covpca_traitprops <- AddCombosToDF(covpca_traitprops)
-
-
-# Summarise
-covpca_traitprops %>%
-  select(-nloci, -seed, -tau) %>%
-  group_by(optPerc, r, model, clus, trait, pc) %>%
-  summarise_if(is.numeric, list(mean = mean, se = se)) -> covpca_traitprops_sum
-
-covpca_traitprops_sum <- covpca_traitprops_sum %>%
-  mutate(trait = traitMap[trait])
-
-ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
-         mutate(r_title = "Recombination rate (log10)",
-                model_title = "Model (cluster)",
-                model = fct_recode(model, "K+" = "K", "K-" = "ODE")),
-       aes(x = trait, y = contrib_mean, colour = model, shape = as.factor(pc))) +
-  facet_nested(r_title + log10(r) ~ model_title + model + as.factor(clus)) +
-  geom_point(size = 1.5, position = position_dodge(0.3)) +
-  geom_errorbar(aes(ymin = contrib_mean - contrib_se, ymax = contrib_mean + contrib_se),
-                width = 0.3, position = position_dodge(0.3)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
-                                           direction = -1)[2:3],
-                      labels = c("K+", "K-"), guide = "none") +
-  scale_shape_manual(values = c(0, 15)) +
-  labs(x = "Molecular Trait", y = "Contribution to PC", 
-       shape = "Principal Component") +
-  theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 14))
-
-# Contributions are more or less the same across clusters, models, r
-# Z is the largest contributor to PC1
-# PC2 is mainly a and b
-# KZ and KXZ do not contribute much to additive variation
 
 # plot
 ggplot(sbst_plt,
@@ -1139,10 +1066,19 @@ ggplot(sbst_plt,
   scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
                                            direction = -1),
                       guide = "none") +
+  #lims(x = c(-0.06, 0.06), y = c(-0.06, 0.06)) +
   coord_equal() +
-  labs(x = TeX("$\\alpha_Z$"), y = TeX("$\\beta_Z$"), colour = "Cluster") +
+  labs(title = paste0("Progress to the optimum: ", ifelse(timepoint == 1, "<25%", ">=75%")),
+       x = traitLabels[combo[1]], y = traitLabels[combo[2]], colour = "Cluster") +
   theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 16))
+  theme(legend.position = "bottom", text = element_text(size = 12),
+        panel.spacing = unit(1, "lines")) -> plt
+
+res_plt[[i]] <- plt
+filename <- paste0("plt_gmat_", traitMap[combo[1]], "_", traitMap[combo[2]], 
+                   "_", timepoint, ".png")
+#ggsave(filename, plt, device = png, width = 8, height = 8)
+}
 
 
 # Angles for each pair of traits, do a comparison plot, look at similarity of
@@ -1151,19 +1087,110 @@ ggplot(sbst_plt,
 # what are the most constrained populations? Is K+ less constrained?
 
 
+# Trait contributions
+# text: percent the trait contributed to pc1 and pc2
 
-test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
-                            vert_y = sin(test_angle * pi/180) * test_major_len,
-                            covert_x = cos((test_angle - 90) * pi/180) * test_minor_len,
-                            covert_y = sin((test_angle - 90) * pi/180) * test_minor_len,
-                            mean_t1 = 0,
-                            mean_t2 = 0,
-                            theta = test_angle,
-                            major_len = test_major_len,
-                            minor_len = test_minor_len)
-
-
+traitContribs <- function(matList, id) {
   
-ggplot(covpca_sum %>% 
-         filter(tau == 0.0125),
-       aes(x = ))
+  nTraits <- 5
+  
+  PCAdata <- data.frame(
+    trait = numeric(length(matList) * nTraits * 2),
+    pc = numeric(length(matList) * nTraits * 2),
+    totalVar = numeric(length(matList) * nTraits * 2),
+    pc_prop = numeric(length(matList) * nTraits * 2),
+    contrib = numeric(length(matList) * nTraits * 2),
+    dir = numeric(length(matList) * nTraits * 2)
+  )
+  
+  PCAdata$trait <- rep(1:nTraits, times = 2 * length(matList))
+  PCAdata$pc <- rep(1:2, each = nTraits)
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    pca <- eigen(g)
+    
+    # Rows to fill for all traits
+    i_range <- ( (i-1)*nTraits * 2 + 1 ):(i * nTraits * 2)
+    
+    totalVar <- sum(pca$values)
+    PCAdata[i_range,]$totalVar <- totalVar
+    PCAdata[i_range,4] <- rep((pca$values/totalVar)[1:2], 
+                              each = nTraits)
+    
+    pc_sqr <- pca$vectors^2
+    
+    pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
+    
+    # Contributions
+    PCAdata[i_range,5] <- c(pc_contrib[,1:2])
+    
+    # Eigenvector direction
+    PCAdata[i_range,6] <- c(pca$vectors[,1:2])
+  }
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = rep(id$optPerc, each = nTraits*2),
+           seed = rep(id$seed, each = nTraits*2),
+           modelindex = rep(id$modelindex, each = nTraits*2),
+           clus = rep(id$clus, each = nTraits*2))
+  
+  return(PCAdata)
+}
+
+# Get trait contributions
+covpca_traitprops <- traitContribs(h2_mat, id)
+covpca_traitprops <- AddCombosToDF(covpca_traitprops)
+
+
+# Summarise
+covpca_traitprops %>%
+  select(-nloci, -seed, -tau) %>%
+  group_by(optPerc, model, clus, trait, pc, r) %>%
+  summarise_if(is.numeric, list(mean = mean, CI = CI, sd = sd)) -> covpca_traitprops_sum
+
+covpca_traitprops_sum <- covpca_traitprops_sum %>%
+  mutate(trait = traitMap[trait])
+
+ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                model_title = "Model (cluster)",
+                model = fct_recode(model, "K+" = "K", "K-" = "ODE")),
+       aes(x = trait, y = contrib_mean, colour = model, shape = as.factor(pc))) +
+  facet_nested(r_title + log10(r) ~ model_title + model + as.factor(clus)) +
+  geom_point(size = 1.5, position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = contrib_mean - contrib_CI, ymax = contrib_mean + contrib_CI),
+                width = 0.3, position = position_dodge(0.3)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
+                                           direction = -1)[2:3],
+                      labels = c("K+", "K-"), guide = "none") +
+  scale_shape_manual(values = c(0, 15)) +
+  labs(x = "Molecular Trait", y = "Contribution to PC", 
+       shape = "Principal Component") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
+
+# Contributions are more or less the same across clusters, models, r
+# Z is the largest contributor to PC1
+# PC2 is mainly a and b, in K+ KZ is in there as well
+# KXZ does not contribute much to additive variation
+
+# Eigenvectors
+ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                model_title = "Model (cluster)",
+                model = fct_recode(model, "K+" = "K", "K-" = "ODE")),
+       aes(x = trait, y = dir_mean, colour = model, shape = as.factor(pc))) +
+  facet_nested(r_title + log10(r) ~ model_title + model + as.factor(clus)) +
+  geom_point(size = 1.5, position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = dir_mean - dir_CI, ymax = dir_mean + dir_CI),
+                width = 0.3, position = position_dodge(0.3)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
+                                           direction = -1)[2:3],
+                      labels = c("K+", "K-"), guide = "none") +
+  scale_shape_manual(values = c(0, 15)) +
+  labs(x = "Molecular Trait", y = "Eigenvector", 
+       shape = "Principal Component") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14))
