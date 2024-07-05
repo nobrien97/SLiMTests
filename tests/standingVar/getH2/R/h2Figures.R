@@ -486,18 +486,54 @@ ggplot(d_pheno_va_cor %>%
 
 d_h2 %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 1) %>%
   mutate(tmpCVA = CVA_a_b,
          CVA_a_b = CVA_a_KZ,
          CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
-  group_split(.) -> split_h2
+  group_split(.) -> split_h2_optPerc1
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 2) %>%
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc2
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 3) %>%
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc3
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 4) %>%
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc4
+
 
 
 # Separate into model indices
 # each sublist is replicates of a model index
 Rcpp::sourceCpp("./getCovarianceMatrices.cpp")
-lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
-lapply(split_h2, function(x) {list(optPerc = x$optPerc[1], seed = x$seed[1], modelindex = x$modelindex[1], isAdapted = x$isAdapted[1])}) -> cov_matrix_modelindex
+lapply(split_h2_optPerc1, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op1
+lapply(split_h2_optPerc2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op2
+lapply(split_h2_optPerc3, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op3
+lapply(split_h2_optPerc4, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op4
+
+lapply(split_h2_optPerc1, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op1
+lapply(split_h2_optPerc2, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op2
+lapply(split_h2_optPerc3, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op3
+lapply(split_h2_optPerc4, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op4
 
 
 # We want to know if certain architectures are more/less important for describing
@@ -508,34 +544,36 @@ lapply(split_h2, function(x) {list(optPerc = x$optPerc[1], seed = x$seed[1], mod
 # of eigenvectors telling us the models which have the largest difference in variation
 # then projection to find the important components
 
-# First sample a matrix from each group
-test_indices <- sapply(cov_matrices, function(x) {
-  sample(1:length(x), 1)
-  }, simplify = F)
-
-test <- sapply(1:length(cov_matrices), function(x) {
-  cov_matrices[[x]][[test_indices[[x]]]]
-}, simplify = F)
-
-
 # Repeat with all matrices
-h2_mat <- unlist(cov_matrices, recursive = F)
+h2_mat_op1 <- unlist(cov_matrices_op1, recursive = F)
+h2_mat_op2 <- unlist(cov_matrices_op2, recursive = F)
+h2_mat_op3 <- unlist(cov_matrices_op3, recursive = F)
+h2_mat_op4 <- unlist(cov_matrices_op4, recursive = F)
 
 # get ids
-lapply(split_h2, function(x) {
-  data.frame(optPerc = x$optPerc, 
-       seed = x$seed, 
-       modelindex = x$modelindex, 
-       isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_full
+GetMatrixIDs <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(optPerc = x$optPerc, 
+               seed = x$seed, 
+               modelindex = x$modelindex, 
+               isAdapted = x$isAdapted)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
 
-# Split data frames of replicates to individual lists of dataframes with 1 row
-lapply(cov_matrix_modelindex_full, function(x) {
-  split(x, seq(nrow(x)))
-}) -> cov_matrix_modelindex_full
-# unlist to full form
-cov_matrix_modelindex_full <- unlist(cov_matrix_modelindex_full, recursive = F)
+cov_matrix_modelindex_full <- GetMatrixIDs(split_h2)
 
-# PCAS <- PCAsimilarity(test[1:100])
+cov_matrix_modelindex_op1 <- GetMatrixIDs(split_h2_optPerc1)
+cov_matrix_modelindex_op2 <- GetMatrixIDs(split_h2_optPerc2)
+cov_matrix_modelindex_op3 <- GetMatrixIDs(split_h2_optPerc3)
+cov_matrix_modelindex_op4 <- GetMatrixIDs(split_h2_optPerc4)
+
 
 # Distance between G matrices
 library(ape)
@@ -571,33 +609,27 @@ library(tidytree)
 library(ggtree)
 library(phytools)
 
+# dist matrix for optperc 1
 Rcpp::sourceCpp("./distanceFunctions.cpp")
-dist_matrix <- distanceMatrix(h2_mat)
-colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
-rownames(dist_matrix) <- colnames(dist_matrix)
+dist_matrix_op1 <- distanceMatrix(h2_mat_op1)
+colnames(dist_matrix_op1) <- paste("Matrix", 1:nrow(dist_matrix_op1))
+rownames(dist_matrix_op1) <- colnames(dist_matrix_op1)
 
 #fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
-hc <- hclust(as.dist(dist_matrix), method="average")
+hc <- hclust(as.dist(dist_matrix_op1), method="average")
 #plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-# number of clusters: 2 seems to be the best
+# number of clusters: 4 seems to be the best
 library(factoextra)
 # elbow plot
-fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+fviz_nbclust(dist_matrix_op1, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
 # dendrogram
 plot(hc)
-rect.hclust(hc, 2, border = 2)
+rect.hclust(hc, 4, border = 2:4)
 
-# gap stat
-#gap_stat <- cluster::clusGap(dist_matrix, FUN = kmeans, nstart = 30, K.max = 24, B = 50)
-#fviz_gap_stat(gap_stat) + theme_minimal() + ggtitle("fviz_gap_stat: Gap Statistic")
-
-# silhouette
-#fviz_nbclust(dist_matrix, kmeans, method = "silhouette", k.max = 24) + theme_minimal() + ggtitle("The Silhouette Plot")
-
-clus <- cutree(hc, 2)
+clus <- cutree(hc, 4)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -605,7 +637,7 @@ phylo <- as.phylo(hc)
 phylo <- as_tibble(phylo)
 phylo$label <- as.numeric(substring(phylo$label, 8))
 phylo <- as.phylo(phylo)
-id <- rbindlist(cov_matrix_modelindex_full, fill = T)
+id <- rbindlist(cov_matrix_modelindex_op1, fill = T)
 id$label <- as.character(1:nrow(id))
 id$modelindex <- as.factor(id$modelindex)
 id <- AddCombosToDF(id)
@@ -621,9 +653,6 @@ for (i in 1:length(g)) {
   id[idx,"clus"] <- i
 }
 
-
-
-
 # with id, check how frequent genetic architectures are with the clusters
 tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
 names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
@@ -634,17 +663,25 @@ summary(model)
 
 id %>% ungroup() %>%
   group_by(r, model, clus) %>%
-  summarise(n = n()) %>%
+  dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
-  mutate(prop = n/sum(n)) -> cluster_percs_r
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
 
 id %>% ungroup() %>%
   group_by(nloci_group, model, clus) %>%
-  summarise(n = n()) %>%
+  dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
-  mutate(prop = n/sum(n)) -> cluster_percs_nloci
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+id %>% ungroup() %>%
+  group_by(optPerc, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_optPerc
+
 
 phylo <- full_join(as.phylo(phylo), id, by = "label")
 
@@ -655,6 +692,7 @@ ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
   # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
   #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
   labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
@@ -663,13 +701,14 @@ ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
          size = guide_legend(order = 2)) -> tree_clus
 tree_clus
 
-ggsave("tree_clus_full.png", device = png, width = 4, height = 4)
+ggsave("tree_clus_op1.png", device = png, width = 4, height = 4)
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
                       labels = c("K+", "K-"), breaks = c("K", "ODE")) +
   labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
@@ -707,6 +746,7 @@ ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
                       labels = c("K+", "K-"), breaks = c("K", "ODE")) +
   labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: <25%") +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
@@ -738,15 +778,231 @@ for (i in unique(id$clus)) {
 }
 tree_nloci
 
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(optPerc)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Progress to the optimum") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_optPerc
+
+# add clusters + proportions
+for (i in unique(id$clus)) {
+  if(length(id$clus[id$clus == i]) < 2) next
+  lab_dat <- cluster_percs_optPerc[cluster_percs_optPerc$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_optPerc <- tree_optPerc + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_optPerc$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_optPerc <- tree_optPerc + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+
+
 plt_trees <- plot_grid(tree_r,
                         tree_nloci,
                         ncol = 2, labels = "AUTO")
 
 plt_trees
-ggsave("plt_tree_gmatrix_full_2clus.png", device = png, bg = "white",
+ggsave("plt_tree_gmatrix_optperc1.png", device = png, bg = "white",
        width = 12, height = 6)
 
-# Full one very similar to subset, run analysis on sample
+# Progress to optimum <25%: very distinct clustering by model type
+# early in the walk variance-covariance is different between the models
+# outlier K+ clusters have lower recombination maybe
+
+
+
+
+# Repeat for opt perc 4
+dist_matrix_op4 <- distanceMatrix(h2_mat_op4)
+colnames(dist_matrix_op4) <- paste("Matrix", 1:nrow(dist_matrix_op4))
+rownames(dist_matrix_op4) <- colnames(dist_matrix_op4)
+
+#fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+hc <- hclust(as.dist(dist_matrix_op4), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 2 seems to be the best
+# elbow plot
+fviz_nbclust(dist_matrix_op4, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 2, border = 2)
+
+clus <- cutree(hc, 2)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id <- rbindlist(cov_matrix_modelindex_op4, fill = T)
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$nloci_group <- "[4, 64)"
+id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
+id$nloci_group[id$nloci == 1024] <- "[1024]"
+id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
+tab <- as.data.frame(tab)
+
+model <- glm(Freq~cluster+r,family=poisson(),data=tab)
+summary(model)
+
+id %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+phylo <- full_join(as.phylo(phylo), id, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op4.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id$clus)) {
+  if(length(id$clus[id$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+                                  fill = clus_palette[i], alpha = 0.2,
+                                  type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_r
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id$clus)) {
+  if(length(id$clus[id$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                       tree_nloci,
+                       ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix_optperc4.png", device = png, bg = "white",
+       width = 12, height = 6)
+
+# By the end of the walk the G matrices are more similar: there is still clustering
+# between models, but the distance between them is quite small
+# the outliers are still in the K+ model, mainly this time driven by high
+# recombination rates
+
+
 
 
 angle <- function(x,y){
@@ -1066,7 +1322,7 @@ ggplot(sbst_plt,
   scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
                                            direction = -1),
                       guide = "none") +
-  #lims(x = c(-0.06, 0.06), y = c(-0.06, 0.06)) +
+  lims(x = c(-0.25, 0.25), y = c(-0.25, 0.25)) +
   coord_equal() +
   labs(title = paste0("Progress to the optimum: ", ifelse(timepoint == 1, "<25%", ">=75%")),
        x = traitLabels[combo[1]], y = traitLabels[combo[2]], colour = "Cluster") +
@@ -1077,7 +1333,7 @@ ggplot(sbst_plt,
 res_plt[[i]] <- plt
 filename <- paste0("plt_gmat_", traitMap[combo[1]], "_", traitMap[combo[2]], 
                    "_", timepoint, ".png")
-#ggsave(filename, plt, device = png, width = 8, height = 8)
+ggsave(filename, plt, device = png, width = 8, height = 8)
 }
 
 
