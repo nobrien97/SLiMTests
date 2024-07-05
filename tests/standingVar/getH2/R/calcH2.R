@@ -65,10 +65,11 @@ if (model == "Add") {
   relPheno <- scan(paste0("slim_pheno_sbst_", run, ".csv"), sep = ",")[-(1:3)]
   names(relPheno) <- NULL
   
-  ind_names <- paste0(1:1000)
-  relPheno_dat <- data.frame(Z   = relPheno,
-                             id = as.factor(ind_names))
-  relPheno_mat <- as.matrix(relPheno_dat[1])
+  relPheno_dat <- data.frame(Z   = relPheno)
+  # Scale and center
+  relPheno_dat_scaled <- scale(relPheno_dat[,1])
+
+  relPheno_mat <- as.matrix(relPheno_dat_scaled[,1])
   mkr_result <- mkrOrError(relPheno_mat, A)
   mrr_result <- mrrOrError(relPheno_mat, X)
   
@@ -83,17 +84,13 @@ if (model == "Add") {
                              aZ  = log(relPheno[seq(2, length(relPheno), by = 5)]),
                              bZ  = log(relPheno[seq(3, length(relPheno), by = 5)]),
                              KZ  = log(relPheno[seq(4, length(relPheno), by = 5)]),
-                             KXZ = log(relPheno[seq(5, length(relPheno), by = 5)]),
-                             id = as.factor(ind_names))
+                             KXZ = log(relPheno[seq(5, length(relPheno), by = 5)]))
   
-  # Scale variances
-  relPheno_dat$aZ_scl <- scale(relPheno_dat$aZ)
-  relPheno_dat$bZ_scl <- scale(relPheno_dat$bZ)
-  relPheno_dat$KZ_scl <- scale(relPheno_dat$KZ)
-  relPheno_dat$KXZ_scl <- scale(relPheno_dat$KXZ)
-  
+  # Scale and center phenotypes
+  relPheno_dat_scaled <- scale(relPheno_dat[,1:5])
+
   # Run kernel regression w/ eigendecomposition depending on the model
-  relPheno_mat <- as.matrix(relPheno_dat[1:5])
+  relPheno_mat <- as.matrix(relPheno_dat_scaled[,1:5])
 }
 
 if (model == "ODE") {
