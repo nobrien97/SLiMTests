@@ -84,7 +84,7 @@ d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F,
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  dplyr::mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
   ungroup() -> d_qg
 
 d_qg$optPerc <- d_qg$phenomean - 1
@@ -104,7 +104,7 @@ d_h2 <- rbind(d_h2_mkr, d_h2_mrr)
 # Clean data
 d_h2 <- d_h2 %>%
   distinct(gen, seed, modelindex, method, .keep_all = T) %>%
-  mutate(modelindex = as.factor(modelindex),
+  dplyr::mutate(modelindex = as.factor(modelindex),
          seed = as.factor(seed)) %>%
   drop_na(VA_Z) %>% distinct()
 
@@ -196,13 +196,14 @@ d_h2 <- read.csv("d_h2_outliersremoved.csv")
 d_h2 <- d_h2[,-1]
 
 # summarise
-d_h2_sum <- d_h2 %>%
+d_h2_sum <- d_h2 %>% 
   filter(r %in% r_subsample) %>%
   group_by(optPerc, model, tau, r, method, isAdapted) %>%
-  summarise(meanH2Z = mean(h2_Z, na.rm = T),
+  dplyr::summarise(meanH2Z = mean(h2_Z, na.rm = T),
             seH2Z = se(h2_Z, na.rm = T),
             meanVAZ = mean(VA_Z, na.rm = T),
             seVAZ = se(VA_Z, na.rm = T))
+d_h2_sum$model <- as.factor(d_h2_sum$model)
 
 # Number of loci doesn't seem to affect it too much, average across
 ggplot(d_h2 %>% filter(isAdapted) %>%
@@ -484,7 +485,37 @@ ggplot(d_pheno_va_cor %>%
 # small cluster of non-adapted pops in cluster 1, otherwise isAdapted
 # doesn't predict cluster, removing
 
-d_h2 %>% filter(isAdapted) %>%
+# Scaled h2 estimates
+d_h2_scaled <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr_scaled.csv"), header = F,
+                                     col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                                   "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                                   "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
+                                                   "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+                                                   "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                                   "h2_KXZ"))
+
+# d_h2_mrr_scaled <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr_scaled.csv"), header = F,
+#                                      col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+#                                                    "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+#                                                    "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
+#                                                    "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+#                                                    "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+#                                                    "h2_KXZ"))
+
+d_h2_scaled$method <- "mkr"
+
+# Clean data
+d_h2_scaled <- d_h2_scaled %>%
+  distinct(gen, seed, modelindex, method, .keep_all = T) %>%
+  dplyr::mutate(modelindex = as.factor(modelindex),
+                seed = as.factor(seed)) %>%
+  drop_na(VA_Z) %>% distinct()
+
+# inner join optPerc
+d_h2_scaled <- left_join(d_h2_scaled, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
+d_h2_scaled <- AddCombosToDF(d_h2_scaled)
+
+d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 1) %>%
   mutate(tmpCVA = CVA_a_b,
@@ -493,7 +524,7 @@ d_h2 %>% filter(isAdapted) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc1
 
-d_h2 %>% filter(isAdapted) %>%
+d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 2) %>%
   mutate(tmpCVA = CVA_a_b,
@@ -502,7 +533,7 @@ d_h2 %>% filter(isAdapted) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc2
 
-d_h2 %>% filter(isAdapted) %>%
+d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 3) %>%
   mutate(tmpCVA = CVA_a_b,
@@ -511,7 +542,7 @@ d_h2 %>% filter(isAdapted) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc3
 
-d_h2 %>% filter(isAdapted) %>%
+d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 4) %>%
   mutate(tmpCVA = CVA_a_b,
@@ -620,16 +651,16 @@ rownames(dist_matrix_op1) <- colnames(dist_matrix_op1)
 hc <- hclust(as.dist(dist_matrix_op1), method="average")
 #plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-# number of clusters: 4 seems to be the best
+# number of clusters: 3 seems to be the best
 library(factoextra)
 # elbow plot
 fviz_nbclust(dist_matrix_op1, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
 # dendrogram
 plot(hc)
-rect.hclust(hc, 4, border = 2:4)
+rect.hclust(hc, 3, border = 2:3)
 
-clus <- cutree(hc, 4)
+clus <- cutree(hc, 3)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -637,45 +668,45 @@ phylo <- as.phylo(hc)
 phylo <- as_tibble(phylo)
 phylo$label <- as.numeric(substring(phylo$label, 8))
 phylo <- as.phylo(phylo)
-id <- rbindlist(cov_matrix_modelindex_op1, fill = T)
-id$label <- as.character(1:nrow(id))
-id$modelindex <- as.factor(id$modelindex)
-id <- AddCombosToDF(id)
-id$nloci_group <- "[4, 64)"
-id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
-id$nloci_group[id$nloci == 1024] <- "[1024]"
-id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+id_op1 <- rbindlist(cov_matrix_modelindex_op1, fill = T)
+id_op1$label <- as.character(1:nrow(id_op1))
+id_op1$modelindex <- as.factor(id_op1$modelindex)
+id_op1 <- AddCombosToDF(id_op1)
+id_op1$nloci_group <- "[4, 64)"
+id_op1$nloci_group[id_op1$nloci >= 64 & id_op1$nloci < 1024] <- "[64, 256]"
+id_op1$nloci_group[id_op1$nloci == 1024] <- "[1024]"
+id_op1$nloci_group <- factor(id_op1$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
 
-id$clus <- -1
+id_op1$clus <- -1
 # add cluster
 for (i in 1:length(g)) {
   idx <- g[[i]]
-  id[idx,"clus"] <- i
+  id_op1[idx,"clus"] <- i
 }
 
 # with id, check how frequent genetic architectures are with the clusters
-tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
+tab <- table(id_op1$clus, id_op1$nloci_group, id_op1$r, id_op1$model, id_op1$isAdapted)
 names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
 tab <- as.data.frame(tab)
 
 model <- glm(Freq~cluster*nloci,family=poisson(),data=tab)
 summary(model)
 
-id %>% ungroup() %>%
+id_op1 %>% ungroup() %>%
   group_by(r, model, clus) %>%
   dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
   dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
 
-id %>% ungroup() %>%
+id_op1 %>% ungroup() %>%
   group_by(nloci_group, model, clus) %>%
   dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
   dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
 
-id %>% ungroup() %>%
+id_op1 %>% ungroup() %>%
   group_by(optPerc, model, clus) %>%
   dplyr::summarise(n = n()) %>%
   ungroup() %>%
@@ -683,7 +714,7 @@ id %>% ungroup() %>%
   dplyr::mutate(prop = n/sum(n)) -> cluster_percs_optPerc
 
 
-phylo <- full_join(as.phylo(phylo), id, by = "label")
+phylo <- full_join(as.phylo(phylo), id_op1, by = "label")
 
 clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
 
@@ -701,7 +732,7 @@ ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
          size = guide_legend(order = 2)) -> tree_clus
 tree_clus
 
-ggsave("tree_clus_op1.png", device = png, width = 4, height = 4)
+ggsave("tree_clus_op1_scaled.png", device = png, width = 4, height = 4)
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
@@ -717,13 +748,13 @@ ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
          shape = guide_legend(order = 2)) -> tree_r
 
 # add clusters + proportions
-for (i in unique(id$clus)) {
-  if(length(id$clus[id$clus == i]) < 2) next
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
   lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
   cluster_labels <- apply(lab_dat, 1, function(x) {
     sprintf("r: %s, model: %s = %.1f%%",
             x[1], x[2], as.numeric(x[5]) * 100)})
-  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
                                           fill = clus_palette[i], alpha = 0.2,
                                           type = "encircle", to.bottom = T) 
   
@@ -755,13 +786,13 @@ ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
          shape = guide_legend(order = 2)) -> tree_nloci
 
 # add clusters + proportions
-for (i in unique(id$clus)) {
-  if(length(id$clus[id$clus == i]) < 2) next
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
   lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
   cluster_labels <- apply(lab_dat, 1, function(x) {
     sprintf("nloci: %s, model: %s = %.1f%%",
        x[1], x[2], as.numeric(x[5]) * 100)})
-  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
                                           fill = clus_palette[i], alpha = 0.2,
                                           type = "encircle", to.bottom = T) 
   
@@ -778,49 +809,12 @@ for (i in unique(id$clus)) {
 }
 tree_nloci
 
-ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
-  geom_tippoint(aes(shape = as.factor(optPerc)), size = 3) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
-                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
-  labs(colour = "Model", shape = "Progress to the optimum") +
-  ggtitle("Progress to the optimum: <25%") +
-  theme(legend.position = "bottom", 
-        legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
-        text = element_text(size = 14)) +
-  guides(colour = guide_legend(order = 1),
-         shape = guide_legend(order = 2)) -> tree_optPerc
-
-# add clusters + proportions
-for (i in unique(id$clus)) {
-  if(length(id$clus[id$clus == i]) < 2) next
-  lab_dat <- cluster_percs_optPerc[cluster_percs_optPerc$clus == i,]
-  cluster_labels <- apply(lab_dat, 1, function(x) {
-    sprintf("nloci: %s, model: %s = %.1f%%",
-            x[1], x[2], as.numeric(x[5]) * 100)})
-  tree_optPerc <- tree_optPerc + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
-                                          fill = clus_palette[i], alpha = 0.2,
-                                          type = "encircle", to.bottom = T) 
-  
-  # Find the position for the annotation
-  cluster_tips <- tree_optPerc$data %>% filter(clus == i)
-  annotation_x <- min(cluster_tips$x) - 0.15
-  annotation_y <- max(cluster_tips$y) + 0.05
-  
-  # Add text annotation
-  for (j in 1:length(cluster_labels)) {
-    tree_optPerc <- tree_optPerc + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
-                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
-  }
-}
-
-
 plt_trees <- plot_grid(tree_r,
                         tree_nloci,
                         ncol = 2, labels = "AUTO")
 
 plt_trees
-ggsave("plt_tree_gmatrix_optperc1.png", device = png, bg = "white",
+ggsave("plt_tree_gmatrix_optperc1_scaled.png", device = png, bg = "white",
        width = 12, height = 6)
 
 # Progress to optimum <25%: very distinct clustering by model type
@@ -840,15 +834,15 @@ rownames(dist_matrix_op4) <- colnames(dist_matrix_op4)
 hc <- hclust(as.dist(dist_matrix_op4), method="average")
 #plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-# number of clusters: 2 seems to be the best
+# number of clusters: 3 seems to be the best
 # elbow plot
 fviz_nbclust(dist_matrix_op4, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
 # dendrogram
 plot(hc)
-rect.hclust(hc, 2, border = 2)
+rect.hclust(hc, 3, border = 2:3)
 
-clus <- cutree(hc, 2)
+clus <- cutree(hc, 3)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -856,45 +850,45 @@ phylo <- as.phylo(hc)
 phylo <- as_tibble(phylo)
 phylo$label <- as.numeric(substring(phylo$label, 8))
 phylo <- as.phylo(phylo)
-id <- rbindlist(cov_matrix_modelindex_op4, fill = T)
-id$label <- as.character(1:nrow(id))
-id$modelindex <- as.factor(id$modelindex)
-id <- AddCombosToDF(id)
-id$nloci_group <- "[4, 64)"
-id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
-id$nloci_group[id$nloci == 1024] <- "[1024]"
-id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+id_op4 <- rbindlist(cov_matrix_modelindex_op4, fill = T)
+id_op4$label <- as.character(1:nrow(id_op4))
+id_op4$modelindex <- as.factor(id_op4$modelindex)
+id_op4 <- AddCombosToDF(id_op4)
+id_op4$nloci_group <- "[4, 64)"
+id_op4$nloci_group[id_op4$nloci >= 64 & id_op4$nloci < 1024] <- "[64, 256]"
+id_op4$nloci_group[id_op4$nloci == 1024] <- "[1024]"
+id_op4$nloci_group <- factor(id_op4$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
 
-id$clus <- -1
+id_op4$clus <- -1
 # add cluster
 for (i in 1:length(g)) {
   idx <- g[[i]]
-  id[idx,"clus"] <- i
+  id_op4[idx,"clus"] <- i
 }
 
 # with id, check how frequent genetic architectures are with the clusters
-tab <- table(id$clus, id$nloci_group, id$r, id$model, id$isAdapted)
+tab <- table(id_op4$clus, id_op4$nloci_group, id_op4$r, id_op4$model, id_op4$isAdapted)
 names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
 tab <- as.data.frame(tab)
 
 model <- glm(Freq~cluster+r,family=poisson(),data=tab)
 summary(model)
 
-id %>% ungroup() %>%
+id_op4 %>% ungroup() %>%
   group_by(r, model, clus) %>%
   dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
   dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
 
-id %>% ungroup() %>%
+id_op4 %>% ungroup() %>%
   group_by(nloci_group, model, clus) %>%
   dplyr::summarise(n = n()) %>%
   ungroup() %>%
   group_by(clus) %>%
   dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
 
-phylo <- full_join(as.phylo(phylo), id, by = "label")
+phylo <- full_join(as.phylo(phylo), id_op4, by = "label")
 
 clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
 
@@ -912,7 +906,7 @@ ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
          size = guide_legend(order = 2)) -> tree_clus
 tree_clus
 
-ggsave("tree_clus_op4.png", device = png, width = 4, height = 4)
+ggsave("tree_clus_op4_scaled.png", device = png, width = 4, height = 4)
 
 ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
   geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
@@ -928,13 +922,13 @@ ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
          shape = guide_legend(order = 2)) -> tree_r
 
 # add clusters + proportions
-for (i in unique(id$clus)) {
-  if(length(id$clus[id$clus == i]) < 2) next
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
   lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
   cluster_labels <- apply(lab_dat, 1, function(x) {
     sprintf("r: %s, model: %s = %.1f%%",
             x[1], x[2], as.numeric(x[5]) * 100)})
-  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
                                   fill = clus_palette[i], alpha = 0.2,
                                   type = "encircle", to.bottom = T) 
   
@@ -966,13 +960,13 @@ ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
          shape = guide_legend(order = 2)) -> tree_nloci
 
 # add clusters + proportions
-for (i in unique(id$clus)) {
-  if(length(id$clus[id$clus == i]) < 2) next
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
   lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
   cluster_labels <- apply(lab_dat, 1, function(x) {
     sprintf("nloci: %s, model: %s = %.1f%%",
             x[1], x[2], as.numeric(x[5]) * 100)})
-  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id$label[id$clus == i]), 
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
                                           fill = clus_palette[i], alpha = 0.2,
                                           type = "encircle", to.bottom = T) 
   
@@ -994,15 +988,13 @@ plt_trees <- plot_grid(tree_r,
                        ncol = 2, labels = "AUTO")
 
 plt_trees
-ggsave("plt_tree_gmatrix_optperc4.png", device = png, bg = "white",
+ggsave("plt_tree_gmatrix_optperc4_scaled.png", device = png, bg = "white",
        width = 12, height = 6)
 
 # By the end of the walk the G matrices are more similar: there is still clustering
 # between models, but the distance between them is quite small
 # the outliers are still in the K+ model, mainly this time driven by high
 # recombination rates
-
-
 
 
 angle <- function(x,y){
@@ -1012,6 +1004,86 @@ angle <- function(x,y){
   theta <- acos(dot.prod / (norm.x * norm.y))
   as.numeric(theta)
 }
+# Calculate ellipse x and y coordinates after rotation
+ellipse_points <- function(x_center, y_center, major_axis, minor_axis, angle, n_points = 100) {
+  theta <- seq(0, 2 * pi, length.out = n_points)
+  x <- major_axis * cos(theta)
+  y <- minor_axis * sin(theta)
+  rotated_x <- x * cos(angle) - y * sin(angle)
+  rotated_y <- x * sin(angle) + y * cos(angle)
+  data.frame(x = rotated_x + x_center, y = rotated_y + y_center)
+}
+
+# normal direction at point t on an ellipse with major axis length a pointing
+# in direction u1, and minor axis length b in direction u2
+ellipse_normal <- function(t, a, b, u1, u2) {
+  return(a * sin(t) * u2 + b * cos(t) * u1)
+}
+
+# Length of the normal of an ellipse at point t with major/minor lengths a and b
+ellipse_normal_len <- function(t, a, b) {
+  return(sqrt(a^2 * (sin(t)^2) + b^2 * (cos(t)^2)))
+}
+
+# Get unit vector directions of major/minor axes
+getAxisDirections <- function(angle) {
+  u1 <- c(cos(angle), sin(angle))
+  u2 <- c(-sin(angle), cos(angle))
+  return(list(u1 = u1, u2 = u2))
+}
+
+# Solve O(t) for the outer boundary
+outer_boundary <- function(t, a, b, u1, u2, h) {
+  P_t <- a * cos(t) * u1 + b * sin(t) * u2
+  normal <- ellipse_normal(t, a, b, u1, u2)
+  normal_len <- ellipse_normal_len(t, a, b)
+  O_t <- P_t + (h / normal_len) * normal
+  return(O_t)
+}
+
+# Solve I(t) for the inner boundary
+inner_boundary <- function(t, a, b, u1, u2, h) {
+  P_t <- a * cos(t) * u1 + b * sin(t) * u2
+  normal <- ellipse_normal(t, a, b, u1, u2)
+  normal_len <- ellipse_normal_len(t, a, b)
+  I_t <- P_t - (h / normal_len) * normal
+  return(I_t)
+}
+
+ribbon_points <- function(major_axis_mean, minor_axis_mean, major_axis_se, minor_axis_se, angle_mean, n_points = 100) {
+  theta <- seq(0, 2 * pi, length.out = n_points)
+  
+  u <- getAxisDirections(angle_mean)
+  u1 <- u$u1
+  u2 <- u$u2
+  
+  outer_points <- t(sapply(theta, outer_boundary, a = major_axis_mean, 
+                           b = minor_axis_mean, u1 = u1, u2 = u2,
+                           h = major_axis_se))
+  inner_points <- t(sapply(theta, inner_boundary, a = major_axis_mean, 
+                           b = minor_axis_mean, u1 = u1, u2 = u2,
+                           h = major_axis_se))
+  
+  upper_df <- data.frame(x = outer_points[,1], y = outer_points[,2])
+  lower_df <- data.frame(x = inner_points[,1], y = inner_points[,2])
+  
+  ribbon_df <- rbind(upper_df, lower_df[nrow(lower_df):1, ])
+  return(ribbon_df)
+}
+
+# Major and minor lines
+axis_lines <- function(major_axis, minor_axis, angle) {
+  
+  vert_x = cos(angle) * major_axis
+  vert_y = sin(angle) * major_axis
+  covert_x = cos((angle - (90 * pi/180))) * minor_axis
+  covert_y = sin((angle - (90 * pi/180))) * minor_axis
+  
+  return(data.frame(maj_xend = vert_x, maj_yend = vert_y,
+                    min_xend = covert_x, min_yend = covert_y))
+  
+}
+
 
 # Want to find the similarities in structure between models in these clusters
 # PCA of each covariance matrix to find proportion of variance explained in PC1 PC2,
@@ -1110,133 +1182,21 @@ CovMatrixPCA <- function(matList, id) {
   return(PCAdata)
 }
 
-test_pca <- eigen(h2_mat[[1]])
-test_angle <- angle(test_pca$vectors[,1], test_pca$vectors[,2])
+covpca_op1 <- CovMatrixPCA(h2_mat_op1, id_op1)
+covpca_op1 <- AddCombosToDF(covpca_op1)
 
-# 95% confidence ellipse axis length
-test_major_len <- ( qnorm(0.975) * test_pca$values[1] )
-test_minor_len <- ( qnorm(0.975) * test_pca$values[2] )
+covpca_op4 <- CovMatrixPCA(h2_mat_op4, id_op4)
+covpca_op4 <- AddCombosToDF(covpca_op4)
 
-test_dplot_ellipse <- data.frame(vert_x = cos(test_angle * pi/180) * test_major_len,
-                            vert_y = sin(test_angle * pi/180) * test_major_len,
-                            covert_x = cos((test_angle - 90) * pi/180) * test_minor_len,
-                            covert_y = sin((test_angle - 90) * pi/180) * test_minor_len,
-                            mean_t1 = 0,
-                            mean_t2 = 0,
-                            theta = test_angle,
-                            major_len = test_major_len,
-                            minor_len = test_minor_len)
-
-
-ggplot(test_dplot_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  geom_point(data = test_scores,
-             aes(x = PC1, y = PC2)) + 
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-
-covpca_test <- CovMatrixPCA(h2_mat, id)
-covpca_test <- AddCombosToDF(covpca_test)
 
 # Summarise
-covpca_sum <- covpca_test %>%
+covpca_op1_sum <- covpca_op1 %>%
   group_by(optPerc, r, model, clus, trait1, trait2) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
-# Calculate ellipse x and y coordinates after rotation
-ellipse_points <- function(x_center, y_center, major_axis, minor_axis, angle, n_points = 100) {
-  theta <- seq(0, 2 * pi, length.out = n_points)
-  x <- major_axis * cos(theta)
-  y <- minor_axis * sin(theta)
-  rotated_x <- x * cos(angle) - y * sin(angle)
-  rotated_y <- x * sin(angle) + y * cos(angle)
-  data.frame(x = rotated_x + x_center, y = rotated_y + y_center)
-}
-
-# normal direction at point t on an ellipse with major axis length a pointing
-# in direction u1, and minor axis length b in direction u2
-ellipse_normal <- function(t, a, b, u1, u2) {
-  return(a * sin(t) * u2 + b * cos(t) * u1)
-}
-
-# Length of the normal of an ellipse at point t with major/minor lengths a and b
-ellipse_normal_len <- function(t, a, b) {
-  return(sqrt(a^2 * (sin(t)^2) + b^2 * (cos(t)^2)))
-}
-
-# Get unit vector directions of major/minor axes
-getAxisDirections <- function(angle) {
-  u1 <- c(cos(angle), sin(angle))
-  u2 <- c(-sin(angle), cos(angle))
-  return(list(u1 = u1, u2 = u2))
-}
-
-# Solve O(t) for the outer boundary
-outer_boundary <- function(t, a, b, u1, u2, h) {
-  P_t <- a * cos(t) * u1 + b * sin(t) * u2
-  normal <- ellipse_normal(t, a, b, u1, u2)
-  normal_len <- ellipse_normal_len(t, a, b)
-  O_t <- P_t + (h / normal_len) * normal
-  return(O_t)
-}
-
-# Solve I(t) for the inner boundary
-inner_boundary <- function(t, a, b, u1, u2, h) {
-  P_t <- a * cos(t) * u1 + b * sin(t) * u2
-  normal <- ellipse_normal(t, a, b, u1, u2)
-  normal_len <- ellipse_normal_len(t, a, b)
-  I_t <- P_t - (h / normal_len) * normal
-  return(I_t)
-}
-
-ribbon_points <- function(major_axis_mean, minor_axis_mean, major_axis_se, minor_axis_se, angle_mean, n_points = 100) {
-  theta <- seq(0, 2 * pi, length.out = n_points)
-  
-  u <- getAxisDirections(angle_mean)
-  u1 <- u$u1
-  u2 <- u$u2
-  
-  outer_points <- t(sapply(theta, outer_boundary, a = major_axis_mean, 
-                         b = minor_axis_mean, u1 = u1, u2 = u2,
-                         h = major_axis_se))
-  inner_points <- t(sapply(theta, inner_boundary, a = major_axis_mean, 
-                         b = minor_axis_mean, u1 = u1, u2 = u2,
-                         h = major_axis_se))
-  
-  upper_df <- data.frame(x = outer_points[,1], y = outer_points[,2])
-  lower_df <- data.frame(x = inner_points[,1], y = inner_points[,2])
-  
-  ribbon_df <- rbind(upper_df, lower_df[nrow(lower_df):1, ])
-  return(ribbon_df)
-}
-
-# Major and minor lines
-axis_lines <- function(major_axis, minor_axis, angle) {
-  
-  vert_x = cos(angle) * major_axis
-  vert_y = sin(angle) * major_axis
-  covert_x = cos((angle - (90 * pi/180))) * minor_axis
-  covert_y = sin((angle - (90 * pi/180))) * minor_axis
-
-  return(data.frame(maj_xend = vert_x, maj_yend = vert_y,
-                              min_xend = covert_x, min_yend = covert_y))
-
-}
-
 # Run ellipse function on data
 ## Mean ellipse
-covpca_dplot <- covpca_sum %>% ungroup() %>%
+covpca_dplot_op1 <- covpca_op1_sum %>% ungroup() %>%
   group_by(optPerc, r, model, clus, trait1, trait2) %>%
   mutate(
   mean_ellipse = pmap(list(0,0,pc_majorlength_t1_mean,pc_minorlength_t1_mean,pc_majorangle_mean), ellipse_points),
@@ -1245,12 +1205,37 @@ covpca_dplot <- covpca_sum %>% ungroup() %>%
   unnest(data)
 
 # Average over nloci, doesn't matter; only 1 tau group being looked at
-covpca_dplot_axes <- covpca_sum %>% ungroup() %>%
+covpca_dplot_op1_axes <- covpca_op1_sum %>% ungroup() %>%
   group_by(optPerc, r, model, clus, trait1, trait2) %>%
   mutate(mean_axes = pmap(list(pc_majorlength_t1_mean, 
                                pc_minorlength_t1_mean, pc_majorangle_mean), 
                           axis_lines)) %>%
   unnest(mean_axes)
+
+
+# Summarise
+covpca_op4_sum <- covpca_op4 %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
+
+# Run ellipse function on data
+## Mean ellipse
+covpca_dplot_op4 <- covpca_op4_sum %>% ungroup() %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  mutate(
+    mean_ellipse = pmap(list(0,0,pc_majorlength_t1_mean,pc_minorlength_t1_mean,pc_majorangle_mean), ellipse_points),
+    ribbon_ellipse = pmap(list(pc_majorlength_t1_mean, pc_minorlength_t1_mean, pc_majorlength_t1_se/2, pc_minorlength_t1_se/2, pc_majorangle_mean), ribbon_points)) %>%
+  pivot_longer(cols = ends_with("ellipse"), names_to = "ellipse_type", values_to = "data") %>%
+  unnest(data)
+
+# Average over nloci, doesn't matter; only 1 tau group being looked at
+covpca_dplot_op4_axes <- covpca_op4_sum %>% ungroup() %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  mutate(mean_axes = pmap(list(pc_majorlength_t1_mean, 
+                               pc_minorlength_t1_mean, pc_majorangle_mean), 
+                          axis_lines)) %>%
+  unnest(mean_axes)
+
 
 # Iterate over all 10 combinations of traits
 traitCombos <- list(
@@ -1404,7 +1389,7 @@ covpca_traitprops <- AddCombosToDF(covpca_traitprops)
 covpca_traitprops %>%
   select(-nloci, -seed, -tau) %>%
   group_by(optPerc, model, clus, trait, pc, r) %>%
-  summarise_if(is.numeric, list(mean = mean, CI = CI, sd = sd)) -> covpca_traitprops_sum
+  dplyr::summarise_if(is.numeric, list(mean = mean, CI = CI, sd = sd)) -> covpca_traitprops_sum
 
 covpca_traitprops_sum <- covpca_traitprops_sum %>%
   mutate(trait = traitMap[trait])
@@ -1450,3 +1435,5 @@ ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
        shape = "Principal Component") +
   theme_bw() +
   theme(legend.position = "bottom", text = element_text(size = 14))
+
+# Plot additive variances of each model
