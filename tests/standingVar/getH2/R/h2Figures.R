@@ -1199,8 +1199,10 @@ covpca_op1_sum <- covpca_op1 %>%
 covpca_dplot_op1 <- covpca_op1_sum %>% ungroup() %>%
   group_by(optPerc, r, model, clus, trait1, trait2) %>%
   mutate(
-  mean_ellipse = pmap(list(0,0,pc_majorlength_t1_mean,pc_minorlength_t1_mean,pc_majorangle_mean), ellipse_points),
-  ribbon_ellipse = pmap(list(pc_majorlength_t1_mean, pc_minorlength_t1_mean, pc_majorlength_t1_se/2, pc_minorlength_t1_se/2, pc_majorangle_mean), ribbon_points)) %>%
+  mean_ellipse = pmap(list(0,0,pc_majorlength_t1_mean,pc_minorlength_t1_mean,
+                           pc_majorangle_mean), ellipse_points),
+  ribbon_ellipse = pmap(list(pc_majorlength_t1_mean, pc_minorlength_t1_mean, 
+                             pc_majorlength_t1_se/2, pc_minorlength_t1_se/2, pc_majorangle_mean), ribbon_points)) %>%
   pivot_longer(cols = ends_with("ellipse"), names_to = "ellipse_type", values_to = "data") %>%
   unnest(data)
 
@@ -1261,18 +1263,33 @@ traitLabels <- c(TeX("$K_{XZ}$", output = "expression"),
 traitCombos <- rep(traitCombos, each = 2)
 res_plt <- vector("list", length(traitCombos) * 2)
 
+singleTraitsMap <- c(
+  "KXZ",
+  "KZ",
+  "Z",
+  "a",
+  "b"
+)
+
 for (i in seq_along(traitCombos)) {
   combo <- traitCombos[[i]]
   timepoint <- ifelse(i %% 2 != 0, 1, 4)
+  
+  if (i %% 2 != 0) {
+    covpca_dplot <- covpca_dplot_op1
+    covpca_dplot_axes <- covpca_dplot_op1_axes
+  } else {
+    covpca_dplot <- covpca_dplot_op4
+    covpca_dplot_axes <- covpca_dplot_op4_axes
+  }
+
   # Subset data
-sbst_plt <- covpca_dplot %>% filter(trait1 == combo[1], trait2 == combo[2], 
-                        as.numeric(optPerc) == timepoint) %>%
+sbst_plt <- covpca_dplot %>% filter(trait1 == combo[1], trait2 == combo[2]) %>%
   mutate(r_title = "Recombination rate (log10)",
          model_title = "Model (cluster)",
          model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
 
-axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == combo[1], trait2 == combo[2], 
-                                         as.numeric(optPerc) == timepoint) %>%
+axes_sbst_plt <- covpca_dplot_axes %>% filter(trait1 == combo[1], trait2 == combo[2]) %>%
   mutate(r_title = "Recombination rate (log10)",
          model_title = "Model (cluster)",
          model = fct_recode(model, "K+" = "K", "K-" = "ODE"))
@@ -1307,7 +1324,7 @@ ggplot(sbst_plt,
   scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3,
                                            direction = -1),
                       guide = "none") +
-  lims(x = c(-0.25, 0.25), y = c(-0.25, 0.25)) +
+  #lims(x = c(-0.25, 0.25), y = c(-0.25, 0.25)) +
   coord_equal() +
   labs(title = paste0("Progress to the optimum: ", ifelse(timepoint == 1, "<25%", ">=75%")),
        x = traitLabels[combo[1]], y = traitLabels[combo[2]], colour = "Cluster") +
@@ -1316,8 +1333,8 @@ ggplot(sbst_plt,
         panel.spacing = unit(1, "lines")) -> plt
 
 res_plt[[i]] <- plt
-filename <- paste0("plt_gmat_", traitMap[combo[1]], "_", traitMap[combo[2]], 
-                   "_", timepoint, ".png")
+filename <- paste0("plt_gmat_", singleTraitsMap[combo[1]], "_", singleTraitsMap[combo[2]], 
+                   "_", timepoint, "_scaled.png")
 ggsave(filename, plt, device = png, width = 8, height = 8)
 }
 
