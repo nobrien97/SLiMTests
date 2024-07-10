@@ -1454,3 +1454,613 @@ ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
   theme(legend.position = "bottom", text = element_text(size = 14))
 
 # Plot additive variances of each model
+
+
+
+
+# Distance matrix: response distnaces (Hansen and Houle 2008)
+dist_matrix_d_op1 <- distanceMatrix(h2_mat_op1, metric = "response-distance")
+colnames(dist_matrix_d_op1) <- paste("Matrix", 1:nrow(dist_matrix_d_op1))
+rownames(dist_matrix_d_op1) <- colnames(dist_matrix_d_op1)
+diag(dist_matrix_d_op1) <- 0
+
+hc <- hclust(as.dist(dist_matrix_d_op1), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 6 seems to be the best
+library(factoextra)
+# elbow plot
+fviz_nbclust(dist_matrix_d_op1, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 6, border = 2:6)
+
+clus <- cutree(hc, 6)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id_op1 <- rbindlist(cov_matrix_modelindex_op1, fill = T)
+id_op1$label <- as.character(1:nrow(id_op1))
+id_op1$modelindex <- as.factor(id_op1$modelindex)
+id_op1 <- AddCombosToDF(id_op1)
+id_op1$nloci_group <- "[4, 64)"
+id_op1$nloci_group[id_op1$nloci >= 64 & id_op1$nloci < 1024] <- "[64, 256]"
+id_op1$nloci_group[id_op1$nloci == 1024] <- "[1024]"
+id_op1$nloci_group <- factor(id_op1$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id_op1$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id_op1[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id_op1$clus, id_op1$nloci_group, id_op1$r, id_op1$model, id_op1$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
+tab <- as.data.frame(tab)
+
+model <- glm(Freq~cluster,family=poisson(),data=tab)
+summary(model)
+
+id_op1 %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id_op1 %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+phylo <- full_join(as.phylo(phylo), id_op1, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op1_d.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
+                                  fill = clus_palette[i], alpha = 0.2,
+                                  type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_r
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                       tree_nloci,
+                       ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix_optperc1_d.png", device = png, bg = "white",
+       width = 12, height = 6)
+
+# Repeat for opt perc 4
+dist_matrix_d_op4 <- distanceMatrix(h2_mat_op4)
+colnames(dist_matrix_d_op4) <- paste("Matrix", 1:nrow(dist_matrix_d_op4))
+rownames(dist_matrix_d_op4) <- colnames(dist_matrix_d_op4)
+
+#fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+hc <- hclust(as.dist(dist_matrix_d_op4), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 3 seems to be the best
+# elbow plot
+fviz_nbclust(dist_matrix_d_op4, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 3, border = 2:3)
+
+clus <- cutree(hc, 3)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id_op4 <- rbindlist(cov_matrix_modelindex_op4, fill = T)
+id_op4$label <- as.character(1:nrow(id_op4))
+id_op4$modelindex <- as.factor(id_op4$modelindex)
+id_op4 <- AddCombosToDF(id_op4)
+id_op4$nloci_group <- "[4, 64)"
+id_op4$nloci_group[id_op4$nloci >= 64 & id_op4$nloci < 1024] <- "[64, 256]"
+id_op4$nloci_group[id_op4$nloci == 1024] <- "[1024]"
+id_op4$nloci_group <- factor(id_op4$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id_op4$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id_op4[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id_op4$clus, id_op4$nloci_group, id_op4$r, id_op4$model, id_op4$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
+tab <- as.data.frame(tab)
+
+model <- glm(Freq~cluster+nloci+r,family=poisson(),data=tab)
+summary(model)
+
+id_op4 %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id_op4 %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+phylo <- full_join(as.phylo(phylo), id_op4, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op4_d.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
+                                  fill = clus_palette[i], alpha = 0.2,
+                                  type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.5
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_r
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.5
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                       tree_nloci,
+                       ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix_optperc4_d.png", device = png, bg = "white",
+       width = 12, height = 6)
+
+# Evolvability, respondability, conditional evolvability, autonomy (Hansen Houle 2008)
+# Code from Puentes et al. 2016
+CalcECRA <- function(matList, id) {
+  require(matrixcalc)
+  require(Matrix)
+  
+  PCAdata <- data.frame(
+    ev = numeric(length(matList)),
+    cev = numeric(length(matList)),
+    res = numeric(length(matList)),
+    aut = numeric(length(matList)),
+    cev_a = numeric(length(matList)),
+    cev_b = numeric(length(matList)),
+    cev_Z = numeric(length(matList)),
+    cev_KXZ = numeric(length(matList)),
+    cev_KZ = numeric(length(matList))
+  )
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = id$optPerc,
+           seed = id$seed,
+           modelindex = id$modelindex,
+           clus = id$clus)
+  
+  Hx <- function(x) {
+    1/mean(1/x)
+  }
+  
+  Ix <- function(x) {
+    var(x)/mean(x)^2
+  }
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    
+    # If its ODE, remove K parameters
+    if (all(g[1:2,] == 0)) {
+      g <- g[3:5, 3:5]
+    }
+    # If the matrix isn't positive semi-definite, find the nearest PD
+    if (!is.positive.semi.definite(g)) {
+      g <- as.matrix(nearPD(g)$mat)
+    }
+    
+    pca <- eigen(g)
+    k <- length(pca$values)
+    
+    PCAdata$ev[i] <- mean(pca$values) #e
+    PCAdata$cev[i] <- Hx(pca$values) * (1 + (2*Ix(1/pca$values)) / (k+2) ) #c
+    PCAdata$res[i] <- sqrt(mean(pca$values^2)) * (1 - (Ix(pca$values^2) / (4*k+2) ) ) #r
+    PCAdata$aut[i] <- (Hx(pca$values) / mean(pca$values)) * (1 + 2 * (Ix(pca$values) + Ix(1/pca$values) - 1 + Hx(pca$values)/mean(pca$values) + 2 * Ix(pca$values) * Ix(1/pca$values)/(k+2))/(k+2)) #a
+    
+    # What if we look at conditional evolvability of alpha and beta alone?
+    # Maybe certain values of KZ and KXZ are more conducive to producing 
+    # phenotype changes via alpha and beta mutations?
+    
+    # Only look at Z, alpha, beta
+    if (nrow(g) > 3) {
+      g <- g[3:5, 3:5]
+    }
+    
+    if (!is.positive.definite(g)) {
+      g <- nearPD(g)$mat
+    }
+    
+    # conditional of trait y on the other traits x
+    PCAdata$cev_z[i] <- g[1,1] - g[1,-1] %*% solve(g[-1, -1]) %*% g[-1,1]
+    PCAdata$cev_a[i] <- g[2,2] - g[2,-2] %*% solve(g[-2, -2]) %*% g[-2,2]
+    PCAdata$cev_b[i] <- g[3,3] - g[3,-3] %*% solve(g[-3, -3]) %*% g[-3,3]
+    
+    }
+  
+  return(PCAdata)
+}
+
+id <- rbindlist(c(cov_matrix_modelindex_op1,
+                  cov_matrix_modelindex_op2,
+                  cov_matrix_modelindex_op3,
+                  cov_matrix_modelindex_op4), 
+                fill = T)
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$nloci_group <- "[4, 64)"
+id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
+id$nloci_group[id$nloci == 1024] <- "[1024]"
+id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id[idx,"clus"] <- i
+}
+
+d_ecr <- CalcECRA(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), 
+                   id)
+d_ecr <- AddCombosToDF(d_ecr)
+
+# Outliers
+lofscores <- lofactor(d_ecr$cev, 20)
+threshold <- 1.5
+outliers <- lofscores > threshold
+
+plot(density(lofscores[lofscores < 4]))
+
+plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
+     main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
+     ylab = "LOF Score")
+legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
+       pch = 1)
+boxplot(d_ecr[!outliers,]$cev)
+
+# filter out outliers
+d_ecr <- d_ecr[!outliers,]
+
+d_ecr_sum <- d_ecr %>%
+  group_by(optPerc, model, r) %>%
+  dplyr::summarise_if(is.numeric, list(mean = mean, se = se))
+
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean conditional evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_cev
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = res, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = res_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean respondability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_res
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = aut, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = aut_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean autonomy",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_aut
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = ev, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = ev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_ev
+
+leg <- get_legend(plt_ev)
+
+plt_evol <- plot_grid(plt_ev + theme(legend.position = "none"),
+                      plt_cev + theme(legend.position = "none"),
+                        plt_res + theme(legend.position = "none"),
+                      plt_aut + theme(legend.position = "none"),
+                        ncol = 2, labels = "AUTO")
+
+plt_evol <- plot_grid(plt_evol,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_evol
+ggsave("plt_evol.png", device = png, bg = "white",
+       width = 10, height = 7)
+
+# What if we look at conditional evolvability of alpha and beta alone?
+# Maybe certain values of KZ and KXZ are more conducive to producing 
+# phenotype changes via alpha and beta mutations?
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_a, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_a_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $\\alpha_Z$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_a
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_b, colour = model)) +
+  facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_b_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $\\beta_Z$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_b
+
+leg <- get_legend(plt_cev_a)
+
+plt_cev_ab <- plot_grid(plt_cev_a + theme(legend.position = "none"),
+                      plt_cev_b + theme(legend.position = "none"),
+                      ncol = 2, labels = "AUTO")
+
+plt_cev_ab <- plot_grid(plt_cev_ab,
+                      leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_cev_ab
+ggsave("plt_cev_ab.png", device = png, bg = "white",
+       width = 9, height = 4)
