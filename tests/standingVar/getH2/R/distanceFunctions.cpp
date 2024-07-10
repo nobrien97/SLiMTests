@@ -47,15 +47,32 @@ double distPowerEuclidean(const mat& P1, const mat& P2, double alpha = 0.5) {
   return distLogEuclidean(P1, P2);
 }
 
+// Hansen and Houle 2008 response distance (d)
+double responseDist(const mat& G1, const mat& G2, double alpha = 0.5) {
+  vec eigval;
+  mat eigvec;
+  eig_sym(eigval, eigvec, G1-G2);  // Eigen decomposition of G1-G2
+  eigval = pow(eigval, 2);    // square eigenvalues
+  auto sqrMeanL = sqrt(mean(eigval));
+  auto IL = (var(eigval)/pow(mean(eigval), 2));
+  auto denominator = 4 * ( eigval.size() + 2);
+  return sqrMeanL * (1 - IL/denominator);
+}
+
 // [[Rcpp::export]]
-NumericMatrix distanceMatrix(List covarianceMatrices, double alpha = 0.5) {
+NumericMatrix distanceMatrix(List covarianceMatrices, double alpha = 0.5, std::string metric = "power-euclidean") {
   int n = covarianceMatrices.size();
   
   // make sure alpha > 0: for some reason abs() causes errors
   if (alpha < 0) {
     alpha = -alpha;
   }
-
+  
+// Different distance functions
+  double (*DistFunc) (const mat&, const mat&, double);
+  
+  DistFunc = metric == "power-euclidean" ? distPowerEuclidean : responseDist;
+  
   // result matrix
   NumericMatrix distances(n,n);
 
@@ -63,7 +80,7 @@ NumericMatrix distanceMatrix(List covarianceMatrices, double alpha = 0.5) {
     for (int j = 0; j < n; ++j) {
       mat P1 = covarianceMatrices[i];
       mat P2 = covarianceMatrices[j];
-      double dist = distPowerEuclidean(P1, P2, alpha);
+      double dist = DistFunc(P1, P2, alpha);
       distances(i, j) = dist;
       distances(j, i) = dist;
     }
