@@ -1848,20 +1848,20 @@ CalcECRA <- function(matList, id) {
     # What if we look at conditional evolvability of alpha and beta alone?
     # Maybe certain values of KZ and KXZ are more conducive to producing 
     # phenotype changes via alpha and beta mutations?
-    
-    # Only look at Z, alpha, beta
+    # Rearrange
     if (nrow(g) > 3) {
-      g <- g[3:5, 3:5]
-    }
-    
-    if (!is.positive.definite(g)) {
-      g <- nearPD(g)$mat
+      g <- g[c(3:5, 1:2), c(3:5, 1:2)]
     }
     
     # conditional of trait y on the other traits x
     PCAdata$cev_z[i] <- g[1,1] - g[1,-1] %*% solve(g[-1, -1]) %*% g[-1,1]
     PCAdata$cev_a[i] <- g[2,2] - g[2,-2] %*% solve(g[-2, -2]) %*% g[-2,2]
     PCAdata$cev_b[i] <- g[3,3] - g[3,-3] %*% solve(g[-3, -3]) %*% g[-3,3]
+    
+    if (nrow(g) > 3) {
+      PCAdata$cev_KXZ[i] <- g[4,4] - g[4,-4] %*% solve(g[-4, -4]) %*% g[-4,4]
+      PCAdata$cev_KZ[i] <- g[5,5] - g[5,-5] %*% solve(g[-5, -5]) %*% g[-5,5]
+    }
     
     }
   
