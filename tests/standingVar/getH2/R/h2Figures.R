@@ -2064,3 +2064,142 @@ plt_cev_ab <- plot_grid(plt_cev_ab,
 plt_cev_ab
 ggsave("plt_cev_ab.png", device = png, bg = "white",
        width = 9, height = 4)
+
+# Krzanowski subspace
+library(evolqg)
+krz_op1 <- KrzSubspace(h2_mat_op1, 2)
+
+fullSibHalfSibPed <- function(n = 5, m = 20, o = 10) {
+  # Initialize vectors for the pedigree
+  id <- integer(n * m * o)
+  sire <- integer(n * m * o)
+  dam <- integer(n * m * o)
+  
+  # Generate parent IDs
+  sire_ids <- seq(from = 1, length.out = n)
+  dam_ids <- seq(from = n + 1, length.out = m)
+  offspring_ids <- seq(from = n*m + 1, length.out = n*m*o)
+  
+  pedigree <- data.frame(
+    id = offspring_ids,
+    sire = rep(sire_ids, each = m * o),
+    dam = rep(dam_ids, times = n * o)
+  )
+
+  return(pedigree)
+}
+
+# Generate same half-sib full-sib pedigree as from the SLiM experiment
+ped <- fullSibHalfSibPed()
+
+# Generate random matrices for null: Morrissey et al. 2019, Walter 2023
+# Null differences in genetic effects among treatments (among models)
+# sampling breeding values using rbv from a null G-matrix (the average G matrix)
+# Resample G matrices across models
+d_h2_scaled %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 1) %>%
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(seed, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_seed_optPerc1
+
+d_h2_scaled %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 4) %>%
+  mutate(tmpCVA = CVA_a_b,
+         CVA_a_b = CVA_a_KZ,
+         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
+  group_by(seed, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_seed_optPerc4
+
+lapply(split_h2_seed_optPerc1, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_seed_op1
+lapply(split_h2_seed_optPerc4, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_seed_op4
+
+lapply(split_h2_seed_optPerc1, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_seed_op1
+lapply(split_h2_seed_optPerc4, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_seed_op4
+
+# Get average across models for each seed
+lapply(cov_matrices_seed_op1, function(x) {
+  array(unlist(x), dim = c(5, 5, length(x)))
+}) -> cov_matrices_seed_op1
+
+h2_avg_op1 <- lapply(cov_matrices_seed_op1, function(x) {
+  apply(x, 1:2, mean)
+})
+
+lapply(cov_matrices_seed_op4, function(x) {
+  array(unlist(x), dim = c(5, 5, length(x)))
+}) -> cov_matrices_seed_op4
+
+h2_avg_op4 <- lapply(cov_matrices_seed_op4, function(x) {
+  apply(x, 1:2, mean)
+})
+
+h2_null_H_op1 <- KrzSubspace(h2_avg_op1, 2)$H
+h2_null_H_op4 <- KrzSubspace(h2_avg_op4, 2)$H
+
+avgH_op1 <- Reduce("+", h2_null_H_op1)/length(h2_null_H_op1) 
+avgH_op4 <- Reduce("+", h2_null_H_op4)/length(h2_null_H_op4) 
+
+# get ids
+#cov_matrix_seed_op1 <- GetMatrixIDs(split_h2_seed_optPerc1)
+#cov_matrix_seed_op4 <- GetMatrixIDs(split_h2_seed_optPerc4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+h2_arr_op1 <- array(unlist(h2_mat_op1), dim = c(5, 5, length(h2_mat_op1)))
+
+# Average across all models but within seeds - variation due to sampling error
+h2_avg_op1 <- apply(h2_arr_op1, 1:2, mean)
+
+# Compare H between null average and between models
+
+
+library(MasterBayes)
+ped <- insertPed(ped)
+
+traitnames = c("KXZ", "KZ", "Z", "a", "b")
+Gnames=1:length(h2_mat_op1)
+MCMCsamp = 10
+n=5 # number of traits
+m=length(h2_mat_op1) # number of populations
+rand.Garray <- array(,c(n,n,m,MCMCsamp))
+dimnames(rand.Garray) <- list(traitnames,traitnames,Gnames)
+library(MCMCglmm)
+for (i in 1:MCMCsamp){
+  b1.bv<-rbv(ped.list[[1]], Garray.pop[,,1,i])
+  b2.bv<-rbv(ped.list[[2]], Garray.pop[,,2,i])
+  c1.bv<-rbv(ped.list[[3]], Garray.pop[,,3,i])
+  c2.bv<-rbv(ped.list[[4]], Garray.pop[,,4,i])
+  
+  a.pop <- cumsum(c( length(unique(ped.list[[1]][,3]))-1, length(unique(ped.list[[2]][,3]))-1, 
+                     length(unique(ped.list[[3]][,3]))-1, length(unique(ped.list[[4]][,3]))-1))
+  
+  pop.bv <- rbind(b1.bv[1:39,], b2.bv[1:40,], c1.bv[1:37,], c2.bv[1:32,])
+  rand.pop.bv <- pop.bv[sample(dim(pop.bv)[1],replace=F),]
+  rand.Garray[,,1,i] <- cov(rand.pop.bv[1:a.pop[1],])
+  rand.Garray[,,2,i] <- cov(rand.pop.bv[(a.pop[1] + 1):a.pop[2],])
+  rand.Garray[,,3,i] <- cov(rand.pop.bv[(a.pop[2] + 1):a.pop[3],])
+  rand.Garray[,,4,i] <- cov(rand.pop.bv[(a.pop[3] + 1):a.pop[4],])
+}
+
+# Nearest positive definite matrix
+h2_pd_op1 <- lapply(h2_mat_op1, function(x) {
+  if (!is.positive.definite(x)) {as.matrix(nearPD(x)$mat)}
+})
+
+h2_arr_op1 <- array(unlist(h2_pd_op1), dim = c(5, 5, length(h2_pd_op1)))
+#et_op1 <- EigenTensorDecomposition(h2_arr_op1)
