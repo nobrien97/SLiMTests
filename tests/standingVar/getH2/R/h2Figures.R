@@ -2157,13 +2157,15 @@ ggplot(bootKrzCor_sum, aes(
   geom_tile(aes(fill = meanKrzCor)) +
   theme_bw() +
   geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
-              shape = 21) +
+              shape = 21, size = 1) +
   scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   scale_x_discrete(labels = c("K-", "K+")) +
   scale_y_discrete(labels = c("K-", "K+")) +
   labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
   theme(text = element_text(size = 14), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
+
+ggsave("krzcor_r_model.png", device = png, width = 7, height = 5)
   
 # Look at just recombination rate - is there any effect?
 bootKrzCor_sum <- bootKrzCor %>%
@@ -2177,13 +2179,14 @@ ggplot(bootKrzCor_sum, aes(
   geom_tile(aes(fill = meanKrzCor)) +
   theme_bw() +
   geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
-              shape = 21) +
+              shape = 21, size = 1) +
   scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   #scale_x_discrete(labels = c("K-", "K+")) +
   #scale_y_discrete(labels = c("K-", "K+")) +
   labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", fill = "Krzanowski Correlation") +
   theme(text = element_text(size = 14), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
+ggsave("krzcor_r.png", device = png, width = 7, height = 5)
 
 # Effect seems to be that decreasing recombination in both models
 # makes the major axes of variation less similar, but this is a small effect
@@ -2202,7 +2205,7 @@ ggplot(bootKrzCor_sum, aes(
   geom_tile(aes(fill = meanKrzCor)) +
   theme_bw() +
   geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
-              shape = 21) +
+              shape = 21, size = 1) +
   scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   scale_x_discrete(labels = c("K-", "K+")) +
   scale_y_discrete(labels = c("K-", "K+")) +
