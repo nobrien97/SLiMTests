@@ -2100,6 +2100,10 @@ krz_in <- id %>%
   mutate(g = h2_pd, #c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4),
          group = interaction(model, r))
 
+
+# Remove null matrices (no nearest matrix found)
+krz_in <- krz_in[!sapply(krz_in$g,is.null)];
+
 bootKrzCor <- function(x, group) {
   require(evolqg)
   require(dplyr)
@@ -2212,6 +2216,7 @@ ggplot(bootKrzCor_sum, aes(
   labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
   theme(text = element_text(size = 14), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
+ggsave("krzcor_model.png", device = png, width = 7, height = 5)
 
 # This is the strong effect: K- almost always have the same axes
 # K+ often have the same axes
@@ -2245,10 +2250,10 @@ plot(TukeyHSD(aov.krz))
 # Fit: aov(formula = krzCor ~ as.factor(modelCombo), data = bootKrzCor)
 # 
 # $`as.factor(modelCombo)`
-# diff        lwr        upr p adj
-# mix-K   -0.1388557 -0.1424862 -0.1352251     0
-# ODE-K    0.3777385  0.3735463  0.3819307     0
-# ODE-mix  0.5165942  0.5129636  0.5202247     0
+#               diff        lwr        upr p adj
+# mix-K   -0.1337903 -0.1374235 -0.1301571     0
+# ODE-K    0.3851058  0.3809106  0.3893010     0
+# ODE-mix  0.5188961  0.5152629  0.5225292     0
 
 
 # The shared subspace between two matrices is increased by ~0.5 
@@ -2256,7 +2261,7 @@ plot(TukeyHSD(aov.krz))
 # When both matrices are K- the shared subspace is increased by ~0.4
 # relative to both being K+
 # When comparing shared subspace when both matrices are K+ to when there
-# is one of each, correlation decreases by ~0.14
+# is one of each, correlation decreases by ~0.13
 
 # Overall, K- subspace is extremely similar, K+ is very similar, and
 # there is a difference in the major axis of variation between models
@@ -2264,15 +2269,13 @@ plot(TukeyHSD(aov.krz))
 # tend to use them in a similar way (same relative amounts to alpha/beta)
 
 # So what are the PC contributions in the models then?
-covpca <- CovMatrixPCA(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), id)
+covpca <- CovMatrixPCA(#h2_pd,
+                       c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), 
+                       id)
 covpca <- AddCombosToDF(covpca)
 
 covpca_sum <- covpca %>%
   group_by(optPerc, r, model, clus, trait1, trait2) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
-# Nearest positive definite matrix
-h2_pd_op1 <- lapply(h2_mat_op1, function(x) {
-  if (!is.positive.definite(x)) {as.matrix(nearPD(x)$mat)}
-})
 
