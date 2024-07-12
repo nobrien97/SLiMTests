@@ -598,7 +598,7 @@ GetMatrixIDs <- function(matList) {
   return(matList)
 }
 
-cov_matrix_modelindex_full <- GetMatrixIDs(split_h2)
+#cov_matrix_modelindex_full <- GetMatrixIDs(split_h2)
 
 cov_matrix_modelindex_op1 <- GetMatrixIDs(split_h2_optPerc1)
 cov_matrix_modelindex_op2 <- GetMatrixIDs(split_h2_optPerc2)
@@ -608,33 +608,6 @@ cov_matrix_modelindex_op4 <- GetMatrixIDs(split_h2_optPerc4)
 
 # Distance between G matrices
 library(ape)
-frobenius_distance <- function(A, B) {
-  return(sqrt(sum((A - B)^2)))
-}
-
-compute_distance_matrix <- function(list_of_matrices) {
-  n <- length(list_of_matrices)
-  distance_matrix <- matrix(0, n, n)
-  
-  for (i in 1:(n-1)) {
-    for (j in (i+1):n) {
-      distance <- shapes::distcov(list_of_matrices[[i]], list_of_matrices[[j]], "Power")
-      distance_matrix[i, j] <- distance
-      distance_matrix[j, i] <- distance
-    }
-  }
-  
-  rownames(distance_matrix) <- colnames(distance_matrix) <- paste("Matrix", 1:n)
-  return(distance_matrix)
-}
-
-# microbenchmark::microbenchmark(times = 30, 
-#                                compute_distance_matrix(h2_mat[1:100]),
-#                                distanceMatrix(h2_mat[1:100]))
-# 
-# # ensure results are the same - distance should be 0 (with some precision error)
-# shapes::distcov(compute_distance_matrix(h2_mat[1:100]), 
-#                 distanceMatrix(h2_mat[1:100]), "Power")
 
 library(tidytree)
 library(ggtree)
@@ -1458,7 +1431,7 @@ ggplot(covpca_traitprops_sum %>% filter(as.numeric(optPerc) == 4) %>%
 
 
 
-# Distance matrix: response distnaces (Hansen and Houle 2008)
+# Distance matrix: response distances (Hansen and Houle 2008)
 dist_matrix_d_op1 <- distanceMatrix(h2_mat_op1, metric = "response-distance")
 colnames(dist_matrix_d_op1) <- paste("Matrix", 1:nrow(dist_matrix_d_op1))
 rownames(dist_matrix_d_op1) <- colnames(dist_matrix_d_op1)
@@ -1626,7 +1599,7 @@ ggsave("plt_tree_gmatrix_optperc1_d.png", device = png, bg = "white",
        width = 12, height = 6)
 
 # Repeat for opt perc 4
-dist_matrix_d_op4 <- distanceMatrix(h2_mat_op4)
+dist_matrix_d_op4 <- distanceMatrix(h2_mat_op4, metric = "response-distance")
 colnames(dist_matrix_d_op4) <- paste("Matrix", 1:nrow(dist_matrix_d_op4))
 rownames(dist_matrix_d_op4) <- colnames(dist_matrix_d_op4)
 
@@ -1641,9 +1614,9 @@ fviz_nbclust(dist_matrix_d_op4, kmeans, method = "wss", k.max = 24) + theme_mini
 
 # dendrogram
 plot(hc)
-rect.hclust(hc, 3, border = 2:3)
+rect.hclust(hc, 6, border = 2:6)
 
-clus <- cutree(hc, 3)
+clus <- cutree(hc, 6)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -1893,6 +1866,7 @@ d_ecr <- CalcECRA(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4),
 d_ecr <- AddCombosToDF(d_ecr)
 
 # Outliers
+library(DMwR2)
 lofscores <- lofactor(d_ecr$cev, 20)
 threshold <- 1.5
 outliers <- lofscores > threshold
@@ -2065,32 +2039,6 @@ plt_cev_ab
 ggsave("plt_cev_ab.png", device = png, bg = "white",
        width = 9, height = 4)
 
-# Krzanowski subspace
-library(evolqg)
-krz_op1 <- KrzSubspace(h2_mat_op1, 2)
-
-fullSibHalfSibPed <- function(n = 5, m = 20, o = 10) {
-  # Initialize vectors for the pedigree
-  id <- integer(n * m * o)
-  sire <- integer(n * m * o)
-  dam <- integer(n * m * o)
-  
-  # Generate parent IDs
-  sire_ids <- seq(from = 1, length.out = n)
-  dam_ids <- seq(from = n + 1, length.out = m)
-  offspring_ids <- seq(from = n*m + 1, length.out = n*m*o)
-  
-  pedigree <- data.frame(
-    id = offspring_ids,
-    sire = rep(sire_ids, each = m * o),
-    dam = rep(dam_ids, times = n * o)
-  )
-
-  return(pedigree)
-}
-
-# Generate same half-sib full-sib pedigree as from the SLiM experiment
-ped <- fullSibHalfSibPed()
 
 # Generate random matrices for null: Morrissey et al. 2019, Walter 2023
 # Null differences in genetic effects among treatments (among models)
@@ -2137,69 +2085,191 @@ h2_avg_op4 <- lapply(cov_matrices_seed_op4, function(x) {
   apply(x, 1:2, mean)
 })
 
-h2_null_H_op1 <- KrzSubspace(h2_avg_op1, 2)$H
-h2_null_H_op4 <- KrzSubspace(h2_avg_op4, 2)$H
+# Bootstrap krzanowski correlation/subspace test:
+# sample two matrices at random, get correlation
+# compare to sampling two within r
+# data input: dataframe with ids and a column with the matrix
 
-avgH_op1 <- Reduce("+", h2_null_H_op1)/length(h2_null_H_op1) 
-avgH_op4 <- Reduce("+", h2_null_H_op4)/length(h2_null_H_op4) 
-
-# get ids
-#cov_matrix_seed_op1 <- GetMatrixIDs(split_h2_seed_optPerc1)
-#cov_matrix_seed_op4 <- GetMatrixIDs(split_h2_seed_optPerc4)
-
-
+# Nearest positive definite matrix
+h2_pd <- lapply(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), function(x) {
+  if (!is.positive.definite(x)) {as.matrix(nearPD(x)$mat)}
+})
 
 
+krz_in <- id %>%
+  mutate(g = h2_pd, #c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4),
+         group = interaction(model, r))
 
-
-
-
-
-
-
-
-
-
-h2_arr_op1 <- array(unlist(h2_mat_op1), dim = c(5, 5, length(h2_mat_op1)))
-
-# Average across all models but within seeds - variation due to sampling error
-h2_avg_op1 <- apply(h2_arr_op1, 1:2, mean)
-
-# Compare H between null average and between models
-
-
-library(MasterBayes)
-ped <- insertPed(ped)
-
-traitnames = c("KXZ", "KZ", "Z", "a", "b")
-Gnames=1:length(h2_mat_op1)
-MCMCsamp = 10
-n=5 # number of traits
-m=length(h2_mat_op1) # number of populations
-rand.Garray <- array(,c(n,n,m,MCMCsamp))
-dimnames(rand.Garray) <- list(traitnames,traitnames,Gnames)
-library(MCMCglmm)
-for (i in 1:MCMCsamp){
-  b1.bv<-rbv(ped.list[[1]], Garray.pop[,,1,i])
-  b2.bv<-rbv(ped.list[[2]], Garray.pop[,,2,i])
-  c1.bv<-rbv(ped.list[[3]], Garray.pop[,,3,i])
-  c2.bv<-rbv(ped.list[[4]], Garray.pop[,,4,i])
+bootKrzCor <- function(x, group) {
+  require(evolqg)
+  require(dplyr)
+  grps <- unique(x[,group])
+  nGrps <- length(grps)
+  # output data frame
+  res <- data.frame(group1 = character(length(grps)^2),
+                    group2 = character(length(grps)^2),
+                    krzCor = numeric(length(grps)^2))
   
-  a.pop <- cumsum(c( length(unique(ped.list[[1]][,3]))-1, length(unique(ped.list[[2]][,3]))-1, 
-                     length(unique(ped.list[[3]][,3]))-1, length(unique(ped.list[[4]][,3]))-1))
+  # Temporary data frame for filling inner loop
+  res_tmp <- data.frame(group1 = character(length(grps)),
+                        group2 = character(length(grps)),
+                        krzCor = numeric(length(grps)))
   
-  pop.bv <- rbind(b1.bv[1:39,], b2.bv[1:40,], c1.bv[1:37,], c2.bv[1:32,])
-  rand.pop.bv <- pop.bv[sample(dim(pop.bv)[1],replace=F),]
-  rand.Garray[,,1,i] <- cov(rand.pop.bv[1:a.pop[1],])
-  rand.Garray[,,2,i] <- cov(rand.pop.bv[(a.pop[1] + 1):a.pop[2],])
-  rand.Garray[,,3,i] <- cov(rand.pop.bv[(a.pop[2] + 1):a.pop[3],])
-  rand.Garray[,,4,i] <- cov(rand.pop.bv[(a.pop[3] + 1):a.pop[4],])
+  for (i in seq_along(grps)) {
+    for (j in seq_along(grps)) {
+      # Sample matrices in different groups
+      g_1 <- slice_sample(x[group == grps[i]], n = 1)
+      g_2 <- slice_sample(x[group == grps[j]], n = 1)
+      res_tmp$group1[j] <- as.character(g_1[1,group])
+      res_tmp$group2[j] <- as.character(g_2[1,group])
+      res_tmp$krzCor[j] <- KrzCor(g_1$g[[1]], g_2$g[[1]])
+    }
+      indices <- (nGrps*(i-1) + 1):(nGrps*i)
+      res[indices,] <- res_tmp
+  }
+  return(res)
 }
+
+library(mcreplicate)
+bootKrzCor <- mc_replicate(1000, bootKrzCor(krz_in, "group"))
+bootKrzCor <- unnest(as.data.frame(t(bootKrzCor)), cols = everything())
+
+bootKrzCor <- bootKrzCor %>%
+  separate(group1, c("model1", "r1"), "\\.",
+                       extra = "merge") %>%
+  separate(group2, c("model2", "r2"), "\\.",
+           extra = "merge") %>%
+  mutate(r1 = log10(as.numeric(r1)),
+         r2 = log10(as.numeric(r2)),
+         model1 = factor(model1, levels = c("ODE", "K")),
+         model2 = factor(model2, levels = c("ODE", "K")))
+
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(model1, r1, model2, r2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+            ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = model1, y = model2
+)) +
+  facet_nested("Recombination rate 2 (log10))" + 
+                 r2 ~ "Recombination rate 1 (log10))" + r1) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+  
+# Look at just recombination rate - is there any effect?
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(r1, r2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+                   ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = as.factor(r1), y = as.factor(r2)
+)) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  #scale_x_discrete(labels = c("K-", "K+")) +
+  #scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+
+# Effect seems to be that decreasing recombination in both models
+# makes the major axes of variation less similar, but this is a small effect
+# Overall pretty close to 50% mean correlation (expected value)
+# Increasing recombination in both models reduces constraint slightly?
+
+# Now just model
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(model1, model2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+                   ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = model1, y = model2
+)) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+
+# This is the strong effect: K- almost always have the same axes
+# K+ often have the same axes
+# comparing the two are most dissimilar
+
+# ANOVA
+bootKrzCor <- bootKrzCor %>%
+  mutate(modelCombo = ifelse(model1 != model2, "mix",
+                             # paste(as.character(model1), 
+                             #       as.character(model2), 
+                             #      sep = "_"), 
+                             as.character(model1)),
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)))
+
+# R combo only explains 2% of the variance, removing
+lm.krz <- lm(krzCor ~ modelCombo, data = bootKrzCor)
+plot(lm.krz)
+summary(lm.krz)
+aov.krz <- aov(krzCor ~ as.factor(modelCombo), data = bootKrzCor)
+summary(aov.krz)
+aov.krz$coefficients
+TukeyHSD(aov.krz)
+plot(TukeyHSD(aov.krz))
+
+# Tukey multiple comparisons of means
+# 95% family-wise confidence level
+# 
+# Fit: aov(formula = krzCor ~ as.factor(modelCombo), data = bootKrzCor)
+# 
+# $`as.factor(modelCombo)`
+# diff        lwr        upr p adj
+# mix-K   -0.1388557 -0.1424862 -0.1352251     0
+# ODE-K    0.3777385  0.3735463  0.3819307     0
+# ODE-mix  0.5165942  0.5129636  0.5202247     0
+
+
+# The shared subspace between two matrices is increased by ~0.5 
+# when those two matrices are K- instead of one of them being K+
+# When both matrices are K- the shared subspace is increased by ~0.4
+# relative to both being K+
+# When comparing shared subspace when both matrices are K+ to when there
+# is one of each, correlation decreases by ~0.14
+
+# Overall, K- subspace is extremely similar, K+ is very similar, and
+# there is a difference in the major axis of variation between models
+# i.e. the K+ models do use the KZ and KXZ components to adapt, and they
+# tend to use them in a similar way (same relative amounts to alpha/beta)
+
+# So what are the PC contributions in the models then?
+covpca <- CovMatrixPCA(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), id)
+covpca <- AddCombosToDF(covpca)
+
+covpca_sum <- covpca %>%
+  group_by(optPerc, r, model, clus, trait1, trait2) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
 
 # Nearest positive definite matrix
 h2_pd_op1 <- lapply(h2_mat_op1, function(x) {
   if (!is.positive.definite(x)) {as.matrix(nearPD(x)$mat)}
 })
 
-h2_arr_op1 <- array(unlist(h2_pd_op1), dim = c(5, 5, length(h2_pd_op1)))
-#et_op1 <- EigenTensorDecomposition(h2_arr_op1)
