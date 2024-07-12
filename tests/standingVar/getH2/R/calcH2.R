@@ -95,13 +95,13 @@ if (model == "Add") {
 
 if (model == "ODE") {
   # No K values for the regular models
-  mkr_result <- mkrOrError(relPheno_mat[,1:3], A)
-  mrr_result <- mrrOrError(relPheno_mat[,1:3], X)
+  mkr_result <- mkrOrError(relPheno_mat[,2:3], A)
+  mrr_result <- mrrOrError(relPheno_mat[,2:3], X)
   
 } else if (model == "K") {
   # All K values
-  mkr_result <- mkrOrError(relPheno_mat[,1:5], A)
-  mrr_result <- mrrOrError(relPheno_mat[,1:5], X)
+  mkr_result <- mkrOrError(relPheno_mat[,2:5], A)
+  mrr_result <- mrrOrError(relPheno_mat[,2:5], X)
 } else if (model != "Add") {
   print(paste("Couldn't find model type in run ", run, "- closing R."))
   q(save = "no")
@@ -117,7 +117,11 @@ if (is.na(mkr_result[1]) & is.na(mrr_result[1])) {
 if (!is.na(mkr_result[1])) {
   # Expand results with NA for Additive and ODE cases
   molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
-  colnames(mkr_result$Vb) <- molTraitNames[1:ncol(mkr_result$Vb)]
+  if (model == "Add") {
+    colnames(mkr_result$Vb) <- "Z"
+  } else { # don't include Z
+    colnames(mkr_result$Vb) <- molTraitNames[2:(ncol(mkr_result$Vb)+1)]
+  }
   rownames(mkr_result$Vb) <- colnames(mkr_result$Vb)
   
   G <- matrix(NA, nrow = 5, ncol = 5)
@@ -127,7 +131,11 @@ if (!is.na(mkr_result[1])) {
   G[rownames(mkr_result$Vb), colnames(mkr_result$Vb)] <- mkr_result$Vb
   
   h2 <- rep(NA, 5)
-  h2[1:length(mkr_result$h2)] <- mkr_result$h2
+  if (model == "Add") {
+    h2[1] <- mkr_result$h2
+  } else {
+    h2[2:(length(mkr_result$h2)+1)] <- mkr_result$h2
+  }
   
   cov_terms <- combn(molTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
@@ -155,8 +163,13 @@ if (!is.na(mkr_result[1])) {
 if (!is.na(mrr_result[1])) {
   # Expand results with NA for Additive and ODE cases
   molTraitNames <- c("Z", "aZ", "bZ", "KZ", "KXZ")
-  colnames(mrr_result$Vb) <- molTraitNames[1:ncol(mrr_result$Vb)]
+  if (model == "Add") {
+    colnames(mrr_result$Vb) <- "Z"
+  } else { # don't include Z
+    colnames(mrr_result$Vb) <- molTraitNames[2:(ncol(mrr_result$Vb)+1)]
+  }
   rownames(mrr_result$Vb) <- colnames(mrr_result$Vb)
+
   
   G <- matrix(NA, nrow = 5, ncol = 5)
   colnames(G) <- molTraitNames
@@ -165,7 +178,11 @@ if (!is.na(mrr_result[1])) {
   G[rownames(mrr_result$Vb), colnames(mrr_result$Vb)] <- mrr_result$Vb
   
   h2 <- rep(NA, 5)
-  h2[1:length(mrr_result$h2)] <- mrr_result$h2
+  if (model == "Add") {
+    h2[1] <- mrr_result$h2
+  } else {
+    h2[2:(length(mrr_result$h2)+1)] <- mrr_result$h2
+  }
   
   cov_terms <- combn(molTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 

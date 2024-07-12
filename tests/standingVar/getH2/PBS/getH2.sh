@@ -66,8 +66,8 @@ $ECHO "All jobs finished, moving output..."
 # Combine output
 cd /scratch/ht96/nb9894/$TOTALJOBNAME/
 
-cat ./*_mrr_done.csv >> $SAVEDIR/out_h2_mrr.csv
-cat ./*_mkr_done.csv >> $SAVEDIR/out_h2_mkr.csv
+cat ./*_mrr_done.csv >> $SAVEDIR/out_h2_mrr_noZ_scaled.csv
+cat ./*_mkr_done.csv >> $SAVEDIR/out_h2_mkr_noZ_scaled.csv
 
 # Delete loose files with
 rm ./*_done.csv

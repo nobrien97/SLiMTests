@@ -31,14 +31,14 @@ DATAPATH=/g/data/ht96/nb9894/${SUBJOBNAME}
 # Check if we're additive or not: if we're not, we need to skip since we've already processed the
 # non-additive models
 fix_haplo=$(tail -n "+${RUN}" $DATAPATH/slim_haplo_fix.csv | head -n 1)
-mod=$(echo $fix_haplo| awk -F, '{OFS=",";print $3}')
-modulo=$((($mod%3)+1))
+#mod=$(echo $fix_haplo| awk -F, '{OFS=",";print $3}')
+#modulo=$((($mod%3)+1))
 
-if [[ "$modulo" -ne 2 ]]; then
-    echo "$RUN non-additive, already done! Moving to next simulation."
-    touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
-    exit 0
-fi
+#if [[ "$modulo" -ne 2 ]]; then
+#    echo "$RUN non-additive, already done! Moving to next simulation."
+#    touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
+#    exit 0
+#fi
 
 # Save subset files to work on
 echo $fix_haplo > slim_haplo_fix_sbst_$RUN.csv
