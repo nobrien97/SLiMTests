@@ -2279,3 +2279,19 @@ covpca_sum <- covpca %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
 
+# Rerun analysis on matrices without Z
+d_h2_noZ_mrr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr_noZ_scaled.csv"), header = F,
+                                 col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                               "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                               "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
+                                               "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+                                               "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                               "h2_KXZ"))
+
+d_h2_noZ_mkr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr_noZ_scaled.csv"), header = F,
+                                  col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                                "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                                "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
+                                                "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+                                                "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                                "h2_KXZ"))
