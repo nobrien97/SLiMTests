@@ -41,36 +41,36 @@ DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
 source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/helperFunctionsAndSetup.R")
 
 d_h2_mkr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr.csv"), header = F,
-                          col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
-                                        "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                        "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                        "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
-                                        "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
-                                        "h2_KXZ"))
+                              col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                            "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                            "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                            "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
+                                            "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                            "h2_KXZ"))
 
 d_h2_mrr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr.csv"), header = F,
                               col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
                                             "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                            "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                            "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+                                            "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                            "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
                                             "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
                                             "h2_KXZ"))
 
 d_h2_mrr_pt1 <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr_pt1.csv"), header = F,
-                              col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
-                                            "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                            "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                            "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
-                                            "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
-                                            "h2_KXZ"))
+                                  col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                                "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                                "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                                "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
+                                                "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                                "h2_KXZ"))
 
 d_h2_mkr_pt1 <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr_pt1.csv"), header = F,
-                              col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
-                                            "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                            "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                            "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
-                                            "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
-                                            "h2_KXZ"))
+                                  col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                                "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                                "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                                "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
+                                                "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                                "h2_KXZ"))
 
 d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -464,14 +464,6 @@ ggplot(d_pheno_va_cor %>%
   facet_nested(r_title + log10(r) ~ .) +
   geom_point(position = position_dodge(0.9)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  #coord_cartesian(ylim = c(0, 1)) +
-  # geom_point(data = d_h2_deltaVA_sum %>%
-  #              mutate(r_title = "Recombination rate (log10)",
-  #                     nloci_title = "Number of loci",
-  #                     tau_title = "Mutational effect size variance") %>%
-  #              filter(method == "mkr", r %in% r_subsample),
-  #            aes(x = as.factor(tau), y = meanDeltaVA, group = model), colour = "black",
-  #            shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Mutational effect size variance", 
        y = "Correlation between additive\nvariance and time to adaptation",
        colour = "Model") +
@@ -487,18 +479,18 @@ ggplot(d_pheno_va_cor %>%
 
 # Scaled h2 estimates
 d_h2_scaled <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr_scaled.csv"), header = F,
-                                     col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
-                                                   "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                                   "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                                   "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
-                                                   "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
-                                                   "h2_KXZ"))
+                                 col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                               "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                               "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                               "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
+                                               "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                               "h2_KXZ"))
 
 # d_h2_mrr_scaled <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr_scaled.csv"), header = F,
 #                                      col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
 #                                                    "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-#                                                    "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-#                                                    "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+#                                                    "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+#                                                    "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
 #                                                    "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
 #                                                    "h2_KXZ"))
 
@@ -518,36 +510,24 @@ d_h2_scaled <- AddCombosToDF(d_h2_scaled)
 d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 1) %>%
-  mutate(tmpCVA = CVA_a_b,
-         CVA_a_b = CVA_a_KZ,
-         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc1
 
 d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 2) %>%
-  mutate(tmpCVA = CVA_a_b,
-         CVA_a_b = CVA_a_KZ,
-         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc2
 
 d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 3) %>%
-  mutate(tmpCVA = CVA_a_b,
-         CVA_a_b = CVA_a_KZ,
-         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc3
 
 d_h2_scaled %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 4) %>%
-  mutate(tmpCVA = CVA_a_b,
-         CVA_a_b = CVA_a_KZ,
-         CVA_a_KZ = if_else(model == "ODE", NA, tmpCVA)) %>%
   group_by(modelindex, optPerc, method, isAdapted) %>%
   group_split(.) -> split_h2_optPerc4
 
@@ -608,7 +588,6 @@ cov_matrix_modelindex_op4 <- GetMatrixIDs(split_h2_optPerc4)
 
 # Distance between G matrices
 library(ape)
-
 library(tidytree)
 library(ggtree)
 library(phytools)
@@ -2281,17 +2260,1349 @@ covpca_sum <- covpca %>%
 
 # Rerun analysis on matrices without Z
 d_h2_noZ_mrr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mrr_noZ_scaled.csv"), header = F,
-                                 col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
-                                               "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                               "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                               "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
-                                               "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
-                                               "h2_KXZ"))
+                                  col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
+                                                "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
+                                                "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                                "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
+                                                "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
+                                                "h2_KXZ"))
 
 d_h2_noZ_mkr <- data.table::fread(paste0(DATA_PATH, "getH2/out_h2_mkr_noZ_scaled.csv"), header = F,
                                   col.names = c("gen", "seed", "modelindex", "VA_Z", "VA_a",
                                                 "VA_b", "VA_KZ", "VA_KXZ", "CVA_Z_a", "CVA_Z_b",
-                                                "CVA_a_b", "CVA_Z_KZ", "CVA_a_KZ", "CVA_b_KZ",
-                                                "CVA_Z_KXZ", "CVA_a_KXZ", "CVA_b_KXZ", 
+                                                "CVA_Z_KZ", "CVA_Z_KXZ", "CVA_a_b", "CVA_a_KZ",
+                                                "CVA_a_KXZ", "CVA_b_KZ", "CVA_b_KXZ", 
                                                 "CVA_KZ_KXZ", "h2_Z", "h2_a", "h2_b", "h2_KZ",
                                                 "h2_KXZ"))
+
+d_h2_noZ_mkr$method <- "mkr"
+d_h2_noZ_mrr$method <- "mrr"
+
+d_h2 <- rbind(d_h2_noZ_mkr, d_h2_noZ_mrr)
+
+# Clean data, remove additive
+d_h2 <- d_h2 %>%
+  distinct(gen, seed, modelindex, method, .keep_all = T) %>%
+  dplyr::mutate(modelindex = as.factor(modelindex),
+                seed = as.factor(seed)) %>%
+  filter(is.na(VA_Z)) %>% distinct()
+
+# inner join optPerc
+d_h2 <- left_join(d_h2, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
+
+d_h2 <- AddCombosToDF(d_h2)
+
+d_h2 <- d_h2 %>% filter(model != "Add")
+
+# Counts for each model type: K+ harder to estimate than the other two
+table(d_h2$model, d_h2$isAdapted)
+
+
+# We have many recombination rates: choose a few
+r_subsample <- c(1e-10, 1e-5, 1e-1)
+
+# Distribution, how different are the estimates
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         select(gen, seed, modelindex, optPerc, h2_a, method, model) %>%
+         distinct() %>%
+         pivot_wider(names_from = method, values_from = h2_a), 
+       aes(x = mkr, y = mrr, colour = model)) +
+  geom_point(shape = 1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  labs(x = TeX("Kernel regression heritability $(h^2)$"), 
+       y = TeX("Ridge regression heritability $(h^2)$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14))
+
+ggplot(d_h2 %>%
+         distinct(), 
+       aes(x = method, y = h2_a)) +
+  geom_boxplot() +
+  labs(x = TeX("Heritability estimation method"), 
+       y = TeX("Narrow-sense heritability $(h^2)$")) +
+  theme_bw() +
+  theme(text = element_text(size = 14))
+
+
+# The two estimates are very different: ridge regression is very biased towards
+# high heritability, the kernel method is biased towards lower heritability
+# Can we trust either? Maybe a parent-offspring regression is the safest bet
+# Kernel regression seems most accurate: ridge is almost always at 0 heritability
+
+d_h2 <- d_h2 %>% filter(method == "mkr")
+
+boxplot(d_h2$VA_a)
+d_h2_all <- d_h2
+
+# Detect outliers: Hampel filter
+# variance depends on the tau group mainly - check outliers within groups
+library(DMwR2)
+
+lofscores <- lofactor(scale(d_h2$VA_a), 10)
+threshold <- 1.6
+outliers <- lofscores > threshold
+
+plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
+     main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
+     ylab = "LOF Score")
+legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
+       pch = 1)
+boxplot(d_h2[!outliers,]$VA_Z)
+
+# filter out outliers
+d_h2 <- d_h2[!outliers,]
+write.csv(d_h2, "d_h2_outliersremoved_noZ.csv")
+d_h2 <- read.csv("d_h2_outliersremoved_noZ.csv")
+d_h2 <- d_h2[,-1]
+
+
+d_h2_sum <- d_h2 %>% 
+  filter(r %in% r_subsample) %>%
+  group_by(optPerc, model, tau, r, method, isAdapted) %>%
+  dplyr::summarise(meanH2a = mean(h2_a, na.rm = T),
+                   seH2a = se(h2_a, na.rm = T),
+                   meanVAa = mean(VA_a, na.rm = T),
+                   seVAa = se(VA_a, na.rm = T))
+d_h2_sum$model <- as.factor(d_h2_sum$model)
+
+# Number of loci doesn't seem to affect it too much, average across
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         filter(method == "mkr", r %in% r_subsample) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = optPerc, y = h2_a, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_h2_sum %>% ungroup() %>%
+               filter(method == "mkr", r %in% r_subsample, isAdapted) %>% 
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance"),
+             aes(x = optPerc, y = meanH2a, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Narrow-sense heritability $(h^2)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-")) +
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+# Additive variance
+# Again, nloci not important
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+       aes(x = optPerc, y = VA_a, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+             aes(x = optPerc, y = meanVAa, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  #coord_cartesian(ylim = c(0, 0.2)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_sml
+
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 0.125),
+       aes(x = optPerc, y = VA_a, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 0.125),
+             aes(x = optPerc, y = meanVAa, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  #coord_cartesian(ylim = c(0, 0.7)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_med
+
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 1.25),
+       aes(x = optPerc, y = VA_a, colour = model)) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 1.25),
+             aes(x = optPerc, y = meanVAa, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  #coord_cartesian(ylim = c(0, 2.5)) +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_add_va_lrg
+
+leg <- get_legend(plt_add_va_lrg)
+
+plt_add_va <- plot_grid(plt_add_va_sml + theme(legend.position = "none"),
+                        plt_add_va_med + theme(legend.position = "none"),
+                        plt_add_va_lrg + theme(legend.position = "none"),
+                        ncol = 1, labels = "AUTO")
+
+plt_add_va <- plot_grid(plt_add_va,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_add_va
+ggsave("plt_va_az_scaled.png", device = png, bg = "white",
+       width = 560*4, height = 980*4, units = "px")
+
+# G matrix analysis
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 1) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc1
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 2) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc2
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 3) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc3
+
+d_h2 %>% filter(isAdapted) %>%
+  filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
+  filter(as.numeric(optPerc) == 4) %>%
+  group_by(modelindex, optPerc, method, isAdapted) %>%
+  group_split(.) -> split_h2_optPerc4
+
+
+# Separate into model indices
+# each sublist is replicates of a model index
+Rcpp::sourceCpp("./getCovarianceMatrices.cpp")
+lapply(split_h2_optPerc1, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op1
+lapply(split_h2_optPerc2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op2
+lapply(split_h2_optPerc3, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op3
+lapply(split_h2_optPerc4, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_op4
+
+lapply(split_h2_optPerc1, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op1
+lapply(split_h2_optPerc2, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op2
+lapply(split_h2_optPerc3, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op3
+lapply(split_h2_optPerc4, function(x) {data.frame(optPerc = x$optPerc, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex_op4
+
+# We want to know if certain architectures are more/less important for describing
+# variation between simulations and which components are most important for describing
+# those differences
+
+# So eigentensor analysis: sample random combinations of seeds to get a distribution
+# of eigenvectors telling us the models which have the largest difference in variation
+# then projection to find the important components
+
+# Repeat with all matrices
+h2_mat_op1 <- unlist(cov_matrices_op1, recursive = F)
+h2_mat_op2 <- unlist(cov_matrices_op2, recursive = F)
+h2_mat_op3 <- unlist(cov_matrices_op3, recursive = F)
+h2_mat_op4 <- unlist(cov_matrices_op4, recursive = F)
+
+# get ids
+GetMatrixIDs <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(optPerc = x$optPerc, 
+               seed = x$seed, 
+               modelindex = x$modelindex, 
+               isAdapted = x$isAdapted)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
+
+#cov_matrix_modelindex_full <- GetMatrixIDs(split_h2)
+
+cov_matrix_modelindex_op1 <- GetMatrixIDs(split_h2_optPerc1)
+cov_matrix_modelindex_op2 <- GetMatrixIDs(split_h2_optPerc2)
+cov_matrix_modelindex_op3 <- GetMatrixIDs(split_h2_optPerc3)
+cov_matrix_modelindex_op4 <- GetMatrixIDs(split_h2_optPerc4)
+
+
+# Distance between G matrices
+# dist matrix for optperc 1
+Rcpp::sourceCpp("./distanceFunctions.cpp")
+dist_matrix_op1 <- distanceMatrix(h2_mat_op1)
+colnames(dist_matrix_op1) <- paste("Matrix", 1:nrow(dist_matrix_op1))
+rownames(dist_matrix_op1) <- colnames(dist_matrix_op1)
+
+#fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+hc <- hclust(as.dist(dist_matrix_op1), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 2 seems to be the best
+library(factoextra)
+# elbow plot
+fviz_nbclust(dist_matrix_op1, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 2, border = 2)
+
+clus <- cutree(hc, 2)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id_op1 <- rbindlist(cov_matrix_modelindex_op1, fill = T)
+id_op1$label <- as.character(1:nrow(id_op1))
+id_op1$modelindex <- as.factor(id_op1$modelindex)
+id_op1 <- AddCombosToDF(id_op1)
+id_op1$nloci_group <- "[4, 64)"
+id_op1$nloci_group[id_op1$nloci >= 64 & id_op1$nloci < 1024] <- "[64, 256]"
+id_op1$nloci_group[id_op1$nloci == 1024] <- "[1024]"
+id_op1$nloci_group <- factor(id_op1$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id_op1$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id_op1[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id_op1$clus, id_op1$nloci_group, id_op1$r, id_op1$model, id_op1$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
+tab <- as.data.frame(tab)
+
+# Model describes the clustering
+model <- glm(Freq~model+nloci,family=poisson(),data=tab)
+summary(model)
+
+id_op1 %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id_op1 %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+id_op1 %>% ungroup() %>%
+  group_by(optPerc, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_optPerc
+
+phylo <- full_join(as.phylo(phylo), id_op1, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op1_noZ.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
+                                  fill = clus_palette[i], alpha = 0.2,
+                                  type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_r
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id_op1$clus)) {
+  if(length(id_op1$clus[id_op1$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op1$label[id_op1$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                       tree_nloci,
+                       ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix_optperc1_noZ.png", device = png, bg = "white",
+       width = 12, height = 6)
+
+# Progress to optimum <25%: very distinct clustering by model type
+# early in the walk variance-covariance is different between the models
+# outlier K+ clusters have lower recombination maybe
+
+
+
+
+# Repeat for opt perc 4
+dist_matrix_op4 <- distanceMatrix(h2_mat_op4)
+colnames(dist_matrix_op4) <- paste("Matrix", 1:nrow(dist_matrix_op4))
+rownames(dist_matrix_op4) <- colnames(dist_matrix_op4)
+
+#fviz_dist(as.dist(dist_matrix), gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+hc <- hclust(as.dist(dist_matrix_op4), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 2 seems to be the best again
+# elbow plot
+fviz_nbclust(dist_matrix_op4, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc)
+rect.hclust(hc, 2, border = 2)
+
+clus <- cutree(hc, 2)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id_op4 <- rbindlist(cov_matrix_modelindex_op4, fill = T)
+id_op4$label <- as.character(1:nrow(id_op4))
+id_op4$modelindex <- as.factor(id_op4$modelindex)
+id_op4 <- AddCombosToDF(id_op4)
+id_op4$nloci_group <- "[4, 64)"
+id_op4$nloci_group[id_op4$nloci >= 64 & id_op4$nloci < 1024] <- "[64, 256]"
+id_op4$nloci_group[id_op4$nloci == 1024] <- "[1024]"
+id_op4$nloci_group <- factor(id_op4$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id_op4$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id_op4[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id_op4$clus, id_op4$nloci_group, id_op4$r, id_op4$model, id_op4$isAdapted)
+names(dimnames(tab)) <- c("cluster", "nloci", "r", "model", "isAdapted")
+tab <- as.data.frame(tab)
+
+model <- glm(Freq~model+nloci,family=poisson(),data=tab)
+summary(model)
+
+id_op4 %>% ungroup() %>%
+  group_by(r, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_r
+
+id_op4 %>% ungroup() %>%
+  group_by(nloci_group, model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs_nloci
+
+phylo <- full_join(as.phylo(phylo), id_op4, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op4_noZ.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(log10(r))), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_r
+
+# add clusters + proportions
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
+  lab_dat <- cluster_percs_r[cluster_percs_r$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("r: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_r <- tree_r + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
+                                  fill = clus_palette[i], alpha = 0.2,
+                                  type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_r$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_r <- tree_r + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_r
+
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(aes(shape = as.factor(nloci_group)), size = 3) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", shape = "Number of loci") +
+  ggtitle("Progress to the optimum: >=75%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         shape = guide_legend(order = 2)) -> tree_nloci
+
+# add clusters + proportions
+for (i in unique(id_op4$clus)) {
+  if(length(id_op4$clus[id_op4$clus == i]) < 2) next
+  lab_dat <- cluster_percs_nloci[cluster_percs_nloci$clus == i,]
+  cluster_labels <- apply(lab_dat, 1, function(x) {
+    sprintf("nloci: %s, model: %s = %.1f%%",
+            x[1], x[2], as.numeric(x[5]) * 100)})
+  tree_nloci <- tree_nloci + geom_hilight(node = MRCA(phylo, id_op4$label[id_op4$clus == i]), 
+                                          fill = clus_palette[i], alpha = 0.2,
+                                          type = "encircle", to.bottom = T) 
+  
+  # Find the position for the annotation
+  cluster_tips <- tree_nloci$data %>% filter(clus == i)
+  annotation_x <- min(cluster_tips$x) - 0.15
+  annotation_y <- max(cluster_tips$y) + 0.05
+  
+  # Add text annotation
+  for (j in 1:length(cluster_labels)) {
+    tree_nloci <- tree_nloci + annotate("text", x = annotation_x, y = annotation_y, label = cluster_labels[j],
+                                        color = clus_palette[i], hjust = 0, vjust = 1 + j*1.5, size = 3)
+  }
+}
+tree_nloci
+
+plt_trees <- plot_grid(tree_r,
+                       tree_nloci,
+                       ncol = 2, labels = "AUTO")
+
+plt_trees
+ggsave("plt_tree_gmatrix_optperc4_noZ.png", device = png, bg = "white",
+       width = 12, height = 6)
+
+
+
+
+CalcECRA <- function(matList, id, noZ = F) {
+  require(matrixcalc)
+  require(Matrix)
+  
+  PCAdata <- data.frame(
+    ev = numeric(length(matList)),
+    cev = numeric(length(matList)),
+    res = numeric(length(matList)),
+    aut = numeric(length(matList)),
+    cev_a = numeric(length(matList)),
+    cev_b = numeric(length(matList)),
+    cev_Z = numeric(length(matList)),
+    cev_KXZ = numeric(length(matList)),
+    cev_KZ = numeric(length(matList))
+  )
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = id$optPerc,
+           seed = id$seed,
+           modelindex = id$modelindex,
+           clus = id$clus)
+  
+  Hx <- function(x) {
+    1/mean(1/x)
+  }
+  
+  Ix <- function(x) {
+    var(x)/mean(x)^2
+  }
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    
+    # If its ODE, remove K parameters
+    if (all(g[1:2,] < 1e-5)) {
+      g <- g[3:5, 3:5]
+    }
+    
+    # If we are a no Z run, remove the Z
+    if (noZ) {
+      # Z index changes depending on K+/K-
+      if (nrow(g) == 5) {
+        g <- g[-3, -3]
+      } else {
+        g <- g[-1, -1]
+      }
+    }
+    
+    
+    # If the matrix isn't positive semi-definite, find the nearest PD
+    if (!is.positive.semi.definite(g)) {
+      g <- as.matrix(nearPD(g)$mat)
+    }
+    
+    pca <- eigen(g)
+    k <- length(pca$values)
+    
+    PCAdata$ev[i] <- mean(pca$values) #e
+    PCAdata$cev[i] <- Hx(pca$values) * (1 + (2*Ix(1/pca$values)) / (k+2) ) #c
+    PCAdata$res[i] <- sqrt(mean(pca$values^2)) * (1 - (Ix(pca$values^2) / (4*k+2) ) ) #r
+    PCAdata$aut[i] <- (Hx(pca$values) / mean(pca$values)) * (1 + 2 * (Ix(pca$values) + Ix(1/pca$values) - 1 + Hx(pca$values)/mean(pca$values) + 2 * Ix(pca$values) * Ix(1/pca$values)/(k+2))/(k+2)) #a
+    
+    # What if we look at conditional evolvability of alpha and beta alone?
+    # Maybe certain values of KZ and KXZ are more conducive to producing 
+    # phenotype changes via alpha and beta mutations?
+    # Rearrange
+    if (nrow(g) > 3 && !noZ) {
+      g <- g[c(3:5, 1:2), c(3:5, 1:2)]
+    }
+    
+    if (nrow(g) > 3 && noZ) {
+      g <- g[c(3:4, 1:2), c(3:4, 1:2)]
+    }
+    
+    
+    # conditional of trait y on the other traits x
+    if (!noZ) {
+      PCAdata$cev_z[i] <- g[1,1] - g[1,-1] %*% solve(g[-1, -1]) %*% g[-1,1]
+      PCAdata$cev_a[i] <- g[2,2] - g[2,-2] %*% solve(g[-2, -2]) %*% g[-2,2]
+      PCAdata$cev_b[i] <- g[3,3] - g[3,-3] %*% solve(g[-3, -3]) %*% g[-3,3]
+    }
+    
+    if (noZ) {
+      PCAdata$cev_a[i] <- g[1,1] - g[1,-1] %*% solve(g[-1, -1]) %*% g[-1,1]
+      PCAdata$cev_b[i] <- g[2,2] - g[2,-2] %*% solve(g[-2, -2]) %*% g[-2,2]
+    }
+    
+    if (nrow(g) > 3 && !noZ) {
+      PCAdata$cev_KXZ[i] <- g[4,4] - g[4,-4] %*% solve(g[-4, -4]) %*% g[-4,4]
+      PCAdata$cev_KZ[i] <- g[5,5] - g[5,-5] %*% solve(g[-5, -5]) %*% g[-5,5]
+    }
+    
+    if (nrow(g) > 3 && noZ) {
+      PCAdata$cev_KXZ[i] <- g[3,3] - g[3,-3] %*% solve(g[-3, -3]) %*% g[-3,3]
+      PCAdata$cev_KZ[i] <- g[4,4] - g[4,-4] %*% solve(g[-4, -4]) %*% g[-4,4]
+    }
+  }
+  
+  return(PCAdata)
+}
+
+id <- rbindlist(c(cov_matrix_modelindex_op1,
+                  cov_matrix_modelindex_op2,
+                  cov_matrix_modelindex_op3,
+                  cov_matrix_modelindex_op4), 
+                fill = T)
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$nloci_group <- "[4, 64)"
+id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
+id$nloci_group[id$nloci == 1024] <- "[1024]"
+id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id[idx,"clus"] <- i
+}
+
+d_ecr <- CalcECRA(h2_pd, 
+                  #c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), 
+                  id, noZ = T)
+d_ecr <- AddCombosToDF(d_ecr)
+
+# Remove Z -> not included in this model
+d_ecr <- d_ecr %>% select(-cev_Z)
+
+# Outliers
+library(DMwR2)
+lofscores <- lofactor(d_ecr$cev, 20)
+threshold <- 1.5
+outliers <- lofscores > threshold
+
+plot(density(lofscores[lofscores < 4]))
+
+plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
+     main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
+     ylab = "LOF Score")
+legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
+       pch = 1)
+boxplot(d_ecr[!outliers,]$cev)
+
+# filter out outliers
+d_ecr <- d_ecr[!outliers,]
+
+# Need to calculate cev means separately for the K- and K+ models
+# K- shouldn't mean over cev_KZ and KXZ
+
+d_ecr_sum <- d_ecr %>%
+  group_by(optPerc, model, r) %>%
+  dplyr::summarise_if(is.numeric, list(mean = mean, se = se))
+
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean conditional evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_cev
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = res, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = res_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean respondability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_res
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = aut, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = aut_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean autonomy",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_aut
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = ev, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = ev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Mean evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) -> plt_ev
+
+leg <- get_legend(plt_ev)
+
+plt_evol <- plot_grid(plt_ev + theme(legend.position = "none"),
+                      plt_cev + theme(legend.position = "none"),
+                      plt_res + theme(legend.position = "none"),
+                      plt_aut + theme(legend.position = "none"),
+                      ncol = 2, labels = "AUTO")
+
+plt_evol <- plot_grid(plt_evol,
+                      leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_evol
+ggsave("plt_evol_noZ.png", device = png, bg = "white",
+       width = 10, height = 7)
+
+# What if we look at conditional evolvability of alpha and beta alone?
+# Maybe certain values of KZ and KXZ are more conducive to producing 
+# phenotype changes via alpha and beta mutations?
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_a, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_a_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $\\alpha_Z$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_a
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_b, colour = model)) +
+  facet_nested(r_title + log10(r)~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_b_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $\\beta_Z$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_b
+
+leg <- get_legend(plt_cev_a)
+
+plt_cev_ab <- plot_grid(plt_cev_a + theme(legend.position = "none"),
+                        plt_cev_b + theme(legend.position = "none"),
+                        ncol = 2, labels = "AUTO")
+
+plt_cev_ab <- plot_grid(plt_cev_ab,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_cev_ab
+ggsave("plt_cev_ab_noZ.png", device = png, bg = "white",
+       width = 9, height = 4)
+
+# How about on KZ and KXZ, does that allow the populations to escape from
+# low-fitness combinations?
+ggplot(d_ecr %>% filter(model == "K") %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_KZ, colour = as.factor(log10(r)))) +
+  #facet_nested(r_title + r~.) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>% filter(model == "K") %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_KZ_mean, group = as.factor(log10(r))), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("rcartocolor::TealGrn", 6)[c(1,4,6)]) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $K_Z$"),
+       colour = "Recombination rate (log10)") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_KZ
+
+ggplot(d_ecr %>% filter(model == "K") %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci"), 
+       aes(x = optPerc, y = cev_KXZ, colour = as.factor(log10(r)))) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>% filter(model == "K") %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = optPerc, y = cev_KXZ_mean, group = as.factor(log10(r))), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("rcartocolor::TealGrn", 6)[c(1,4,6)]) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Mean conditional evolvability on $K_{XZ}$"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_KXZ
+
+leg <- get_legend(plt_cev_KXZ)
+
+plt_cev_K <- plot_grid(plt_cev_KZ + theme(legend.position = "none"),
+                       plt_cev_KXZ + theme(legend.position = "none"),
+                        ncol = 2, labels = "AUTO")
+
+plt_cev_K <- plot_grid(plt_cev_K,
+                        leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_cev_K
+ggsave("plt_cev_K_noZ.png", device = png, bg = "white",
+       width = 9, height = 4)
+
+# So what we see is that there aren't many differences in the amount of available 
+# variation for models. mean evolvability is similar between K+ and K-
+# conditional evolvability is slightly lower in K+, suggesting stronger correlations
+# which makes sense, there are more molecular traits - redcombination removes this
+# There is marginally higher respondability under low recombination in many K+ 
+# models, which might explain the rapid increase relative to K- models.
+# autonomy suggests K+ are more constrained and recombination alleviates this
+# In K+ all the traits suffer from less conditional evolvability, alleviated
+# by increased recombination rate.
+
+# So despite increased constraint on the amount of variance, the expected response
+# to directional selection is still greater in K+ models
+# Could be that although much of the variance is restricted, the additional
+# axes of variation allow for more directions that can be explored, for less
+# redundancy and more options to reach the optimal phenotype - i.e. more
+# beneficial mutations
+# Will need to look at the shape of variance: Krzanowski correlation
+
+
+# Bootstrap krzanowski correlation/subspace test:
+# sample two matrices at random, get correlation
+# compare to sampling two within r
+# data input: dataframe with ids and a column with the matrix
+
+# Nearest positive definite matrix
+library(matrixcalc)
+library(Matrix)
+h2_pd <- lapply(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), function(x) {
+  if (!is.positive.definite(x)) {as.matrix(nearPD(x)$mat)}
+})
+
+
+krz_in <- id %>%
+  dplyr::mutate(g = h2_pd, #c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4),
+         group = interaction(model, r))
+
+
+# Remove null matrices (no nearest matrix found)
+krz_in <- krz_in[!sapply(krz_in$g,is.null)];
+
+bootKrzCor <- function(x, group) {
+  require(evolqg)
+  require(dplyr)
+  grps <- unique(x[,group])
+  nGrps <- length(grps)
+  # output data frame
+  res <- data.frame(group1 = character(length(grps)^2),
+                    group2 = character(length(grps)^2),
+                    krzCor = numeric(length(grps)^2))
+  
+  # Temporary data frame for filling inner loop
+  res_tmp <- data.frame(group1 = character(length(grps)),
+                        group2 = character(length(grps)),
+                        krzCor = numeric(length(grps)))
+  
+  for (i in seq_along(grps)) {
+    for (j in seq_along(grps)) {
+      # Sample matrices in different groups
+      g_1 <- slice_sample(x[group == grps[i]], n = 1)
+      g_2 <- slice_sample(x[group == grps[j]], n = 1)
+      res_tmp$group1[j] <- as.character(g_1[1,group])
+      res_tmp$group2[j] <- as.character(g_2[1,group])
+      res_tmp$krzCor[j] <- KrzCor(g_1$g[[1]], g_2$g[[1]])
+    }
+    indices <- (nGrps*(i-1) + 1):(nGrps*i)
+    res[indices,] <- res_tmp
+  }
+  return(res)
+}
+
+library(mcreplicate)
+bootKrzCor <- mc_replicate(1000, bootKrzCor(krz_in, "group"))
+bootKrzCor <- unnest(as.data.frame(t(bootKrzCor)), cols = everything())
+
+bootKrzCor <- bootKrzCor %>%
+  separate(group1, c("model1", "r1"), "\\.",
+           extra = "merge") %>%
+  separate(group2, c("model2", "r2"), "\\.",
+           extra = "merge") %>%
+  mutate(r1 = log10(as.numeric(r1)),
+         r2 = log10(as.numeric(r2)),
+         model1 = factor(model1, levels = c("ODE", "K")),
+         model2 = factor(model2, levels = c("ODE", "K")))
+
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(model1, r1, model2, r2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+                   ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = model1, y = model2
+)) +
+  facet_nested("Recombination rate 2 (log10))" + 
+                 r2 ~ "Recombination rate 1 (log10))" + r1) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+
+ggsave("krzcor_r_model_noZ.png", device = png, width = 7, height = 5)
+
+# Look at just recombination rate - is there any effect?
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(r1, r2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+                   ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = as.factor(r1), y = as.factor(r2)
+)) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  #scale_x_discrete(labels = c("K-", "K+")) +
+  #scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("krzcor_r_noZ.png", device = png, width = 7, height = 5)
+
+# Effect seems to be that decreasing recombination in both models
+# makes the major axes of variation less similar, but this is a small effect
+# Overall pretty close to 50% mean correlation (expected value)
+# Increasing recombination in both models reduces constraint slightly?
+
+# Now just model
+bootKrzCor_sum <- bootKrzCor %>%
+  group_by(model1, model2) %>%
+  dplyr::summarise(meanKrzCor = mean(krzCor),
+                   ciKrzCor = CI(krzCor))
+
+ggplot(bootKrzCor_sum, aes(
+  x = model1, y = model2
+)) +
+  geom_tile(aes(fill = meanKrzCor)) +
+  theme_bw() +
+  geom_jitter(data = bootKrzCor, mapping = aes(fill = krzCor),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "Krzanowski Correlation") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("krzcor_model_noZ.png", device = png, width = 7, height = 5)
+
+# This is the strong effect: K- almost always have the same axes
+# K+ often have the same axes
+# comparing the two are most dissimilar
+
+# ANOVA
+bootKrzCor <- bootKrzCor %>%
+  mutate(modelCombo = ifelse(model1 != model2, "mix",
+                             # paste(as.character(model1), 
+                             #       as.character(model2), 
+                             #      sep = "_"), 
+                             as.character(model1)),
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)))
+
+# R combo only explains 2% of the variance, removing
+library(report)
+lm.krz <- lm(krzCor ~ modelCombo, data = bootKrzCor)
+plot(lm.krz)
+summary(lm.krz)
+aov.krz <- aov(krzCor ~ as.factor(modelCombo), data = bootKrzCor)
+summary(aov.krz)
+report(aov.krz)
+aov.krz$coefficients
+TukeyHSD(aov.krz)
+plot(TukeyHSD(aov.krz))
+
+# Tukey multiple comparisons of means
+# 95% family-wise confidence level
+# 
+# Fit: aov(formula = krzCor ~ as.factor(modelCombo), data = bootKrzCor)
+# 
+# $`as.factor(modelCombo)`
+# diff         lwr         upr p adj
+# mix-K   -0.02444799 -0.02845766 -0.02043831     0
+# ODE-K    0.47988058  0.47525061  0.48451056     0
+# ODE-mix  0.50432857  0.50031889  0.50833825     0
+
+
+# The shared subspace between two matrices is increased by ~0.5 
+# when those two matrices are K- instead of one of them being K+
+# When both matrices are K- the shared subspace is increased by ~0.48
+# relative to both being K+
+# When comparing shared subspace when both matrices are K+ to when there
+# is one of each, correlation decreases by ~0.02
+
+# Overall, K- subspace is extremely similar, K+ is very similar, and
+# there is a difference in the major axis of variation between models
+# i.e. the K+ models do use the KZ and KXZ components to adapt, and they
+# tend to use them in a similar way (same relative amounts to alpha/beta)
+
+# So what are the PC contributions in the models then?
+# k = number of PCs
+PCAContribs <- function(matList, id, k = 2) {
+  singleTraitsMap <- c(
+    "KXZ",
+    "KZ",
+    "Z",
+    "a",
+    "b"
+  )
+  
+  nTraits <- length(singleTraitsMap)
+  nG <- length(matList)
+  
+  PCAdata <- data.frame(
+    trait = rep(singleTraitsMap, each = k),
+    totalVariation = numeric(nG * nTraits * k),
+    pc = rep(1:k, times = nG * nTraits),
+    pc_prop = numeric(nG * nTraits * k),
+    contrib = numeric(nG * nTraits * k)
+  )
+  
+
+  # Iterate through matrices for PCA
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    pca <- eigen(g)
+    
+    # Rows to fill for all traits
+    i_range <- ( (i-1) * k * nTraits + 1 ):(i * k * nTraits)
+    
+    # Total variation
+    totalVar <- sum(pca$values)
+    PCAdata[i_range,]$totalVariation <- totalVar
+    
+    # Proportion contributed by each PC
+    PCAdata[i_range,4] <- rep((pca$values/totalVar)[1:k], 
+                                       length.out = length(i_range))
+    
+    pc_sqr <- pca$vectors^2
+    
+    pc_contrib <- sweep(pc_sqr, 2, colSums(pc_sqr), FUN="/") * 100
+    
+    # Contributions
+    PCAdata[i_range,5] <- c(t(pc_contrib[,1:2]))
+
+  }
+  
+  PCAdata <- PCAdata %>%
+    mutate(optPerc = rep(id$optPerc, each = k * nTraits),
+           seed = rep(id$seed, each = k * nTraits),
+           modelindex = rep(id$modelindex, each = k * nTraits),
+           clus = rep(id$clus, each = k * nTraits))
+  
+  return(PCAdata)
+}
+
+
+
+covpca <- PCAContribs(h2_pd,
+  #c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4), 
+  id)
+covpca <- AddCombosToDF(covpca)
+
+covpca_sum <- covpca %>%
+  group_by(optPerc, r, model, trait, pc) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
+
+traitLabels <- c(TeX("$K_{XZ}$", output = "character"), 
+                 TeX("$K_Z$", output = "character"),
+                 TeX("$Z$", output = "character"),
+                 TeX("$\\alpha_Z$", output = "character"),
+                 TeX("$\\beta_Z$", output = "character")
+)
+
+# Plot contributions of each to PC1 and 2
+
+ggplot(covpca_sum %>% filter(trait != "Z", as.numeric(optPerc) == 1) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = trait, y = contrib_mean, colour = model)) +
+  facet_nested(r_title + log10(r) ~ "Principal component" + pc) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = contrib_mean - contrib_se,
+                    ymax = contrib_mean + contrib_se),
+                width = 0.2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Molecular Trait", y = "Contribution to PC (%)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12))
+
+# Total variation
+ggplot(covpca_sum %>% 
+         filter(trait == "Z", pc == 1) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = optPerc, y = totalVariation_mean, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = totalVariation_mean - totalVariation_se,
+                    ymax = totalVariation_mean + totalVariation_se),
+                width = 0.2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(x = "Progress to the optimum", y = "Total variation",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12))  
+
