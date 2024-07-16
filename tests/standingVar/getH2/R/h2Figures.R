@@ -3300,8 +3300,69 @@ ggsave("plt_cev_K_noZ.png", device = png, bg = "white",
 # axes of variation allow for more directions that can be explored, for less
 # redundancy and more options to reach the optimal phenotype - i.e. more
 # beneficial mutations
-# Will need to look at the shape of variance: Krzanowski correlation
 
+# Stats -> compare K+ and K- among recombination rates 
+# (nloci doesn't affect, neither does optPerc)
+hist(d_ecr$cev)
+summary(ols <- lm(cev ~ model * as.factor(r), d_ecr))
+opar <- par(mfrow = c(2,2), oma = c(0, 0, 1.1, 0))
+plot(ols, las = 1)
+
+ggplot(d_ecr, 
+       aes(x = model, y = cev, colour = as.factor(r))) +
+  geom_quasirandom(dodge.width = 0.9)
+
+# Variance differs between groups, use gls to account for unequal variance
+library(nlme)
+summary(gls.cev <- gls(cev ~ model * as.factor(r), d_ecr, 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+plot(gls.cev)
+
+# Marginal means
+library(emmeans)
+em.cev <- emmeans(gls.cev, ~ model * r)
+pairs(em.cev, simple = "model")
+pairs(em.cev, simple = "r")
+plot(em.cev, comparisons = T)
+
+
+# Format to a nice table
+library(stargazer)
+stargazer(gls.cev)
+
+# Repeat for autonomy, respondability, evolvability
+summary(gls.aut <- gls(aut ~ model * as.factor(r), d_ecr, 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+plot(gls.aut)
+em.aut <- emmeans(gls.aut, ~ model * r)
+pairs(em.aut, simple = "model")
+pairs(em.aut, simple = "r")
+plot(em.aut) # one of the comparisons has negative length because error is so small (ODE 0.1)
+
+stargazer(gls.aut)
+
+summary(gls.res <- gls(res ~ model * as.factor(r), d_ecr, 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+plot(gls.res)
+em.res <- emmeans(gls.res, ~ model * r)
+pairs(em.res, simple = "model")
+pairs(em.res, simple = "r")
+plot(em.res, comparisons = T)
+stargazer(gls.res)
+
+summary(gls.ev <- gls(ev ~ model * as.factor(r), d_ecr, 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+plot(gls.ev)
+em.ev <- emmeans(gls.ev, ~ model * r, type = "response")
+pairs(em.ev, simple = "model")
+pairs(em.ev, simple = "r")
+plot(em.ev, comparisons = T)
+
+stargazer(gls.ev)
+
+
+
+# Will need to look at the shape of variance: Krzanowski correlation
 
 # Bootstrap krzanowski correlation/subspace test:
 # sample two matrices at random, get correlation
@@ -3324,11 +3385,14 @@ krz_in <- id %>%
 # Remove null matrices (no nearest matrix found)
 krz_in <- krz_in[!sapply(krz_in$g,is.null)];
 
-bootKrzCor <- function(x, group) {
+bootKrzCor <- function(x, group, PCASim = F) {
   require(evolqg)
   require(dplyr)
   grps <- unique(x[,group])
   nGrps <- length(grps)
+  
+  fn <- ifelse(PCASim, evolqg::PCAsimilarity, evolqg::KrzCor)
+  
   # output data frame
   res <- data.frame(group1 = character(length(grps)^2),
                     group2 = character(length(grps)^2),
@@ -3346,7 +3410,7 @@ bootKrzCor <- function(x, group) {
       g_2 <- slice_sample(x[group == grps[j]], n = 1)
       res_tmp$group1[j] <- as.character(g_1[1,group])
       res_tmp$group2[j] <- as.character(g_2[1,group])
-      res_tmp$krzCor[j] <- KrzCor(g_1$g[[1]], g_2$g[[1]])
+      res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
     }
     indices <- (nGrps*(i-1) + 1):(nGrps*i)
     res[indices,] <- res_tmp
@@ -3355,7 +3419,8 @@ bootKrzCor <- function(x, group) {
 }
 
 library(mcreplicate)
-bootKrzCor <- mc_replicate(1000, bootKrzCor(krz_in, "group"))
+# exclude r -> doesn't contribute much variance at all
+bootKrzCor <- mc_replicate(1000, bootKrzCor(krz_in, "model"))
 bootKrzCor <- unnest(as.data.frame(t(bootKrzCor)), cols = everything())
 
 bootKrzCor <- bootKrzCor %>%
@@ -3442,7 +3507,6 @@ ggsave("krzcor_model_noZ.png", device = png, width = 7, height = 5)
 # K+ often have the same axes
 # comparing the two are most dissimilar
 
-# ANOVA
 bootKrzCor <- bootKrzCor %>%
   mutate(modelCombo = ifelse(model1 != model2, "mix",
                              # paste(as.character(model1), 
@@ -3454,41 +3518,245 @@ bootKrzCor <- bootKrzCor %>%
                                as.character(r2), sep = "_"), 
                          as.character(r1)))
 
-# R combo only explains 2% of the variance, removing
+# R doesn't explain much variance, removed
+# beta regression for 0-1 data
 library(report)
-lm.krz <- lm(krzCor ~ modelCombo, data = bootKrzCor)
-plot(lm.krz)
-summary(lm.krz)
-aov.krz <- aov(krzCor ~ as.factor(modelCombo), data = bootKrzCor)
-summary(aov.krz)
-report(aov.krz)
-aov.krz$coefficients
-TukeyHSD(aov.krz)
-plot(TukeyHSD(aov.krz))
+library(betareg)
 
-# Tukey multiple comparisons of means
-# 95% family-wise confidence level
+# There is no variance in the ODE models: all have the same eigenstructure
+# Makes sense, only two components to alter
+ggplot(bootKrzCor, 
+       aes(x = modelCombo, y = krzCor)) +
+  geom_quasirandom(dodge.width = 0.9)
+
+# 0 variance
+var(bootKrzCor[bootKrzCor$modelCombo == "ODE",]$krzCor)
+mean(bootKrzCor[bootKrzCor$modelCombo == "ODE",]$krzCor)
+
+# t test is probably the better estimate here, compare K and mix to 1, to test
+# if they are different from having at least one K+
+
+# First test assumptions: normality, equal variance
+# Plot looks like the variance is slightly different -> Welch's t test
+# roughly normal? a fw bumps here and there but it is symmetric
+# fat tailed
+
+krz.KK <- bootKrzCor[bootKrzCor$modelCombo == "K", "krzCor"]
+krz.KO <- bootKrzCor[bootKrzCor$modelCombo == "mix", "krzCor"]
+krz.OO <- mean(bootKrzCor[bootKrzCor$modelCombo == "ODE",]$krzCor)
+
+t.KK <- t.test(krz.KK, mu = krz.OO)
+# One Sample t-test
 # 
-# Fit: aov(formula = krzCor ~ as.factor(modelCombo), data = bootKrzCor)
+# data:  krz.KK
+# t = -265.16, df = 8999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 1
+# 95 percent confidence interval:
+#   0.5173946 0.5244776
+# sample estimates:
+#   mean of x 
+# 0.5209361 
+
+t.KO <- t.test(krz.KO, mu = krz.OO)
+# One Sample t-test
 # 
-# $`as.factor(modelCombo)`
-# diff         lwr         upr p adj
-# mix-K   -0.02444799 -0.02845766 -0.02043831     0
-# ODE-K    0.47988058  0.47525061  0.48451056     0
-# ODE-mix  0.50432857  0.50031889  0.50833825     0
+# data:  krz.KO
+# t = -486.5, df = 17999, p-value < 2.2e-16
+# alternative hypothesis: true mean is not equal to 1
+# 95 percent confidence interval:
+#   0.4942841 0.4983428
+# sample estimates:
+#   mean of x 
+# 0.4963134 
+
+# Compare the two groups
+t.KK.KO <- t.test(krz.KK, krz.KO)
+
+# Welch Two Sample t-test
+# 
+# data:  krz.KK and krz.KO
+# t = 11.825, df = 15067, p-value < 2.2e-16
+# alternative hypothesis: true difference in means is not equal to 0
+# 95 percent confidence interval:
+#   0.02054108 0.02870425
+# sample estimates:
+#   mean of x mean of y 
+# 0.5209361 0.4963134 
+
+krz.p <- c(t.KK$p.value, t.KO$p.value, t.KK.KO$p.value)
+
+# Correct for multiple comparisons
+p.adjust(krz.p, method = "bonferroni")
+
+# Essentially, yes both groups are different from 1, so the K+ models use different
+# combinations of molecular components to adapt. The K- are limited to aZ and bZ,
+# so of course there is no opportunity to change that, but they can change the 
+# amount of variance each component uses, which PCA similarity can investigate
 
 
-# The shared subspace between two matrices is increased by ~0.5 
-# when those two matrices are K- instead of one of them being K+
-# When both matrices are K- the shared subspace is increased by ~0.48
-# relative to both being K+
-# When comparing shared subspace when both matrices are K+ to when there
-# is one of each, correlation decreases by ~0.02
+# Repeat using PCA similarity to include amount of variation in morphospace
+bootPCASim <- mc_replicate(1000, bootKrzCor(krz_in, "group", T))
+bootPCASim <- unnest(as.data.frame(t(bootPCASim)), cols = everything())
 
-# Overall, K- subspace is extremely similar, K+ is very similar, and
-# there is a difference in the major axis of variation between models
-# i.e. the K+ models do use the KZ and KXZ components to adapt, and they
-# tend to use them in a similar way (same relative amounts to alpha/beta)
+bootPCASim <- bootPCASim %>%
+  separate(group1, c("model1", "r1"), "\\.",
+           extra = "merge") %>%
+  separate(group2, c("model2", "r2"), "\\.",
+           extra = "merge") %>%
+  mutate(r1 = log10(as.numeric(r1)),
+         r2 = log10(as.numeric(r2)),
+         model1 = factor(model1, levels = c("ODE", "K")),
+         model2 = factor(model2, levels = c("ODE", "K"))) %>%
+  rename(PCASim = krzCor)
+
+bootPCASim_sum <- bootPCASim %>%
+  group_by(model1, r1, model2, r2) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
+
+ggplot(bootPCASim_sum, aes(
+  x = model1, y = model2
+)) +
+  facet_nested("Recombination rate 2 (log10))" + 
+                 r2 ~ "Recombination rate 1 (log10))" + r1) +
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+
+ggsave("PCASim_r_model_noZ.png", device = png, width = 7, height = 5)
+
+# Look at just recombination rate - is there any effect?
+bootPCASim_sum <- bootPCASim %>%
+  group_by(r1, r2) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
+
+ggplot(bootPCASim_sum, aes(
+  x = as.factor(r1), y = as.factor(r2)
+)) +
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_r_noZ.png", device = png, width = 7, height = 5)
+
+# Effect seems to be that decreasing recombination in both models
+# makes the major axes of variation less similar, but this is a small effect
+# Increasing recombination in both models reduces constraint slightly?
+# Makes the path to adaptation more similar - finding beneficial combinations?
+# If this is the case, then should be more pronounced in K- than K+
+
+# Split into three by model
+bootPCASim <- bootPCASim %>%
+  mutate(modelCombo = ifelse(model1 != model2, "mix",
+                             as.character(model1)),
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)))
+
+# recomb by modelCombo
+bootPCASim_sum <- bootPCASim %>%
+  group_by(r1, r2, modelCombo) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
+
+
+ggplot(bootPCASim_sum, aes(
+  x = as.factor(r1), y = as.factor(r2)
+)) +
+  facet_nested(. ~ "Model combination" + modelCombo) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_r_modelCombo_noZ.png", device = png, width = 7, height = 5)
+
+# Not the case: K+ most affected, but I guess it has the most to change
+# K- pretty similar across all recombination rates, does get slightly
+# more similar though, K+ is strongly affected - very dissimilar with low
+# recombination, CORRELATES WITH MORE VA!!!
+
+# model only
+bootPCASim_sum <- bootPCASim %>%
+  group_by(model1, model2) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
+
+ggplot(bootPCASim_sum, aes(
+  x = model1, y = model2
+)) +
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("K-", "K+")) +
+  scale_y_discrete(labels = c("K-", "K+")) +
+  labs(x = "Model 1", y = "Model 2", fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_model_noZ.png", device = png, width = 7, height = 5)
+
+
+# R doesn't explain much variance, removed
+# beta regression for 0-1 data
+
+# Distributions
+ggplot(bootPCASim, 
+       aes(x = modelCombo, y = PCASim)) +
+  geom_quasirandom(dodge.width = 0.9)
+
+# Definitely different between models, none are normally distributed
+# beta regression
+library(betareg)
+
+# Floating point error: clamp to 1
+bootPCASim <- bootPCASim %>%
+  mutate(PCASim = raster::clamp(PCASim, 0, 1))
+
+# Run regression: this is slow!
+br.pcasim <- betareg(PCASim ~ modelCombo * as.factor(rCombo), bootPCASim)
+
+# Save output
+saveRDS(br.pcasim, "betareg_pcaSim.RDS")
+summary(br.pcasim)
+plot(br.pcasim)
+
+em.pcasim <- emmeans(br.pcasim, ~modelCombo * rCombo)
+pairs(em.pcasim, simple = "modelCombo")
+pairs(em.pcasim, simple = "rCombo")
+plot(em.pcasim, comparisons = T)
+pwpp(em.pcasim, by = "modelCombo", type = "response")
+emmip(br.pcasim,  ~ modelCombo | rCombo)
+
+# ODE models are always the ones with the highest PCA similarity, recombination
+# doesn't really affect them mostly
+# mix of K- vs K+ has the largest difference
+# K+ also very different
+# emmip shows the interaction is similar across all recombination pairs
+# the largest difference between pairs is when at least one of the matrices has
+# low recombination
+
+
+
 
 # So what are the PC contributions in the models then?
 # k = number of PCs
