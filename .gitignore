@@ -6,6 +6,7 @@
 *.o*
 tests/h2_hsfs/getH2_hsfs/data/data_cleanup.R
 *.RDS
+!tests/standingVar/getH2/R/betareg_pcaSim.RDS
 tests/equalK_sweep/equalK_ODE/R/anim/pca_phase_aZ_gen0001.png
 tests/equalK_sweep/equalK_ODE/R/anim/pca_phase_aZ_gen0002.png
 tests/equalK_sweep/equalK_ODE/R/anim/pca_phase_aZ_gen0003.png
