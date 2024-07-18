@@ -113,7 +113,7 @@ d_h2 <- left_join(d_h2, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
 
 d_h2 <- AddCombosToDF(d_h2)
 
-# Counts for each model type: K+ harder to estimate than the other two
+# Counts for each model type:
 table(d_h2$model, d_h2$isAdapted)
 
 # We have many recombination rates: choose a few
@@ -233,6 +233,37 @@ ggplot(d_h2 %>% filter(isAdapted) %>%
         legend.position = "bottom")
 
 # Additive variance
+# Small effects as separate figure
+ggplot(d_h2 %>% filter(isAdapted) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance") %>%
+         filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+       aes(x = optPerc, y = VA_Z, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  geom_quasirandom(dodge.width = 0.9) +
+  geom_point(data = d_h2_sum %>% filter(isAdapted) %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance") %>%
+               filter(method == "mkr", r %in% r_subsample, tau == 0.0125),
+             aes(x = optPerc, y = meanVAZ, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  coord_cartesian(ylim = c(0, 0.2)) +
+  labs(x = "Progress to the optimum", 
+       y = TeX("Additive variance $(V_A)$"),
+       colour = "Model") +
+  scale_x_discrete(labels = c("25%", "50%", "75%", "100%")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes=list(shape = 15, size = 5))) +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+ggsave("plt_va_sml.png", device = png, bg = "white",
+       width = 560*4, height = (980*4)/3, units = "px")
+
+
 # Again, nloci not important
 ggplot(d_h2 %>% filter(isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)",
@@ -2303,7 +2334,7 @@ r_subsample <- c(1e-10, 1e-5, 1e-1)
 
 # Distribution, how different are the estimates
 ggplot(d_h2 %>% filter(isAdapted) %>%
-         select(gen, seed, modelindex, optPerc, h2_a, method, model) %>%
+         dplyr::select(gen, seed, modelindex, optPerc, h2_a, method, model) %>%
          distinct() %>%
          pivot_wider(names_from = method, values_from = h2_a), 
        aes(x = mkr, y = mrr, colour = model)) +
@@ -2342,15 +2373,18 @@ d_h2_all <- d_h2
 library(DMwR2)
 
 lofscores <- lofactor(scale(d_h2$VA_a), 10)
-threshold <- 1.6
-outliers <- lofscores > threshold
+threshold <- 1.5
+outliers <- (lofscores > threshold)
+outliers[is.na(outliers)] <- F
+
+plot(density(lofscores[lofscores < 4 & !is.nan(lofscores)]))
 
 plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
      main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
      ylab = "LOF Score")
 legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
        pch = 1)
-boxplot(d_h2[!outliers,]$VA_Z)
+boxplot(d_h2[!outliers,]$VA_a)
 
 # filter out outliers
 d_h2 <- d_h2[!outliers,]
@@ -2492,6 +2526,8 @@ ggsave("plt_va_az_scaled.png", device = png, bg = "white",
        width = 560*4, height = 980*4, units = "px")
 
 # G matrix analysis
+d_h2$optPerc <- factor(d_h2$optPerc)
+
 d_h2 %>% filter(isAdapted) %>%
   filter(model != "Add", tau == 0.0125, r %in% r_subsample) %>%
   filter(as.numeric(optPerc) == 1) %>%
@@ -2534,11 +2570,6 @@ lapply(split_h2_optPerc4, function(x) {data.frame(optPerc = x$optPerc, seed = x$
 # variation between simulations and which components are most important for describing
 # those differences
 
-# So eigentensor analysis: sample random combinations of seeds to get a distribution
-# of eigenvectors telling us the models which have the largest difference in variation
-# then projection to find the important components
-
-# Repeat with all matrices
 h2_mat_op1 <- unlist(cov_matrices_op1, recursive = F)
 h2_mat_op2 <- unlist(cov_matrices_op2, recursive = F)
 h2_mat_op3 <- unlist(cov_matrices_op3, recursive = F)
@@ -2561,8 +2592,6 @@ GetMatrixIDs <- function(matList) {
   return(matList)
 }
 
-#cov_matrix_modelindex_full <- GetMatrixIDs(split_h2)
-
 cov_matrix_modelindex_op1 <- GetMatrixIDs(split_h2_optPerc1)
 cov_matrix_modelindex_op2 <- GetMatrixIDs(split_h2_optPerc2)
 cov_matrix_modelindex_op3 <- GetMatrixIDs(split_h2_optPerc3)
@@ -2572,6 +2601,7 @@ cov_matrix_modelindex_op4 <- GetMatrixIDs(split_h2_optPerc4)
 # Distance between G matrices
 # dist matrix for optperc 1
 Rcpp::sourceCpp("./distanceFunctions.cpp")
+
 dist_matrix_op1 <- distanceMatrix(h2_mat_op1)
 colnames(dist_matrix_op1) <- paste("Matrix", 1:nrow(dist_matrix_op1))
 rownames(dist_matrix_op1) <- colnames(dist_matrix_op1)
@@ -2922,6 +2952,103 @@ ggsave("plt_tree_gmatrix_optperc4_noZ.png", device = png, bg = "white",
        width = 12, height = 6)
 
 
+# Analysis across all timepoints, time doesn't seem to matter too much
+dist_matrix <- distanceMatrix(c(h2_mat_op1, h2_mat_op2, h2_mat_op3, h2_mat_op4))
+colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
+rownames(dist_matrix) <- colnames(dist_matrix)
+
+hc <- hclust(as.dist(dist_matrix), method="average")
+#plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
+
+# number of clusters: 2 seems to be the best
+library(factoextra)
+# elbow plot
+fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
+
+# dendrogram
+plot(hc, main = "Power Euclidean distances between molecular G matrices", labels = F)
+rect.hclust(hc, 2, border = 2)
+
+clus <- cutree(hc, 2)
+g <- split(names(clus), clus)
+g <- lapply(g, function(x) as.numeric(substring(x, 8)))
+
+phylo <- as.phylo(hc)
+phylo <- as_tibble(phylo)
+phylo$label <- as.numeric(substring(phylo$label, 8))
+phylo <- as.phylo(phylo)
+id <- rbindlist(c(cov_matrix_modelindex_op1,
+                  cov_matrix_modelindex_op2,
+                  cov_matrix_modelindex_op3,
+                  cov_matrix_modelindex_op4), 
+                fill = T)
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$nloci_group <- "[4, 64)"
+id$nloci_group[id$nloci >= 64 & id$nloci < 1024] <- "[64, 256]"
+id$nloci_group[id$nloci == 1024] <- "[1024]"
+id$nloci_group <- factor(id$nloci_group, levels = c("[4, 64)", "[64, 256]", "[1024]"))
+
+id$clus <- -1
+# add cluster
+for (i in 1:length(g)) {
+  idx <- g[[i]]
+  id[idx,"clus"] <- i
+}
+
+# with id, check how frequent genetic architectures are with the clusters
+tab <- table(id$clus, id$model)
+names(dimnames(tab)) <- c("cluster", "model")
+tab <- as.data.frame(tab)
+
+# Model describes the clustering
+glm.clus <- glm(Freq~model,family=poisson(),data=tab)
+summary(glm.clus)
+report::report(glm.clus)
+
+id %>% ungroup() %>%
+  group_by(model, clus) %>%
+  dplyr::summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(clus) %>%
+  dplyr::mutate(prop = n/sum(n)) -> cluster_percs
+
+phylo <- full_join(as.phylo(phylo), id, by = "label")
+
+clus_palette <- paletteer_d("ggsci::nrc_npg", 3)
+
+ggtree(phylo, aes(colour = as.factor(clus)), layout="equal_angle") +
+  #geom_text(aes(label=node)) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+  #                     labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model", size = "Recombination rate (log10)") +
+  ggtitle("Progress to the optimum: <25%") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(order = 1),
+         size = guide_legend(order = 2)) -> tree_clus
+tree_clus
+
+ggsave("tree_clus_op1_noZ.png", device = png, width = 4, height = 4)
+
+ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+  geom_tippoint(size = 2) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1)[2:3],
+                      labels = c("K+", "K-"), breaks = c("K", "ODE")) +
+  labs(colour = "Model") +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 14)) +
+  guides(colour = guide_legend(override.aes = list(shape=16, size = 5,
+                                                   linetype = 0))) -> tree_full
+
+tree_full
+ggsave("plt_tree_gmatrix_full_noZ.png", device = png, bg = "white",
+       width = 7/2, height = 9/2)
 
 
 CalcECRA <- function(matList, id, noZ = F) {
@@ -3317,6 +3444,8 @@ library(nlme)
 summary(gls.cev <- gls(cev ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.cev)
+report(gls.cev)
+
 
 # Marginal means
 library(emmeans)
@@ -3595,7 +3724,7 @@ p.adjust(krz.p, method = "bonferroni")
 
 
 # Repeat using PCA similarity to include amount of variation in morphospace
-bootPCASim <- mc_replicate(1000, bootKrzCor(krz_in, "group", T))
+bootPCASim <- mcreplicate::mc_replicate(1000, bootKrzCor(krz_in, "group", T))
 bootPCASim <- unnest(as.data.frame(t(bootPCASim)), cols = everything())
 
 bootPCASim <- bootPCASim %>%
@@ -3660,7 +3789,7 @@ ggsave("PCASim_r_noZ.png", device = png, width = 7, height = 5)
 
 # Split into three by model
 bootPCASim <- bootPCASim %>%
-  mutate(modelCombo = ifelse(model1 != model2, "mix",
+  mutate(modelCombo = ifelse(model1 != model2, "Mix",
                              as.character(model1)),
          rCombo = ifelse(r1 != r2, 
                          paste(as.character(r1), 
@@ -3677,7 +3806,10 @@ bootPCASim_sum <- bootPCASim %>%
 ggplot(bootPCASim_sum, aes(
   x = as.factor(r1), y = as.factor(r2)
 )) +
-  facet_nested(. ~ "Model combination" + modelCombo) + 
+  facet_nested(. ~ "Model comparison" + modelCombo,
+               labeller = labeller(modelCombo = as_labeller(c("K" = "K+ vs K+",
+                                                              "ODE" = "K- vs K-",
+                                                              "Mix" = "K+ vs K-")))) + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
   geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
