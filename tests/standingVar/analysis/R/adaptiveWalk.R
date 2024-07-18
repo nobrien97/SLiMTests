@@ -7,6 +7,7 @@ library(ggridges)
 library(ggh4x)
 library(cowplot)
 library(ggbeeswarm)
+library(stargazer)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/analysis/R")
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
@@ -63,6 +64,9 @@ d_qg %>%
   mutate(isAdapted = any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
   ungroup() -> d_qg
 
+# We have many recombination rates: choose a few
+r_subsample <- c(1e-10, 1e-5, 1e-1)
+
 
 d_prop_adapted <- d_qg %>% group_by(model, nloci, tau, r) %>%
        filter(gen == 59950) %>%
@@ -70,6 +74,22 @@ d_prop_adapted <- d_qg %>% group_by(model, nloci, tau, r) %>%
                  nAdapted = sum(isAdapted),
                  pAdapted = mean(isAdapted)
                  )
+
+# Average over nloci
+# How many adapted in low recombination scenarios?
+d_prop_adapted <- d_qg %>% 
+  mutate(r_cut = cut(r, breaks = c(0, 1e-7, 1),
+                      labels = c("Low", "High"))) %>%
+  group_by(model, tau, r_cut) %>%
+  filter(gen == 59950) %>%
+  summarise(n = n(),
+            nAdapted = sum(isAdapted),
+            pAdapted = mean(isAdapted)
+  )
+d_prop_adapted
+
+stargazer(d_prop_adapted)
+  
 
 # Plot adapted populations - almost all populations adapted, except the small effect
 # additive case with low recombination. High recombination allows the additive to 
@@ -117,6 +137,34 @@ d_adapted_sum <- d_qg %>%
             sdPhenomean = sd(phenomean),
             meanPhenovar = mean(phenovar),
             sdPhenovar = sd(phenovar))
+
+# Small fx only
+ggplot(d_adapted_sum %>% filter(tau == 0.0125, r %in% r_subsample),
+       aes(x = gen, y = meanPhenomean, colour = model),
+       group = as.factor(seed)) +
+  facet_grid(log10(r)~nloci) +
+  geom_line() +
+  geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_ribbon(aes(ymin = meanPhenomean - sdPhenomean, 
+                  ymax = meanPhenomean + sdPhenomean, fill = model), colour = NA,
+              alpha = 0.2) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_x_continuous(labels = scales::comma, 
+                     sec.axis = sec_axis(~ ., name = "Number of QTLs", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                      labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-"), guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean phenotype", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_adapt_smlfx.png", width = 12, height = 5, device = png)
+
+
 # Mean phenotype figures
 {
 ggplot(d_adapted_sum %>% filter(tau == 0.0125),
