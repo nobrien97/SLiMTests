@@ -114,23 +114,23 @@ d_ld_sum <- d_ld %>%
 # plot average distributions
 
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_dist <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 12:31) %>%
+d_ld_dist <- d_ld_sum %>% dplyr::select(optPerc, model, nloci, tau, r, 12:31) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_dist$col <- bins[as.numeric(str_extract(d_ld_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_dist_sd <- d_ld_sum %>% select(optPerc, model, nloci, tau, r, 40:59) %>%
+d_ld_dist_sd <- d_ld_sum %>% dplyr::select(optPerc, model, nloci, tau, r, 40:59) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_dist$count_sd <- d_ld_dist_sd$count_sd
 
 # Outliers: histogram of all estimates
-d_ld_dist_hist <- d_ld %>% select(gen, seed, optPerc, model, nloci, tau, r, 10:29) %>%
+d_ld_dist_hist <- d_ld %>% dplyr::select(gen, seed, optPerc, model, nloci, tau, r, 10:29) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
   group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
   mutate(prop = count / sum(count)) %>%
   ungroup()
 
-# Number of loci doesn't matter - focus on n = 1024 since it has most samples
+# Number of loci doesn't matter
 # Doesn't appear to be related to effect size variance
 ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
                                  r_title = "Recombination rate (log10)",
@@ -139,7 +139,8 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
          mutate(model = fct_recode(model, "Additive" = "Add", 
                                    "K+" = "K",
                                    "K-" = "ODE")) %>%
-         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1), 
+         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1,
+                tau == 0.0125), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
   facet_nested(r_title + log10(r) ~ model) +
   geom_boxplot(position = position_identity(), outlier.shape = 1,
@@ -155,8 +156,9 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "bottom")
-ggsave("plt_ld.png", device = png, width = 9, height = 4)
+  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_ld_sml
+plt_ld_sml
+ggsave("plt_ld_sml.png", device = png, width = 9, height = 4)
 
 # what about averages?
 
@@ -726,24 +728,24 @@ d_ld_freq_sum <- d_ld_freq_sum %>%
 
 # plot average distributions
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_freq_dist <- d_ld_freq_sum %>% select(optPerc, freqBin, model, nloci, tau, r, 13:32) %>%
+d_ld_freq_dist <- d_ld_freq_sum %>% dplyr::select(optPerc, freqBin, model, nloci, tau, r, 13:32) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_freq_dist$col <- bins[as.numeric(str_extract(d_ld_freq_dist$col, "[[0-9]]*(?=_)"))]
 
-d_ld_freq_dist_sd <- d_ld_freq_sum %>% select(optPerc, freqBin, model, nloci, tau, r, 39:58) %>%
+d_ld_freq_dist_sd <- d_ld_freq_sum %>% dplyr::select(optPerc, freqBin, model, nloci, tau, r, 39:58) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count_sd")
 
 d_ld_freq_dist$count_sd <- d_ld_freq_dist_sd$count_sd
 
 # Outliers: histogram of all estimates
 d_ld_freq_dist_hist <- d_ld_freq %>% filter(freqBin > 0.1) %>% 
-  select(gen, seed, optPerc, model, nloci, tau, r, 11:30) %>%
+  dplyr::select(gen, seed, optPerc, model, nloci, tau, r, 11:30) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
   group_by(gen, seed, optPerc, model, nloci, tau, r) %>%
-  mutate(prop = count / sum(count)) %>%
+  dplyr::mutate(prop = count / sum(count)) %>%
   ungroup()
 
-# Number of loci doesn't matter - focus on n = 1024 since it has most samples
+# Number of loci doesn't matter
 # Doesn't appear to be related to effect size variance
 ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
                                  r_title = "Recombination rate (log10)",
@@ -756,7 +758,8 @@ ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0
          filter(tau == 0.0125), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
   facet_nested(r_title + log10(r) ~ model) +
-  geom_boxplot(position = position_identity()) +
+  geom_boxplot(position = position_identity(), outlier.shape = 1,
+               outlier.alpha = 0.2) +
   stat_summary(
     fun = median,
     geom = "line",
@@ -768,9 +771,21 @@ ggplot(d_ld_freq_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "bottom")
+  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_ld_freq_sml
+plt_ld_freq_sml
+ggsave("plt_ld_freq_sml.png", device = png, width = 9, height = 4)
 
-ggsave("plt_ld_freq.png", device = png, width = 9, height = 4)
+# A/B Frequency adjusted LD
+leg <- get_legend(plt_ld_freq_sml)
+
+plt_ld_sml_com <- plot_grid(plt_ld_sml + theme(legend.position = "none"),
+                        plt_ld_freq_sml + theme(legend.position = "none"),
+                        ncol = 1, labels = "AUTO")
+
+plt_ld_sml_com
+ggsave("plt_ld_com.png", device = png, bg = "white",
+       width = 9, height = 8)
+
 
 
 
