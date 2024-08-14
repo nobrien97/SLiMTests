@@ -70,7 +70,7 @@ r_subsample <- c(1e-10, 1e-5, 1e-1)
 
 d_prop_adapted <- d_qg %>% group_by(model, nloci, tau, r) %>%
        filter(gen == 59950) %>%
-       summarise(n = n(),
+       dplyr::summarise(n = n(),
                  nAdapted = sum(isAdapted),
                  pAdapted = mean(isAdapted)
                  )
@@ -163,6 +163,69 @@ ggplot(d_adapted_sum %>% filter(tau == 0.0125, r %in% r_subsample),
   theme(legend.position = "bottom", text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
 ggsave("plt_adapt_smlfx.png", width = 12, height = 5, device = png)
+
+# Time to adaptation
+d_adaptTime <- d_qg %>% filter(gen >= 49500) %>%
+  dplyr::mutate(gen = gen - 50000,
+         isAdapted = between(phenomean, 1.9, 2.1),
+         isAdapting = between(phenomean, 1.0, 1.9)) %>%
+  group_by(seed, model, nloci, tau, r) %>%
+  dplyr::mutate(adaptTime = ifelse(any(isAdapted), min(gen[isAdapted]), -1),
+         initRespTime = ifelse(any(isAdapting), min(gen[isAdapting]), -1)) %>%
+  distinct(seed, model, nloci, tau, r, .keep_all = T) %>%
+  ungroup()
+
+# Distribution of adaptation times
+ggplot(d_adaptTime %>% filter(adaptTime > -1, 
+                              r %in% r_subsample,
+                              tau > 0.0125) %>%
+         mutate(r_title = "Recombination rate (log10)",
+                tau_title = "Mutational effect size variance"), 
+       aes(x = adaptTime, fill = model), alpha = 0.4) +
+  facet_nested(r_title + log10(r) ~ tau_title + tau) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
+                    labels = c("Additive", "K+", "K-")) +
+  scale_x_continuous(labels = scales::comma) +
+  geom_density(alpha = 0.6) +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 14)) +
+  labs(x = "Time to adaptation (Generations)", y = "Density", fill = "Model")
+ggsave("sfig_timetoadaptation_largetau.png", device = png, width = 10, height = 6)
+
+mean(d_adaptTime[d_adaptTime$tau > 0.0125,]$adaptTime)
+CI(d_adaptTime[d_adaptTime$tau > 0.0125,]$adaptTime)
+
+
+
+d_adaptTime %>%
+filter(adaptTime != -1, initRespTime != -1) %>%
+  group_by(model, nloci, tau, r) %>%
+  dplyr::summarise(meanAdaptTime = mean(adaptTime), 
+            CIAdaptTime = CI(adaptTime),
+            meanInitRespTime = mean(initRespTime),
+            CIInitRespTime = CI(initRespTime)) -> d_meanAdaptTime
+
+ggplot(d_meanAdaptTime, 
+       aes(x = model, y = meanAdaptTime, colour = as.factor(nloci))) + 
+  facet_grid(tau~log10(r)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanAdaptTime - CIAdaptTime, ymax = meanAdaptTime + CIAdaptTime)) +
+  labs(y = "Time to adaptation\n(generations)", x = "Model", 
+       colour = "Number of loci") +
+  theme_bw()
+
+d_adaptTime %>%
+  filter(adaptTime != -1, initRespTime != -1) %>%
+  group_by(model, tau, r) %>%
+  dplyr::summarise(meanAdaptTime = mean(adaptTime), 
+            CIAdaptTime = CI(adaptTime),
+            meanInitRespTime = mean(initRespTime),
+            CIInitRespTime = CI(initRespTime)) -> d_meanAdaptTime
+
+View(d_meanAdaptTime %>% filter(tau > 0.0125))
+
+# Improvement with increasing recombination
+
 
 
 # Mean phenotype figures
