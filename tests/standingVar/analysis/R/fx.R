@@ -11,7 +11,7 @@ library(betareg)
 library(emmeans)
 library(nlme)
 library(MASS)
-
+library(xtable)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/analysis/R")
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/"
@@ -43,6 +43,10 @@ get_legend <- function(plot, legend = NULL) {
   return(NULL)
 }
 
+# Use the right mutate/summarise functions
+mutate <- dplyr::mutate
+summarise <- dplyr::summarise
+select <- dplyr::select
 
 d_combos <- read.table("../../R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
@@ -89,6 +93,22 @@ r_subsample <- c(1e-10, 1e-5, 1e-1)
 d_fx <- d_fx %>%
   filter(isAdapted, tau == 0.0125, r %in% r_subsample)
 
+# plot distribution of fitness effects
+
+ggplot(d_fx %>% filter(mutType != "5") %>%
+         ungroup() %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = s)) +
+  facet_nested("Model" + model ~ "Mutation Type" + mutType) +
+  geom_density() +
+  labs(x = "Selection coefficient (s)") +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
 # Plot the number of beneficial mutations per molecular component
 d_fx_ben <- d_fx %>% filter(s > 0)
 
@@ -100,8 +120,8 @@ mutTypes_vec <- c(TeX("$\\alpha_Z$/Additive", output = "character"),
 # nloci doesn't matter
 d_fx_ben <- d_fx_ben %>%
   group_by(optPerc, seed, model, mutType, nloci, tau, r) %>%
-  mutate(countBen = n(),
-         mutType = mutTypes_vec[as.numeric(mutType)]) %>%
+  mutate(countBen = n()) %>%
+         #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
   ungroup()
 
 d_fx_ben_sum <- d_fx_ben %>%
@@ -245,23 +265,45 @@ ggsave("plt_propben.png", plt_propben_muts,
 
 # KZ drags the mean down, recombination rate doesn't seem to have much effect
 
+# beta regression
 
 # Is there a difference between models in % beneficial mutations?
 # recombination has no effect, remove
 # beta regression
 
-# adjust for 0/1 values -need to inflate (Smithson + Verkuilen 2006)
+# adjust for 0/1 values - need to inflate (Smithson + Verkuilen 2006)
 # Set up combinations
 d_fx_propBen <- transform(d_fx_propBen, modelMutType = factor(interaction(model, mutType)))
 d_fx_propBen$propBen_adj <- (d_fx_propBen$propBen * (nrow(d_fx_propBen)-1) + 0.5)/nrow(d_fx_propBen)
-br.benmut <- betareg(propBen_adj ~ modelMutType, d_fx_propBen)
+d_fx_propBen$model <- as.factor(d_fx_propBen$model)
+
+br.benmut <- betareg(propBen_adj ~ mutType, d_fx_propBen)
+
+plot(density(d_fx_propBen$propBen))
 summary(br.benmut)
 plot(br.benmut)
 
 saveRDS(br.benmut, "betareg_benmut.RDS")
+br.benmut <- readRDS("betareg_benmut.RDS")
+em.benmut <- emmeans(br.benmut, ~ mutType)
 
+# In additive only one mutation type, so calc mean and CI
+mean.benmut.add <- d_fx_propBen %>% filter(model == "Add") %>%
+  summarise(meanPropBen = mean(propBen_adj),
+            SEPropBen = se(propBen_adj),
+            CIPropBen = CI(propBen_adj),
+            upperCL = meanPropBen + CIPropBen,
+            lowerCL = meanPropBen - CIPropBen)
 
-em.benmut <- emmeans(br.benmut, ~modelMutType)
+br.benmut.km <- betareg(propBen_adj ~ mutType, d_fx_propBen %>% filter(model == "ODE"))
+br.benmut.kp <- betareg(propBen_adj ~ mutType, d_fx_propBen %>% filter(model == "K"))
+
+em.benmut.km <- emmeans(br.benmut.km, ~ mutType)
+em.benmut.kp <- emmeans(br.benmut.kp, ~ mutType)
+
+xtable(em.benmut.km)
+xtable(em.benmut.kp)
+
 pairs(em.benmut, simple = "modelMutType")
 plot(em.benmut, comparisons = T)
 emmip(em.benmut,  ~ modelMutType)
@@ -278,13 +320,29 @@ d_fx_ben_sum <- d_fx_ben %>%
             meanBen = mean(s),
             CIBen = CI(s))
 
+levels(d_fx_ben$optPerc) <- c(
+  TeX("$\\leq 25\\%$"),
+  TeX("$\\leq 50\\%$"),
+  TeX("$\\leq 75\\%$"),
+  TeX("$\\leq 100\\%$")
+)
+
+levels(d_fx_ben_sum$optPerc) <- c(
+  TeX("$\\leq 25\\%$"),
+  TeX("$\\leq 50\\%$"),
+  TeX("$\\leq 75\\%$"),
+  TeX("$\\leq 100\\%$")
+)
+
+
 ggplot(d_fx_ben %>% 
          ungroup() %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance"),
        aes(x = mutType, y = s, colour = model)) +
-  facet_nested(r_title + log10(r) ~ "Progress to the optimum" + optPerc) +
+  facet_nested(r_title + log10(r) ~ "Progress to the optimum" + optPerc,
+               labeller = labeller(optPerc = label_parsed)) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
   geom_point(data = d_fx_ben_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -304,12 +362,40 @@ ggplot(d_fx_ben %>%
 plt_ben_muts_s
 ggsave("plt_ben_muts_s.png", plt_ben_muts_s, width = 10, height = 4, device = png)
 
+
 # GLS - fitness effect of beneficial mutations
 # optPerc doesn't appear to matter
-summary(gls.s <- gls(s ~ model + mutType, d_fx_ben, 
-                       weights = 
-                       varIdent(form = ~ 1 | model * mutType)))
 
+summary(gls.s.km <- gls(s ~ mutType, (d_fx_ben %>% filter(model == "ODE")), 
+                       weights = varIdent(form = ~ 1 | mutType)))
+
+# No difference between alpha and beta in effect size, so can just calc the mean
+# like in the additive model across both alpha and beta
+mean.s.km <- d_fx_ben %>% filter(model == "ODE") %>%
+  summarise(meanS = mean(s),
+            SES = se(s),
+            CIS = CI(s),
+            upperCL = meanS + CIS,
+            lowerCL = meanS - CIS)
+
+summary(gls.s.kp <- gls(s ~ mutType, (d_fx_ben %>% filter(model == "K")), 
+                        weights = 
+                          varIdent(form = ~ 1 | mutType)))
+
+em.s.kp <- emmeans(gls.s.kp, ~ mutType)
+
+em.s.kp
+
+mean.s.add <- d_fx_ben %>% filter(model == "Add") %>%
+  summarise(meanS = mean(s),
+            SES = se(s),
+            CIS = CI(s),
+            lowerCL = meanS - CIS,
+            upperCL = meanS + CIS)
+
+xtable(mean.s.add, digits = 6)
+xtable(mean.s.km, digits = 6)
+xtable(em.s.kp, digits = 9)
 
 
 # SFS: maybe KZ should be rare?
