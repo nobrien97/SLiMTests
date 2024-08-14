@@ -33,6 +33,9 @@ get_legend <- function(plot, legend = NULL) {
   return(NULL)
 }
 
+# Make sure we use the right dplyr functions
+summarise <- dplyr::summarise
+mutate <- dplyr::mutate
 
 d_combos <- read.table("../../R/combos.csv", header = F,
                        col.names = c("nloci", "tau", "r", "model"))
@@ -458,6 +461,20 @@ ggplot(d_h2_deltaVA %>% filter(isAdapted) %>%
         legend.position = "bottom")
 
 ggsave("plt_deltaVA.png", device = png, width = 9, height = 4)
+
+# did the mean VA change with changing recombination?
+library(nlme)
+summary(gls.dva <- gls(totalDeltaVA ~ model * as.factor(r), 
+                       d_h2_deltaVA %>% filter(isAdapted, r %in% r_subsample), 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+plot(gls.dva)
+
+# Average across recombination rates
+d_h2_deltaVA %>% filter(isAdapted) %>%
+  group_by(model, tau, method, isAdapted) %>%
+  summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
+            seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_sum
+
 
 # Correlation of genetic variance to time to adaptation
 d_h2$seed <- as.factor(d_h2$seed)
@@ -3443,16 +3460,23 @@ ggplot(d_ecr,
 library(nlme)
 summary(gls.cev <- gls(cev ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
+summary(ols.cev <- gls(cev ~ model * as.factor(r), d_ecr))
 plot(gls.cev)
 report(gls.cev)
 
+# the variance between groups does improve the model, should use gls
+anova(ols.cev, gls.cev)
+anova(gls.cev)
 
 # Marginal means
 library(emmeans)
+library(xtable)
 em.cev <- emmeans(gls.cev, ~ model * r)
 pairs(em.cev, simple = "model")
 pairs(em.cev, simple = "r")
 plot(em.cev, comparisons = T)
+
+xtable(em.cev)
 
 
 # Format to a nice table
@@ -3468,6 +3492,8 @@ pairs(em.aut, simple = "model")
 pairs(em.aut, simple = "r")
 plot(em.aut) # one of the comparisons has negative length because error is so small (ODE 0.1)
 
+xtable(em.aut)
+
 stargazer(gls.aut)
 
 summary(gls.res <- gls(res ~ model * as.factor(r), d_ecr, 
@@ -3479,6 +3505,9 @@ pairs(em.res, simple = "r")
 plot(em.res, comparisons = T)
 stargazer(gls.res)
 
+xtable(em.res)
+
+
 summary(gls.ev <- gls(ev ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.ev)
@@ -3488,6 +3517,8 @@ pairs(em.ev, simple = "r")
 plot(em.ev, comparisons = T)
 
 stargazer(gls.ev)
+xtable(em.ev)
+
 
 
 
@@ -3514,37 +3545,46 @@ krz_in <- id %>%
 # Remove null matrices (no nearest matrix found)
 krz_in <- krz_in[!sapply(krz_in$g,is.null)];
 
-bootKrzCor <- function(x, group, PCASim = F) {
+bootKrzCor <- function(x, group = "", PCASim = F) {
   require(evolqg)
   require(dplyr)
-  grps <- unique(x[,group])
-  nGrps <- length(grps)
   
   fn <- ifelse(PCASim, evolqg::PCAsimilarity, evolqg::KrzCor)
   
-  # output data frame
-  res <- data.frame(group1 = character(length(grps)^2),
-                    group2 = character(length(grps)^2),
-                    krzCor = numeric(length(grps)^2))
+  if (group != "") {
+    grps <- unique(x[,group])
+    nGrps <- length(grps)
   
-  # Temporary data frame for filling inner loop
-  res_tmp <- data.frame(group1 = character(length(grps)),
-                        group2 = character(length(grps)),
-                        krzCor = numeric(length(grps)))
-  
-  for (i in seq_along(grps)) {
-    for (j in seq_along(grps)) {
-      # Sample matrices in different groups
-      g_1 <- slice_sample(x[group == grps[i]], n = 1)
-      g_2 <- slice_sample(x[group == grps[j]], n = 1)
-      res_tmp$group1[j] <- as.character(g_1[1,group])
-      res_tmp$group2[j] <- as.character(g_2[1,group])
-      res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
+    
+    # output data frame
+    res <- data.frame(group1 = character(length(grps)^2),
+                      group2 = character(length(grps)^2),
+                      krzCor = numeric(length(grps)^2))
+    
+    # Temporary data frame for filling inner loop
+    res_tmp <- data.frame(group1 = character(length(grps)),
+                          group2 = character(length(grps)),
+                          krzCor = numeric(length(grps)))
+    
+    for (i in seq_along(grps)) {
+      for (j in seq_along(grps)) {
+        # Sample matrices in different groups
+        g_1 <- slice_sample(x[group == grps[i]], n = 1)
+        g_2 <- slice_sample(x[group == grps[j]], n = 1)
+        res_tmp$group1[j] <- as.character(g_1[1,group])
+        res_tmp$group2[j] <- as.character(g_2[1,group])
+        res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
+      }
+      indices <- (nGrps*(i-1) + 1):(nGrps*i)
+      res[indices,] <- res_tmp
     }
-    indices <- (nGrps*(i-1) + 1):(nGrps*i)
-    res[indices,] <- res_tmp
+    return(res)
   }
-  return(res)
+  
+  # If group is "", sample two random matrices and return that
+  g1 <- slice_sample(x, n = 1)
+  g2 <- slice_sample(x, n = 1)
+  return(fn(g1$g[[1]], g2$g[[1]]))
 }
 
 library(mcreplicate)
@@ -3727,6 +3767,11 @@ p.adjust(krz.p, method = "bonferroni")
 bootPCASim <- mcreplicate::mc_replicate(1000, bootKrzCor(krz_in, "group", T))
 bootPCASim <- unnest(as.data.frame(t(bootPCASim)), cols = everything())
 
+# Null distribution
+bootPCASim_null <- mcreplicate::mc_replicate(10000, bootKrzCor(krz_in, PCASim = T))
+
+hist(bootPCASim_null)
+
 bootPCASim <- bootPCASim %>%
   separate(group1, c("model1", "r1"), "\\.",
            extra = "merge") %>%
@@ -3736,7 +3781,7 @@ bootPCASim <- bootPCASim %>%
          r2 = log10(as.numeric(r2)),
          model1 = factor(model1, levels = c("ODE", "K")),
          model2 = factor(model2, levels = c("ODE", "K"))) %>%
-  rename(PCASim = krzCor)
+  dplyr::rename(PCASim = krzCor)
 
 bootPCASim_sum <- bootPCASim %>%
   group_by(model1, r1, model2, r2) %>%
@@ -3826,6 +3871,24 @@ ggsave("PCASim_r_modelCombo_noZ.png", device = png, width = 7, height = 5)
 # more similar though, K+ is strongly affected - very dissimilar with low
 # recombination, CORRELATES WITH MORE VA!!!
 
+# Compare to null
+bootPCASim_null_sum <- bootPCASim_null %>% as_tibble() %>%
+  dplyr::summarise(meanPCASim = mean(bootPCASim_null),
+                   ciPCASim = CI(bootPCASim_null))
+
+ggplot(bootPCASim_null_sum, aes(x = 0, y = 0)) +
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim_null %>% as_tibble(), mapping = aes(fill = bootPCASim_null),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_continuous(guide = "none") +
+  scale_y_continuous(guide = "none") +
+  labs(x = "", y = "", fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_nulldist_noZ.png", device = png, width = 5, height = 4)
+
 # model only
 bootPCASim_sum <- bootPCASim %>%
   group_by(model1, model2) %>%
@@ -3869,6 +3932,7 @@ br.pcasim <- betareg(PCASim ~ modelCombo * as.factor(rCombo), bootPCASim)
 
 # Save output
 saveRDS(br.pcasim, "betareg_pcaSim.RDS")
+br.pcasim <- readRDS("betareg_pcaSim.RDS")
 summary(br.pcasim)
 plot(br.pcasim)
 
@@ -3878,6 +3942,9 @@ pairs(em.pcasim, simple = "rCombo")
 plot(em.pcasim, comparisons = T)
 pwpp(em.pcasim, by = "modelCombo", type = "response")
 emmip(br.pcasim,  ~ modelCombo | rCombo)
+
+xtable(em.pcasim)
+
 
 # ODE models are always the ones with the highest PCA similarity, recombination
 # doesn't really affect them mostly
