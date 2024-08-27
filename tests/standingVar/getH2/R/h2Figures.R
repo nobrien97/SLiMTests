@@ -3486,6 +3486,8 @@ stargazer(gls.cev)
 # Repeat for autonomy, respondability, evolvability
 summary(gls.aut <- gls(aut ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
+
+anova(gls.aut)
 plot(gls.aut)
 em.aut <- emmeans(gls.aut, ~ model * r)
 pairs(em.aut, simple = "model")
@@ -3499,6 +3501,8 @@ stargazer(gls.aut)
 summary(gls.res <- gls(res ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.res)
+anova(gls.res)
+
 em.res <- emmeans(gls.res, ~ model * r)
 pairs(em.res, simple = "model")
 pairs(em.res, simple = "r")
@@ -3511,6 +3515,7 @@ xtable(em.res)
 summary(gls.ev <- gls(ev ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.ev)
+anova(gls.ev)
 em.ev <- emmeans(gls.ev, ~ model * r, type = "response")
 pairs(em.ev, simple = "model")
 pairs(em.ev, simple = "r")
@@ -3545,7 +3550,7 @@ krz_in <- id %>%
 # Remove null matrices (no nearest matrix found)
 krz_in <- krz_in[!sapply(krz_in$g,is.null)];
 
-bootKrzCor <- function(x, group = "", PCASim = F) {
+bootKrzCorFn <- function(x, group = "", PCASim = F) {
   require(evolqg)
   require(dplyr)
   
@@ -3587,12 +3592,31 @@ bootKrzCor <- function(x, group = "", PCASim = F) {
   return(fn(g1$g[[1]], g2$g[[1]]))
 }
 
-library(mcreplicate)
+# Bootstrap in ten parts for RAM reasons
 # exclude r -> doesn't contribute much variance at all
-bootKrzCor <- mc_replicate(1000, bootKrzCor(krz_in, "model"))
-bootKrzCor <- unnest(as.data.frame(t(bootKrzCor)), cols = everything())
+library(mcreplicate)
+# newseed <- sample(1:.Machine$integer.max, 10)
+# 1360932387 1900268993  991875895 1523108407  197897667  199526283 2070940443
+# 128221287 1383031956  970870370
+newseed <- c(1360932387, 1900268993,  991875895, 1523108407, 197897667, 199526283, 
+             2070940443, 128221287, 1383031956, 970870370)
+set.seed(1360932387)
 
-bootKrzCor <- bootKrzCor %>%
+bootKrzCor <- vector(mode = "list", length = 10)
+
+for (i in seq_along(newseed)) {
+  # Set seed
+  set.seed(newseed[i])
+  
+  # Run replicate
+  res <- mc_replicate(1000, bootKrzCorFn(krz_in, "model"))
+  bootKrzCor[[i]] <- unnest(as.data.frame(t(res)), cols = everything())
+}
+
+# Output list into combined df
+bootKrzCor2 <- bind_rows(bootKrzCor)
+
+bootKrzCor <- bootKrzCor2 %>%
   separate(group1, c("model1", "r1"), "\\.",
            extra = "merge") %>%
   separate(group2, c("model2", "r2"), "\\.",
@@ -3764,15 +3788,32 @@ p.adjust(krz.p, method = "bonferroni")
 
 
 # Repeat using PCA similarity to include amount of variation in morphospace
-bootPCASim <- mcreplicate::mc_replicate(1000, bootKrzCor(krz_in, "group", T))
-bootPCASim <- unnest(as.data.frame(t(bootPCASim)), cols = everything())
+# newseed <- sample(1:.Machine$integer.max, 10)
+# 1360932387 1900268993  991875895 1523108407  197897667  199526283 2070940443
+# 128221287 1383031956  970870370
+newseed <- c(1360932387, 1900268993,  991875895, 1523108407, 197897667, 199526283, 
+             2070940443, 128221287, 1383031956, 970870370)
+
+bootPCASim <- vector(mode = "list", length = 10)
+
+for (i in seq_along(newseed)) {
+  # Set seed
+  set.seed(newseed[i])
+  
+  # Run replicate
+  res <- mcreplicate::mc_replicate(1000, bootKrzCorFn(krz_in, "group", T))
+  bootPCASim[[i]] <- unnest(as.data.frame(t(res)), cols = everything())
+}
+
+# Output list into combined df
+bootPCASim2 <- bind_rows(bootPCASim)
 
 # Null distribution
 bootPCASim_null <- mcreplicate::mc_replicate(10000, bootKrzCor(krz_in, PCASim = T))
 
 hist(bootPCASim_null)
 
-bootPCASim <- bootPCASim %>%
+bootPCASim <- bootPCASim2 %>%
   separate(group1, c("model1", "r1"), "\\.",
            extra = "merge") %>%
   separate(group2, c("model2", "r2"), "\\.",
@@ -3862,9 +3903,33 @@ ggplot(bootPCASim_sum, aes(
   scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
        fill = "PCA Similarity") +
-  theme(text = element_text(size = 14), legend.position = "bottom") +
+  theme(text = element_text(size = 12), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
 ggsave("PCASim_r_modelCombo_noZ.png", device = png, width = 7, height = 5)
+
+
+ggplot(bootPCASim_sum %>% filter(r1 != -5,
+                                 r2 != -5), 
+       aes(x = as.factor(r1), y = as.factor(r2)
+)) +
+  facet_nested(. ~ "Model comparison" + modelCombo,
+               labeller = labeller(modelCombo = as_labeller(c("K" = "K+ vs K+",
+                                                              "ODE" = "K- vs K-",
+                                                              "Mix" = "K+ vs K-")))) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim %>% filter(r1 != -5,
+                                           r2 != -5), 
+              mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_x_discrete(labels = c("Low", "High")) +
+  scale_y_discrete(labels = c("Low", "High")) +
+  labs(x = "Recombination rate 1", y = "Recombination rate 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 12), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_r_modelCombo_noZ_pres.png", device = png, width = 10, height = 4)
 
 # Not the case: K+ most affected, but I guess it has the most to change
 # K- pretty similar across all recombination rates, does get slightly
@@ -3931,10 +3996,16 @@ bootPCASim <- bootPCASim %>%
 br.pcasim <- betareg(PCASim ~ modelCombo * as.factor(rCombo), bootPCASim)
 
 # Save output
-saveRDS(br.pcasim, "betareg_pcaSim.RDS")
-br.pcasim <- readRDS("betareg_pcaSim.RDS")
+saveRDS(br.pcasim, "betareg_pcaSim_big.RDS")
+br.pcasim <- readRDS("betareg_pcaSim_big.RDS")
 summary(br.pcasim)
 plot(br.pcasim)
+
+# Significance test
+library(lmtest)
+lrtest(br.pcasim)
+
+car::Anova(br.pcasim, type = 3, test.statistic = "F")
 
 em.pcasim <- emmeans(br.pcasim, ~modelCombo * rCombo)
 pairs(em.pcasim, simple = "modelCombo")
@@ -3942,7 +4013,7 @@ pairs(em.pcasim, simple = "rCombo")
 plot(em.pcasim, comparisons = T)
 pwpp(em.pcasim, by = "modelCombo", type = "response")
 emmip(br.pcasim,  ~ modelCombo | rCombo)
-
+joint_tests(em.pcasim)
 xtable(em.pcasim)
 
 
