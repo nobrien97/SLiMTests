@@ -1,0 +1,146 @@
+// set up a simple neutral simulation
+initialize() {
+if (!exists("slimgui")) {
+		defineConstant("seed", getSeed());
+	}
+	else {
+		setSeed(asInteger(round(runif(1, 1, 2^62 - 1))));
+		defineConstant("seed", getSeed());
+		catn("Actual seed: " + asInteger(seed));
+	}
+	
+	
+	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/standingVar/slim/");
+	// Load functions from file
+	source(paste0(wd, "baseFns.slim"));
+	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
+	
+	initializeMutationRate(0.0);
+		
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	
+	// m2 mutation type: background
+	initializeMutationType("m2", 0.5, "n", 0.0, 1.0);
+	m2.color = "red";
+	m1.convertToSubstitution = T;
+	
+	//m3 mutation type: aZ mutation
+	initializeMutationType("m3", 0.5, "n", 0.0, 1.0);
+	m3.color = "green";
+	m3.convertToSubstitution = T;
+	
+	//m4 mutation type: bZ mutation
+	initializeMutationType("m4", 0.5, "n", 0.0, 1.0);
+	m4.color = "blue";
+	m4.convertToSubstitution = T;
+	
+	//m5 mutation type: KZ mutation
+	initializeMutationType("m5", 0.5, "n", 0.0, 1.0);
+	m5.color = "cyan";
+	m5.convertToSubstitution = T;
+	
+	//m6 mutation type: KXZ mutation
+	initializeMutationType("m6", 0.5, "n", 0.0, 1.0);
+	m6.color = "purple";
+	m6.convertToSubstitution = T;
+	
+	//m7 mutation type: KYZ mutation
+	initializeMutationType("m7", 0.5, "n", 0.0, 1.0);
+	m7.convertToSubstitution = T;
+	
+	//m8 mutation type: KY mutation
+	initializeMutationType("m8", 0.5, "n", 0.0, 1.0);
+	m7.convertToSubstitution = T;
+
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 100 kb with uniform recombination
+	initializeGenomicElement(g1, 0, 1000-1);
+	initializeRecombinationRate(0.0);
+}
+
+mutation(m1) {
+	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
+	mut.setMutationType(sampleMutTypeFromSite(mut.position));
+	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
+	
+	if (all(molTraitFix == -1))
+		return T;
+	
+	// Check if the mutation type is meant to be locked: if it is, don't mutate	
+	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2]))
+		return F;
+	
+	return T;
+}
+
+mutationEffect(m2) {
+	return 1.0;
+}
+
+mutationEffect(m3) {
+	return 1.0;
+}
+mutationEffect(m4) {
+	return 1.0;
+}
+mutationEffect(m5) {
+	return 1.0;
+}
+mutationEffect(m6) {
+	return 1.0;
+}
+mutationEffect(m7) {
+	return 1.0;
+}
+mutationEffect(m8) {
+	return 1.0;
+}	
+
+
+// create a population of 500 individuals
+1 early() {
+	sim.addSubpop("p1", 500);
+}
+
+function (void) setCfgParam(s$ name, ifls value) {
+	// Automate defining constants for SLiMgui and slim command line
+	
+	if (!exists(name)) {
+		defineConstant(name, value);
+	}
+}
+
+function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
+	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
+	if (calcMode == "NAR")
+	{
+		inds.phenotype = sim.NARIntegrate(inds);
+		return;
+	}
+	
+	if (calcMode == "PAR")
+	{
+		inds.phenotype = sim.PARIntegrate(inds);
+		return;
+	}
+	return;
+
+}
+
+
+1:10 late() {
+	inds = p1.individuals;
+	//inds.genomes.addNewMutation(m3, 0.1, 1);
+	//inds.genomes.addNewMutation(m4, 0.1, 2);
+	//inds.genomes.addNewMutation(m5, 0.1, 3);
+	//inds.genomes.addNewMutation(m6, 0.1, 4);
+	//inds.genomes.addNewMutation(m7, 0.1, 5);
+	
+	calcPhenotype(inds, "PAR");
+	
+}
