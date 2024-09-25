@@ -136,7 +136,8 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 1:10 late() {
 	inds = p1.individuals;
 	//inds.genomes.addNewMutation(m3, 0.1, 1);
-	//inds.genomes.addNewMutation(m4, 0.1, 2);
+	inds.genomes.addNewMutation(m4, 0.1, 2);
+	inds[0].genomes.addNewMutation(m6, 0.1, 3);
 	//inds.genomes.addNewMutation(m5, 0.1, 3);
 	//inds.genomes.addNewMutation(m6, 0.1, 4);
 	//inds.genomes.addNewMutation(m7, 0.1, 5);
