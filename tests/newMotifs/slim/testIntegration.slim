@@ -15,7 +15,7 @@ if (!exists("slimgui")) {
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
 	
-	initializeMutationRate(0.0);
+	initializeMutationRate(1e-5);
 		
 	// m1 mutation type: neutral
 	initializeMutationType("m1", 0.5, "f", 0.0);
@@ -26,34 +26,53 @@ if (!exists("slimgui")) {
 	m2.color = "red";
 	m1.convertToSubstitution = T;
 	
-	//m3 mutation type: aZ mutation
+	//m3 mutation type: aZ (NAR/PAR), aY (FFL) or aX (FFBH)
 	initializeMutationType("m3", 0.5, "n", 0.0, 1.0);
 	m3.color = "green";
 	m3.convertToSubstitution = T;
 	
-	//m4 mutation type: bZ mutation
+	//m4 mutation type: bZ (NAR/PAR), bY (FFL) or KZX (FFBH)
 	initializeMutationType("m4", 0.5, "n", 0.0, 1.0);
 	m4.color = "blue";
 	m4.convertToSubstitution = T;
 	
-	//m5 mutation type: KZ mutation
+	//m5 mutation type: KZ (NAR/PAR), KY (FFL) or aY (FFBH)
 	initializeMutationType("m5", 0.5, "n", 0.0, 1.0);
 	m5.color = "cyan";
 	m5.convertToSubstitution = T;
 	
-	//m6 mutation type: KXZ mutation
+	//m6 mutation type: KXZ (NAR/PAR), aZ (FFL) or bY (FFBH)
 	initializeMutationType("m6", 0.5, "n", 0.0, 1.0);
 	m6.color = "purple";
 	m6.convertToSubstitution = T;
 	
-	//m7 mutation type: KYZ mutation
+	//m7 mutation type: constitutive rate (NAR/PAR), bZ (FFL) or KY (FFBH)
 	initializeMutationType("m7", 0.5, "n", 0.0, 1.0);
 	m7.convertToSubstitution = T;
 	
-	//m8 mutation type: KY mutation
+	//m8 mutation type: hill coefficient (NAR/PAR), KXZ (FFL) or aZ (FFBH)
 	initializeMutationType("m8", 0.5, "n", 0.0, 1.0);
-	m7.convertToSubstitution = T;
+	m8.convertToSubstitution = T;
+	
+	//m9 mutation type: XMult (NAR/PAR), constitutive rate (FFL) or bZ (FFBH)
+	initializeMutationType("m9", 0.5, "n", 0.0, 1.0);
+	m9.convertToSubstitution = T;
+	
+	//m10 mutation type: hill coefficient (FFL) or KXZ (FFBH)
+	initializeMutationType("m10", 0.5, "n", 0.0, 1.0);
+	m10.convertToSubstitution = T;
 
+	//m11 mutation type: XMult (FFL) or constitutive rate (FFBH)
+	initializeMutationType("m11", 0.5, "n", 0.0, 1.0);
+	m11.convertToSubstitution = T;
+
+	//m12 mutation type: hill coefficient (FFBH)
+	initializeMutationType("m12", 0.5, "n", 0.0, 1.0);
+	m12.convertToSubstitution = T;
+
+	//m13 mutation type: XMult mutation (sensitivity to cue) (FFBH)
+	initializeMutationType("m13", 0.5, "n", 0.0, 1.0);
+	m13.convertToSubstitution = T;
 	
 	// g1 genomic element type: uses m1 for all mutations
 	initializeGenomicElementType("g1", m1, 1.0);
@@ -65,16 +84,9 @@ if (!exists("slimgui")) {
 
 mutation(m1) {
 	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
-	mut.setMutationType(sampleMutTypeFromSite(mut.position));
+	mut.setMutationType(sample(sim.mutationTypes, 1));
 	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
-	
-	if (all(molTraitFix == -1))
-		return T;
-	
-	// Check if the mutation type is meant to be locked: if it is, don't mutate	
-	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2]))
-		return F;
-	
+			
 	return T;
 }
 
@@ -99,7 +111,22 @@ mutationEffect(m7) {
 }
 mutationEffect(m8) {
 	return 1.0;
-}	
+}
+mutationEffect(m9) {
+	return 1.0;
+}
+mutationEffect(m10) {
+	return 1.0;
+}
+mutationEffect(m11) {
+	return 1.0;
+}
+mutationEffect(m12) {
+	return 1.0;
+}
+mutationEffect(m13) {
+	return 1.0;
+}
 
 
 // create a population of 500 individuals
@@ -115,33 +142,46 @@ function (void) setCfgParam(s$ name, ifls value) {
 	}
 }
 
-function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
+function (void) calcPhenotypeNew(o<Individual> inds, s$ calcMode) {
 	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
-	if (calcMode == "NAR")
-	{
-		inds.phenotype = sim.NARIntegrate(inds);
-		return;
-	}
-	
-	if (calcMode == "PAR")
-	{
-		inds.phenotype = sim.PARIntegrate(inds);
-		return;
-	}
+	inds.phenotype = sim.ODEIntegrate(inds, calcMode);
 	return;
-
 }
 
 
-1:10 late() {
+2 late() {
 	inds = p1.individuals;
-	//inds.genomes.addNewMutation(m3, 0.1, 1);
-	inds.genomes.addNewMutation(m4, 0.1, 2);
-	inds[0].genomes.addNewMutation(m6, 0.1, 3);
-	//inds.genomes.addNewMutation(m5, 0.1, 3);
-	//inds.genomes.addNewMutation(m6, 0.1, 4);
-	//inds.genomes.addNewMutation(m7, 0.1, 5);
 	
-	calcPhenotype(inds, "PAR");
+	// First test base without any mutations
+	calcPhenotypeNew(inds, "NAR");
+	catn("NAR null pheno = " + inds[0].phenotype);
+	calcPhenotypeNew(inds, "PAR");
+	catn("PAR null pheno = " + inds[0].phenotype);
+	calcPhenotypeNew(inds, "FFLC1");
+	catn("FFLC1 null pheno = " + inds[0].phenotype);
+	calcPhenotypeNew(inds, "FFLI1");
+	catn("FFLI1 null pheno = " + inds[0].phenotype);
+	calcPhenotypeNew(inds, "FFBH");
+	catn("FFBH null pheno = " + inds[0].phenotype);
+
 	
+//	inds.genomes.addNewMutation(m3, 0.1, 1);
+//	inds.genomes.addNewMutation(m4, 0.1, 2);
+//	inds[0].genomes.addNewMutation(m6, 0.1, 3);
+//	inds.genomes.addNewMutation(m5, 0.1, 3);
+//	inds.genomes.addNewMutation(m6, 0.1, 4);
+//	inds.genomes.addNewMutation(m7, 0.1, 5);
+//	inds.genomes.addNewMutation(m8, 0.1, 6);
+//	
+//	calcPhenotypeNew(inds, "PAR");
+	
+}
+
+
+3:10000 late() {
+	inds = p1.individuals;
+	catn(community.tick);
+	calcPhenotypeNew(inds, "FFBH");
+	catn(paste(inds[0].phenotype, inds[0].ODEPars));
+	return;
 }
