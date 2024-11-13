@@ -18,7 +18,7 @@ initialize() {
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
-	setCfgParam("modelType", "ODE"); // The model type
+	setCfgParam("modelType", "NAR"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
 	setCfgParam("N", 5000); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
@@ -29,16 +29,9 @@ initialize() {
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 0.0); // Whole genome recombination rate
 	setCfgParam("nloci", 1024); // Number of U and E sites along the chromosome
-	setCfgParam("molMutProp", c(1/4, 1/4, 1/4, 1/4)); // proportion of molecular trait loci
 	setCfgParam("genomelength", 1024); // Loci across the genome - some are deleterious, others QTL, others neutral
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
 	setCfgParam("locisigma", 1.0); // Variance used for QTL effect pulls - the effect size distribution
-	//setCfgParam("locidist", paste0("exp(rnorm(1,", locimu, ",", locisigma, "));"));
-	setCfgParam("con_props", c(1.0, 0.0, 0.0)); // Proportion of genes that have low/medium/high substitution rate
-	setCfgParam("constraints", matrix(c(1.0, 0.0, 1.0, 1.0, 1.0, 1.0,
-		5.0, 10.0, 1.0, 1.0, 1.0, 1.0,
-		50.0, 100.0, 1.0, 1.0, 1.0, 1.0),
-		ncol = 6, byrow = T)); // Matrix of lambdas: m1/m2/m3/m4/m5/m6 weights in columns, rows are low/medium/high sub rate	
 	setCfgParam("width", 0.05);	// Set so 1 phenotypic unit deviation is a 20% drop in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
 	setCfgParam("optBurn", 1); // Optimum during burn-in	

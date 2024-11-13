@@ -8,6 +8,116 @@ function (void) setCfgParam(s$ name, ifls value) {
 	}
 }
 
+// Get the locus cutoffs for each  
+function (integer) getMolMutCutoffs(i$ molMuts) {
+	molMutres = integer(molMuts); 
+	molMutProp = 1/molMuts;
+
+	for (i in seqLen(molMuts))
+	{
+		if (i == 0)
+		{
+			molMutres[i] = asInteger(ceil(molMutProp * nloci));
+			next;
+		}
+		
+		if (i == molMuts-1)
+		{
+			molMutres[i] = nloci;
+			next;
+		}
+		
+		molMutres[i] = asInteger(ceil(molMutProp * nloci)) + molMutres[i-1];
+	}
+	
+	// if the first element has 0 loci, remove it
+	if (molMutres[0] == 0) {
+		molMutres = molMutres[1:(length(molMutres)-1)];
+	}
+	
+	// Ensure we don't go over nloci
+	molMutres[molMutres > nloci] = nloci; 
+	
+	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
+	molMutres = unique(molMutres);
+
+	return molMutres;
+}
+
+function (void) assignQTLPositions(void) {
+	// mol traits are in order: first molMutProp[0]% are alpha, next molMutProp[1]% are beta, then KZ, then KXZ
+	// figure out the actual cutoffs 
+	// molMuts == 7 for NAR and PAR
+	molMuts = 7;
+
+	// Set molMuts for different motifs
+	if (modelType == "FFLC1" || modelType == "FFLI1") {
+		molMuts = 9;
+	}
+
+	if (modelType == "FFBH") {
+		molMuts = 11;
+	}
+
+	molMutres = getMolMutCutoffs(molMuts);
+	defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
+
+
+	// Define locations of QTLs, deleterious loci, and neutral loci
+	lengthvec = 0:(genomelength - 1);
+	pos_QTL = sample(lengthvec, nloci);
+	
+	sim.setValue("pos_QTL", pos_QTL); //store these positions in a sim value
+				
+	posfile = paste(modelindex, asString(seed), nloci, pos_QTL, sep = ","); // Output information on where the QTLs are, and the recombination structure of the genome
+	
+	writeFile(outPositions, posfile, append = T);	
+	
+	// Define constants for plotting heterozygosity (diagnostics)
+	if (printH == T) {
+		sim.setValue("h2_history", NULL);
+		defineConstant("pngPath", writeTempFile("plot_", ".png", ""));
+		if (exists("slimgui"))
+			slimgui.openDocument(pngPath);
+	}
+
+	// Set delta difference value
+	sim.setValue("lastDist", 0.0);
+	sim.setValue("lastw", 0.0);
+	
+	// Set initial sample rates for adaptive sampling
+	if (adaptiveSampling == T) {
+		sim.setValue("sRate", samplerate);
+		sim.setValue("burnDelta", NULL);
+		sim.setValue("curTime", 0);
+	}	
+	
+	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
+	u_g = genomelength * mu;
+	u_q = u_g / nloci;
+	u_n = u_g / (genomelength - nloci);
+	
+	// return early if we have no QTLs: mutation rate is always mu
+	if (length(pos_QTL) == 0) {
+		return;
+	}
+	
+	ends = findMutBreakpoints(pos_QTL);
+
+	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
+	if (sort(pos_QTL)[0] == 0) {
+		rates = rep(c(u_q, u_n), length(ends));
+	} else {
+		rates = rep(c(u_n, u_q), length(ends));
+	}
+	
+	// shorten to match ends length
+	rates = rates[0:(length(ends)-1)];	
+		
+	// get a vector of values
+	sim.chromosome.setMutationRate(rates, ends);
+
+}
 
 function (i) findMutBreakpoints(i pos) {
 	// sort the list
@@ -45,17 +155,24 @@ function (i) findMutBreakpoints(i pos) {
 
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	// Find the correct mutation type options for a given position and sample one
-	
-	// Load the dictionary of constraints, find the mutation's position in that dictionary and choose the correct row 
-	// in the cfgparam constraints table
-	con_dict = sim.getValue("con_dict");
-	dict_pos = match(pos, con_dict[0,]);
-	gene_constraint = constraints[c(con_dict[1, dict_pos]),];
-	
+		
 	// Load the actual positions of the QTLs
 	pos_QTL = sim.getValue("pos_QTL");
+
+	molMuts = 7;
+
+	// Set molMuts for different motifs
+	if (modelType == "FFLC1" || modelType == "FFLI1") {
+		molMuts = 9;
+	}
+
+	if (modelType == "FFBH") {
+		molMuts = 11;
+	}
 	
-	if (modelType == "ODE") {
+	molMutProp = 1/molMuts;
+
+
 		// If we are an ubiquitin QTL we're in the first molMutProp[0]% of the nloci loci in pos_QTL - we will take the 
 		// ceiling of that to be consistent
 		// We can only sample neutral, deleterious, and aZ: m1, m2, m3
@@ -75,9 +192,7 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 
 		for (i in 1:(length(molMutCutoffs)-1)) {
 			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
-				// offset i by the number of 0s in molMutProp prior to i
-				j = i + sum(!asLogical(molMutProp[0:min(0, i-1)]));
-				return sample(sim.mutationTypes[c(0:1, j+1)], 1, weights = gene_constraint[c(0:1, j+1)]);
+				return sample(sim.mutationTypes[c(0, i)], 1);
 			}
 		}		
 		
@@ -86,11 +201,11 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	}
 	
 	// Additive/mult case: since we are additive/mult, we want to ignore mutTypes m4 onwards
-	if (any(mut.position == sim.getValue("pos_QTL"))) {
-		choice = sample(sim.mutationTypes[0:2], 1, weights = gene_constraint[0:2]);
+	if (any(mut.position == pos_QTL)) {
+		choice = sample(sim.mutationTypes[c(0,2)], 1);
 	}
 	else {
-		choice = sum(gene_constraint[0:1]) ? sample(sim.mutationTypes[0:1], 1, weights = gene_constraint[0:1]) else -1;
+		choice = sample(sim.mutationTypes[0], 1);
 	}
 	
 	if (isInteger(choice))
