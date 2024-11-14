@@ -15,7 +15,7 @@ if (!exists("slimgui")) {
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
 	
-	initializeMutationRate(1e-5);
+	initializeMutationRate(0.0);
 		
 	// m1 mutation type: neutral
 	initializeMutationType("m1", 0.5, "f", 0.0);
@@ -153,27 +153,27 @@ function (void) calcPhenotypeNew(o<Individual> inds, s$ calcMode) {
 	inds = p1.individuals;
 	
 	// First test base without any mutations
-	calcPhenotypeNew(inds, "NAR");
+//	calcPhenotypeNew(inds, "NAR");
 	catn("NAR null pheno = " + inds[0].phenotype);
-	calcPhenotypeNew(inds, "PAR");
+//	calcPhenotypeNew(inds, "PAR");
 	catn("PAR null pheno = " + inds[0].phenotype);
-	calcPhenotypeNew(inds, "FFLC1");
+//	calcPhenotypeNew(inds, "FFLC1");
 	catn("FFLC1 null pheno = " + inds[0].phenotype);
-	calcPhenotypeNew(inds, "FFLI1");
+//	calcPhenotypeNew(inds, "FFLI1");
 	catn("FFLI1 null pheno = " + inds[0].phenotype);
-	calcPhenotypeNew(inds, "FFBH");
+//	calcPhenotypeNew(inds, "FFBH");
 	catn("FFBH null pheno = " + inds[0].phenotype);
 
 	
-//	inds.genomes.addNewMutation(m3, 0.1, 1);
-//	inds.genomes.addNewMutation(m4, 0.1, 2);
-//	inds[0].genomes.addNewMutation(m6, 0.1, 3);
-//	inds.genomes.addNewMutation(m5, 0.1, 3);
-//	inds.genomes.addNewMutation(m6, 0.1, 4);
-//	inds.genomes.addNewMutation(m7, 0.1, 5);
-//	inds.genomes.addNewMutation(m8, 0.1, 6);
+	inds.genomes.addNewMutation(m3, 0.1, 1);
+	inds.genomes.addNewMutation(m4, 0.1, 2);
+	inds[0].genomes.addNewMutation(m6, 0.1, 3);
+	inds.genomes.addNewMutation(m5, 0.1, 3);
+	inds.genomes.addNewMutation(m6, 0.1, 4);
+	inds.genomes.addNewMutation(m7, 0.1, 5);
+	inds.genomes.addNewMutation(m8, 0.1, 6);
 //	
-//	calcPhenotypeNew(inds, "PAR");
+	calcPhenotypeNew(inds, "FFBH");
 	
 }
 
