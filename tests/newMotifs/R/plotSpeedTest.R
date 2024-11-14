@@ -10,7 +10,7 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_times <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/speedTest/slim_time.csv", col_names = F)
+d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time.csv", col_names = F)
 d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv", col_names = F)
 
 colnames(d_times) <- c("gen", "seed", "modelindex", "time")
@@ -40,9 +40,8 @@ d_times %>%
 ggplot(time_summary, aes(x = gen, y = meanTime, colour = as.factor(model))) +
   geom_line() +
   geom_ribbon(aes(ymin = meanTime - seTime, ymax = meanTime + seTime, 
-                  fill = as.factor(cores)),
+                  fill = as.factor(model)),
               colour = NA, alpha = 0.2) +
-  geom_vline(xintercept = 1000, linetype = "dashed") +
   scale_y_continuous(sec.axis = sec_axis(~ ., name = "Model", 
                                          breaks = NULL, labels = NULL)) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
