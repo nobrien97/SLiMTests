@@ -8,6 +8,12 @@ function (void) setCfgParam(s$ name, ifls value) {
 	}
 }
 
+function (void) writeTimeData(void) {
+	curTime = clock() - beginTime;
+	tFile = paste(sim.cycle, asString(seed), modelindex, curTime, sep = ",");
+	writeFile(outTime, tFile, append = T);
+}
+
 // Get the locus cutoffs for each  
 function (integer) getMolMutCutoffs(i$ molMuts) {
 	molMutres = integer(molMuts); 
@@ -51,7 +57,7 @@ function (void) assignQTLPositions(void) {
 	molMuts = 7;
 
 	// Set molMuts for different motifs
-	if (modelType == "FFLC1" || modelType == "FFLI1") {
+	if (modelType == "FFLC1" | modelType == "FFLI1") {
 		molMuts = 9;
 	}
 
@@ -65,9 +71,9 @@ function (void) assignQTLPositions(void) {
 
 	// Define locations of QTLs, deleterious loci, and neutral loci
 	lengthvec = 0:(genomelength - 1);
-	pos_QTL = sample(lengthvec, nloci);
+	pos = sample(lengthvec, nloci);
 	
-	sim.setValue("pos_QTL", pos_QTL); //store these positions in a sim value
+	defineConstant("pos_QTL", pos); //store these positions in a sim value
 				
 	posfile = paste(modelindex, asString(seed), nloci, pos_QTL, sep = ","); // Output information on where the QTLs are, and the recombination structure of the genome
 	
@@ -114,7 +120,7 @@ function (void) assignQTLPositions(void) {
 	// shorten to match ends length
 	rates = rates[0:(length(ends)-1)];	
 		
-	// get a vector of values
+	// get a vector of valuessa
 	sim.chromosome.setMutationRate(rates, ends);
 
 }
@@ -156,13 +162,26 @@ function (i) findMutBreakpoints(i pos) {
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	// Find the correct mutation type options for a given position and sample one
 		
-	// Load the actual positions of the QTLs
-	pos_QTL = sim.getValue("pos_QTL");
+	// Additive case
+	if (modelType == "Add") {
+			// Additive/mult case: since we are additive/mult, we want to ignore mutTypes m4 onwards
+		if (any(mut.position == pos_QTL)) {
+			choice = sample(sim.mutationTypes[c(0,2)], 1);
+		}
+		else {
+			choice = sample(sim.mutationTypes[0], 1);
+		}
+
+		if (isInteger(choice))
+			return sim.mutationTypes[0];
+
+		return choice;
+	}
 
 	molMuts = 7;
 
 	// Set molMuts for different motifs
-	if (modelType == "FFLC1" || modelType == "FFLI1") {
+	if (modelType == "FFLC1" | modelType == "FFLI1") {
 		molMuts = 9;
 	}
 
@@ -192,26 +211,13 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 
 		for (i in 1:(length(molMutCutoffs)-1)) {
 			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
-				return sample(sim.mutationTypes[c(0, i)], 1);
+				mutType = i + 1; // Offset by 1 to account for the deleterious mutation type
+				return sim.mutationTypes[mutType];
 			}
 		}		
 		
 		// if we somehow fail, stop the simulation
 		stop(paste("sampleMutTypeFromSite: Failed to find mutation type for locus", pos));
-	}
-	
-	// Additive/mult case: since we are additive/mult, we want to ignore mutTypes m4 onwards
-	if (any(mut.position == pos_QTL)) {
-		choice = sample(sim.mutationTypes[c(0,2)], 1);
-	}
-	else {
-		choice = sample(sim.mutationTypes[0], 1);
-	}
-	
-	if (isInteger(choice))
-		return sim.mutationTypes[0];
-	
-	return choice;
 }
 
 function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
@@ -250,6 +256,66 @@ function (void) writeQuantileODEPar(o<Subpopulation> pop, [Nf quantiles = 0.5], 
 }
 
 
+function (void) writeAlleleData(void) {
+	
+	// Store vectors of unique mutations, sorted by the generation in which they originated
+	muts = sortBy(c(sim.mutations[sim.mutations.mutationType != m1]), "originTick");
+	
+	// same for substitutions
+	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
+	
+	// Distance from the optimum - if we're in burn-in, distance is 0
+	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.phenotype) - sim.getValue("optimum")) else 0.0;
+	
+	// Set up an empty output to store all our mutations' information for this generation
+	mutsLines = NULL;
+	
+	// Put information on these unique mutations into a separate mutations file	
+	
+	// Check if there are any substitutions, if not we need to fix the output lines	by not including the \n character at the end of the last mutation line. 
+	// This is because writeFile() automatically adds a \n character, so we'd end up with an extra empty line if we do write that way
+	
+	genom = sim.subpopulations.genomes;
+	
+	for (mut in muts) {
+		mutFreq = mean(genom.containsMutations(mut));
+		mutCount = size(genom[genom.containsMutations(mut)]);
+		mutType = mut.mutationType.id;
+		mutValue = asString(mut.selectionCoeff);
+		mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
+		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutChi, mutFreq, mutCount, "NA", sep = ",");
+		mutsLine = paste0(mutsLine, "\n");
+		mutsLines = paste0(mutsLines, mutsLine);
+	
+	}
+	
+	subCount = N*2;
+	for (sub in subs) {
+		subFreq = 1.0;
+		subType = sub.mutationType.id;
+		subValue = asString(sub.selectionCoeff);
+		subChi = sub.selectionCoeff * sqrt(1/(2*dist));
+		
+		subLine = paste(sim.cycle, asString(seed), modelindex, subType, sub.id, sub.position, sub.originTick, subValue, subChi, subFreq, subCount, sub.fixationTick, sep = ",");
+		subLine = paste0(subLine, "\n");
+		
+		mutsLines = paste0(mutsLines, subLine); // Add substitutions to mutation output
+	
+	}
+	
+	// Write the mutations file
+	// Fail safe in case there are no mutations at some point and the for loop doesn't run
+	if (exists('mutsLine') | exists('subLine'))
+		writeFile(outMuts, mutsLines, append = T);
+}
+
+function (void) writeHetData(void) {
+	hets = calcHeterozygosityAtPosition(p1.individuals, pos_QTL);
+	hetFile = paste(sim.cycle, asString(seed), modelindex, hets, sep = ",");
+	writeFile(outHet, hetFile, append = T);
+}
+
+
 function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
 	phenotypes = inds.phenotype;
@@ -264,6 +330,93 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
 	sim.setValue("fitness", inds.fitnessScaling);
 
 }
+
+function (float) getMeanMolComps(o<Individual> inds) {
+	// Get mean molecular component values
+	molCompCount = size(molMutCutoffs) - 1;
+	
+	result = float(molCompCount);
+	molTraits = inds.ODEPars;
+	for (i in seqAlong(result)) {
+		result[i] = mean(molTraits[seq(i, length(inds.ODEPars)-1, by = molCompCount)]);
+	}
+	
+	return result;
+}
+
+
+function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
+	// Write quant gen output for population statistics
+	// phase is where in the simulation we are: burn-in, stabsel around burn-in mean, or adaptation
+	// Slight differences between burnin, stab sel period, and test period - we need to account for those
+	
+	inds = pop.individuals;
+	// Construct string output for data to write to file
+	meanH = paste(calcHeterozygosity(pop.genomes), sep=",");
+	VA = paste(calcVA(inds, sim.mutationTypes[2]));
+	phenotypes = inds.phenotype;
+	phenomean = mean(phenotypes);
+	phenovar = var(phenotypes);
+	w = mean(inds.fitnessScaling);
+
+	meanMolTraits = getMeanMolComps(inds);
+
+	// Pad mean mol traits to n = 11 for our largest number of mol comps (FFBH)
+	padSize = 11 - size(meanMolTraits);
+
+	if (padSize > 0) {
+		pad = float(padSize);
+		meanMolTraits = c(meanMolTraits, pad);
+	}
+	
+	// If we are burning in, distance to optimum = 0, if we are in phase 2 then distance is relative to burninPheno,
+	// otherwise relative to optimum
+	// While here, we also have some other values to set for burn-in: there might not be a lastDist yet
+	
+	if (phase == "burnin") {
+		// If we're in stabsel around burn-in pheno
+		optimum = optBurn;
+		dist = mean(abs(phenotypes - optimum));
+	} else if (phase == "adaptation") {
+		// If we're in the shifted optimum phase
+		optimum = sim.getValue("optimum");
+		dist = mean(abs(phenotypes - optimum));
+	}
+	
+	if (isNULL(sim.getValue("lastDist"))) {
+		deltaPheno = 0.0;
+	} else {
+		deltaPheno = dist - sim.getValue("lastDist");
+	}
+	
+	if (isNULL(sim.getValue("lastw"))) {
+		deltaw = 0.0;
+	} else {
+		deltaw = w - sim.getValue("lastw");
+	}
+	
+	
+	sim.setValue("lastDist", dist);
+	sim.setValue("lastw", w);
+	
+	
+	if (sim.cycle == burnTime) {
+		optVal = optBurn + optShift;
+		sim.setValue("optimum", optVal);
+		catn("Optimum is: " + optVal + "\nStarting stabilising selection regime");
+		OptFile = paste(asString(seed), modelindex, optVal, sep = ",");
+		writeFile(outOpt, OptFile);
+		
+		dist = abs(phenomean - optVal); // Absolute values so that means aren't biased towards 0 by drift 		
+	}
+	
+	
+	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, VA, phenomean, phenovar, dist, w, deltaPheno, deltaw, meanMolTraits, sep=",");
+	
+	writeFile(outQG, Mfile, append = T);
+
+}
+
 
 function (integer) encodeCantorPairs(i x, i y) {
 	return asInteger(0.5 * (x + y) * (x + y + 1) + y);
@@ -296,10 +449,48 @@ function (integer) perm(i x, [l$ includeDiag = F]) {
 	return decodeCantorPairs(comboMatrix); 
 }
 
+function (void) writeLDmat(o<Subpopulation> pop, l$ isBurnin) {
+	// Writes the pairwise LD matrix into a .tsv file
+	// isBurnin: is this the burnin matrix or the final matrix: just sets the filename
+	LDMat = matrix(sim.calcLD(pop), nrow = genomelength, ncol = genomelength, byrow = T);
+	l = sapply(seqLen(nrow(LDMat)), "paste(LDMat[applyValue,], sep = '\t');");
+	writeFile(outLD[asInteger(!isBurnin)], l);
+}
+
+function (void) writeLDComp(o<Subpopulation> pop, l$ isD) {
+	// Writes a pairwise LD matrix in compressed columnwise format
+	// isD: 	whether to calculate r^2 or D' 
+	LDResult = matrix(sim.calcLD(pop, isD), nrow = genomelength, ncol = genomelength, byrow = T);
+	LDCompressed = CompressLDMatrix(LDResult[c(upperTri(LDResult))]);
+	writeFile(outLDComp_Pos, LDCompressed[0], append = T);
+	writeFile(outLDComp_Val, LDCompressed[1], append = T);
+}
+
+
+// Get variance-covariance matrix of molecular traits (P_M) - phenotypic variance-covariance matrix of molecular traits
+//function (void) writePMMatrix(o<Subpopulation> pop) {
+//	inds = pop.individuals;
+//	// Get molecular components
+//	aZ = inds.ODEPars[seq(1, size(inds.ODEPars)-1, by = 5)];
+//	bZ = inds.ODEPars[seq(2, size(inds.ODEPars)-1, by = 5)];
+//	KZ = inds.ODEPars[seq(3, size(inds.ODEPars)-1, by = 5)];
+//	KXZ = inds.ODEPars[seq(4, size(inds.ODEPars)-1, by = 5)];
+//	
+//	vaZ = setSmallValToZero(var(aZ));
+//	vbZ = setSmallValToZero(var(bZ));
+//	vKZ = setSmallValToZero(var(KZ));
+//	vKXZ = setSmallValToZero(var(KXZ));
+//	caZbZ = setSmallValToZero(cov(aZ, bZ)); caZKZ = setSmallValToZero(cov(aZ, KZ));
+//	caZKXZ = setSmallValToZero(cov(aZ, KXZ)); cbZKZ = setSmallValToZero(cov(bZ, KZ));
+//	cbZKXZ = setSmallValToZero(cov(bZ, KXZ)); cKZKXZ = setSmallValToZero(cov(KZ, KXZ));
+//	
+//	file = paste(sim.cycle, asString(seed), modelindex, c(vaZ, caZbZ, caZKZ, caZKXZ, vbZ, cbZKZ, cbZKXZ, vKZ, cKZKXZ, vKXZ), sep=",");
+//	writeFile(outPMMat, file, append = T);
+//}
+
 function (void) writeLDPairFile(o<Subpopulation> pop, s$ stat) {
 	// Writes vector of pairwise LD comparisons sorted by frequency
-	pos = sim.getValue("pos_QTL");
-	comp = perm(pos);
+	comp = perm(pos_QTL);
 	LDResult = sim.calcLDBetweenSitePairs(pop, comp[0,], comp[1,], statistic = stat, byFreq = T);
 	LDLine = paste(sim.cycle, asString(seed), modelindex, LDResult, sep = ",");
 	writeFile(outLD, LDLine, append = T);
@@ -316,7 +507,7 @@ function (void) writeLDComp(o<Subpopulation> pop, s$ statistic) {
 
 // Writes the frequencies and shared frequencies of pairs of mutations A and B
 function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
-	pos = unique(sim.getValue("pos_QTL"));
+	pos = unique(pos_QTL);
 	comb = perm(pos);
 	result = sim.sharedMutFreqs(pop, comb[0,], comb[1,]);
 
@@ -334,7 +525,7 @@ function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
 
 	result2 = c(rbind(idA, idB, pA, pB, pab, paB, pAb));
 
-	out = paste(sim.cycle, asString(inputSeed), inputModel, result2, sep = ",");
+	out = paste(sim.cycle, asString(seed), modelindex, result2, sep = ",");
 	writeFile(outSharedMutFreqs, out, append = T);
 }
 
@@ -347,7 +538,16 @@ function (float) setSmallValToZero(float i) {
 // also alleles and moltraits
 function (void) writeIndOutput(o<Subpopulation> pop) {
 	inds = pop.sampleIndividuals(10);
+	lines = NULL;
 	
+	//writeIndAlleleOutput(inds);
+	
+	for (ind in inds) {
+		line = paste(sim.cycle, asString(seed), modelindex, ind.index, ind.ODEPars, sep = ",");
+		line = paste0(line, "\n");
+		lines = paste0(lines, line); // Add line to output
+	}
+	writeFile(outInd, lines, append = T);
 }
 
 function (void) savePopState(void) {
@@ -356,10 +556,91 @@ function (void) savePopState(void) {
 
 function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	inds = sample(pop.individuals, n);
+	// Note: Using all sites instead of just the QTLs, see if this makes a difference
+	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
+	//	qtls = sort(sim.getValue("pos_QTL"));
+		qtls = 0:(genomelength-1);
+	
+	// Extract haplotypes and qtl effect sizes
+	haplos = matrix(sim.getHaplos(inds.genomes, qtls), 
+												 nrow = length(inds.genomes), ncol = length(qtls), byrow = T);
+
+	// Remove fixations and store separately
+	colsToRemove = (colSums(haplos) == 2*n);
+	if (size(colsToRemove)) {
+		haploFixations = paste(sim.cycle, seed, modelindex, (0:(size(qtls)-1))[colsToRemove], sep = ",");
+	}
+
+	writeFile(outHaploFix, haploFixations, append = T);
+
+	// Write FX with the fixed haplotypes included
+	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, StoreBinaryMatrix(haplos), length(inds.genomes), length(qtls)), sep=",");
+
+	// Remove fixed from the haplotype store
+	for (i in seqAlong(colsToRemove)) {
+		haplos[, colsToRemove] = 0;
+	}
+
+	// compress haplotypes
+	haplos = StoreBinaryMatrix(haplos);
+
+	// Stick on generation and identifier data
+	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
+	
+	// Write output
+	writeFile(outHaplo, haplos, append = T);
+	writeFile(outFX, fx, append = T);
+	
+	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
+	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
+	
+	writeFile(outPhenoSample, phenos_out, append = T);
+	writeFile(outMolSample, mol_out, append = T);
+
+	// relatedness matrix compression
+	rel = matrix(inds.relatedness(inds), nrow = length(inds), byrow = T);
+	
+	// mask the relatedness matrix so we only store the upper triangle: don't need diagonal since it's always 1
+	rel = rel[c(upperTri(rel))];
+	
+	// If a lot of values are 0, we can compress further: keep a file with non-zero elements,
+	// and the matrix stores their positions only
+	relPos = CompressRelatednessList(rel);	
+	relValues = GetRelValues(rel, relPos);
+	
+	relPos = paste(c(asString(sim.cycle), asString(seed), asString(modelindex), asString(relPos)), sep = ",");
+	relValues = paste(c(asString(sim.cycle), asString(seed), asString(modelindex), asString(relValues)), sep = ",");
+		
+	writeFile(outRelPos, relPos, append = T);
+	writeFile(outRelVals, relValues, append = T);
+
 }
 
 function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
 	inds = pop.sampleIndividuals(n);
+	// Note: Using all sites instead of just the QTLs, see if this makes a difference
+	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
+	//	qtls = sort(sim.getValue("pos_QTL"));
+	qtls = 0:(genomelength-1);
+	
+	// Extract haplotypes and qtl effect sizes
+	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
+	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
+	
+	
+	// Stick on generation and identifier data
+	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
+	// Write output
+	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
+	
+	writeFile(outHaplo, haplos, append = T);
+	writeFile(outFX, fx, append = T);
+	
+	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
+	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
+	
+	writeFile(outPhenoSample, phenos_out, append = T);
+	writeFile(outMolSample, mol_out, append = T);
 }
 
 function (integer) colSums(integer mat) {
@@ -410,3 +691,61 @@ function (string) CompressLDMatrix(float LDUpperTri) {
 
 	return c(indicesFile, valuesFile);
 }
+
+// Get phenotypic effects (additive scale) from a compressed binary haplotype matrix
+function (float) getFX(integer pos, integer haplos, integer$ n, integer$ m) {
+	if (length(haplos) == 0) {
+		return float(0);
+	}
+	posToGet = pos[asLogical(binaryMatrixLoci(haplos, n, m))];
+	result = float(length(posToGet));
+	muts = sim.mutations[sim.mutations.mutationType != m1 & sim.mutations.mutationType != m2];
+	
+	for (i in seqLen(length(posToGet))) {
+		result[i] = sum(muts[muts.position == posToGet[i]].selectionCoeff);
+	
+	}
+	return result;
+}
+
+// returns positions of loci with nonzero elements (i.e. >= 1 ind with a mutation)
+function (integer) binaryMatrixLoci(i haplos, i$ nrow, i$ ncol) {
+	colCutoffs = asInteger((nrow * 1:ncol) - 1);	
+	colSums = integer(ncol);
+	
+	for (i in seqAlong(colCutoffs)) {
+			colSums[i] = length(haplos[haplos <= colCutoffs[i]]);
+	}
+	
+	colSums = colSums - c(0, colSums[0:(ncol-2)]);
+	
+	return colSums;
+}
+
+function (integer) StoreBinaryMatrix(integer mat) {
+	if (any(mat != 0 & mat != 1)) {
+		stop("StoreBinaryMatrix called with a non-binary matrix!");
+	}
+	n = length(mat);
+	return (0:(n-1))[c(asLogical(mat))];
+} 
+
+// Compresses relatedness matrix list: input is the upper triangle of the relatedness matrix excluding diagonals
+function (integer) CompressRelatednessList(float upperTri) {
+	return which(upperTri != 0);
+} 
+
+// Get the relationship coefficients at a given position in the upper triangle
+function (float) GetRelValues(float upperTri, integer pos) {
+	return upperTri[pos];
+}
+
+// Compress LD matrix to columnwise indices and nonzero LD: input is upper triangle of the 
+// pairwise LD matrix excluding diagonals 
+function (string) CompressLDMatrix(float LDUpperTri) {
+	indicesFile = paste(sim.cycle, asString(seed), modelindex, CompressRelatednessList(LDUpperTri), sep = ",");
+	valuesFile = paste(sim.cycle, asString(seed), modelindex, LDUpperTri[c(LDUpperTri != 0)], sep = ",");
+
+	return c(indicesFile, valuesFile);
+}
+
