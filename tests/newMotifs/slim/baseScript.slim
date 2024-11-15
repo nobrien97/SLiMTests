@@ -46,11 +46,11 @@ initialize() {
 										optBurn+optShift*0.95, 0), ncol = 2, byrow = T));
 
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 100);//1*N); // Number of generations of neutral burn-in before the test period
-	setCfgParam("testTime", 100); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
-	setCfgParam("samplerate", c(20, 20)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("burnTime", 10*N); // Number of generations of neutral burn-in before the test period
+	setCfgParam("testTime", 10000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
+	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
 	setCfgParam("molTraitFix", -1); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
-	setCfgParam("testSampling", 20); // Sample rate during test period
+	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
 	setCfgParam("sampleLimits", c(0.1*samplerate, 5*samplerate)); // Set maximum and minimum sample rates to adjust between 
 	
