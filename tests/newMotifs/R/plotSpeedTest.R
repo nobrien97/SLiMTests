@@ -55,6 +55,6 @@ ggsave("times.png")
 # extrapolate to 60000 generations
 time_summary %>%
   group_by(model) %>%
-  slice_tail(n = 1) %>%
-  select(!c(meanTime, seTime, gen, seDelta)) %>%
-  mutate(wholeSimEstimate = (meanDelta * (60000/50))/3600)
+  filter(gen == 1000) %>%
+  select(!c(meanDelta, seDelta, seTime, seDelta)) %>%
+  mutate(wholeSimEstimate = paste(((meanTime * (60000/gen))/3600), "hrs"))
