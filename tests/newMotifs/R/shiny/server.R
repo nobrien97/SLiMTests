@@ -117,8 +117,8 @@ ODEs_NAR <- function(t, state, parameters) {
     # step function leads to numerical issues in lsoda:
     #dZ <- bZ * (t > Xstart && t <= Xstop & Z<1) - aZ*Z
     # use Hill function instead:
-    X <- (t > Xstart && t <= Xstop)
-    dZ <- base * X + bZ * (t > Xstart && t <= Xstop) * ((X^Hilln)/(KXZ^Hilln + X^Hilln)) * ((KZ^Hilln)/(KZ^Hilln + Z^Hilln)) - aZ*Z
+    X <- XMult * (t > Xstart && t <= Xstop)
+    dZ <- base + bZ * (t > Xstart && t <= Xstop) * ((X^Hilln)/(KXZ^Hilln + X^Hilln)) * ((KZ^Hilln)/(KZ^Hilln + Z^Hilln)) - aZ*Z
     return(list(c(dZ)))
   })
 }
@@ -135,7 +135,7 @@ ODEs_PAR <- function(t, state, parameters) {
     # Add small amount of Z for basal expression
     # addBase <- ((t > Xstart) && (t < Xstart + 0.01))
     
-    dZ <- base * X + bZ * (X^Hilln/(KXZ^Hilln + X^Hilln)) * ((Z^Hilln)/((KZ^Hilln)+(Z^Hilln))) - aZ*Z
+    dZ <- base + bZ * (X^Hilln/(KXZ^Hilln + X^Hilln)) * ((Z^Hilln)/((KZ^Hilln)+(Z^Hilln))) - aZ*Z
     #dZ <- base + X * bZ *((Z^Hilln)/((KZ^Hilln)+(Z^Hilln))) - aZ*Z
     #dZ <- bZ * (Z^Hilln)/((KZ^Hilln)+(Z^Hilln)) - aZ * Z
     return(list(c(dZ)))
@@ -149,8 +149,8 @@ ODEs_C1_FFL <- function(t, state, parameters) {
     #dZ <- bZ * (t > Xstart && t <= Xstop & Z<1) - aZ*Z
     # use Hill function instead:
     X <- XMult * (t > Xstart && t <= Xstop)
-    dY <- base * X + bY * X^Hilln/(KY^Hilln + X^Hilln) - aY*Y
-    dZ <- base * X + bZ * ((X * Y)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
+    dY <- bY * X^Hilln/(KY^Hilln + X^Hilln) - aY*Y
+    dZ <- base + bZ * ((X * Y)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
     
     return(list(c(dY, dZ)))
   })
@@ -164,8 +164,8 @@ ODEs_I1_FFL <- function(t, state, parameters) {
     # use Hill function instead:
     X <- XMult * (t > Xstart && t <= Xstop)
     
-    dY <- base * X + bY * X^Hilln/(KY^Hilln + X^Hilln) - aY*Y
-    dZ <- base * X + bZ * ((X * KY)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
+    dY <- bY * X^Hilln/(KY^Hilln + X^Hilln) - aY*Y
+    dZ <- base + bZ * ((X * KY)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
     
     return(list(c(dY, dZ)))
   })
@@ -190,8 +190,8 @@ ODEs_FFBH <- function(t, state, parameters) {
     # Update X
     X <- X + dXH
     
-    dY <- base * X + bY * X^Hilln/( KY^Hilln + X^Hilln ) - aY*Y
-    dZ <- base * X + bZ *  ((X * Y)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
+    dY <- bY * X^Hilln/( KY^Hilln + X^Hilln ) - aY*Y
+    dZ <- base + bZ *  ((X * Y)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
     
     return(list(c(dXH, dY, dZ)))
   })
