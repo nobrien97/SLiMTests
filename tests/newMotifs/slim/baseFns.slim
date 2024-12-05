@@ -244,7 +244,11 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	}
 
 	// Handle ODEs
-	inds.phenotype = sim.ODEIntegrate(inds, calcMode);
+numTraits = 3;
+	if (calcMode == "NAR") { numTraits = 2; }
+	if (calcMode == "FFBH") { numTraits = 4; }
+	
+	inds.setTraitValues(sim.ODEIntegrate(inds, calcMode), numTraits);
 	return;
 
 }
@@ -354,9 +358,23 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// Construct string output for data to write to file
 	meanH = paste(calcHeterozygosity(pop.genomes), sep=",");
 	VA = paste(calcVA(inds, sim.mutationTypes[2]));
-	phenotypes = inds.phenotype;
-	phenomean = mean(phenotypes);
-	phenovar = var(phenotypes);
+	trait1 = inds.traits[seq(0, size(inds.traits)-1, 4)];
+	trait2 = inds.traits[seq(1, size(inds.traits)-1, 4)];
+	trait3 = inds.traits[seq(2, size(inds.traits)-1, 4)];
+	trait4 = inds.traits[seq(3, size(inds.traits)-1, 4)];
+
+	meanTrait1 = mean(trait1);
+	meanTrait2 = mean(trait2);
+	meanTrait3 = mean(trait3);
+	meanTrait4 = mean(trait4);
+	varTrait1 = var(trait1);
+	varTrait2 = var(trait2);
+	varTrait3 = var(trait3);
+	varTrait4 = var(trait4);
+
+	phenomean = paste(meanTrait1, meanTrait2, meanTrait3, meanTrait4, sep = ",");
+	phenovar = paste(varTrait1, varTrait2, varTrait3, varTrait4, sep = ",");
+
 	w = mean(inds.fitnessScaling);
 
 	meanMolTraits = getMeanMolComps(inds);
