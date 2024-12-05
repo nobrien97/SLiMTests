@@ -244,7 +244,7 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	}
 
 	// Handle ODEs
-numTraits = 3;
+	numTraits = 3;
 	if (calcMode == "NAR") { numTraits = 2; }
 	if (calcMode == "FFBH") { numTraits = 4; }
 	
@@ -320,9 +320,15 @@ function (void) writeHetData(void) {
 }
 
 
-function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
+function (void) calcFitnessGaussian(o<Individual> inds, fi optimum) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
-	phenotypes = inds.phenotype;
+	traits = inds.traits;
+	dmvnorm(p1.individuals[0].traits, optima, sigma); / fitnessNorm
+	optima = c(6, 0.25, 1.5, 0.0);
+	fitnessNorm = dmvnorm(optima, optima, sigma);
+	dmvnorm(p1.individuals[0].traits, optima, sigma) / fitnessNorm;
+
+
 	dists = (phenotypes - optimum)^2;
 	
 	// Make sure that phenotype is never below 0
