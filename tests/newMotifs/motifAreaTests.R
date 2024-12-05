@@ -433,9 +433,9 @@ ODEs_FFBH <- function(t, state, parameters) {
 }
 
 params <- c(Xstart = 1, Xstop = 6, 
-    aX = 1, KZX = 1,
+    aX = 1, KZX = 0.5,
     aY = 1, bY = 1, KY = 1, KXZ = 1,
-    aZ = 1, bZ = 1, Hilln = 1, XMult = 1, base = 0)
+    aZ = 1, bZ = 2, Hilln = 0.5, XMult = 1, base = 0)
 
 iniState <- c(XH=0,Y=0, Z=0)
 times <- seq(0,10,by=0.1)
