@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
+	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // "/home/564/nb9894/tests/newMotifs/slim/");
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", T); // Verbose debug outputs straight to stdout
@@ -27,7 +27,7 @@ initialize() {
 	setCfgParam("N_samp", N_sires*N_dam*N_perdam); // Sample size for haplotypes etc.
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
-	setCfgParam("rwide", 0.5); // Whole genome recombination rate
+	setCfgParam("rwide", 0.1); // Whole genome recombination rate
 	setCfgParam("nloci", 1386); // Number of sites: common multiple of all n_C in all models
 	setCfgParam("genomelength", 1386); // Loci across the genome
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
@@ -251,9 +251,7 @@ s3 reproduction() {
 		for (sire in sires) {
 			dams = p1.sampleIndividuals(N_dam, exclude = sire);
 			for (dam in dams) {
-				for (offspring in seqLen(N_perdam)) {
-					p2.addCrossed(sire, dam);
-				}
+				p2.addCrossed(sire, dam, count = N_perdam);
 			}
 		}
 	}
@@ -277,9 +275,7 @@ s4 reproduction() {
 		for (sire in sires) {
 			dams = p1.sampleIndividuals(N_dam, exclude = sire);
 			for (dam in dams) {
-				for (offspring in seqLen(N_perdam)) {
-					p2.addCrossed(sire, dam);
-				}
+				p2.addCrossed(sire, dam, count = N_perdam);
 			}
 		}
 		// Calc phenotypes
