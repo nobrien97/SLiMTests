@@ -212,7 +212,7 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 		for (i in 1:(length(molMutCutoffs)-1)) {
 			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
 				mutType = i + 1; // Offset by 1 to account for the deleterious mutation type
-				return sim.mutationTypes[mutType];
+				return sample(sim.mutationTypes[c(0, mutType)], 1);
 			}
 		}		
 		
