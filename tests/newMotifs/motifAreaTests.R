@@ -138,7 +138,7 @@ ODEs_I1_FFL <- function(t, state, parameters) {
     X <- XMult * (t > Xstart && t <= Xstop)
     
     dY <- base * X + bY * X^Hilln/(KY^Hilln + X^Hilln) - aY*Y
-    dZ <- base * X + bZ *  ((X * KY)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
+    dZ <- base * X + bZ * ((X * KY)^Hilln)/((KXZ^Hilln + X^Hilln) * (KY^Hilln + Y^Hilln)) - aZ*Z
     
     return(list(c(dY, dZ)))
   })
