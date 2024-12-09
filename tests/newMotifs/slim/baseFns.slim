@@ -244,7 +244,11 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	}
 
 	// Handle ODEs
-	inds.phenotype = sim.ODEIntegrate(inds, calcMode);
+	numTraits = 3;
+	if (calcMode == "NAR") { numTraits = 2; }
+	if (calcMode == "FFBH") { numTraits = 4; }
+	
+	inds.setTraitValues(sim.ODEIntegrate(inds, calcMode), numTraits);
 	return;
 
 }
@@ -315,16 +319,41 @@ function (void) writeHetData(void) {
 	writeFile(outHet, hetFile, append = T);
 }
 
+function (float) calcFitnessWidth(f optimum, f$ distanceForDrop, f$ targetDrop) {
+	// Calculate the width of each axis of the fitness function for a given distance from the optimum to drop X% fitness
+	deviation = abs(optimum - (optimum * distanceForDrop));
+	decayFactor = 1 - targetDrop;
+	variances = c(deviation^2 / (-2 * log(decayFactor)));
 
-function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
+	// Avoid negative/zero variances
+	variances[variances < 1e-6] = 1e-6;
+
+	return diag(variances, nrow = size(optimum));
+}
+
+function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
-	phenotypes = inds.phenotype;
-	dists = (phenotypes - optimum)^2;
+	if (size(dim(optimum)) != 2) {
+		stop("optimum must be a matrix with rows = motif and cols = traits");
+	 }
+
+	optIndex = 0;
+	optMax = 1;
+	if (calcMode == "PAR") { optIndex = 1; optMax = 2; }
+	if (calcMode == "FFLC1") { optIndex = 2; optMax = 2; }
+	if (calcMode == "FFLI1") { optIndex = 3; optMax = 2; }
+	if (calcMode == "FFBH") { optIndex = 4; optMax = 3; }
+
+	optTraits = optimum[optIndex, 0:optMax];
+	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
+
+	traits = matrix(c(inds.getTraitValues(0:optMax)), ncol = optMax + 1, byrow = T);
+	fitnesses = dmvnorm(traits, c(optTraits), sigma) / fitnessNorm;
+	fitnesses[fitnesses < 0.0] = 0.0;
+	inds.fitnessScaling = fitnesses; // Gaussian fitness function comes from Lande 1976
 	
-	// Make sure that phenotype is never below 0
-	dists[dists < 0] = 0.0;
-	
-	inds.fitnessScaling = exp(-(dists * width)); // Gaussian fitness function comes from Lande 1976: width is 1/2w^2
 	// Make sure we never have all individuals with 0 fitness
 	if (all(inds.fitnessScaling == 0.0)) { inds.fitnessScaling = 1e-6; }
 	sim.setValue("fitness", inds.fitnessScaling);
@@ -354,9 +383,23 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// Construct string output for data to write to file
 	meanH = paste(calcHeterozygosity(pop.genomes), sep=",");
 	VA = paste(calcVA(inds, sim.mutationTypes[2]));
-	phenotypes = inds.phenotype;
-	phenomean = mean(phenotypes);
-	phenovar = var(phenotypes);
+	trait1 = inds.traits[seq(0, size(inds.traits)-1, 4)];
+	trait2 = inds.traits[seq(1, size(inds.traits)-1, 4)];
+	trait3 = inds.traits[seq(2, size(inds.traits)-1, 4)];
+	trait4 = inds.traits[seq(3, size(inds.traits)-1, 4)];
+
+	meanTrait1 = mean(trait1);
+	meanTrait2 = mean(trait2);
+	meanTrait3 = mean(trait3);
+	meanTrait4 = mean(trait4);
+	varTrait1 = var(trait1);
+	varTrait2 = var(trait2);
+	varTrait3 = var(trait3);
+	varTrait4 = var(trait4);
+
+	phenomean = paste(meanTrait1, meanTrait2, meanTrait3, meanTrait4, sep = ",");
+	phenovar = paste(varTrait1, varTrait2, varTrait3, varTrait4, sep = ",");
+
 	w = mean(inds.fitnessScaling);
 
 	meanMolTraits = getMeanMolComps(inds);

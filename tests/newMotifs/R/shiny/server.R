@@ -337,6 +337,160 @@ plotDynamics_FFBH <- function(Xstart = 1,
   plotAll
 }
 
+# Returns response time [1], steady state [2], time to steady state [3] 
+SteadyState <- function(df, startTime, solutionIndex) {
+  epsilon = 0.001;
+  # Output 
+  result <- c(0, 0, 0)
+  # Count of entries with stable phenotype
+  steadyCount <- 0
+  
+  # Start index, multiplied by 10 because 10 entries per unit time
+  start <- startTime * 10 + 1
+  
+  if (start > nrow(df)) {
+    start <- nrow(df)
+  }
+  # Iterate over dataframe, find concentrations and change over time
+  for (i in start:(nrow(df))) {
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    
+    # If we're stable, increment the count and store the result
+    if (abs(c2 - c1) < epsilon) {
+      steadyCount = steadyCount + 1
+      
+      # We're done finding steady state if we've been there a while
+      if (steadyCount >= 5) {
+        result[2] <- c2
+        result[3] <- df[i, 1]
+        break
+      }
+      next
+    }
+    steadyCount = 0
+  }
+  
+  # Response time is time to halfway the steady state
+  half = result[2] * 0.5;
+  
+  # Figure out where the halfway point is
+  for (i in 2:nrow(df)) {
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    t1 = df[i-1, 1]
+    t2 = df[i, 1]
+    
+    if ((c1 < half & c2 >= half) | (c1 > half & c2 <= half)) {
+      result[1] = Interpolate(t1, c1, t2, c2, half)
+      break
+    }
+  }
+  return(result)
+}
+
+SecondSteadyState <- function(df, prevSteadyState, prevSteadyStateTime, solutionIndex) {
+  result <- c(0.0, 0.0, 0.0)
+  half = 0.0;
+  epsilon = 0.001;
+  steadyCount = 0;
+  maxSteadyCount = 4;
+  
+  # Find start index in solution history
+  startIndex = prevSteadyStateTime * 10
+  
+  if (startIndex > nrow(df)) {
+    startIndex = nrow(df);
+  }
+  
+  # Iterate over dataframe, find concentrations and change over time
+  for (i in startIndex:(nrow(df))) {
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    
+    # If we're stable, increment the count and store the result
+    if (abs(c2 - c1) < epsilon) {
+      steadyCount = steadyCount + 1
+      
+      # We're done finding steady state if we've been there a while
+      if (steadyCount >= maxSteadyCount) {
+        result[2] <- c2
+        result[3] <- df[i, 1]
+        break
+      }
+      next
+    }
+    steadyCount = 0
+  }
+  
+  #Find the response time: taken from difference between old and new steady state
+  half = abs(prevSteadyState - result[2]) * 0.5;
+  print(prevSteadyState)
+  print(result[2])
+  print(half)
+  #Figure out where the halfway point is
+  for (i in 2:nrow(df))
+  {
+    t1 = df[i-1,1];
+    t2 = df[i,1];
+    c1 = df[i-1, solutionIndex];
+    c2 = df[i, solutionIndex];
+    if ((c1 < half & c2 >= half) | (c1 > half & c2 <= half)) {
+      result[1] = Interpolate(t1, c1, t2, c2, half)
+      break;
+    }
+  }
+  return(result)
+}
+
+# Find max expression and time to max expression
+MaxExpression <- function(df, solutionIndex) {
+  result <- c(0.0, 0.0)
+  curMax = 0.0
+  curTime = 0.0
+  for (i in 1:nrow(df))
+  {
+    curVal = df[i, solutionIndex]
+    if (curVal > curMax) {
+      curMax = curVal;
+      curTime = df[i, 1];
+    }
+  }
+  
+  result[1] = curMax;
+  result[2] = curTime;
+  return(result)
+}
+
+# Sign sensitive delay
+DelayTime <- function(df, startTime, solutionIndex) {
+  result = 0.0;
+  epsilon = 0.001;
+  
+  startIndex = startTime * 10 + 1
+  
+  if (startIndex >= nrow(df)) {
+    startIndex = nrow(df);
+  }
+  
+  for (i in startIndex:nrow(df))
+  {
+    t = df[i,1]
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    
+    if (abs(c2 - c1) > epsilon) {
+      result = t - startTime;
+      break;
+    }
+  }
+  
+  return(result)
+}
+
+
+
+
 motif_strings <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 server<-function(input, output) {
   
@@ -403,5 +557,6 @@ server<-function(input, output) {
 
   })
   
+  #output$stats <- renderText()
   
 }
