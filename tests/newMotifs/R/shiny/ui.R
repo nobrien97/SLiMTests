@@ -185,7 +185,7 @@ ui<-
                                    min = 0, max = 5, value = 1, step = 0.1))),
               fluidRow(
                 column(width = 4,
-                       sliderInput(inputId = "KY_FFLI1", label = "X -> Y regulation strength:",
+                       sliderInput(inputId = "KY_FFLI1", label = "Y -> Z regulation strength:",
                                    min = 0, max = 5, value = 1, step = 0.1)),
                 column(width = 4,
                        sliderInput(inputId = "KXZ_FFLI1", label = "X -> Z regulation strength:",
