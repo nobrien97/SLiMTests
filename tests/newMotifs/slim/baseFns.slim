@@ -322,8 +322,8 @@ function (void) writeHetData(void) {
 function (float) calcFitnessWidth(f optimum, f$ distanceForDrop, f$ targetDrop) {
 	// Calculate the width of each axis of the fitness function for a given distance from the optimum to drop X% fitness
 	deviation = abs(optimum - (optimum * distanceForDrop));
-	decayFactor = 1 - targetDrop;
-	variances = c(deviation^2 / (-2 * log(decayFactor)));
+	decayFactor = log(1 - targetDrop);
+	variances = c((deviation * deviation) / (-2 * decayFactor));
 
 	// Avoid negative/zero variances
 	variances[variances < 1e-6] = 1e-6;
@@ -331,7 +331,7 @@ function (float) calcFitnessWidth(f optimum, f$ distanceForDrop, f$ targetDrop) 
 	return diag(variances, nrow = size(optimum));
 }
 
-function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode) {
+function (float) getOptTraits(fi optimum, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
 	if (size(dim(optimum)) != 2) {
 		stop("optimum must be a matrix with rows = motif and cols = traits");
@@ -344,20 +344,44 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode)
 	if (calcMode == "FFLI1") { optIndex = 3; optMax = 2; }
 	if (calcMode == "FFBH") { optIndex = 4; optMax = 3; }
 
-	optTraits = optimum[optIndex, 0:optMax];
+	return optimum[optIndex, 0:optMax];
+
+}
+
+// TODO: This crashes every now and then with fitnessScaling < 0.0 - unsure as to why this might be happening
+function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode) {
+	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
+	if (size(dim(optimum)) != 2) {
+		stop("optimum must be a matrix with rows = motif and cols = traits");
+	}
+
+	optTraits = getOptTraits(optimum, calcMode);
 	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+	// Index for the maximum trait index to get in the optimum matrix
+	optMax = 2;
+	if (calcMode == "NAR") { optMax = 1; }
+	if (calcMode == "FFBH") { optMax = 3; }
 
 	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
 
 	traits = matrix(c(inds.getTraitValues(0:optMax)), ncol = optMax + 1, byrow = T);
 	fitnesses = dmvnorm(traits, c(optTraits), sigma) / fitnessNorm;
-	fitnesses[fitnesses < 0.0] = 0.0;
+
+	// Ensure we don't set fitnesses to 0 exactly, causes problems
+	fitnesses[fitnesses <= 0.0] = 1e-6;
 	inds.fitnessScaling = fitnesses; // Gaussian fitness function comes from Lande 1976
 	
 	// Make sure we never have all individuals with 0 fitness
 	if (all(inds.fitnessScaling == 0.0)) { inds.fitnessScaling = 1e-6; }
 	sim.setValue("fitness", inds.fitnessScaling);
 
+}
+
+function (float) calcNewOptimum(f oldOptimum, f widths, f d2, fi percentContrib) {
+	shifts = widths * sqrt(d2 * percentContrib / 100);
+	optNew = oldOptimum + shifts;
+	return optNew;
 }
 
 function (float) getMeanMolComps(o<Individual> inds) {
@@ -383,10 +407,11 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// Construct string output for data to write to file
 	meanH = paste(calcHeterozygosity(pop.genomes), sep=",");
 	VA = paste(calcVA(inds, sim.mutationTypes[2]));
-	trait1 = inds.traits[seq(0, size(inds.traits)-1, 4)];
-	trait2 = inds.traits[seq(1, size(inds.traits)-1, 4)];
-	trait3 = inds.traits[seq(2, size(inds.traits)-1, 4)];
-	trait4 = inds.traits[seq(3, size(inds.traits)-1, 4)];
+	phenotypes = matrix(inds.traits, nrow = size(inds), byrow = T);
+	trait1 = c(phenotypes[,0]);
+	trait2 = c(phenotypes[,1]);
+	trait3 = c(phenotypes[,2]);
+	trait4 = c(phenotypes[,3]);
 
 	meanTrait1 = mean(trait1);
 	meanTrait2 = mean(trait2);
@@ -415,16 +440,17 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// If we are burning in, distance to optimum = 0, if we are in phase 2 then distance is relative to burninPheno,
 	// otherwise relative to optimum
 	// While here, we also have some other values to set for burn-in: there might not be a lastDist yet
-	
+	optimum = 0.0;
 	if (phase == "burnin") {
 		// If we're in stabsel around burn-in pheno
 		optimum = optBurn;
-		dist = mean(abs(phenotypes - optimum));
 	} else if (phase == "adaptation") {
 		// If we're in the shifted optimum phase
 		optimum = sim.getValue("optimum");
-		dist = mean(abs(phenotypes - optimum));
 	}
+	
+	optimum = c(getOptTraits(optimum, modelType));
+	dist = mean(inds.getDistanceFromOptimum(optimum));
 	
 	if (isNULL(sim.getValue("lastDist"))) {
 		deltaPheno = 0.0;
@@ -444,20 +470,26 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	
 	
 	if (sim.cycle == burnTime) {
+		// Calculate new optimum: offset by optShift
+//		sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+//		percentContrib = 
+//		actualShift = calcNewOptimum(optBurn, widths, );
 		optVal = optBurn + optShift;
 		sim.setValue("optimum", optVal);
 		catn("Optimum is: " + optVal + "\nStarting stabilising selection regime");
 		OptFile = paste(asString(seed), modelindex, optVal, sep = ",");
 		writeFile(outOpt, OptFile);
-		
-		dist = abs(phenomean - optVal); // Absolute values so that means aren't biased towards 0 by drift 		
+
+		// Recalculate distance	
+		optimum = c(getOptTraits(optVal, modelType));
+		dist = mean(inds.getDistanceFromOptimum(optimum));		
 	}
 	
 	
 	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, VA, phenomean, phenovar, dist, w, deltaPheno, deltaw, meanMolTraits, sep=",");
 	
 	writeFile(outQG, Mfile, append = T);
-
 }
 
 
