@@ -18,20 +18,20 @@ initialize() {
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
-	setCfgParam("modelType", "NAR"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
+	setCfgParam("modelType", "FFBH"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
-	setCfgParam("N", 5000); // Population size
+	setCfgParam("N", 100); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
 	setCfgParam("N_dam", 20); // Number of dams per sire
 	setCfgParam("N_perdam", 10); // Number of offspring per dam
 	setCfgParam("N_samp", N_sires*N_dam*N_perdam); // Sample size for haplotypes etc.
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
-	setCfgParam("rwide", 0.1); // Whole genome recombination rate
+	setCfgParam("rwide", 0.0); // Whole genome recombination rate
 	setCfgParam("nloci", 1386); // Number of sites: common multiple of all n_C in all models
 	setCfgParam("genomelength", 1386); // Loci across the genome
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
-	setCfgParam("locisigma", 1.0); // Variance used for QTL effect pulls - the effect size distribution
+	setCfgParam("locisigma", 0.0125); // Variance used for QTL effect pulls - the effect size distribution
 	setCfgParam("fitnessCost", 0.05);	// 5% drop in fitness
 	setCfgParam("fitnessCostDistance", 0.1); // 10% phenotypic unit deviation to cause fitnessCost% decay in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
@@ -47,19 +47,21 @@ initialize() {
 									 -0.5, 1.0, 1.5, 0.0, 	// I1-FFL: Time to max expression, max expression conc, time above half max expression
 									 0.5, 1.0, -0.5, 1.0		// FFBH:   Time to max expression, max expression conc, response time second state, second steady state conc
 									 ), ncol = 4, byrow = T)); // Optimum during burn-in		
-	optFinal = optBurn + optShift;
+									 		
+	// Precompute distance to optimum after optimum shift
+	defineGlobal("initDist", sqrt( -2 * log(1 - fitnessCost) ));
 	// Matrix of phenotype checkpoints where we measure relatedness/haplotypes. 
 	// First column is a lower bound for check if mean phenotype is at least this value
 	// Second column keeps track of if this checkpoint has been written already (0 = not written, 1 = written)
-	defineGlobal("checkpoints", matrix(c(optBurn+optShift*0.25, 0,  
-										optBurn+optShift*0.5, 0,
-										optBurn+optShift*0.75, 0,
-										optBurn+optShift*0.95, 0), ncol = 2, byrow = T));
+	defineGlobal("checkpoints", matrix(c(initDist*0.25, 0,  
+										initDist*0.5, 0,
+										initDist*0.75, 0,
+										initDist*0.95, 0), ncol = 2, byrow = T));
 
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 10*N); // Number of generations of neutral burn-in before the test period
-	setCfgParam("testTime", 10000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
-	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("burnTime", 1000); // Number of generations of neutral burn-in before the test period
+	setCfgParam("testTime", 1000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
+	setCfgParam("samplerate", c(50, 50)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
 	setCfgParam("molTraitFix", -1); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
 	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
@@ -236,7 +238,10 @@ mutationEffect(m13) {
 1 early() {
 	sim.addSubpop("p1", N);
 	sim.addSubpop("p2", 0); // Staging population for crossing experiment
-	assignQTLPositions();
+	
+	CalcSelectionSigmas(modelType, 0.1); // Calculate width of fitness function per axis
+	defineGlobal("optimum", calcNewOptimum(c(getOptTraits(optBurn, modelType)), optSigma, initDist)); // Calculate the optimum post-shift (assume equal contributions)
+	assignQTLPositions(); // Assign QTL behaviours
 	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
@@ -349,7 +354,7 @@ s1 late() {
 s2 late() {
 	inds = p1.individuals;
 	calcPhenotype(inds, modelType);
-	calcFitnessGaussian(inds, sim.getValue("optimum"), modelType);
+	calcFitnessGaussian(inds, optimum, modelType);
 	
 	
 	if (sim.cycle == (burnTime + testTime)) {

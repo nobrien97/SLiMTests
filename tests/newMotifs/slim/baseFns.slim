@@ -159,6 +159,27 @@ function (i) findMutBreakpoints(i pos) {
 	return pos;		
 }
 
+
+function (void) CalcSelectionSigmas(s$ calcMode, [f$ minimumSigma = 0.1]) {
+	// Calculate the strength of selection per trait, assuming equal contributions per trait
+
+	// Get correct row in optimum matrix for the model
+	traits = c(getOptTraits(optBurn, calcMode));
+	n = size(traits);
+	result = float(n);	
+	
+	// If any of the traits are zero, we need to set a minimum width for that trait
+	traits[traits == 0] = minimumSigma;
+
+	// change in fitnessCostDistance% of trait optimum over the distance for 5% change in fitness is sigma	
+	
+	result = ( fitnessCostDistance * traits ) / sqrt( -2 * log(1 - fitnessCost) );
+	
+	// Save output
+	defineGlobal("optSigma", result);
+
+}
+
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 	// Find the correct mutation type options for a given position and sample one
 		
@@ -269,7 +290,7 @@ function (void) writeAlleleData(void) {
 	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
 	
 	// Distance from the optimum - if we're in burn-in, distance is 0
-	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.phenotype) - sim.getValue("optimum")) else 0.0;
+	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.getDistanceFromOptimum(sim.getValue("optimum"), optSigma))) else 0.0;
 	
 	// Set up an empty output to store all our mutations' information for this generation
 	mutsLines = NULL;
@@ -378,8 +399,9 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode)
 
 }
 
-function (float) calcNewOptimum(f oldOptimum, f widths, f d2, fi percentContrib) {
-	shifts = widths * sqrt(d2 * percentContrib / 100);
+function (float) calcNewOptimum(f oldOptimum, f widths, f dist) {
+	n = size(oldOptimum);
+	shifts = widths * sqrt(dist / n);
 	optNew = oldOptimum + shifts;
 	return optNew;
 }
@@ -443,14 +465,13 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	optimum = 0.0;
 	if (phase == "burnin") {
 		// If we're in stabsel around burn-in pheno
-		optimum = optBurn;
+		opt = c(getOptTraits(optimum, modelType));
 	} else if (phase == "adaptation") {
 		// If we're in the shifted optimum phase
-		optimum = sim.getValue("optimum");
+		opt = optimum;
 	}
 	
-	optimum = c(getOptTraits(optimum, modelType));
-	dist = mean(inds.getDistanceFromOptimum(optimum));
+	dist = mean(inds.getDistanceFromOptimum(opt, optSigma));
 	
 	if (isNULL(sim.getValue("lastDist"))) {
 		deltaPheno = 0.0;
@@ -475,15 +496,14 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 
 //		percentContrib = 
 //		actualShift = calcNewOptimum(optBurn, widths, );
-		optVal = optBurn + optShift;
-		sim.setValue("optimum", optVal);
-		catn("Optimum is: " + optVal + "\nStarting stabilising selection regime");
+		sim.setValue("optimum", optFinal);
+		catn("Optimum is: " + paste(c(getOptTraits(optimum, modelType)), sep = ",") + "\nStarting stabilising selection regime");
 		OptFile = paste(asString(seed), modelindex, optVal, sep = ",");
 		writeFile(outOpt, OptFile);
 
 		// Recalculate distance	
-		optimum = c(getOptTraits(optVal, modelType));
-		dist = mean(inds.getDistanceFromOptimum(optimum));		
+
+		dist = mean(inds.getDistanceFromOptimum(optVal));		
 	}
 	
 	
