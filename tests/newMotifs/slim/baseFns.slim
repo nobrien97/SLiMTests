@@ -290,7 +290,7 @@ function (void) writeAlleleData(void) {
 	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
 	
 	// Distance from the optimum - if we're in burn-in, distance is 0
-	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.getDistanceFromOptimum(sim.getValue("optimum"), optSigma))) else 0.0;
+	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.getDistanceFromOptimum(optimum, optSigma))) else 0.0;
 	
 	// Set up an empty output to store all our mutations' information for this generation
 	mutsLines = NULL;
@@ -370,13 +370,9 @@ function (float) getOptTraits(fi optimum, s$ calcMode) {
 }
 
 // TODO: This crashes every now and then with fitnessScaling < 0.0 - unsure as to why this might be happening
-function (void) calcFitnessGaussian(o<Individual> inds, fi optimum, s$ calcMode) {
+function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
-	if (size(dim(optimum)) != 2) {
-		stop("optimum must be a matrix with rows = motif and cols = traits");
-	}
 
-	optTraits = getOptTraits(optimum, calcMode);
 	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
 
 	// Index for the maximum trait index to get in the optimum matrix
@@ -462,10 +458,9 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// If we are burning in, distance to optimum = 0, if we are in phase 2 then distance is relative to burninPheno,
 	// otherwise relative to optimum
 	// While here, we also have some other values to set for burn-in: there might not be a lastDist yet
-	optimum = 0.0;
 	if (phase == "burnin") {
 		// If we're in stabsel around burn-in pheno
-		opt = c(getOptTraits(optimum, modelType));
+		opt = c(getOptTraits(optBurn, modelType));
 	} else if (phase == "adaptation") {
 		// If we're in the shifted optimum phase
 		opt = optimum;
@@ -491,19 +486,14 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	
 	
 	if (sim.cycle == burnTime) {
-		// Calculate new optimum: offset by optShift
-//		sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
-
-//		percentContrib = 
-//		actualShift = calcNewOptimum(optBurn, widths, );
-		sim.setValue("optimum", optFinal);
-		catn("Optimum is: " + paste(c(getOptTraits(optimum, modelType)), sep = ",") + "\nStarting stabilising selection regime");
-		OptFile = paste(asString(seed), modelindex, optVal, sep = ",");
+//		sim.setValue("optimum", optFinal);
+		catn("Optimum is: " + paste(optimum, sep = ",") + "\nStarting stabilising selection regime");
+		OptFile = paste(asString(seed), modelindex, optimum, sep = ",");
 		writeFile(outOpt, OptFile);
 
 		// Recalculate distance	
-
-		dist = mean(inds.getDistanceFromOptimum(optVal));		
+		opt = optimum;
+		dist = mean(inds.getDistanceFromOptimum(opt, optSigma));
 	}
 	
 	

@@ -317,7 +317,8 @@ survival() {
 s1 late() {
 	inds = p1.individuals;
 	calcPhenotype(inds, modelType);
-	calcFitnessGaussian(inds, optBurn, modelType);
+	optTraits = getOptTraits(optBurn, modelType);
+	calcFitnessGaussian(inds, optTraits, modelType);
 	
 	// Check if we're at the end of burn-in
 	if (sim.cycle == burnTime) {
