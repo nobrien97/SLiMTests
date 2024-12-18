@@ -699,9 +699,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, StoreBinaryMatrix(haplos), length(inds.genomes), length(qtls)), sep=",");
 
 	// Remove fixed from the haplotype store
-	for (i in seqAlong(colsToRemove)) {
-		haplos[, colsToRemove] = 0;
-	}
+			haplos[, colsToRemove] = 0;
 
 	// compress haplotypes
 	haplos = StoreBinaryMatrix(haplos);
