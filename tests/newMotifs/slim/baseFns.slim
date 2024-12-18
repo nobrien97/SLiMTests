@@ -638,9 +638,22 @@ function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
 	writeFile(outSharedMutFreqs, out, append = T);
 }
 
-// Helper function to fix floating point rounding error
+// Helper function to fix floating point rounding error (and save space when saving)
 function (float) setSmallValToZero(float i) {
-	return ifelse(i < 1e-10, 0.0, i);
+	// Preserve sign: handle positive values first
+	
+	positive = i == abs(i);
+	i[positive & abs(i) < 1e-6] = 1e-6;
+	
+	// Set negative values
+	i[!positive & abs(i) < 1e-6] = -1e-6;
+	return i;
+}
+
+function (float) roundToDigits(float value, [integer$ digits = 6]) {
+	factor = roundFactor[digits - 1];
+	
+	return round(value * factor) / factor;
 }
 
 // Write individual outputs: phenotypes for each individual in the population, and midparent value, 
