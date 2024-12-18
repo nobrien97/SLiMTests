@@ -2,6 +2,7 @@ library(tidyverse)
 library(paletteer)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R")
+setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R")
 
 se <- function(x, na.rm = F) {
   if (na.rm)
@@ -10,8 +11,8 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time.csv", col_names = F)
-d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv", col_names = F)
+d_times <- read_csv("./slim_time.csv", col_names = F)
+d_combos <- read_csv("./combos.csv", col_names = F)
 
 colnames(d_times) <- c("gen", "seed", "modelindex", "time")
 colnames(d_combos) <- "model"
@@ -55,6 +56,15 @@ ggsave("times.png")
 # extrapolate to 60000 generations
 time_summary %>%
   group_by(model) %>%
-  filter(gen == 1000) %>%
+  filter(gen == 6000) %>%
   select(!c(meanDelta, seDelta, seTime, seDelta)) %>%
   mutate(wholeSimEstimate = paste(((meanTime * (60000/gen))/3600), "hrs"))
+
+# convert time to hrs
+time_summary %>%
+  group_by(model) %>%
+  filter(gen == 60000) %>%
+  select(!c(meanDelta, seDelta, seTime, seDelta)) %>%
+  mutate(wholeSimEstimate = paste((meanTime/3600), "hrs"))
+
+
