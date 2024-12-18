@@ -109,6 +109,12 @@ initialize() {
 	defineConstant("expTheta", 4*N*mu);
 	defineConstant("expHe", expTheta/(1+expTheta));
 	
+	// Misc constants
+	
+	// Lookup table for round to digits
+	defineGlobal("roundFactor", 10^(1:6));	
+	
+	
 	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(keepPedigrees=T);
 	//	initializeTreeSeq();
