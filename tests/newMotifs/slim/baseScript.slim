@@ -80,7 +80,7 @@ initialize() {
 	setCfgParam("outOpt", paste0('slim_opt', identifier, '.csv')); // Output filename/path for the trait optimum values for each run
 	setCfgParam("outMuts", paste0('slim_muts', identifier, '.csv')); //Output filename/path for the mutation information
 	setCfgParam("outODEPars", paste0('slim_medodepar', identifier, '.csv')); // Output filename/path for the median ODE parameter combination
-	//setCfgParam("outPMMat", paste0('slim_PMmat', identifier, '.csv')); // Output filename/path for the molecular trait G matrices
+	setCfgParam("outPMMat", paste0('slim_PMmat', identifier, '.csv')); // Output filename/path for the molecular trait G matrices
 	setCfgParam("outSharedMutFreqs", c(paste0('slim_sharedmutfreqs', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
 	setCfgParam("outInd", paste0('slim_indPheno', identifier, '.csv')); // Output filename/path for individual phenotype data
 	setCfgParam("outPed", paste0('slim_pedigree', identifier, '.csv')); // Output filepath for pedigree
@@ -333,7 +333,7 @@ s1 late() {
 		writeSharedMutFreqs(p1);
 		//writeGenMap();
 		writeHaploRel(p2, N_samp);
-		//writePMMatrix(p2);
+		writePMMatrix(p2);
 		savePopState();
 		setSeed(seed); // Reset the seed so its the same when we reload the file to calculate h2
 	}
@@ -376,7 +376,7 @@ s2 late() {
 		//writeGenMap();
 		writeHaploRel(p2, N_samp); // write haplo and rel at end of sim regardless of checkpoints
 		writeHetData();
-		//writePMMatrix(p2);
+		writePMMatrix(p2);
 
 		// Move output to scratch storage
 		system(paste0("mv ./", outPositions, " ", moveDir));
