@@ -10,7 +10,7 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time.csv", col_names = F)
+d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time_r0.1.csv", col_names = F)
 d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv", col_names = F)
 
 colnames(d_times) <- c("gen", "seed", "modelindex", "time")
@@ -46,7 +46,7 @@ ggplot(time_summary, aes(x = gen, y = meanTime, colour = as.factor(model))) +
                                          breaks = NULL, labels = NULL)) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
-  guides(fill = F) +
+  guides(fill = F, scale = "none") +
   labs(x = "Generation", y = "Time (s)", colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
@@ -55,6 +55,6 @@ ggsave("times.png")
 # extrapolate to 60000 generations
 time_summary %>%
   group_by(model) %>%
-  filter(gen == 1000) %>%
+  filter(gen == 6000) %>%
   select(!c(meanDelta, seDelta, seTime, seDelta)) %>%
   mutate(wholeSimEstimate = paste(((meanTime * (60000/gen))/3600), "hrs"))
