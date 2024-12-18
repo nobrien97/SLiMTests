@@ -2,7 +2,7 @@ library(tidyverse)
 library(paletteer)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R")
-setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R")
+#setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R")
 
 se <- function(x, na.rm = F) {
   if (na.rm)
@@ -11,8 +11,8 @@ se <- function(x, na.rm = F) {
   return(sd(x)/sqrt(length(x)))
 }
 
-d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time_r0.1.csv", col_names = F)
-d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv", col_names = F)
+d_times <- read_csv("./slim_time.csv", col_names = F)
+d_combos <- read_csv("./combos.csv", col_names = F)
 
 colnames(d_times) <- c("gen", "seed", "modelindex", "time")
 colnames(d_combos) <- "model"
@@ -47,7 +47,7 @@ ggplot(time_summary, aes(x = gen, y = meanTime, colour = as.factor(model))) +
                                          breaks = NULL, labels = NULL)) +
   scale_colour_paletteer_d("ggsci::nrc_npg") +
   scale_fill_paletteer_d("ggsci::nrc_npg") +
-  guides(fill = F, scale = "none") +
+  guides(fill = F) +
   labs(x = "Generation", y = "Time (s)", colour = "Model") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom")
