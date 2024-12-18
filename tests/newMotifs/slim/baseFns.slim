@@ -711,7 +711,8 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	writeFile(outHaplo, haplos, append = T);
 	writeFile(outFX, fx, append = T);
 	
-	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
+// Get traits and ODEPars
+	phenos_out = paste(sim.cycle, seed, modelindex, inds.traits, sep=",");
 	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
 	
 	writeFile(outPhenoSample, phenos_out, append = T);
