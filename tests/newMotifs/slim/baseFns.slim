@@ -553,25 +553,49 @@ function (void) writeLDComp(o<Subpopulation> pop, l$ isD) {
 
 
 // Get variance-covariance matrix of molecular traits (P_M) - phenotypic variance-covariance matrix of molecular traits
-//function (void) writePMMatrix(o<Subpopulation> pop) {
-//	inds = pop.individuals;
-//	// Get molecular components
-//	aZ = inds.ODEPars[seq(1, size(inds.ODEPars)-1, by = 5)];
-//	bZ = inds.ODEPars[seq(2, size(inds.ODEPars)-1, by = 5)];
-//	KZ = inds.ODEPars[seq(3, size(inds.ODEPars)-1, by = 5)];
-//	KXZ = inds.ODEPars[seq(4, size(inds.ODEPars)-1, by = 5)];
-//	
-//	vaZ = setSmallValToZero(var(aZ));
-//	vbZ = setSmallValToZero(var(bZ));
-//	vKZ = setSmallValToZero(var(KZ));
-//	vKXZ = setSmallValToZero(var(KXZ));
-//	caZbZ = setSmallValToZero(cov(aZ, bZ)); caZKZ = setSmallValToZero(cov(aZ, KZ));
-//	caZKXZ = setSmallValToZero(cov(aZ, KXZ)); cbZKZ = setSmallValToZero(cov(bZ, KZ));
-//	cbZKXZ = setSmallValToZero(cov(bZ, KXZ)); cKZKXZ = setSmallValToZero(cov(KZ, KXZ));
-//	
-//	file = paste(sim.cycle, asString(seed), modelindex, c(vaZ, caZbZ, caZKZ, caZKXZ, vbZ, cbZKZ, cbZKXZ, vKZ, cKZKXZ, vKXZ), sep=",");
-//	writeFile(outPMMat, file, append = T);
-//}
+function (void) writePMMatrix(o<Subpopulation> pop) {
+inds = pop.individuals;
+// Get molecular components
+ODEPars = inds.ODEPars;
+	numODEPars = size(inds[0].ODEPars);
+	
+	// Pad the output to our maximum number of ODEPars (11 for FFBH)
+	paddedSize = 11;
+	
+	// For each component, we need to get the variances and covariances: in upper triangle of pairwise matrix
+	// variances covariances stored in columnwise order of the diagonal 
+	// (e.g. the matrix
+	//	      [,0]  [,1]  [,2]
+	//[0,]  "0,0" "0,1" "0,2"
+	//[1,]    ""  "1,1" "1,2"
+	//[2,]    ""    ""  "2,2"
+	//
+	// will be stored as (0,0), (0,1), (1,1), (0,2), (1,2), (2,2)
+	
+	numCovariances = sum(upperTri(diag(paddedSize), diag = T));
+	covariances = float(numCovariances);
+	
+	// Index for result
+	x = 0;
+	
+	// Covariances: Only want the unique combinations, upper triangle only
+	for (j in 0:(numODEPars - 1)) {
+		par1 = ODEPars[seq(j, size(ODEPars)-1, by = numODEPars)];
+		for (k in j:(numODEPars - 1)) {
+			par2 = ODEPars[seq(k, size(ODEPars)-1, by = numODEPars)];
+			
+			covariances[x] = cov(par1, par2);
+			x = x + 1; // increment index
+		}
+	}	
+		
+	// Round really small values
+	covariances = roundToDigits(covariances);
+
+	// Genrate the file
+file = paste(sim.cycle, asString(seed), modelindex, covariances, sep=",");
+writeFile(outPMMat, file, append = T);
+}
 
 function (void) writeLDPairFile(o<Subpopulation> pop, s$ stat) {
 	// Writes vector of pairwise LD comparisons sorted by frequency
