@@ -737,32 +737,33 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 
 }
 
-function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
-	inds = pop.sampleIndividuals(n);
-	// Note: Using all sites instead of just the QTLs, see if this makes a difference
-	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
-	//	qtls = sort(sim.getValue("pos_QTL"));
-	qtls = 0:(genomelength-1);
-	
-	// Extract haplotypes and qtl effect sizes
-	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
-	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
-	
-	
-	// Stick on generation and identifier data
-	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
-	// Write output
-	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
-	
-	writeFile(outHaplo, haplos, append = T);
-	writeFile(outFX, fx, append = T);
-	
-	phenos_out = paste(sim.cycle, seed, modelindex, inds.phenotype, sep=",");
-	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
-	
-	writeFile(outPhenoSample, phenos_out, append = T);
-	writeFile(outMolSample, mol_out, append = T);
-}
+// Obsolete
+//function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
+//	inds = pop.sampleIndividuals(n);
+//	// Note: Using all sites instead of just the QTLs, see if this makes a difference
+//	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
+//	//	qtls = sort(sim.getValue("pos_QTL"));
+//	qtls = 0:(genomelength-1);
+	//	
+//	// Extract haplotypes and qtl effect sizes
+//	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
+//	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
+	//	
+//	
+//	// Stick on generation and identifier data
+//	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
+//	// Write output
+//	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
+	//	
+//	writeFile(outHaplo, haplos, append = T);
+//	writeFile(outFX, fx, append = T);
+	//	
+//	phenos_out = paste(sim.cycle, seed, modelindex, inds.traits, sep=",");
+//	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
+	//	
+//	writeFile(outPhenoSample, phenos_out, append = T);
+//	writeFile(outMolSample, mol_out, append = T);
+//}
 
 function (integer) colSums(integer mat) {
 	result = integer(ncol(mat));
