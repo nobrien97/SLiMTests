@@ -290,7 +290,9 @@ function (void) writeAlleleData(void) {
 	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
 	
 	// Distance from the optimum - if we're in burn-in, distance is 0
-	dist = (sim.cycle > burnTime) ? abs(mean(p1.individuals.getDistanceFromOptimum(optimum, optSigma))) else 0.0;
+	curOpt = optimum;
+	if (sim.cycle <= burnTime) { curOpt = c(getOptTraits(optBurn, modelType)); }
+	dist = abs(mean(p1.individuals.getDistanceFromOptimum(curOpt, optSigma)));
 	
 	// Set up an empty output to store all our mutations' information for this generation
 	mutsLines = NULL;
@@ -713,7 +715,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	writeFile(outFX, fx, append = T);
 	
 	// Get traits and ODEPars
-	phenos_out = paste(sim.cycle, seed, modelindex, inds.traits, sep=",");
+	phenos_out = paste(sim.cycle, seed, modelindex, inds.fitnessScaling, inds.traits, sep=",");
 	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
 	
 	writeFile(outPhenoSample, phenos_out, append = T);
