@@ -370,9 +370,10 @@ function (float) getOptTraits(fi optimum, s$ calcMode) {
 }
 
 // TODO: This crashes every now and then with fitnessScaling < 0.0 - unsure as to why this might be happening
+// Because of invalid trait values - need to check for infinite values/NAN values
 function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
-
+	
 	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
 
 	// Index for the maximum trait index to get in the optimum matrix
@@ -554,9 +555,9 @@ function (void) writeLDComp(o<Subpopulation> pop, l$ isD) {
 
 // Get variance-covariance matrix of molecular traits (P_M) - phenotypic variance-covariance matrix of molecular traits
 function (void) writePMMatrix(o<Subpopulation> pop) {
-inds = pop.individuals;
-// Get molecular components
-ODEPars = inds.ODEPars;
+	inds = pop.individuals;
+	// Get molecular components
+	ODEPars = inds.ODEPars;
 	numODEPars = size(inds[0].ODEPars);
 	
 	// Pad the output to our maximum number of ODEPars (11 for FFBH)
@@ -593,8 +594,8 @@ ODEPars = inds.ODEPars;
 	covariances = roundToDigits(covariances);
 
 	// Genrate the file
-file = paste(sim.cycle, asString(seed), modelindex, covariances, sep=",");
-writeFile(outPMMat, file, append = T);
+	file = paste(sim.cycle, asString(seed), modelindex, covariances, sep=",");
+	writeFile(outPMMat, file, append = T);
 }
 
 function (void) writeLDPairFile(o<Subpopulation> pop, s$ stat) {
@@ -681,7 +682,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	// Note: Using all sites instead of just the QTLs, see if this makes a difference
 	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
 	//	qtls = sort(sim.getValue("pos_QTL"));
-		qtls = 0:(genomelength-1);
+	qtls = 0:(genomelength-1);
 	
 	// Extract haplotypes and qtl effect sizes
 	haplos = matrix(sim.getHaplos(inds.genomes, qtls), 
@@ -699,7 +700,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, StoreBinaryMatrix(haplos), length(inds.genomes), length(qtls)), sep=",");
 
 	// Remove fixed from the haplotype store
-			haplos[, colsToRemove] = 0;
+	haplos[, colsToRemove] = 0;
 
 	// compress haplotypes
 	haplos = StoreBinaryMatrix(haplos);
@@ -711,7 +712,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	writeFile(outHaplo, haplos, append = T);
 	writeFile(outFX, fx, append = T);
 	
-// Get traits and ODEPars
+	// Get traits and ODEPars
 	phenos_out = paste(sim.cycle, seed, modelindex, inds.traits, sep=",");
 	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
 	
@@ -744,23 +745,23 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 //	// although, there's no linkage and technically these sites shouldn't describe any of the variance in phenotype (???)
 //	//	qtls = sort(sim.getValue("pos_QTL"));
 //	qtls = 0:(genomelength-1);
-	//	
+//	
 //	// Extract haplotypes and qtl effect sizes
 //	haplos = StoreBinaryMatrix(matrix(sim.getHaplos(inds.genomes, qtls), nrow = length(inds.genomes), ncol = length(qtls), byrow = T));
 //	fx = paste(sim.cycle, seed, modelindex, getFX(qtls, haplos, length(inds.genomes), length(qtls)), sep=",");
-	//	
+//	
 //	
 //	// Stick on generation and identifier data
 //	haplos = paste(sim.cycle, seed, modelindex, haplos, sep = ',');
 //	// Write output
 //	// l = sapply(seqLen(nrow(haplos)), "paste(haplos[applyValue,], sep=',');");
-	//	
+//	
 //	writeFile(outHaplo, haplos, append = T);
 //	writeFile(outFX, fx, append = T);
-	//	
+//	
 //	phenos_out = paste(sim.cycle, seed, modelindex, inds.traits, sep=",");
 //	mol_out = paste(sim.cycle, seed, modelindex, inds.ODEPars, sep=",");
-	//	
+//	
 //	writeFile(outPhenoSample, phenos_out, append = T);
 //	writeFile(outMolSample, mol_out, append = T);
 //}
