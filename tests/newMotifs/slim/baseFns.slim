@@ -486,7 +486,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	
 	sim.setValue("lastDist", dist);
 	sim.setValue("lastw", w);
-	
+	curDist = dist;
 	
 	if (sim.cycle == burnTime) {
 //		sim.setValue("optimum", optFinal);

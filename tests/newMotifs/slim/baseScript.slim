@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); //  "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -50,13 +50,14 @@ initialize() {
 									 		
 	// Precompute distance to optimum after optimum shift
 	defineGlobal("initDist", sqrt( -2 * log(1 - fitnessCost) ));
+	defineGlobal("curDist", initDist); // Current mean distance to the optimum
 	// Matrix of phenotype checkpoints where we measure relatedness/haplotypes. 
 	// First column is a lower bound for check if mean phenotype is at least this value
 	// Second column keeps track of if this checkpoint has been written already (0 = not written, 1 = written)
-	defineGlobal("checkpoints", matrix(c(initDist*0.25, 0,  
+	defineGlobal("checkpoints", matrix(c(initDist*0.75, 0,  
 										initDist*0.5, 0,
-										initDist*0.75, 0,
-										initDist*0.95, 0), ncol = 2, byrow = T));
+										initDist*0.25, 0,
+										initDist*0.05, 0), ncol = 2, byrow = T));
 
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
 	setCfgParam("burnTime", 10 * N); // Number of generations of neutral burn-in before the test period
@@ -416,13 +417,18 @@ s2 late() {
 		return;
 	
 	calcPhenotype(p2.individuals, modelType);
-	//writeGenMap();
+	writePMMatrix(p2);
+	
+	writeQuantGenOutput(p1, "adaptation");
+	writeAlleleData();
+	writeIndOutput(p1);
+	writeHetData();
 
 
 	// Only store haplotype and relatedness matrix at certain checkpoints in the simulation
 	// Also genotype frequencies
 	// e.g. phenotype at 25%, 50%, 75%, 95%
-	curCheckpoint = checkpoints[,0][c(mean(p1.individuals.phenotype) >= checkpoints[, 0])];
+	curCheckpoint = checkpoints[,0][c(curDist < checkpoints[, 0])];
 	curCheckpoint = whichMax(curCheckpoint);
 	if (!isNULL(curCheckpoint)) {
 		if (checkpoints[curCheckpoint, 1] < 1) {
@@ -436,12 +442,6 @@ s2 late() {
 		}
 	}
 
-	//writePMMatrix(p2);
-	
-	writeQuantGenOutput(p1, "adaptation");
-	writeAlleleData();
-	writeIndOutput(p1);
-	writeHetData();
 	
 	
 	if (debug)
