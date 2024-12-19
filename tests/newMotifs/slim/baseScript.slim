@@ -387,21 +387,19 @@ s2 late() {
 		system(paste0("mv ./", outPositions, " ", moveDir));
 		system(paste0("mv ./", outOpt, " ", moveDir));
 		system(paste0("mv ./", outMuts, " ", moveDir));
+		system(paste0("mv ./", outQG, " ", moveDir));
+		system(paste0("mv ./", outInd, " ", moveDir));
 		system(paste0("mv ./", outHaplo, " ", moveDir));
 		system(paste0("mv ./", outHaploFix, " ", moveDir));
 		system(paste0("mv ./", outPhenoSample, " ", moveDir));
 		system(paste0("mv ./", outMolSample, " ", moveDir));
 		system(paste0("mv ./", outFX, " ", moveDir));
-		system(paste0("mv ./", outQG, " ", moveDir));
-		system(paste0("mv ./", outInd, " ", moveDir));
-		system(paste0("mv ./", outMutsInd, " ", moveDir));
-		system(paste0("mv ./", outPopState, " ", moveDir));
 		system(paste0("mv ./", outHet, " ", moveDir));
+		system(paste0("mv ./", outPMMat, " ", moveDir)); 
 		system(paste0("mv ./", outRelPos, " ", moveDir)); 
 		system(paste0("mv ./", outRelVals, " ", moveDir)); 
-		system(paste0("mv ./", outPMMat, " ", moveDir)); 
-		system(paste0("mv ./", outSharedMutFreqs, " ", moveDir)); 
-		
+		system(paste0("mv ./", outSharedMutFreqs, " ", moveDir)); 		
+		system(paste0("mv ./", outPopState, " ", moveDir));
 		
 		if (debug) {
 			writeTimeData();
