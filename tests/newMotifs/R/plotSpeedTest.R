@@ -12,7 +12,7 @@ se <- function(x, na.rm = F) {
 }
 
 d_times <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/slim_time_r0.1.csv", col_names = F)
-d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv", col_names = F)
+d_combos <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/speedTests/R/combos.csv", col_names = F)
 
 colnames(d_times) <- c("gen", "seed", "modelindex", "time")
 colnames(d_combos) <- "model"
