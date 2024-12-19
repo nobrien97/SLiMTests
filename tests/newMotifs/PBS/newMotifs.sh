@@ -87,7 +87,6 @@ cd /scratch/ht96/nb9894/$FULLJOBNAME/
 cat ./slim_pos* >> $SAVEDIR/slim_pos.csv
 cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
 cat ./slim_muts* >> $SAVEDIR/slim_muts.csv
-cat ./slim_dict* >> $SAVEDIR/slim_dict.csv
 cat ./slim_qg* >> $SAVEDIR/slim_qg.csv
 cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
 cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
@@ -100,8 +99,10 @@ cat ./slim_PMmat* >> $SAVEDIR/slim_PMmat.csv
 cat ./slim_relPos* >> $SAVEDIR/slim_relPos.csv
 cat ./slim_relVals* >> $SAVEDIR/slim_relVals.csv
 cat ./slim_sharedmutfreqs* >> $SAVEDIR/slim_sharedmutfreqs.csv
-cat ./slim_locusHo* >> $SAVEDIR/slim_locusHo.csv
 
+# Save population state
+mkdir -p $SAVEDIR/popstates
+mv ./slim_popstate* $SAVEDIR/popstates
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete
