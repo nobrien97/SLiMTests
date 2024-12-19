@@ -309,8 +309,8 @@ function (void) writeAlleleData(void) {
 		mutCount = size(genom[genom.containsMutations(mut)]);
 		mutType = mut.mutationType.id;
 		mutValue = asString(mut.selectionCoeff);
-		mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
-		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutChi, mutFreq, mutCount, "NA", sep = ",");
+		//mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
+		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq, mutCount, "NA", sep = ",");
 		mutsLine = paste0(mutsLine, "\n");
 		mutsLines = paste0(mutsLines, mutsLine);
 	
@@ -321,9 +321,9 @@ function (void) writeAlleleData(void) {
 		subFreq = 1.0;
 		subType = sub.mutationType.id;
 		subValue = asString(sub.selectionCoeff);
-		subChi = sub.selectionCoeff * sqrt(1/(2*dist));
+		//subChi = sub.selectionCoeff * sqrt(1/(2*dist));
 		
-		subLine = paste(sim.cycle, asString(seed), modelindex, subType, sub.id, sub.position, sub.originTick, subValue, subChi, subFreq, subCount, sub.fixationTick, sep = ",");
+		subLine = paste(sim.cycle, asString(seed), modelindex, subType, sub.id, sub.position, sub.originTick, subValue, subFreq, subCount, sub.fixationTick, sep = ",");
 		subLine = paste0(subLine, "\n");
 		
 		mutsLines = paste0(mutsLines, subLine); // Add substitutions to mutation output
@@ -427,7 +427,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	inds = pop.individuals;
 	// Construct string output for data to write to file
 	meanH = paste(calcHeterozygosity(pop.genomes), sep=",");
-	VA = paste(calcVA(inds, sim.mutationTypes[2]));
+	//VA = paste(calcVA(inds, sim.mutationTypes[2]));
 	phenotypes = matrix(inds.traits, nrow = size(inds), byrow = T);
 	trait1 = c(phenotypes[,0]);
 	trait2 = c(phenotypes[,1]);
@@ -500,7 +500,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	}
 	
 	
-	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, VA, phenomean, phenovar, dist, w, deltaPheno, deltaw, meanMolTraits, sep=",");
+	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, dist, w, deltaPheno, deltaw, meanMolTraits, sep=",");
 	
 	writeFile(outQG, Mfile, append = T);
 }
