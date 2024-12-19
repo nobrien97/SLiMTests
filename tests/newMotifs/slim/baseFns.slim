@@ -624,6 +624,11 @@ function (void) writeSharedMutFreqs(o<Subpopulation>$ pop) {
 	result = sim.sharedMutFreqs(pop, comb[0,], comb[1,]);
 
 	n = length(result);
+	
+	// If there are no value results, return early
+	if (n == 0) {
+		return;
+	}
 
 	// First two values for every pair in results are integers: we need to cast so writing
 	// doesn't round and store an incorrect mutation id
