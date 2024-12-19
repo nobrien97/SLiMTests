@@ -7,10 +7,9 @@ SECONDS=0
 MODELINDEX=$1
 SEED=$2
 FILENAME=${MODELINDEX}_${SEED}
-SUBJOB=newMotifs
-JOBNAME=speedTest
-FULLJOBNAME=$SUBJOB/$JOBNAME
-TESTDIR=$HOME/tests/$SUBJOB
+JOBNAME=newMotifs
+FULLJOBNAME=$JOBNAME
+TESTDIR=$HOME/tests/$JOBNAME
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."
@@ -25,7 +24,7 @@ SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
-$HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix=-1 -d modelType=$MODEL_NUM $TESTDIR/slim/baseScript.slim
+$HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix=-1 -d modelType=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[0]} $TESTDIR/slim/baseScript.slim
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"
