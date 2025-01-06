@@ -10,7 +10,7 @@ library(ggbeeswarm)
 library(stargazer)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis")
-DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/smalleffects/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
@@ -68,7 +68,7 @@ INIT_DIST <- sqrt(-2 * log(0.95))
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & w > 0.95)) %>%
   ungroup() -> d_qg
 
 # Proportion of each model that adapted
@@ -79,29 +79,18 @@ d_prop_adapted <- d_qg %>% group_by(model, r) %>%
             pAdapted = mean(isAdapted)
   )
 
-# Average over nloci
-# How many adapted in low recombination scenarios?
-d_prop_adapted <- d_qg %>% 
-  group_by(model, tau) %>%
-  filter(gen == 59950) %>%
-  summarise(n = n(),
-            nAdapted = sum(isAdapted),
-            pAdapted = mean(isAdapted)
-  )
-d_prop_adapted
-
 # Output to table
 stargazer(d_prop_adapted)
 
 # Summarise phenotype trajectories
 d_qg_sum <- d_qg %>% 
-  filter(gen >= 49500) %>%
+  #filter(gen >= 49500) %>%
   mutate(gen = gen - 50000) %>%
   group_by(gen, model, r) %>%
   summarise(meanDist = mean(dist),
             SEDist = se(dist),
             meanFitness = mean(w),
-            SEFitness = sd(w))
+            SEFitness = se(w))
 
 # plot
 ggplot(d_qg_sum,
@@ -124,6 +113,29 @@ ggplot(d_qg_sum,
   theme(legend.position = "bottom", text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
 ggsave("plt_adapt_smlfx.png", width = 12, height = 5, device = png)
+
+# Mean fitness
+ggplot(d_qg_sum,
+       aes(x = gen, y = meanFitness, colour = model)) +
+  facet_grid(log10(r)~.) +
+  geom_line() +
+  #geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_ribbon(aes(ymin = meanFitness - SEFitness, 
+                  ymax = meanFitness + SEFitness, fill = model), colour = NA,
+              alpha = 0.2) +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR"), guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean Fitness", 
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_adapt_w_smlfx.png", width = 12, height = 5, device = png)
+
 
 # Time to adaptation
 d_adaptTime <- d_qg %>% filter(gen >= 49500) %>%
