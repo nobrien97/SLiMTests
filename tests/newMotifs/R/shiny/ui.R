@@ -50,9 +50,12 @@ ui<-
       ),
       fluidRow(
         hr(),
-        column(width = 12, align = "center",
-               plotOutput(outputId = "main_plot_NAR", height = "800px", width = "600px"))
-      )   
+        column(width = 9, align = "center",
+               plotOutput(outputId = "main_plot_NAR", height = "800px", width = "600px")),
+        column(width = 3,
+               h3("Stats"),
+               tableOutput("NARTabOutput"))
+      )
     ),
     
     nav_panel("PAR", value = 2,
@@ -98,8 +101,11 @@ ui<-
       ),
       fluidRow(
         hr(),
-        column(width = 12, align = "center",
-               plotOutput(outputId = "main_plot_PAR", height = "800px", width = "600px"))
+        column(width = 6,
+               plotOutput(outputId = "main_plot_PAR", height = "800px", width = "600px")),
+        column(width = 6,
+               h3("Stats"),
+               tableOutput("PARTabOutput"))
       )
     ),
       nav_panel("FFL-C1", value = 3,
@@ -152,9 +158,12 @@ ui<-
                ),
                fluidRow(
                  hr(),
-                 column(width = 12, align = "center",
-                        plotOutput(outputId = "main_plot_FFLC1", height = "800px", width = "600px"))
-               ),   
+                 column(width = 6,
+                        plotOutput(outputId = "main_plot_FFLC1", height = "800px", width = "600px")),
+                column(width = 6,
+                       h3("Stats"),
+                       tableOutput("FFLC1TabOutput"))
+              )
       ),
     nav_panel("FFL-I1", value = 4,
               card(
@@ -206,8 +215,11 @@ ui<-
               ),
               fluidRow(
                 hr(),
-                column(width = 12, align = "center",
-                       plotOutput(outputId = "main_plot_FFLI1", height = "800px", width = "600px"))
+                column(width = 6,
+                       plotOutput(outputId = "main_plot_FFLI1", height = "800px", width = "600px")),
+                column(width = 6,
+                       h3("Stats"),
+                       tableOutput("FFLI1TabOutput"))
               )
     ),
     nav_panel("FFBH", value = 5,
@@ -268,8 +280,11 @@ ui<-
               ),
               fluidRow(
                 hr(),
-                column(width = 12, align = "center",
-                       plotOutput(outputId = "main_plot_FFBH", height = "800px", width = "600px"))
+                column(width = 9,
+                       plotOutput(outputId = "main_plot_FFBH", height = "800px", width = "600px")),
+                column(width = 3,
+                       h3("Stats"),
+                       tableOutput("FFBHTabOutput"))
               )
     )
   )

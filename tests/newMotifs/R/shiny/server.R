@@ -197,12 +197,11 @@ ODEs_FFBH <- function(t, state, parameters) {
   })
 }
 
-
-plotDynamics_NAR <- function(Xstart = 1,
-                             Xstop = 6,
-                             tmax = 10,
-                             dt = 0.1,
-                             pars) {
+solve_NAR <- function(Xstart = 1,
+                      Xstop = 6,
+                      tmax = 10,
+                      dt = 0.1,
+                      pars) {
   
   #pars <- c(base = 1, aZ = 1, bZ = 1, KXZ = 1, KZ = 1, Hilln = 1, XMult = 1)
   pars <- c(Xstart = Xstart, Xstop = Xstop, tmax = tmax, pars)
@@ -213,7 +212,10 @@ plotDynamics_NAR <- function(Xstart = 1,
     as_tibble() %>%
     mutate(X = ifelse(time > pars["Xstart"] & time <= pars["Xstop"], 1, 0)) %>%
     select(time, X, Z)
-  
+  return(solution)
+}
+
+plotDynamics_NAR <- function(solution, Xstart, Xstop) {
   plotZ <- ggplot(solution) +
     annotate("rect", xmin = Xstart, xmax = Xstop, ymin = 0, ymax = 1.05,
              alpha = .2, fill = colX) +
@@ -225,11 +227,11 @@ plotDynamics_NAR <- function(Xstart = 1,
   plotAll
 }
 
-plotDynamics_PAR <- function(Xstart = 1,
-                             Xstop = 6,
-                             tmax = 10,
-                             dt = 0.1,
-                             pars) {
+solve_PAR <- function(Xstart = 1,
+                      Xstop = 6,
+                      tmax = 10,
+                      dt = 0.1,
+                      pars) {
   
   #pars <- c(base = 1, aZ = 1, bZ = 1, KXZ = 1, KZ = 1, Hilln = 1, XMult = 1)
   pars <- c(Xstart = Xstart, Xstop = Xstop, tmax = tmax, pars)
@@ -241,7 +243,10 @@ plotDynamics_PAR <- function(Xstart = 1,
     as_tibble() %>%
     mutate(X = ifelse(time > pars["Xstart"] & time <= pars["Xstop"], 1, 0)) %>%
     select(time, X, Z)
-  
+  return(solution)
+}
+
+plotDynamics_PAR <- function(solution, Xstart = 1, Xstop = 6) {
   plotZ <- ggplot(solution) +
     annotate("rect", xmin = Xstart, xmax = Xstop, ymin = 0, ymax = 1.05,
              alpha = .2, fill = colX) +
@@ -253,11 +258,11 @@ plotDynamics_PAR <- function(Xstart = 1,
   plotAll
 }
 
-plotDynamics_FFLC1 <- function(Xstart = 1,
-                             Xstop = 6,
-                             tmax = 10,
-                             dt = 0.1,
-                             pars) {
+solve_FFLC1 <- function(Xstart = 1,
+                        Xstop = 6,
+                        tmax = 10,
+                        dt = 0.1,
+                        pars) {
   
   pars <- c(Xstart = Xstart, Xstop = Xstop, tmax = tmax, pars)
   
@@ -269,7 +274,10 @@ plotDynamics_FFLC1 <- function(Xstart = 1,
     as_tibble() %>%
     mutate(X = ifelse(time > pars["Xstart"] & time <= pars["Xstop"], 1, 0)) %>%
     select(time, X, Y, Z)
-  
+  return(solution)
+}
+
+plotDynamics_FFLC1 <- function(solution, Xstart = 1, Xstop = 6) {
   plotZ <- ggplot(solution) +
     annotate("rect", xmin = Xstart, xmax = Xstop, ymin = 0, ymax = 1.05,
              alpha = .2, fill = colX) +
@@ -281,11 +289,11 @@ plotDynamics_FFLC1 <- function(Xstart = 1,
   plotAll
 }
 
-plotDynamics_FFLI1 <- function(Xstart = 1,
-                               Xstop = 6,
-                               tmax = 10,
-                               dt = 0.1,
-                               pars) {
+solve_FFLI1 <- function(Xstart = 1,
+                        Xstop = 6,
+                        tmax = 10,
+                        dt = 0.1,
+                        pars) {
   
   pars <- c(Xstart = Xstart, Xstop = Xstop, tmax = tmax, pars)
   
@@ -297,7 +305,10 @@ plotDynamics_FFLI1 <- function(Xstart = 1,
     as_tibble() %>%
     mutate(X = ifelse(time > pars["Xstart"] & time <= pars["Xstop"], 1, 0)) %>%
     select(time, X, Y, Z)
-  
+  return(solution)
+}
+
+plotDynamics_FFLI1 <- function(solution, Xstart = 1, Xstop = 6) {
   plotZ <- ggplot(solution) +
     annotate("rect", xmin = Xstart, xmax = Xstop, ymin = 0, ymax = 1.05,
              alpha = .2, fill = colX) +
@@ -309,11 +320,11 @@ plotDynamics_FFLI1 <- function(Xstart = 1,
   plotAll
 }
 
-plotDynamics_FFBH <- function(Xstart = 1,
-                               Xstop = 6,
-                               tmax = 10,
-                               dt = 0.1,
-                               pars) {
+solve_FFBH <- function(Xstart = 1,
+                       Xstop = 6,
+                       tmax = 10,
+                       dt = 0.1,
+                       pars) {
   
   pars <- c(Xstart = Xstart, Xstop = Xstop, tmax = tmax, pars)
   
@@ -325,7 +336,10 @@ plotDynamics_FFBH <- function(Xstart = 1,
     as_tibble() %>%
     mutate(X = ifelse(time > pars["Xstart"] & time <= pars["Xstop"], 1, 0)) %>%
     select(time, X, Y, Z)
-  
+  return(solution)
+}
+
+plotDynamics_FFBH <- function(solution, Xstart = 1, Xstop = 6) {
   plotZ <- ggplot(solution) +
     annotate("rect", xmin = Xstart, xmax = Xstop, ymin = 0, ymax = 1.05,
              alpha = .2, fill = colX) +
@@ -443,7 +457,7 @@ SecondSteadyState <- function(df, prevSteadyState, prevSteadyStateTime, solution
   return(result)
 }
 
-# Find max expression and time to max expression
+# Find max expression [1] and time to max expression [2]
 MaxExpression <- function(df, solutionIndex) {
   result <- c(0.0, 0.0)
   curMax = 0.0
@@ -451,6 +465,9 @@ MaxExpression <- function(df, solutionIndex) {
   for (i in 1:nrow(df))
   {
     curVal = df[i, solutionIndex]
+    if (!is.numeric(curVal)) {
+      browser()
+    }
     if (curVal > curMax) {
       curMax = curVal;
       curTime = df[i, 1];
@@ -462,10 +479,28 @@ MaxExpression <- function(df, solutionIndex) {
   return(result)
 }
 
+# Find time above a threshold expression level
+TimeAboveThreshold <- function(df, threshold, solutionIndex) {
+  DELTA = 0.1; # delta between two measurements
+  timeAboveThreshold = 0.0;
+  
+  for (i in seq_len(nrow(df)))
+  {
+    curVal = df[i,solutionIndex];
+    if (curVal >= threshold) {
+      timeAboveThreshold = timeAboveThreshold + DELTA;
+    }
+  }
+  
+  return(timeAboveThreshold);
+  
+}
+
+
 # Sign sensitive delay
-DelayTime <- function(df, startTime, solutionIndex) {
-  result = 0.0;
-  epsilon = 0.001;
+DelayTime <- function(df, startTime, solutionIndex, aZ, baseline) {
+  result = 0.0
+  epsilon = 0.0001
   
   startIndex = startTime * 10 + 1
   
@@ -476,10 +511,9 @@ DelayTime <- function(df, startTime, solutionIndex) {
   for (i in startIndex:nrow(df))
   {
     t = df[i,1]
-    c1 = df[i-1, solutionIndex]
-    c2 = df[i, solutionIndex]
-    
-    if (abs(c2 - c1) > epsilon) {
+    c = df[i, solutionIndex]
+
+    if (abs(c - SimpleRegulation(t, aZ, baseline)) > epsilon ) {
       result = t - startTime;
       break;
     }
@@ -488,6 +522,63 @@ DelayTime <- function(df, startTime, solutionIndex) {
   return(result)
 }
 
+# Simple regulation function
+SimpleRegulation <- function(t, aZ, baseline) {
+  return((baseline / aZ) * (1 - exp(-aZ*t)))
+}
+
+getStats <- function(solution, model, pars = NULL) {
+  # Steady state
+  if (model == "NAR") {
+    data <- (SteadyState(solution, 1.0, 3))[1:2]
+    d <- as.data.frame(as.character(round(data, 3)))
+    row.names(d) <- c("Response time", "Steady state concentration")
+    return(d)
+  }
+  
+  if (model == "PAR") {
+    data <- double(3)
+    data[1:2] <- (SteadyState(solution, 1.0, 3)[1:2])
+    data[3] <- DelayTime(solution, 1.0, 3, pars["aZ"], pars["base"])
+    d <- as.data.frame(as.character(round(data, 3)))
+    row.names(d) <- c("Response time", "Steady state concentration", "Sign-Sensitive Delay Time")
+    return(d)
+  }
+  
+  if (model == "FFL-C1") {
+    data <- double(3)
+    prevDT <- solution[11, "Z"] - solution[10, "Z"]
+    # instead of prevDT, find simple regulation expression (when motif not active, dZdt = base - aZ * Z)
+    # should be able to find function for that, directly find when the actual value differs from simple reg
+    # When Z0 = 0,
+    # Z(t) = (baseline / aZ)(1 - e^(-aZ*t))
+    data[1:2] <- (SteadyState(solution, 1.0, 4)[1:2])
+    data[3] <- DelayTime(solution, 1.0, 4, pars["aZ"], pars["base"])
+    d <- as.data.frame(as.character(round(data, 3)))
+    row.names(d) <- c("Response time", "Steady state concentration", "Sign-Sensitive Delay Time")
+    return(d)
+  }
+  
+  if (model == "FFL-I1") {
+    data <- double(3)
+    
+    data[1:2] <- MaxExpression(solution, 4)
+    data[3] <- TimeAboveThreshold(solution, data[1] * 0.5, 4)
+    d <- as.data.frame(as.character(round(data, 3)))
+    row.names(d) <- c("Maximum expression", "Time to maximum expression", "Time above half maximum expression")
+    return(d)
+  }
+  
+  if (model == "FFBH") {
+    data <- double(4)
+    data[1:2] <- MaxExpression(solution, 4)
+    data[3:4] <- SecondSteadyState(solution,  data[1], data[2], 4)[1:2]
+    d <- as.data.frame(as.character(round(data, 3)))
+    row.names(d) <- c("Maximum expression", "Time to maximum expression", "Response time to final steady state", 
+                      "Final steady state concentration")
+    return(d)
+  }
+}
 
 
 
@@ -522,41 +613,105 @@ server<-function(input, output) {
       KXZ = input$KXZ_FFBH, Hilln = input$Hilln_FFBH, XMult = input$XMult_FFBH)
   })
   
+  solution_NAR <- reactive({
+    solve_NAR(Xstart = input$Xstart_NAR, Xstop = input$Xstop_NAR,
+              tmax = input$tmax_NAR, pars = pars_NAR())
+  })
+  
+  solution_PAR <- reactive({
+    solve_PAR(Xstart = input$Xstart_PAR, Xstop = input$Xstop_PAR,
+              tmax = input$tmax_PAR, pars = pars_PAR())
+  })
+  
+  solution_FFLC1 <- reactive({
+    solve_FFLC1(Xstart = input$Xstart_FFLC1, Xstop = input$Xstop_FFLC1,
+                tmax = input$tmax_FFLC1, pars = pars_FFLC1())
+  })
+  
+  solution_FFLI1 <- reactive({
+    solve_FFLI1(Xstart = input$Xstart_FFLI1, Xstop = input$Xstop_FFLI1,
+                tmax = input$tmax_FFLI1, pars = pars_FFLI1())
+  })
+  
+  solution_FFBH <- reactive({
+    solve_FFBH(Xstart = input$Xstart_FFBH, Xstop = input$Xstop_FFBH, 
+               tmax = input$tmax_FFBH, pars = pars_FFBH())
+  })
   
   output$main_plot_NAR <- renderPlot({
-    
-      plotDynamics_NAR(Xstart = input$Xstart_NAR, Xstop = input$Xstop_NAR,
-                       tmax = input$tmax_NAR, pars = pars_NAR())
+    if (input$motif != 1)
+      return()
+      plotDynamics_NAR(solution_NAR(), Xstart = input$Xstart_NAR, Xstop = input$Xstop_NAR)
     
   })
   
   output$main_plot_PAR <- renderPlot({
-
-      plotDynamics_PAR(Xstart = input$Xstart_PAR, Xstop = input$Xstop_PAR,
-                       tmax = input$tmax_PAR, pars = pars_PAR())
+    if (input$motif != 2)
+      return()
+    
+      plotDynamics_PAR(solution_PAR(), Xstart = input$Xstart_PAR, Xstop = input$Xstop_PAR)
 
   })
   
   output$main_plot_FFLC1 <- renderPlot({
-      plotDynamics_FFLC1(Xstart = input$Xstart_FFLC1, Xstop = input$Xstop_FFLC1,
-                         tmax = input$tmax_FFLC1, pars = pars_FFLC1())
+    if (input$motif != 3)
+      return()
+    
+      plotDynamics_FFLC1(solution_FFLC1(), Xstart = input$Xstart_FFLC1, Xstop = input$Xstop_FFLC1)
 
   })
   
   output$main_plot_FFLI1 <- renderPlot({
-
-      plotDynamics_FFLI1(Xstart = input$Xstart_FFLI1, Xstop = input$Xstop_FFLI1,
-                         tmax = input$tmax_FFLI1, pars = pars_FFLI1())
+    if (input$motif != 4)
+      return()
+    
+      plotDynamics_FFLI1(solution_FFLI1(), Xstart = input$Xstart_FFLI1, Xstop = input$Xstop_FFLI1)
 
   })
   
   output$main_plot_FFBH <- renderPlot({
-
-      plotDynamics_FFBH(Xstart = input$Xstart_FFBH, Xstop = input$Xstop_FFBH, 
-                        tmax = input$tmax_FFBH, pars = pars_FFBH())
+    if (input$motif != 5)
+      return()
+    
+      plotDynamics_FFBH(solution_FFBH(), Xstart = input$Xstart_FFBH, Xstop = input$Xstop_FFBH)
 
   })
   
-  #output$stats <- renderText()
+
+  output$NARTabOutput <- renderTable({
+    if (input$motif != 1)
+      return()
+    
+    getStats(as.data.frame(solution_NAR()), "NAR")
+  }, colnames = F, rownames = T, width = "100%", align = "lr")
+  
+  output$PARTabOutput <- renderTable({
+    if (input$motif != 2)
+      return()
+    
+    getStats(as.data.frame(solution_PAR()), "PAR", pars_PAR())
+  }, colnames = F, rownames = T, width = "100%", align = "lr")
+  
+  output$FFLC1TabOutput <- renderTable({
+    if (input$motif != 3)
+      return()
+    
+    getStats(as.data.frame(solution_FFLC1()), "FFL-C1", pars_FFLC1())
+  }, colnames = F, rownames = T, width = "100%", align = "lr")
+  
+  output$FFLI1TabOutput <- renderTable({
+    if (input$motif != 4)
+      return()
+    
+    getStats(as.data.frame(solution_FFLI1()), "FFL-I1")
+  }, colnames = F, rownames = T, width = "100%", align = "lr")
+  
+  output$FFBHTabOutput <- renderTable({
+    if (input$motif != 5)
+      return()
+    
+    getStats(as.data.frame(solution_FFBH()), "FFBH")
+  }, colnames = F, rownames = T, width = "100%", align = "lr")
+  
   
 }
