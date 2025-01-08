@@ -35,18 +35,19 @@ initialize() {
 	setCfgParam("fitnessCost", 0.05);	// 5% drop in fitness
 	setCfgParam("fitnessCostDistance", 0.1); // 10% phenotypic unit deviation to cause fitnessCost% decay in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
-	setCfgParam("optBurn", matrix(c(1.0, 1.0, -1.0, -1.0, 	// NAR:    Response time, steady state conc
-									1.0, 0.1, 1.0, -1.0,	// PAR:    Response time, Response delay, steady state conc
-									1.0, 0.1, 1.0, -1.0,	// C1-FFL: Response time, Response delay, steady state conc
-									1.0, 1.0, 2.5, -1.0, 	// I1-FFL: Time to max expression, max expression conc, time above half max expression
-									1.0, 1.0, 1.0, 0.0		// FFBH:   Time to max expression, max expression conc, response time second state, second steady state conc
+	setCfgParam("optBurn", matrix(c(1.25, 0.5, -1.0, -1.0, 	// NAR:    Response time, steady state conc
+									1.75, 0.1, 0.25, -1.0,	// PAR:    Response time, Response delay, steady state conc
+									3.0, 0.5, 0.125, -1.0,	// C1-FFL: Response time, Response delay, steady state conc
+									0.3, 0.3, 5.0, -1.0, 	// I1-FFL: Time to half max expression, max exp conc, time above half max expression
+									1.7, 0.2, 1.0, 0.0		// FFBH:   Time to half max expression, max exp conc, response time second state, second steady state conc
 									 ), ncol = 4, byrow = T)); // Optimum during burn-in
-	setCfgParam("optShift", matrix(c(-0.5, 1.0, 0.0, 0.0, 	// NAR:    Response time, steady state conc
-									 0.5, 0.1, 1.0, 0.0,	// PAR:    Response time, Response delay, steady state conc
-									 0.5, 1.0, 1.0, 0.0,	// C1-FFL: Response time, Response delay, steady state conc
-									 -0.5, 1.0, 1.5, 0.0, 	// I1-FFL: Time to max expression, max expression conc, time above half max expression
-									 0.5, 1.0, -0.5, 1.0		// FFBH:   Time to max expression, max expression conc, response time second state, second steady state conc
-									 ), ncol = 4, byrow = T)); // Optimum during burn-in		
+// DEPRECATED: optShift, now shift is a fixed distance across each axis given by their widths
+//	setCfgParam("optShift", matrix(c(-0.5, 1.0, 0.0, 0.0, 	// NAR:    Response time, steady state conc
+//									 0.5, 0.1, 1.0, 0.0,	// PAR:    Response time, Response delay, steady state conc
+//									 0.5, 1.0, 1.0, 0.0,	// C1-FFL: Response time, Response delay, steady state conc
+//									 -0.5, 1.0, 1.5, 0.0, 	// I1-FFL: Time to max expression, max expression conc, time above half max expression
+//									 0.5, 1.0, -0.5, 1.0		// FFBH:   Time to max expression, max expression conc, response time second state, second steady state conc
+//									 ), ncol = 4, byrow = T)); // Shift in the optimum values following burnin (optBurn + optShift)		
 									 		
 	// Precompute distance to optimum after optimum shift
 	defineGlobal("initDist", sqrt( -2 * log(1 - fitnessCost) ));
