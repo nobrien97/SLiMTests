@@ -371,11 +371,10 @@ function (float) getOptTraits(fi optimum, s$ calcMode) {
 
 }
 
-// TODO: This crashes every now and then with fitnessScaling < 0.0 - unsure as to why this might be happening
-// Because of invalid trait values - need to check for infinite values/NAN values
 function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
 	
+	// Calculate fitness width based on the given distance
 	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
 
 	// Index for the maximum trait index to get in the optimum matrix
@@ -383,6 +382,7 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 	if (calcMode == "NAR") { optMax = 1; }
 	if (calcMode == "FFBH") { optMax = 3; }
 
+	// Normalise fitness
 	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
 
 	traits = matrix(c(inds.getTraitValues(0:optMax)), ncol = optMax + 1, byrow = T);
@@ -400,7 +400,7 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 
 function (float) calcNewOptimum(f oldOptimum, f widths, f dist) {
 	n = size(oldOptimum);
-	shifts = widths * sqrt(dist / n);
+	shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
 	optNew = oldOptimum + shifts;
 	return optNew;
 }
