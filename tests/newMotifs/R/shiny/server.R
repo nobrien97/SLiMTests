@@ -252,6 +252,7 @@ plotDynamics_PAR <- function(solution, Xstart = 1, Xstop = 6) {
              alpha = .2, fill = colX) +
     geom_line(aes(time, Z), color = colZ, size = 1.5) +
     scale_y_continuous(limits = c(0,1.05)) +
+    scale_x_continuous(breaks = seq(0, 10, by = 0.5)) +
     theme_bw(base_size = 16)
   
   plotAll <- plot_grid(plt_PAR, plotZ, NULL, nrow = 3, scale = c(1.5,1,1))
@@ -283,6 +284,7 @@ plotDynamics_FFLC1 <- function(solution, Xstart = 1, Xstop = 6) {
              alpha = .2, fill = colX) +
     geom_line(aes(time, Z), color = colZ, size = 1.5) +
     scale_y_continuous(limits = c(0,1.05)) +
+    scale_x_continuous(breaks = seq(0, 10, by = 0.5)) +
     theme_bw(base_size = 16)
   
   plotAll <- plot_grid(plt_FFLC1, plotZ, NULL, nrow = 3, scale = c(1.5,1,1))
@@ -351,8 +353,12 @@ plotDynamics_FFBH <- function(solution, Xstart = 1, Xstop = 6) {
   plotAll
 }
 
+Interpolate <- function(x1, y1, x2, y2, y_target) {
+  return(x1 + (y_target - y1) * (x2 - x1) / (y2 - y1));
+}
+
 # Returns response time [1], steady state [2], time to steady state [3] 
-SteadyState <- function(df, startTime, solutionIndex) {
+SteadyState <- function(df, startTime, stopTime, solutionIndex) {
   epsilon = 0.001;
   # Output 
   result <- c(0, 0, 0)
@@ -362,11 +368,18 @@ SteadyState <- function(df, startTime, solutionIndex) {
   # Start index, multiplied by 10 because 10 entries per unit time
   start <- startTime * 10 + 1
   
+  stop <- stopTime * 10
+  
   if (start > nrow(df)) {
     start <- nrow(df)
   }
+  
+  if (stop > nrow(df)) {
+    stop <- nrow(df)
+  }
+  
   # Iterate over dataframe, find concentrations and change over time
-  for (i in start:(nrow(df))) {
+  for (i in start:stop) {
     c1 = df[i-1, solutionIndex]
     c2 = df[i, solutionIndex]
     
@@ -375,7 +388,7 @@ SteadyState <- function(df, startTime, solutionIndex) {
       steadyCount = steadyCount + 1
       
       # We're done finding steady state if we've been there a while
-      if (steadyCount >= 5) {
+      if (steadyCount >= 3) {
         result[2] <- c2
         result[3] <- df[i, 1]
         break
@@ -408,10 +421,10 @@ SecondSteadyState <- function(df, prevSteadyState, prevSteadyStateTime, solution
   half = 0.0;
   epsilon = 0.001;
   steadyCount = 0;
-  maxSteadyCount = 4;
+  maxSteadyCount = 5;
   
   # Find start index in solution history
-  startIndex = prevSteadyStateTime * 10
+  startIndex = prevSteadyStateTime * 10 + 1
   
   if (startIndex > nrow(df)) {
     startIndex = nrow(df);
@@ -439,43 +452,61 @@ SecondSteadyState <- function(df, prevSteadyState, prevSteadyStateTime, solution
   
   #Find the response time: taken from difference between old and new steady state
   half = abs(prevSteadyState - result[2]) * 0.5;
-  print(prevSteadyState)
-  print(result[2])
-  print(half)
+  
   #Figure out where the halfway point is
-  for (i in 2:nrow(df))
+  for (i in startIndex:nrow(df))
   {
     t1 = df[i-1,1];
     t2 = df[i,1];
     c1 = df[i-1, solutionIndex];
     c2 = df[i, solutionIndex];
     if ((c1 < half & c2 >= half) | (c1 > half & c2 <= half)) {
-      result[1] = Interpolate(t1, c1, t2, c2, half)
+      result[1] = Interpolate(t1, c1, t2, c2, half) - prevSteadyStateTime
       break;
     }
   }
   return(result)
 }
 
-# Find max expression [1] and time to max expression [2]
-MaxExpression <- function(df, solutionIndex) {
+# Find max expression [1] and time to half max expression [2]
+MaxExpression <- function(df, startTime, solutionIndex) {
   result <- c(0.0, 0.0)
   curMax = 0.0
   curTime = 0.0
-  for (i in 1:nrow(df))
+  
+  startIndex = startTime * 10 + 1
+  
+  if (startTime > nrow(df)) {
+    startTime = nrow(df)
+  }
+  
+  for (i in startTime:nrow(df))
   {
     curVal = df[i, solutionIndex]
-    if (!is.numeric(curVal)) {
-      browser()
-    }
-    if (curVal > curMax) {
+    if (curVal > (curMax + 0.0001)) {
       curMax = curVal;
-      curTime = df[i, 1];
     }
   }
   
+  # Response time is time to halfway the steady state
+  half = curMax * 0.5;
+  
+  # Figure out where the halfway point is
+  for (i in 2:nrow(df)) {
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    t1 = df[i-1, 1]
+    t2 = df[i, 1]
+    
+    if ((c1 < half & c2 >= half) | (c1 > half & c2 <= half)) {
+      curTime = Interpolate(t1, c1, t2, c2, half)
+      break
+    }
+  }
+  
+  
   result[1] = curMax;
-  result[2] = curTime;
+  result[2] = curTime - startTime;
   return(result)
 }
 
@@ -497,32 +528,54 @@ TimeAboveThreshold <- function(df, threshold, solutionIndex) {
 }
 
 
-# Sign sensitive delay
-DelayTime <- function(df, startTime, solutionIndex, aZ, baseline) {
+# Sign sensitive delay: rate of change shift > threshold
+# measure where inflection point is: where there is a large shift in the roc
+DelayTime <- function(df, startTime, stopTime, solutionIndex, baseline, aZ) {
   result = 0.0
-  epsilon = 0.0001
   
-  startIndex = startTime * 10 + 1
+  # Threshold measured relative to the rate of change for the simple reg case before XStart, base - aZ * Z
+  threshold = max(diff(SimpleRegulation(seq(0, 1, by = 0.1), aZ, baseline)))
+  
+  if (threshold < 0.001) {
+    threshold = 0.001
+  }
+
+  startIndex = 2 #startTime * 10 + 1
+  stopIndex = stopTime * 10
   
   if (startIndex >= nrow(df)) {
     startIndex = nrow(df);
   }
   
-  for (i in startIndex:nrow(df))
+  if (stopIndex > nrow(df)) {
+    stopIndex = nrow(df)
+  }
+  
+  for (i in startIndex:stopIndex)
   {
     t = df[i,1]
-    c = df[i, solutionIndex]
+    c1 = df[i-1, solutionIndex]
+    c2 = df[i, solutionIndex]
+    
+    newDiff = abs(c2 - c1)
+    
 
-    if (abs(c - SimpleRegulation(t, aZ, baseline)) > epsilon ) {
-      result = t - startTime;
+    # Check if we are increasing faster than under simple regulation
+    if (newDiff > threshold + 0.0001) {
+      result = t - startTime
       break;
     }
+    
+    # if (newDiff < prevGreatestSlope) {
+    #   result = t - startTime;
+    #   break;
+    # }
   }
   
   return(result)
 }
 
-# Simple regulation function
+# Simple regulation function: steady state is bZ/aZ
 SimpleRegulation <- function(t, aZ, baseline) {
   return((baseline / aZ) * (1 - exp(-aZ*t)))
 }
@@ -530,7 +583,7 @@ SimpleRegulation <- function(t, aZ, baseline) {
 getStats <- function(solution, model, pars = NULL) {
   # Steady state
   if (model == "NAR") {
-    data <- (SteadyState(solution, 1.0, 3))[1:2]
+    data <- (SteadyState(solution, 1.0, 6.0, 3))[1:2]
     d <- as.data.frame(as.character(round(data, 3)))
     row.names(d) <- c("Response time", "Steady state concentration")
     return(d)
@@ -538,8 +591,11 @@ getStats <- function(solution, model, pars = NULL) {
   
   if (model == "PAR") {
     data <- double(3)
-    data[1:2] <- (SteadyState(solution, 1.0, 3)[1:2])
-    data[3] <- DelayTime(solution, 1.0, 3, pars["aZ"], pars["base"])
+    # if (pars["base"] == 0.1) {
+    #   browser()
+    # }
+    data[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
+    data[3] <- DelayTime(solution, 1.0, 6.0, 3, pars["base"], pars["aZ"])
     d <- as.data.frame(as.character(round(data, 3)))
     row.names(d) <- c("Response time", "Steady state concentration", "Sign-Sensitive Delay Time")
     return(d)
@@ -548,12 +604,12 @@ getStats <- function(solution, model, pars = NULL) {
   if (model == "FFL-C1") {
     data <- double(3)
     prevDT <- solution[11, "Z"] - solution[10, "Z"]
-    # instead of prevDT, find simple regulation expression (when motif not active, dZdt = base - aZ * Z)
-    # should be able to find function for that, directly find when the actual value differs from simple reg
-    # When Z0 = 0,
-    # Z(t) = (baseline / aZ)(1 - e^(-aZ*t))
-    data[1:2] <- (SteadyState(solution, 1.0, 4)[1:2])
-    data[3] <- DelayTime(solution, 1.0, 4, pars["aZ"], pars["base"])
+    data[3] <- DelayTime(solution, 1.0, 6.0, 4, pars["base"], pars["aZ"])
+    data[1:2] <- (SteadyState(solution, 1 + data[3], 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
+    
+    if (pars["Hilln"] == 4.1) {
+      browser()
+    }
     d <- as.data.frame(as.character(round(data, 3)))
     row.names(d) <- c("Response time", "Steady state concentration", "Sign-Sensitive Delay Time")
     return(d)
@@ -562,19 +618,19 @@ getStats <- function(solution, model, pars = NULL) {
   if (model == "FFL-I1") {
     data <- double(3)
     
-    data[1:2] <- MaxExpression(solution, 4)
+    data[1:2] <- MaxExpression(solution, 1.0, 4)
     data[3] <- TimeAboveThreshold(solution, data[1] * 0.5, 4)
     d <- as.data.frame(as.character(round(data, 3)))
-    row.names(d) <- c("Maximum expression", "Time to maximum expression", "Time above half maximum expression")
+    row.names(d) <- c("Maximum expression", "Time to half maximum expression", "Time above half maximum expression")
     return(d)
   }
   
   if (model == "FFBH") {
     data <- double(4)
-    data[1:2] <- MaxExpression(solution, 4)
-    data[3:4] <- SecondSteadyState(solution,  data[1], data[2], 4)[1:2]
+    data[1:2] <- MaxExpression(solution, 1.0, 4)
+    data[3:4] <- SecondSteadyState(solution, data[1], 6, 4)[1:2]
     d <- as.data.frame(as.character(round(data, 3)))
-    row.names(d) <- c("Maximum expression", "Time to maximum expression", "Response time to final steady state", 
+    row.names(d) <- c("Maximum expression", "Time to half maximum expression", "Response time to final steady state", 
                       "Final steady state concentration")
     return(d)
   }
