@@ -221,6 +221,7 @@ plotDynamics_NAR <- function(solution, Xstart, Xstop) {
              alpha = .2, fill = colX) +
     geom_line(aes(time, Z), color = colZ, size = 1.5) +
     scale_y_continuous(limits = c(0,1.05)) +
+    scale_x_continuous(breaks = seq(0, 10, by = 0.5)) +
     theme_bw(base_size = 16)
   
   plotAll <- plot_grid(plt_NAR, plotZ, NULL, nrow = 3, scale = c(1.5,1,1))
@@ -316,6 +317,7 @@ plotDynamics_FFLI1 <- function(solution, Xstart = 1, Xstop = 6) {
              alpha = .2, fill = colX) +
     geom_line(aes(time, Z), color = colZ, size = 1.5) +
     scale_y_continuous(limits = c(0,1.05)) +
+    scale_x_continuous(breaks = seq(0, 10, by = 0.5)) +
     theme_bw(base_size = 16)
   
   plotAll <- plot_grid(plt_FFLI1, plotZ, NULL, nrow = 3, scale = c(1.5,1,1))
@@ -347,6 +349,7 @@ plotDynamics_FFBH <- function(solution, Xstart = 1, Xstop = 6) {
              alpha = .2, fill = colX) +
     geom_line(aes(time, Z), color = colZ, size = 1.5) +
     scale_y_continuous(limits = c(0,1.05)) +
+    scale_x_continuous(breaks = seq(0, 10, by = 0.5)) +
     theme_bw(base_size = 16)
   
   plotAll <- plot_grid(plt_FFBH, plotZ, NULL, nrow = 3, scale = c(1.5,1,1))
@@ -402,14 +405,14 @@ SteadyState <- function(df, startTime, stopTime, solutionIndex) {
   half = result[2] * 0.5;
   
   # Figure out where the halfway point is
-  for (i in 2:nrow(df)) {
+  for (i in start:nrow(df)) {
     c1 = df[i-1, solutionIndex]
     c2 = df[i, solutionIndex]
     t1 = df[i-1, 1]
     t2 = df[i, 1]
     
     if ((c1 < half & c2 >= half) | (c1 > half & c2 <= half)) {
-      result[1] = Interpolate(t1, c1, t2, c2, half)
+      result[1] = Interpolate(t1, c1, t2, c2, half) - startTime
       break
     }
   }
@@ -476,11 +479,11 @@ MaxExpression <- function(df, startTime, solutionIndex) {
   
   startIndex = startTime * 10 + 1
   
-  if (startTime > nrow(df)) {
-    startTime = nrow(df)
+  if (startIndex > nrow(df)) {
+    startIndex = nrow(df)
   }
   
-  for (i in startTime:nrow(df))
+  for (i in startIndex:nrow(df))
   {
     curVal = df[i, solutionIndex]
     if (curVal > (curMax + 0.0001)) {
@@ -603,7 +606,6 @@ getStats <- function(solution, model, pars = NULL) {
   
   if (model == "FFL-C1") {
     data <- double(3)
-    prevDT <- solution[11, "Z"] - solution[10, "Z"]
     data[3] <- DelayTime(solution, 1.0, 6.0, 4, pars["base"], pars["aZ"])
     data[1:2] <- (SteadyState(solution, 1 + data[3], 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
     

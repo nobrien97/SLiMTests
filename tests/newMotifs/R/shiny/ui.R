@@ -185,7 +185,7 @@ ui<-
               fluidRow(
                 column(width = 4,
                        sliderInput(inputId = "base_FFLI1", label = "Constitutive promoter expression:",
-                                   min = 0, max = 5, value = 0.1, step = 0.1)),
+                                   min = 0, max = 5, value = 0.0, step = 0.1)),
                 column(width = 4,
                        sliderInput(inputId = "aY_FFLI1", label = "Y degradation rate:",
                                    min = 0, max = 5, value = 1, step = 0.1)),
