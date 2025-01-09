@@ -160,23 +160,21 @@ function (i) findMutBreakpoints(i pos) {
 }
 
 
-function (void) CalcSelectionSigmas(s$ calcMode, [f$ minimumSigma = 0.1]) {
+function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
 	// Calculate the strength of selection per trait, assuming equal contributions per trait
 
 	// Get correct row in optimum matrix for the model
-	traits = c(getOptTraits(optBurn, calcMode));
-	n = size(traits);
-	result = float(n);	
+	//traits = c(getOptTraits(optBurn, calcMode));
+	n = size(optTraits);
 	
 	// If any of the traits are zero, we need to set a minimum width for that trait
-	traits[traits == 0] = minimumSigma;
+	optTraits[optTraits == 0] = minimumSigma;
 
 	// change in fitnessCostDistance% of trait optimum over the distance for 5% change in fitness is sigma	
+	cost = sqrt(-(1 / (2 * log(1 - fitnessCost))));
+	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation
 	
-	result = ( fitnessCostDistance * traits ) / sqrt( -2 * log(1 - fitnessCost) );
-	
-	// Save output
-	defineGlobal("optSigma", result);
+	return result;
 
 }
 
@@ -266,7 +264,7 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 
 	// Handle ODEs
 	numTraits = 3;
-	if (calcMode == "NAR") { numTraits = 2; }
+	if (calcMode == "NAR" | calcMode == "PAR") { numTraits = 2; }
 	if (calcMode == "FFBH") { numTraits = 4; }
 	
 	inds.setTraitValues(sim.ODEIntegrate(inds, calcMode), numTraits);
@@ -362,7 +360,7 @@ function (float) getOptTraits(fi optimum, s$ calcMode) {
 
 	optIndex = 0;
 	optMax = 1;
-	if (calcMode == "PAR") { optIndex = 1; optMax = 2; }
+	if (calcMode == "PAR") { optIndex = 1; optMax = 1; }
 	if (calcMode == "FFLC1") { optIndex = 2; optMax = 2; }
 	if (calcMode == "FFLI1") { optIndex = 3; optMax = 2; }
 	if (calcMode == "FFBH") { optIndex = 4; optMax = 3; }
@@ -375,11 +373,11 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
 	
 	// Calculate fitness width based on the given distance
-	sigma = calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+	sigma = diag(optSigma * optSigma); //calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
 
 	// Index for the maximum trait index to get in the optimum matrix
 	optMax = 2;
-	if (calcMode == "NAR") { optMax = 1; }
+	if (calcMode == "NAR" | calcMode == "PAR") { optMax = 1; }
 	if (calcMode == "FFBH") { optMax = 3; }
 
 	// Normalise fitness
@@ -494,13 +492,33 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 		OptFile = paste(asString(seed), modelindex, optimum, sep = ",");
 		writeFile(outOpt, OptFile);
 
-		// Recalculate distance	
+		// Recalculate distance, update sigmas	
 		opt = optimum;
+		optSigma = CalcSelectionSigmas(opt, 0.1); // Calculate width of fitness function per axis
+
 		dist = mean(inds.getDistanceFromOptimum(opt, optSigma));
 	}
+
+	// Now that dist is updated
+	// Per trait 1D distances: see if any traits are difficult to adapt to, any tradeoffs
+	perTraitDists = float(size(opt));
+	for (i in seqLen(size(opt))) {
+		perTraitDists[i] = mean(abs(c(phenotypes[,i]) - opt[i]));
+	}
+
+	// Pad trait distances to n = 4 for our largest number of traits (FFBH)
+	padSize = 4 - size(perTraitDists);
+
+	if (padSize > 0) {
+		pad = float(padSize);
+		perTraitDists = c(perTraitDists, pad);
+	}
+
+	distpaste = paste(dist, perTraitDists, sep = ",");
+
 	
 	
-	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, dist, w, deltaPheno, deltaw, meanMolTraits, sep=",");
+	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, distpaste, w, deltaPheno, deltaw, meanMolTraits, sep=",");
 	
 	writeFile(outQG, Mfile, append = T);
 }
