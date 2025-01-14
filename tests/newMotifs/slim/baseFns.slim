@@ -289,7 +289,7 @@ function (void) writeAlleleData(void) {
 	
 	// Distance from the optimum - if we're in burn-in, distance is 0
 	curOpt = optimum;
-	if (sim.cycle <= burnTime) { curOpt = c(getOptTraits(optBurn, modelType)); }
+	if (sim.cycle <= burnTime) { curOpt = optBurn; }//c(getOptTraits(optBurn, modelType)); }
 	dist = abs(mean(p1.individuals.getDistanceFromOptimum(curOpt, optSigma)));
 	
 	// Set up an empty output to store all our mutations' information for this generation
@@ -396,6 +396,23 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 
 }
 
+function (float) getStartOpt(s$ calcMode) {
+	n = 1;
+	
+	if (calcMode == "FFLC1" | calcMode == "FFLI1") { n = 2; }
+	else if (calcMode == "FFBH") { n = 3; }
+	
+	startOpt = sim.ODEIntegrate(p1.individuals[0], calcMode)[0:n]; // Get the starting trait values NOTE: This will only work in gen 1 before muts are sampled!
+	return startOpt;
+}
+
+function (float) calcInitOptimum(f startOpt, f widths, f dist) {
+	n = size(startOpt);
+	shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
+	optNew = startOpt + shifts;
+	return optNew;
+}
+
 function (float) calcNewOptimum(f oldOptimum, f widths, f dist) {
 	n = size(oldOptimum);
 	shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
@@ -461,7 +478,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	// While here, we also have some other values to set for burn-in: there might not be a lastDist yet
 	if (phase == "burnin") {
 		// If we're in stabsel around burn-in pheno
-		opt = c(getOptTraits(optBurn, modelType));
+		opt = optBurn; //c(getOptTraits(optBurn, modelType));
 	} else if (phase == "adaptation") {
 		// If we're in the shifted optimum phase
 		opt = optimum;
@@ -484,7 +501,6 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	
 	sim.setValue("lastDist", dist);
 	sim.setValue("lastw", w);
-	curDist = dist;
 	
 	if (sim.cycle == burnTime) {
 //		sim.setValue("optimum", optFinal);
@@ -516,7 +532,9 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 
 	distpaste = paste(dist, perTraitDists, sep = ",");
 
-	
+	// Update global curDist
+	curDist = dist;
+
 	
 	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, distpaste, w, deltaPheno, deltaw, meanMolTraits, sep=",");
 	
