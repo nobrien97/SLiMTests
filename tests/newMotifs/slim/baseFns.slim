@@ -170,7 +170,7 @@ function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
 	// If any of the traits are zero, we need to set a minimum width for that trait
 	optTraits[optTraits == 0] = minimumSigma;
 
-	// change in fitnessCostDistance% of trait optimum over the distance for 5% change in fitness is sigma	
+	// change in fitnessCostDistance% of trait optimum over the distance for fitnessCost% change in fitness is sigma	
 	cost = sqrt(-(1 / (2 * log(1 - fitnessCost))));
 	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation
 	
