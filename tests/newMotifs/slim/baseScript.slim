@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -18,7 +18,7 @@ initialize() {
 	// Declare/define parameters if they haven't been by the command line arguments
 	// Values from literature are cited
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
-	setCfgParam("modelType", "FFBH"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
+	setCfgParam("modelType", "NAR"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
 	setCfgParam("N", 5000); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
@@ -252,18 +252,18 @@ mutationEffect(m13) {
 	sim.addSubpop("p2", 0); // Staging population for crossing experiment
 	
 	// Apply selection in burn in
-	startTraits = getStartOpt(modelType);
+	startTraits = getStartTraitValues(modelType);
 	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
 
-	defineGlobal("optBurn", calcInitOptimum(startTraits, optSigma, initDist)); // Calculate burn-in optimum (assuming equal contributions)
+	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost)); // Calculate burn-in optimum (assuming equal contributions)
 	
-	defineGlobal("optimum", calcNewOptimum(optBurn, optSigma, initDist)); // Calculate the optimum post-shift (assume equal contributions)
 	assignQTLPositions(); // Assign QTL behaviours
 	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
 	// s2: Shift optimum, end the simulation and write/move output files 
 	community.rescheduleScriptBlock(s1, start = 1, end = burnTime);
+	community.rescheduleScriptBlock(s5, start = 2, end = 2); // Write output at gen 1
 	community.rescheduleScriptBlock(s2, start = burnTime+1, end = burnTime + testTime);
 	// Script blocks for reproduction callbacks: burn-in vs test period
 	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
@@ -367,6 +367,11 @@ s1 late() {
 	writeAlleleData();
 	writeIndOutput(p1);
 
+}
+
+// Write output in gen 1
+s5 late() {
+	writeQuantGenOutput(p1, "burnin");
 }
 
 s2 late() {
