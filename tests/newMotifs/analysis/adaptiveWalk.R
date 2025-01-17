@@ -9,6 +9,7 @@ library(cowplot)
 library(ggbeeswarm)
 library(stargazer)
 library(ggridges)
+library(GGally)
 
 setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis")
 DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/pilot/"
@@ -111,12 +112,14 @@ ggplot(d_qg_sum,
                       labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
   scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
                     labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR"), guide = "none") +
-  labs(x = "Generations post-optimum shift", y = "Mean distance from the optimum", 
+  labs(x = "Generations post-optimum shift", y = "Mean Mahalanobis distance\nfrom the optimum", 
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 12),
+  guides(colour = guide_legend(position = "bottom",
+    override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
-ggsave("plt_adapt_smlfx.png", width = 12, height = 5, device = png)
+ggsave("plt_adapt_mdist.png", width = 12, height = 5, device = png)
 
 # Mean fitness
 ggplot(d_qg_sum,
@@ -136,9 +139,11 @@ ggplot(d_qg_sum,
   labs(x = "Generations post-optimum shift", y = "Mean Fitness", 
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 12),
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
-ggsave("plt_adapt_w_smlfx.png", width = 12, height = 5, device = png)
+ggsave("plt_adapt_w.png", width = 12, height = 5, device = png)
 
 # Variance in fitness
 ggplot(d_qg_sum,
@@ -158,11 +163,145 @@ ggplot(d_qg_sum,
   labs(x = "Generations post-optimum shift", y = "Mean variance in fitness", 
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 12),
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
 
+ggsave("plt_adapt_wvar.png", width = 12, height = 5, device = png)
+
+
+# Each trait separately
+d_qg_sum <- d_qg %>% 
+  #filter(gen >= 49500) %>%
+  mutate(gen = gen - 50000) %>%
+  group_by(gen, model, r) %>%
+  summarise(meanDist1 = mean(dist1),
+            SEDist1 = se(dist1),
+            meanDist2 = mean(dist2),
+            SEDist2 = se(dist2),
+            meanDist3 = mean(dist3),
+            SEDist3 = se(dist3),
+            meanDist4 = mean(dist4),
+            SEDist4 = se(dist4))
+
+
+# trait sigmas for NAR, PAR, FFLC1, FFLI1, FFBH in that order
+traitsigma <- matrix(c(0.111064, 0.0785957, -1, -1,
+                       0.0217844, 0.00179048, -1, -1,
+                       0.290934, 0.0217844, 0.0364384, -1,
+                       0.101508, 0.0732563, 1.15457, -1,
+                       0.335821, 0.0390923, 0.225045, 0.00138527),
+                     nrow = 5, byrow = T)
+
+rownames(traitsigma) <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+
+d_qg_sum <- d_qg %>%
+  group_by(model) %>%
+  ungroup() %>%
+  pivot_longer(cols = starts_with("dist"), names_to = "trait_num", names_prefix = "dist",
+               values_to = "dist") %>%
+  mutate(gen = gen - 50000) %>%
+  group_by(gen, model, r, trait_num) %>%
+  mutate(dist = dist / traitsigma[model, as.integer(trait_num)]) %>%          # Adjust distance by selection strength
+  summarise(meanDist = mean(dist),
+            SEDist = se(dist))
+
+# Variance in fitness
+ggplot(d_qg_sum,
+       aes(x = gen, y = meanDist, colour = model)) +
+  facet_wrap(log10(r)~trait_num, scales = "free") +
+  geom_line() +
+  #geom_hline(yintercept = 2, linetype = "dashed") +
+  geom_ribbon(aes(ymin = meanDist - SEDist, 
+                  ymax = meanDist + SEDist, fill = model), colour = NA,
+              alpha = 0.2) +
+  # scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+  #                                        breaks = NULL, labels = NULL)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR"), guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean distance from trait optimum", 
+       colour = "Model") +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_adapt_dist_pertrait.png", width = 12, height = 5, device = png)
+
+# Correlations among traits
+ggpairs(d_qg %>% filter(model == "NAR"), 
+        columns = 5:6, 
+        columnLabels = c("Response time", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_trait_corr_nar.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "PAR"), 
+        columns = 5:6, 
+        columnLabels = c("Response time", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_trait_corr_par.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFLC1"), 
+        columns = 5:7, 
+        columnLabels = c("Response time", "Response delay", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_trait_corr_fflc1.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFLI1"), 
+        columns = 5:7, 
+        columnLabels = c("Time to half-max\nconcentration", "Maximum concentration", 
+                         "Time above\nhalf-max concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_trait_corr_ffli1.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFBH"), 
+        columns = 5:8, 
+        columnLabels = c("Time to half-max\nconcentration", "Maximum concentration", 
+                        "Response time to\nsecond steady state", "Second steady\nstate concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_trait_corr_ffbh.png", width = 12, height = 5, device = png)
+
+
+# Correlations among distances
+ggpairs(d_qg %>% filter(model == "NAR"), 
+        columns = 14:15, 
+        columnLabels = c("Response time", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_dist_corr_nar.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "PAR"), 
+        columns = 14:15, 
+        columnLabels = c("Response time", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_dist_corr_par.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFLC1"), 
+        columns = 14:16, 
+        columnLabels = c("Response time", "Response delay", "Steady state concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_dist_corr_fflc1.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFLI1"), 
+        columns = 14:16, 
+        columnLabels = c("Time to half-max\nconcentration", "Maximum concentration", 
+                         "Time above\nhalf-max concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_dist_corr_ffli1.png", width = 12, height = 5, device = png)
+
+ggpairs(d_qg %>% filter(model == "FFBH"), 
+        columns = 14:17, 
+        columnLabels = c("Time to half-max\nconcentration", "Maximum concentration", 
+                         "Response time to\nsecond steady state", "Second steady\nstate concentration"),
+        lower = list(continuous = wrap("points", shape = 1)))
+ggsave("plt_dist_corr_ffbh.png", width = 12, height = 5, device = png)
+
+
+
 # Fitness distribution (assuming normal)
-ggplot(d_qg_sum)
+
 
 # Time to adaptation
 d_adaptTime <- d_qg %>% filter(gen >= 49500) %>%
