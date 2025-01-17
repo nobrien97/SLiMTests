@@ -23,8 +23,11 @@ Fig 3 shows motifs maintained different variance in fitness: FFBH motifs were mo
 ![](./plt_adapt_dist_pertrait.png)
 
 Fig. 4 - Per-trait mean distances from the optimum adjusted for selection strength. Top label is the log10 recombination rate, bottom label is the trait. Note that the traits differ between motifs:
-NAR and PAR traits are (1) response time and (2) steady state concentration; FFL-C1 traits are (1) response time, (2) response delay, and (3) steady state concentration; FFL-I1 traits are
-(1) time to half-maximum expression, (2) maximum expression concentration, and (3) time above half-maximum expression; and FFBH traits are (1) time to half-maximum expression, (2) maximum expression concentration, (3) response time to the second steady state, and (4) the second steady state concentration.
+
+- NAR and PAR traits are (1) response time and (2) steady state concentration; 
+- FFL-C1 traits are (1) response time, (2) response delay, and (3) steady state concentration; 
+- FFL-I1 traits are (1) time to half-maximum expression, (2) maximum expression concentration, and (3) time above half-maximum expression; 
+- FFBH traits are (1) time to half-maximum expression, (2) maximum expression concentration, (3) response time to the second steady state, and (4) the second steady state concentration.
 
 Figure 4 shows how adaptation progressed across all traits for the models. FFBH motifs were limited in reaching the optimum among all traits. The response time to the second steady state especially was limited. Fluctuations in maximum expression concentration show volatility in this trait even with small mutational effects. FFBH populations showed very slow movement to the optimum under low and intermediate recombination in their first trait, the time to half-maximum expression.
 
