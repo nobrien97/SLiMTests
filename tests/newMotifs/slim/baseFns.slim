@@ -170,10 +170,10 @@ function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
 	// If any of the traits are zero, we need to set a minimum width for that trait
 	optTraits[optTraits == 0] = minimumSigma;
 
-	// change in fitnessCostDistance% of trait optimum over the distance for 5% change in fitness is sigma	
+	// change in fitnessCostDistance% of trait optimum over the distance for fitnessCost% change in fitness is sigma	
 	cost = sqrt(-(1 / (2 * log(1 - fitnessCost))));
-	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation
-	
+	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation NOT a variance
+		
 	return result;
 
 }
@@ -288,8 +288,8 @@ function (void) writeAlleleData(void) {
 	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
 	
 	// Distance from the optimum - if we're in burn-in, distance is 0
-	curOpt = optimum;
-	if (sim.cycle <= burnTime) { curOpt = optBurn; }//c(getOptTraits(optBurn, modelType)); }
+	curOpt = optBurn;
+	if (sim.cycle >= burnTime) { curOpt = optimum; }//c(getOptTraits(optBurn, modelType)); }
 	dist = abs(mean(p1.individuals.getDistanceFromOptimum(curOpt, optSigma)));
 	
 	// Set up an empty output to store all our mutations' information for this generation
@@ -396,7 +396,8 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 
 }
 
-function (float) getStartOpt(s$ calcMode) {
+// Get starting trait values before any mutation
+function (float) getStartTraitValues(s$ calcMode) {
 	n = 1;
 	
 	if (calcMode == "FFLC1" | calcMode == "FFLI1") { n = 2; }
@@ -406,19 +407,14 @@ function (float) getStartOpt(s$ calcMode) {
 	return startOpt;
 }
 
-function (float) calcInitOptimum(f startOpt, f widths, f dist) {
-	n = size(startOpt);
-	shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
-	optNew = startOpt + shifts;
+
+function (float) calcNewOptimum(f oldOptimum, f sigma, f$ desiredFitnessAtShift) {
+	n = size(oldOptimum);
+	//shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
+	optNew = sqrt(-2 * sigma * sigma * log(desiredFitnessAtShift)/n) + oldOptimum;
 	return optNew;
 }
 
-function (float) calcNewOptimum(f oldOptimum, f widths, f dist) {
-	n = size(oldOptimum);
-	shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
-	optNew = oldOptimum + shifts;
-	return optNew;
-}
 
 function (float) getMeanMolComps(o<Individual> inds) {
 	// Get mean molecular component values
@@ -462,6 +458,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	phenovar = paste(varTrait1, varTrait2, varTrait3, varTrait4, sep = ",");
 
 	w = mean(inds.fitnessScaling);
+	var_w = var(inds.fitnessScaling);
 
 	meanMolTraits = getMeanMolComps(inds);
 
@@ -504,14 +501,19 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	
 	if (sim.cycle == burnTime) {
 //		sim.setValue("optimum", optFinal);
+
+		// Recalculate distance, update sigmas	and new optimum
+		optSigma = CalcSelectionSigmas(optBurn, 0.1); // Calculate width of fitness function per axis
+		defineGlobal("optimum", calcNewOptimum(optBurn, optSigma, 1 - fitnessCost)); // Calculate the optimum post-shift (assume equal contributions)
+
+		
 		catn("Optimum is: " + paste(optimum, sep = ",") + "\nStarting stabilising selection regime");
 		OptFile = paste(asString(seed), modelindex, optimum, sep = ",");
 		writeFile(outOpt, OptFile);
 
-		// Recalculate distance, update sigmas	
-		opt = optimum;
-		optSigma = CalcSelectionSigmas(opt, 0.1); // Calculate width of fitness function per axis
 
+		opt = optimum;
+		
 		dist = mean(inds.getDistanceFromOptimum(opt, optSigma));
 	}
 
@@ -536,7 +538,7 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 	curDist = dist;
 
 	
-	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, distpaste, w, deltaPheno, deltaw, meanMolTraits, sep=",");
+	Mfile = paste(sim.cycle, asString(seed), modelindex, meanH, phenomean, phenovar, distpaste, w, var_w, deltaPheno, deltaw, meanMolTraits, sep=",");
 	
 	writeFile(outQG, Mfile, append = T);
 }

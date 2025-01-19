@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -35,9 +35,9 @@ initialize() {
 	setCfgParam("fitnessCost", 0.1);	// 5% drop in fitness
 	setCfgParam("fitnessCostDistance", 0.1); // 10% phenotypic unit deviation to cause fitnessCost% decay in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
-//	setCfgParam("optBurn", matrix(c(1.25, 0.5, -1.0, -1.0, 	// NAR:    Response time, steady state conc
-//															1.75, 0.5, -1.0, -1.0,	// PAR:    Response time, steady state conc
-//															2.5, 0.5, 0.125, -1.0,	// C1-FFL: Response time, Response delay, steady state conc
+//	setCfgParam("optBurn", matrix(c(0.5, 0.5, -1.0, -1.0, 	// NAR:    Response time, steady state conc
+//															0.5, 0.25, -1.0, -1.0,	// PAR:    Response time, steady state conc
+//															1.3, 0.3, 0.1, -1.0,	// C1-FFL: Response time, Response delay, steady state conc
 //															0.3, 0.3, 5.0, -1.0, 	// I1-FFL: Time to half max expression, max exp conc, time above half max expression
 //															1.7, 0.2, 1.0, 0.0		// FFBH:   Time to half max expression, max exp conc, response time second state, second steady state conc
 //									 													), ncol = 4, byrow = T)); // Optimum during burn-in
@@ -252,18 +252,18 @@ mutationEffect(m13) {
 	sim.addSubpop("p2", 0); // Staging population for crossing experiment
 	
 	// Apply selection in burn in
-	startTraits = getStartOpt(modelType);
+	startTraits = getStartTraitValues(modelType);
 	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
 
-	defineGlobal("optBurn", calcInitOptimum(startTraits, optSigma, initDist)); // Calculate burn-in optimum (assuming equal contributions)
+	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost)); // Calculate burn-in optimum (assuming equal contributions)
 	
-	defineGlobal("optimum", calcNewOptimum(optBurn, optSigma, initDist)); // Calculate the optimum post-shift (assume equal contributions)
 	assignQTLPositions(); // Assign QTL behaviours
 	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
 	// s2: Shift optimum, end the simulation and write/move output files 
 	community.rescheduleScriptBlock(s1, start = 1, end = burnTime);
+	community.rescheduleScriptBlock(s5, start = 2, end = 2); // Write output at gen 1
 	community.rescheduleScriptBlock(s2, start = burnTime+1, end = burnTime + testTime);
 	// Script blocks for reproduction callbacks: burn-in vs test period
 	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
@@ -367,6 +367,11 @@ s1 late() {
 	writeAlleleData();
 	writeIndOutput(p1);
 
+}
+
+// Write output in gen 1
+s5 late() {
+	writeQuantGenOutput(p1, "burnin");
 }
 
 s2 late() {
