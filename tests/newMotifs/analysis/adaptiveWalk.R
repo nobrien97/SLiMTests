@@ -10,7 +10,7 @@ library(ggbeeswarm)
 library(stargazer)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis")
-DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/smalleffects/"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
@@ -46,11 +46,12 @@ d_combos <- read.table("../R/combos.csv", header = F,
 # load trait evolution data
 d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
-                                                    rep("numeric", times = 24)), 
+                                                    rep("numeric", times = 28)), 
                           col.names = c("gen", "seed", "modelindex", "meanH", 
                                         "trait1_mean", "trait2_mean", "trait3_mean",
                                         "trait4_mean", "trait1_var", "trait2_var",
-                                        "trait3_var", "trait4_var", "dist", "w", 
+                                        "trait3_var", "trait4_var", "dist", "dist1", 
+                                        "dist2", "dist3", "dist4", "w", 
                                         "deltaPheno", "deltaw", "mc1_mean", 
                                         "mc2_mean", "mc3_mean", "mc4_mean", "mc5_mean",
                                         "mc6_mean", "mc7_mean", "mc8_mean", "mc9_mean",
@@ -136,6 +137,13 @@ ggplot(d_qg_sum,
         panel.spacing = unit(0.75, "lines")) 
 ggsave("plt_adapt_w_smlfx.png", width = 12, height = 5, device = png)
 
+# are the different traits correlated?
+d_qg %>%
+  filter(gen == 60000) %>%
+  group_by(model, r) %>%
+  summarise(cor(dist1, dist2))
+
+cor(d_qg$dist1, d_qg_dist2)
 
 # Time to adaptation
 d_adaptTime <- d_qg %>% filter(gen >= 49500) %>%
