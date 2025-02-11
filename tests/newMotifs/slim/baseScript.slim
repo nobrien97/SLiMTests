@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); //
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -255,7 +255,13 @@ mutationEffect(m13) {
 	startTraits = getStartTraitValues(modelType);
 	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
 
-	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost)); // Calculate burn-in optimum (assuming equal contributions)
+	// Calculate optimum with random weights for how much each trait contributes to the total shift
+	x = runif(size(startTraits) - 1);
+	samples = sort(x);
+	samples = c(0.0, samples, 1.0);
+	weights = diff(samples);
+	
+	defineGlobal("optBurn", calcNewOptimumWeighted(startTraits, optSigma, 1 - fitnessCost, weights)); // Calculate burn-in optimum (assuming equal contributions)
 	
 	assignQTLPositions(); // Assign QTL behaviours
 	

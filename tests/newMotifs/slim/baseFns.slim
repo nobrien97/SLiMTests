@@ -340,6 +340,13 @@ function (void) writeHetData(void) {
 	writeFile(outHet, hetFile, append = T);
 }
 
+function (float) diff(f x) {
+	n = length(x);
+
+	return x[1:(n-1)] - x[0:(n-2)];
+
+}
+
 function (float) calcFitnessWidth(f optimum, f$ distanceForDrop, f$ targetDrop) {
 	// Calculate the width of each axis of the fitness function for a given distance from the optimum to drop X% fitness
 	deviation = abs(optimum - (optimum * distanceForDrop));
@@ -396,6 +403,25 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 
 }
 
+// For testing purposes
+function (float) calcFitnessGaussianSimple(fi indTraits, fi optTraits, fi sigma, i$ nTraits) {
+	// Calculate fitness from a vector of inds' traits
+	
+	// Calculate fitness width based on the given distance
+	sigma = diag(sigma * sigma); //calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+	// Index for the maximum trait index to get in the optimum matrix
+	optMax = nTraits - 1;
+
+	// Normalise fitness
+	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
+
+	traits = matrix(indTraits, ncol = nTraits, byrow = T);
+	fitnesses = dmvnorm(traits, c(optTraits), sigma) / fitnessNorm;
+
+	return fitnesses;
+}
+
 // Get starting trait values before any mutation
 function (float) getStartTraitValues(s$ calcMode) {
 	n = 1;
@@ -414,6 +440,34 @@ function (float) calcNewOptimum(f oldOptimum, f sigma, f$ desiredFitnessAtShift)
 	optNew = sqrt(-2 * sigma * sigma * log(desiredFitnessAtShift)/n) + oldOptimum;
 	return optNew;
 }
+
+// Calculate a new optimum with a desired fitness, with trait shifts given by weights
+function (float) calcNewOptimumWeighted(f oldOptimum, f sigma, f$ desiredFitnessAtShift, f weights) {
+	n = size(oldOptimum);
+	
+	if (n != size(weights)) {
+		stop("Error: Number of weights does not match number of traits");
+	}
+	
+	// Normalise
+	if (sum(weights) != 1.0) {
+		weights = weights / sum(weights);
+	}
+	
+	//shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
+	// Since weights add to 1, no need to divide log weights by sum weights
+	optNew = sqrt(-2 * sigma * sigma * (log(desiredFitnessAtShift) * weights)) + oldOptimum;
+	
+	// Randomise direction of selection
+	delta = optNew - oldOptimum;
+	deltaDir = rbinom(n, 1, 0.5) * 2 - 1;
+	
+	// Add the delta multiplied by 1 or -1 to choose optimum
+	optNew = oldOptimum + (delta * deltaDir);
+	 
+	return optNew;
+}
+
 
 
 function (float) getMeanMolComps(o<Individual> inds) {
