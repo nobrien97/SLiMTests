@@ -101,3 +101,44 @@ Together these results show that adaptation in these networks is strongly depend
 - Maybe we should randomise the direction of selection amongst traits? This will allow us to separate trait correlations from selection.
 - It might be a good idea to randomise the initial states of the networks to reduce the effect of this initial state on adaptation. The optima can still be relative to this state (i.e. 10% potential increase in fitness when reaching the optimum).
 - It would be good to map out the ruggedness of the fitness landscape in higher dimensions. Perhaps a simple metric like the number of beneficial mutations randomly sampled from a given point in the multidimensional space could give us a simple visual for this: e.g. if there are many beneficial mutations relative to the total sampled, it is likely on the "side" of a fitness incline, especially if the beneficial effect is large. Problem would be effectively sampling this space, but perhaps in a small area around where populations reach/equilibriate would suffice.
+
+# Part II: Randomising selection direction
+
+I ran another test randomising the direction of selection for each trait and how much each trait contributes to the total phenotypic shift.
+In this case, some populations in all models were able to reach the optimum:
+
+<table style="text-align:center"><tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td>model</td><td>r</td><td>n</td><td>nAdapted</td><td>pAdapted</td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">1</td><td>FFBH</td><td>1e-10</td><td>48</td><td>11</td><td>0.229</td></tr>
+<tr><td style="text-align:left">2</td><td>FFBH</td><td>1e-05</td><td>48</td><td>10</td><td>0.208</td></tr>
+<tr><td style="text-align:left">3</td><td>FFBH</td><td>0.1</td><td>48</td><td>6</td><td>0.125</td></tr>
+<tr><td style="text-align:left">4</td><td>FFLC1</td><td>1e-10</td><td>48</td><td>13</td><td>0.271</td></tr>
+<tr><td style="text-align:left">5</td><td>FFLC1</td><td>1e-05</td><td>48</td><td>11</td><td>0.229</td></tr>
+<tr><td style="text-align:left">6</td><td>FFLC1</td><td>0.1</td><td>48</td><td>8</td><td>0.167</td></tr>
+<tr><td style="text-align:left">7</td><td>FFLI1</td><td>1e-10</td><td>48</td><td>11</td><td>0.229</td></tr>
+<tr><td style="text-align:left">8</td><td>FFLI1</td><td>1e-05</td><td>48</td><td>12</td><td>0.250</td></tr>
+<tr><td style="text-align:left">9</td><td>FFLI1</td><td>0.1</td><td>48</td><td>10</td><td>0.208</td></tr>
+<tr><td style="text-align:left">10</td><td>NAR</td><td>1e-10</td><td>48</td><td>48</td><td>1</td></tr>
+<tr><td style="text-align:left">11</td><td>NAR</td><td>1e-05</td><td>48</td><td>48</td><td>1</td></tr>
+<tr><td style="text-align:left">12</td><td>NAR</td><td>0.1</td><td>48</td><td>48</td><td>1</td></tr>
+<tr><td style="text-align:left">13</td><td>PAR</td><td>1e-10</td><td>48</td><td>2</td><td>0.042</td></tr>
+<tr><td style="text-align:left">14</td><td>PAR</td><td>1e-05</td><td>48</td><td>6</td><td>0.125</td></tr>
+<tr><td style="text-align:left">15</td><td>PAR</td><td>0.1</td><td>48</td><td>5</td><td>0.104</td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr></table>
+
+So the NAR was able to adapt regardless, the others ranged from about 10% to 25% of the time, except the PAR under 1e-10 recombination which was about 4%. Note that the different models had the same randomly sampled selection strengths/directions per trait owing to shared seeds: differences between recombination rate treatments within models are due to model parameters not due to differences in the randomly chosen trait directions. Between models, they have different numbers of traits so the comparison there doesn't make much sense.
+
+Here are their adaptive walks (average among all populations):
+
+![](plt_random_adapt_w.png)
+
+and the individual walks (each line is an independent adapted replicate)
+
+![](plt_random_ind_adapt_w.png)
+
+Among replicates, variability in walks seems greatest in the FFBH and FFL-I1 models - property of the model or the walk? Discontinuities in phenotype surface contributing to maladaptation?
+
+Will need to identify the direction of selection for each trait could be the adapted populations for the complex motifs are adapting mainly by 1 or 2 traits instead of all 4. 
+
+Next - choose different starting conditions? All molecular components are at 1 to start with, shape of curve doesn't align with the function of the network (according to literature) - will need to adjust the starting point and make sure the shift is relative to that.
+
+Do we keep the randomised adaptation direction?  
