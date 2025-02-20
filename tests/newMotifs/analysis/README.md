@@ -53,7 +53,7 @@ The same traits, but they appear much less correlated. A weaker correlation woul
 ### FFL-C1
 ![](./plt_trait_corr_fflc1.png)
 
-The FFL-C1 has some strange patterns going on. Especially the correlation between response time and steady state concentration, which is almost logistic, recapitulating the shape of the Hill activation function in its circuit. There are two plateaus where steady state concentration is maintained at a given response time, and a sharp exponential switch between the two states at response time ~ 1.42s. The other two traits don't really seem correlated either, with response delay being confined to very small values, and response time being largely confined to one of two specific values (although there is some variation around those points).
+The FFL-C1 has some strange patterns going on. Especially the correlation between response time and steady state concentration, which is almost logistic, recapitulating the shape of the Hill activation function in its circuit. There are two plateaus where steady state concentration is maintained at a given response time, and a sharp switch between the two states at response time ~ 1.42s. The other two traits don't really seem correlated either, with response delay being confined to very small values, and response time being largely confined to one of two specific values (although there is some variation around those points).
 
 ### FFL-I1
 ![](./plt_trait_corr_ffli1.png)
