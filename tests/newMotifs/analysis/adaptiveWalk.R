@@ -170,6 +170,39 @@ ggplot(d_qg_sum,
 
 ggsave("plt_adapt_wvar.png", width = 12, height = 5, device = png)
 
+# Plot individual simulations among adapted populations
+ggplot(d_qg %>% filter(isAdapted == T),
+       aes(x = gen, y = w, colour = model, group = interaction(modelindex,seed))) +
+  facet_grid(log10(r)~model) +
+  geom_line() +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+                                         breaks = NULL, labels = NULL)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
+  labs(x = "Generations post-optimum shift", y = "Mean variance in fitness", 
+       colour = "Model") +
+  theme_bw() +
+  # guides(colour = guide_legend(position = "bottom",
+  #                              override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12), legend.position = "none",
+        panel.spacing = unit(0.75, "lines")) 
+
+ggsave("plt_adapt_ind_w.png", width = 12, height = 5, device = png)
+
+# What direction is selection going for each adapted simulation?
+d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
+                          sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                    rep("numeric", times = 29)), 
+                          col.names = c("gen", "seed", "modelindex", "meanH", 
+                                        "trait1_mean", "trait2_mean", "trait3_mean",
+                                        "trait4_mean", "trait1_var", "trait2_var",
+                                        "trait3_var", "trait4_var", "mahal_dist", "dist1",
+                                        "dist2", "dist3", "dist4", "w", "var_w",
+                                        "deltaPheno", "deltaw", "mc1_mean", 
+                                        "mc2_mean", "mc3_mean", "mc4_mean", "mc5_mean",
+                                        "mc6_mean", "mc7_mean", "mc8_mean", "mc9_mean",
+                                        "mc10_mean", "mc11_mean"), 
+                          fill = T)
 
 # Each trait separately
 d_qg_sum <- d_qg %>% 
