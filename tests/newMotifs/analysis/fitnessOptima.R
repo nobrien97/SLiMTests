@@ -460,7 +460,7 @@ FitnessFunction <- function(traits, optima, sigma) {
 }
 
 # Get trait values from expression curve
-GetTraitValues <- function(solution, model, pars) {
+GetTraitValues <- function(solution, model, p) {
   solution <- as.data.frame(solution)
   
   # Steady state
@@ -472,19 +472,19 @@ GetTraitValues <- function(solution, model, pars) {
   if (model == "PAR") {
     data <- double(3)
     data[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
-    data[3] <- DelayTime(solution, 1.0, 6.0, 3, pars["base"], pars["aZ"])
+    data[3] <- DelayTime(solution, 1.0, 6.0, 3, p["base"], p["aZ"])
     return(data)
   }
   
-  if (model == "FFL-C1") {
+  if (model == "FFLC1") {
     data <- double(3)
-    data[3] <- DelayTime(solution, 1.0, 6.0, 4, pars["base"], pars["aZ"])
+    data[3] <- DelayTime(solution, 1.0, 6.0, 4, p["base"], p["aZ"])
     data[1:2] <- (SteadyState(solution, 1 + data[3], 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
     
     return(data)
   }
   
-  if (model == "FFL-I1") {
+  if (model == "FFLI1") {
     data <- double(3)
     
     data[1:2] <- MaxExpression(solution, 1.0, 4)
@@ -501,22 +501,33 @@ GetTraitValues <- function(solution, model, pars) {
 }
 
 # Solve an ODE
-SolveModel <- function(pars, model) {
+SolveModel <- function(p, model) {
   switch (model,
-          "NAR"   = { solution <-   solve_NAR(pars = pars) },
-          "PAR"   = { solution <-   solve_PAR(pars = pars) },
-          "FFLC1" = { solution <- solve_FFLC1(pars = pars) },
-          "FFLI1" = { solution <- solve_FFLI1(pars = pars) },
-          "FFBH"  = { solution <-  solve_FFBH(pars = pars) }
+          "NAR"   = { solution <-   solve_NAR(pars = p) },
+          "PAR"   = { solution <-   solve_PAR(pars = p) },
+          "FFLC1" = { solution <- solve_FFLC1(pars = p) },
+          "FFLI1" = { solution <- solve_FFLI1(pars = p) },
+          "FFBH"  = { solution <-  solve_FFBH(pars = p) }
   )
   return(solution)
 }
 
 # Calculate trait values and fitness
-CalcTraitAndFitness <- function(pars, model, optima, sigma) {
-  # Solve model
-  solution <- SolveModel(pars, model)
-  traits <- GetTraitValues(solution, model, pars)
+CalcTraitAndFitness <- function(p, model, optima, sigma) {
+  # Solve model, catch any warnings from lsoda
+  solution <- tryCatch(SolveModel(p, model),
+    warning = function(w) { 
+      # If we have a lsoda warning, return NA
+      if (as.character(w$call[[1]]) == "lsoda")
+        return(NA) 
+      }
+  )
+  
+  if (all(is.na(solution))) {
+    return(-1)
+  }
+  
+  traits <- GetTraitValues(solution, model, p)
   
   return(FitnessFunction(traits, optima, sigma))
 }
@@ -587,12 +598,13 @@ pars <- c(aX = 0, KZX = 0, aY = 0, bY = 0, KY = 0, KZ = 0, KXZ = 0,
           aZ = 0, bZ = 0, Hilln = 0, XMult = 0, base = -Inf)
 
 # Repeat for each model
-for (model in names(result)) {
+for (model in "FFBH") {#names(result)) {
   # Setup trait optima etc.
   parsMasked <- ParsMask(pars, model)
   startSolution <- SolveModel(exp(parsMasked), model)
   startTraits <- GetTraitValues(startSolution, model, exp(parsMasked))
   sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+  opt <- CalcOptima(startTraits, sigma, 0.9)
   
   # Iterate with random samples
   optima <- foreach (i = seq_len(N_SAMPLES), .combine = rbind) %dopar% {
@@ -615,7 +627,7 @@ for (model in names(result)) {
     }
     
     # If we haven't solved, return an NA row
-    return(rep(NA, length(parsMasked + 1)))
+    return(rep(NA, length(parsMasked) + 1))
   }
   
   # Save results
@@ -623,3 +635,35 @@ for (model in names(result)) {
 }
 
 parallel::stopCluster(cl)
+
+test_res <- as.data.frame(t(rep(NA, length(parsMasked) + 1)))
+names(test_res) <- c("w", names(parsMasked))
+test_res[N_SAMPLES,] <- NA
+
+# single thread debug
+for (i in seq_len(N_SAMPLES)) {
+  # Randomly sample a new starting point and try to find a new optimum
+  newPars <- clamp(exp(parsMasked + runif(length(parsMasked), -3, 3)), 0.0, 3)
+  
+  # Solve
+  optimSolution <- optim(newPars, CalcTraitAndFitness, method = "L-BFGS-B", 
+                         control = list(fnscale = -1), lower = 0.001, upper = 3,
+                         model = model, optima = opt, sigma = sigma
+  )
+  
+  # If we have converged, fill in the table
+  if (optimSolution$convergence == 0) {
+    test_res[i,] <- (c(optimSolution$value, optimSolution$par))
+    next
+  }
+  
+  # If we haven't solved, return an NA row
+  test_res[i,] <- (rep(NA, length(parsMasked) + 1))
+}
+
+# Test for bad solutions 
+newPars <- exp(parsMasked + rnorm(length(parsMasked), 0, 10))
+test_sol <- SolveModel(newPars, model)
+test_sol <- CalcTraitAndFitness(newPars, model, opt, sigma)
+
+
