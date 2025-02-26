@@ -645,11 +645,22 @@ for (i in seq_len(N_SAMPLES)) {
   # Randomly sample a new starting point and try to find a new optimum
   newPars <- clamp(exp(parsMasked + runif(length(parsMasked), -3, 3)), 0.0, 3)
   
-  # Solve
-  optimSolution <- optim(newPars, CalcTraitAndFitness, method = "L-BFGS-B", 
-                         control = list(fnscale = -1), lower = 0.001, upper = 3,
-                         model = model, optima = opt, sigma = sigma
-  )
+  optimSolution <- tryCatch(optim(newPars, CalcTraitAndFitness, method = "L-BFGS-B", 
+                                  control = list(fnscale = -1), lower = 0.001, upper = 3,
+                                  model = model, optima = opt, sigma = sigma
+                    ),
+                    error = function(e) {
+                      return(rep(NA, length(parsMasked) + 1))
+                    },
+                    warning = function(w) {
+                      return(rep(NA, length(parsMasked) + 1))
+                    }
+              )
+  
+  # First check if NA
+  if (sum(is.na(optimSolution)) == length(parsMasked) + 1) {
+    return(optimSolution)
+  }
   
   # If we have converged, fill in the table
   if (optimSolution$convergence == 0) {
@@ -666,4 +677,14 @@ newPars <- exp(parsMasked + rnorm(length(parsMasked), 0, 10))
 test_sol <- SolveModel(newPars, model)
 test_sol <- CalcTraitAndFitness(newPars, model, opt, sigma)
 
+# read in fitness optima
+fitnessOptima <- readRDS("./fitnessOptima.RDS")
 
+# Remove invalid solutions
+for (i in seq_along(fitnessOptima)) {
+  fitnessOptima[[i]] <- as.data.frame(fitnessOptima[[i]]) %>% 
+    drop_na() %>%
+    rename(w = V1) %>%
+    filter(w >= 0) %>%
+    distinct()
+}
