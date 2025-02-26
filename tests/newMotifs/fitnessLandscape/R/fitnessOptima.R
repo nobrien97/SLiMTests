@@ -558,6 +558,13 @@ ParsMask <- function(pars, model) {
 # Output file
 OUTPUT_PATH <- "/scratch/ht96/nb9894/newMotifs/fitnessLandscape/fitnessOptima.RDS"
 
+# Generate seeds
+# seeds <- runif(10000, 0, .Machine$integer.max)
+# saveRDS(seeds, "seeds.RDS")
+
+# Load in seeds
+seeds <- readRDS("../R/seeds.RDS")
+
 # Optimise fitness function from different starting points for each motif, 
 # moving in random directions
 
@@ -588,6 +595,10 @@ for (model in names(result)) {
     require(tidyverse)
     require(deSolve)
     require(mvtnorm)
+    
+    # Set seed
+    set.seed(seeds[i])
+    
     # Randomly sample a new starting point and try to find a new optimum
     newPars <- clamp(exp(parsMasked + runif(length(parsMasked), -3, 3)), 0.0, 5)
     
@@ -596,7 +607,7 @@ for (model in names(result)) {
                            control = list(fnscale = -1), lower = 0.001, upper = 3,
                            model = model, optima = opt, sigma = sigma
                            ),
-                           error = function(e) { 
+                           error = function(e) {
                                return(rep(NA, length(parsMasked) + 1))
                            },
                            warning = function(w) {
@@ -604,12 +615,17 @@ for (model in names(result)) {
                            }
                      )
     
+    # First check if NA
+    if (sum(is.na(optimSolution)) == length(parsMasked) + 1) {
+      return(optimSolution)
+    }
+    
     # If we have converged, fill in the table
     if (optimSolution$convergence == 0) {
       return(c(optimSolution$value, optimSolution$par))
     }
     
-    # If we haven't solved, return an NA row
+    # If we still haven't solved, return an NA row
     return(rep(NA, length(parsMasked) + 1))
   }
   
@@ -620,3 +636,26 @@ for (model in names(result)) {
 parallel::stopCluster(cl)
 
 saveRDS(result, OUTPUT_PATH)
+
+
+# Test
+# 436 failed
+
+# Randomly sample a new starting point and try to find a new optimum
+# model <- "PAR"
+# parsMasked <- ParsMask(pars, model)
+# startSolution <- SolveModel(exp(parsMasked), model)
+# startTraits <- GetTraitValues(startSolution, model, exp(parsMasked))
+# sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+# opt <- CalcOptima(startTraits, sigma, 0.9)
+# 
+# set.seed(seeds[436])
+# newPars <- clamp(exp(parsMasked + runif(length(parsMasked), -3, 3)), 0.0, 5)
+# 
+# optimSolution <- tryCatch(optim(newPars, CalcTraitAndFitness, method = "L-BFGS-B", 
+#       control = list(fnscale = -1), lower = 0.001, upper = 3,
+#       model = model, optima = opt, sigma = sigma),
+#       error = function(e) { 
+#         return(rep(NA, length(parsMasked) + 1))
+#       }
+# )
