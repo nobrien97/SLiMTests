@@ -6,6 +6,8 @@ library(DoE.wrapper)
 library(deSolve)
 library(mvtnorm)
 library(broom)
+library(latex2exp)
+library(paletteer)
 
 
 
@@ -557,20 +559,63 @@ ParsMask <- function(pars, model) {
 
 # Generate the symbol sequence Psi from fitness values y, adjusted for distance
 # between component hypercube samples x for a given epsilon value
+
+#e.g. data
+x <- matrix(c(1, 20, 10, 2, 50, 20), nrow = 3)
+y <- c(0.1, 0.6, 0.3)
+
 GeneratePsi <- function(x, y, epsilon) {
   result <- integer(length(y))
+  
+  # Sort X by nearest neighbour
+  matX <- as.matrix(x)
+  n <- nrow(matX)
+  orderX <- integer(n)
+  orderX[1] <- 1 # start with the first row
+  deltaX <- integer(n - 1)
+  
+  # ignore already sampled rows (i.e. 1)
+  available <- setdiff(seq_len(n), 1)
+  
+  for (i in 2:n) {
+    last_idx <- orderX[i - 1]
+    
+    # get distances between this row and all others
+    rowDiffs <- (matX[available,] - matrix(matX[last_idx, ], 
+                                           nrow = length(available), 
+                                           ncol = ncol(matX), byrow = TRUE))^2
+
+    # Only two rows -> keep matrix form
+    if (is.null(dim(rowDiffs))) {
+      rowDiffs <- matrix(rowDiffs, nrow = 1, byrow = T)
+    }
+    
+    dX <- sqrt(rowSums(rowDiffs))
+    
+    # Minimum is the deltaX we want
+    deltaX[i-1] <- min(dX)
+    
+    # Now get index of dX in original matrix (minus first entry)
+    closest.idx <- which.min(dX)
+    orderX[i] <- available[closest.idx]
+    
+    # Remove this index from available
+    available <- available[-closest.idx]
+  }
+  
+  # reorder y to calculate dX: indices are offset by 1 in the y vector
+  y <- y[orderX]
   deltaY <- diff(y)
   
-  deltaX <- sqrt(rowSums(diff(as.matrix(x)) ^ 2))
-
-  diff <- (deltaY/deltaX)
+  # Adjust dY by dX
+  diffXY <- (deltaY/deltaX)
   
   # If we try to divide by 0, fix
-  diff[is.nan(diff)] <- 0
+  diffXY[is.nan(diffXY)] <- 0
   
-  result[diff < -epsilon] <- -1
-  result[diff <= epsilon] <- 0
-  result[diff > epsilon] <- 1
+  result[diffXY < -epsilon] <- -1
+  result[abs(diffXY) <= epsilon] <- 0
+  result[diffXY > epsilon] <- 1
   
   return(result)
 }
@@ -595,6 +640,26 @@ CalculateInformationContent <- function(x) {
   return(H)
 }
 
+# Calculate M(e) for a given symbol sequence psi
+CalculatePartialInformationContent <- function(x) {
+  # Remove all repeated symbols
+  marked <- logical(length(x))
+  
+  # mark first value, then subsequent ones
+  marked[1] <- x[1] == 0
+  marked <- diff(x) == 0 | (x[-1] == 0)
+  
+  # for (i in 2:length(x)) {
+  #   if (x[i] == x[i - 1]) {
+  #     marked[i] <- T
+  #   }
+  # }
+  
+  mu <- sum(!marked)
+  return(mu / length(x))
+  
+}
+
 ################################################################################
 # Script
 ################################################################################
@@ -617,23 +682,36 @@ pars <- readRDS("pars_lhc.RDS")
 # Test
 model <- models[1]
 # randomly sample an optimum
-parsMasked <- ParsMask(pars[1:100,], model)
+parsMasked <- ParsMask(pars, model)
 startSolution <- SolveModel(exp(parsMasked[1,]), model)
 startTraits <- GetTraitValues(startSolution, model, exp(parsMasked[1,]))
 sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
 opt <- CalcOptima(startTraits, sigma, 0.9)
 
-S <- numeric(100)
-for (i in 1:100) {
+S <- numeric(nrow(pars))
+for (i in seq_len(nrow(pars))) {
   S[i] <- CalcTraitAndFitness(cbind(parsMasked[i,]), model, opt, sigma)
 }
 
-df_test <- data.frame(epsilon = seq(0, 0.01, length.out = 1000),
-                      H = numeric(1000))
+df_test <- data.frame(epsilon = seq(0, 10, length.out = 1000),
+                      H = numeric(1000),
+                      M = numeric(1000))
 
 for (i in 1:nrow(df_test)) {
-  df_test$H[i] <- CalculateInformationContent(GeneratePsi(parsMasked, S, df_test$epsilon[i]))
+  psi <- GeneratePsi(parsMasked, S, df_test$epsilon[i])
+  df_test$H[i] <- CalculateInformationContent(psi)
+  df_test$M[i] <- CalculatePartialInformationContent(psi)
 }
 
-ggplot(df_test, aes(x = epsilon, y = H)) +
-  geom_line()
+df_test <- df_test %>% 
+  mutate(HM = H / M) %>%
+  pivot_longer(cols = c(H, M, HM), names_to = "stat", values_to = "value")
+
+ggplot(df_test, aes(x = log10(epsilon), y = value, colour = stat)) +
+  geom_line() +
+  theme_bw() +
+  scale_colour_paletteer_d("nationalparkcolors::Badlands") +
+  labs(x = TeX("$log_{10}(\\epsilon)$"), y = "Information curve") +
+  theme(text = element_text(size = 14))
+    
+
