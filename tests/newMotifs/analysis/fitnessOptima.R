@@ -9,7 +9,7 @@ library(foreach)
 library(doParallel)
 library(future)
 library(testit)
-
+library(broom)
 
 select <- dplyr::select
 
@@ -685,6 +685,78 @@ for (i in seq_along(fitnessOptima)) {
   fitnessOptima[[i]] <- as.data.frame(fitnessOptima[[i]]) %>% 
     drop_na() %>%
     rename(w = V1) %>%
-    filter(w >= 0) %>%
-    distinct()
+    filter(w >= 0) 
 }
+
+# Look for unique optima: those which are within a certain distance of each other
+norm_vec <- function(x) sqrt(crossprod(x))
+dists <- vector(mode = "list", length = length(fitnessOptima))
+for (i in seq_along(fitnessOptima)) {
+  curData <- fitnessOptima[[i]]
+  dists[[i]] <- dist(as.matrix(curData))
+}
+
+# Plot distances
+dist_NAR <- dists[[1]]
+
+df_nar <- tidy(dist_NAR)
+
+ggplot(df_nar, aes(x = distance)) +
+  geom_density() +
+  theme_bw() +
+  labs(x = "Distance", y = "Density") +
+  theme(text = element_text(size = 12))
+
+df_par <- tidy(dists[[2]])
+ggplot(df_par, aes(x = distance)) +
+  geom_density() +
+  theme_bw() +
+  labs(x = "Distance", y = "Density") +
+  theme(text = element_text(size = 12))
+
+df_fflc1 <- tidy(dists[[3]])
+ggplot(df_fflc1, aes(x = distance)) +
+  geom_density() +
+  theme_bw() +
+  labs(x = "Distance", y = "Density") +
+  theme(text = element_text(size = 12))
+
+df_ffli1 <- tidy(dists[[4]])
+ggplot(df_ffli1, aes(x = distance)) +
+  geom_density() +
+  theme_bw() +
+  labs(x = "Distance", y = "Density") +
+  theme(text = element_text(size = 12))
+
+df_ffbh <- tidy(dists[[5]])
+ggplot(df_ffbh, aes(x = distance)) +
+  geom_density() +
+  theme_bw() +
+  labs(x = "Distance", y = "Density") +
+  theme(text = element_text(size = 12))
+
+# Mark similar optima
+uniqueOptima <- vector(mode = "list", length(dists))
+for (i in seq_along(dists)) {
+ uniqueOptima[[i]] <- tidy(dists[[i]]) %>% 
+   mutate(largeDist = distance > 0.5) %>%
+   group_by(item1) %>%
+   summarise(isUnique = all(largeDist))
+}
+
+# Number of optima
+df_opt <- data.frame(model = "",
+                     totalOptima = 0,
+                     countUniqueOptima = 0,
+                     propUniqueOptima = 0.0)
+df_opt[length(uniqueOptima),] <- NA
+models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+for (i in seq_along(uniqueOptima)) {
+  df_opt[i,] <- c(models[i],
+                  nrow(uniqueOptima[[i]]),
+                  sum(uniqueOptima[[i]]$isUnique),
+                  sum(uniqueOptima[[i]]$isUnique) / nrow(uniqueOptima[[i]])
+                  )
+}
+
+
