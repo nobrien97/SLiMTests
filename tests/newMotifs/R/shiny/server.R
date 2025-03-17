@@ -655,7 +655,7 @@ server<-function(input, output) {
   
   pars_FFLC1 <- reactive({
     c(base = input$base_FFLC1, aY = input$aY_FFLC1, bY = input$bY_FFLC1, KY = input$KY_FFLC1,
-      aZ = input$aZ_FFLC1, bZ = input$bZ_FFLC1,  KXZ = input$KXZ_FFLC1, Hilln = input$Hilln_FFLC1, 
+      aZ = input$aZ_FFLC1, bZ = input$bZ_FFLC1, KXZ = input$KXZ_FFLC1, Hilln = input$Hilln_FFLC1, 
       XMult = input$XMult_FFLC1)
   })
   
