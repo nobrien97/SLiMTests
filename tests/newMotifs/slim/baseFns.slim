@@ -442,11 +442,15 @@ function (float) calcNewOptimum(f oldOptimum, f sigma, f$ desiredFitnessAtShift)
 }
 
 // Calculate a new optimum with a desired fitness, with trait shifts given by weights
-function (float) calcNewOptimumWeighted(f oldOptimum, f sigma, f$ desiredFitnessAtShift, f weights) {
+function (float) calcNewOptimumWeighted(f oldOptimum, f sigma, f$ desiredFitnessAtShift, f weights, i dir) {
 	n = size(oldOptimum);
 	
 	if (n != size(weights)) {
 		stop("Error: Number of weights does not match number of traits");
+	}
+	
+	if (n != size(dir)) {
+		stop("Error: Number of trait directions does not match number of traits");
 	}
 	
 	// Normalise
@@ -460,15 +464,17 @@ function (float) calcNewOptimumWeighted(f oldOptimum, f sigma, f$ desiredFitness
 	
 	// Randomise direction of selection
 	delta = optNew - oldOptimum;
-	deltaDir = rbinom(n, 1, 0.5) * 2 - 1;
 	
 	// Add the delta multiplied by 1 or -1 to choose optimum
-	optNew = oldOptimum + (delta * deltaDir);
+	optNew = oldOptimum + (delta * dir);
 	 
 	return optNew;
 }
 
-
+//Returns a vector of -1 and 1 to use as a direction to shift each trait
+function (integer) getRandomTraitShiftDirection(i$ n) {
+	return rbinom(n, 1, 0.5) * 2 - 1;
+}
 
 function (float) getMeanMolComps(o<Individual> inds) {
 	// Get mean molecular component values
@@ -558,11 +564,20 @@ function (void) writeQuantGenOutput(o<Subpopulation> pop, s$ phase) {
 
 		// Recalculate distance, update sigmas	and new optimum
 		optSigma = CalcSelectionSigmas(optBurn, 0.1); // Calculate width of fitness function per axis
-		defineGlobal("optimum", calcNewOptimum(optBurn, optSigma, 1 - fitnessCost)); // Calculate the optimum post-shift (assume equal contributions)
+		defineGlobal("optimum", calcNewOptimumWeighted(optBurn, optSigma, 1 - fitnessCost, traitWeights, traitShiftDir)); // Calculate the optimum post-shift (assume equal contributions)
 
 		
 		catn("Optimum is: " + paste(optimum, sep = ",") + "\nStarting stabilising selection regime");
-		OptFile = paste(asString(seed), modelindex, optimum, sep = ",");
+		
+		// Write optimum file: buffer to max traits (4)
+		nBuffer = 4 - size(traitWeights);
+		if (nBuffer > 0) {
+			printOpt = c(optimum, float(nBuffer));
+			traitWeights = c(traitWeights, float(nBuffer));
+			traitShiftDir = c(traitShiftDir, float(nBuffer));
+		}	
+		
+		OptFile = paste(asString(seed), modelindex, printOpt, traitWeights, traitShiftDir, sep = ",");
 		writeFile(outOpt, OptFile);
 
 

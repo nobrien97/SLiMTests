@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/slim/"); // "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/slim/"); //
+	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/slim/"); // "/home/564/nb9894/tests/newMotifs/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -259,10 +259,10 @@ mutationEffect(m13) {
 	x = runif(size(startTraits) - 1);
 	samples = sort(x);
 	samples = c(0.0, samples, 1.0);
-	weights = diff(samples);
-	
-	defineGlobal("optBurn", calcNewOptimumWeighted(startTraits, optSigma, 1 - fitnessCost, weights)); // Calculate burn-in optimum (assuming equal contributions)
-	
+	defineGlobal("traitWeights", diff(samples));
+	defineGlobal("traitShiftDir", getRandomTraitShiftDirection(size(startTraits)));
+	defineGlobal("optBurn", calcNewOptimumWeighted(startTraits, optSigma, 1 - fitnessCost, traitWeights, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
+		
 	assignQTLPositions(); // Assign QTL behaviours
 	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
