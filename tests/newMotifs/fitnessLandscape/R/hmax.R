@@ -564,7 +564,49 @@ ParsMask <- function(pars, model) {
 x <- matrix(c(1, 20, 10, 2, 50, 20), nrow = 3)
 y <- c(0.1, 0.6, 0.3)
 
+# Psi from Munoz et al. 2015
 GeneratePsi <- function(x, y, epsilon) {
+  require(TSP)
+  result <- integer(length(y))
+  
+  # Sort X by nearest neighbour
+  matX <- as.matrix(x)
+  dist_matX <- as.dist(dist(matX))
+  
+  tsp <- TSP(dist_matX)
+  tsp_sol <- solve_TSP(tsp, method = "nearest_insertion", start = 1)
+  
+  # new order for X
+  orderX <- as.integer(tsp_sol)
+  
+  # reorder y to calculate dX
+  y <- y[orderX]
+  deltaY <- diff(y)
+  
+  matX <- matX[orderX,]
+  rowDiffs <- ((matX - matrix(rbind(rep(NA, ncol(matX)), head(matX, -1)), 
+                      nrow = nrow(matX), 
+                      ncol = ncol(matX), byrow = F))^2)
+  
+  
+  deltaX <- rowSums(sqrt(rowDiffs))
+  deltaX <- deltaX[-1]
+  
+  # Adjust dY by dX
+  diffXY <- (deltaY/deltaX)
+  
+  # If we try to divide by 0, fix
+  diffXY[is.nan(diffXY)] <- 0
+  
+  result[diffXY < -epsilon] <- -1
+  result[abs(diffXY) <= epsilon] <- 0
+  result[diffXY > epsilon] <- 1
+  
+  return(result)
+}
+
+# Vassilev et al. 2000 Psi
+GeneratePsiVassilev <- function(x, y, epsilon) {
   result <- integer(length(y))
   
   # Sort X by nearest neighbour
@@ -584,7 +626,7 @@ GeneratePsi <- function(x, y, epsilon) {
     rowDiffs <- (matX[available,] - matrix(matX[last_idx, ], 
                                            nrow = length(available), 
                                            ncol = ncol(matX), byrow = TRUE))^2
-
+    
     # Only two rows -> keep matrix form
     if (is.null(dim(rowDiffs))) {
       rowDiffs <- matrix(rowDiffs, nrow = 1, byrow = T)
@@ -607,8 +649,7 @@ GeneratePsi <- function(x, y, epsilon) {
   y <- y[orderX]
   deltaY <- diff(y)
   
-  # Adjust dY by dX
-  diffXY <- (deltaY/deltaX)
+  diffXY <- (deltaY)
   
   # If we try to divide by 0, fix
   diffXY[is.nan(diffXY)] <- 0
@@ -660,6 +701,42 @@ CalculatePartialInformationContent <- function(x) {
   
 }
 
+# Nosil et al. 2020 method: based on Poursoltan and Neumann 2015
+CalculateRuggedness <- function(g, w, model, optima, sigma, n = 10, 
+                                width = 0.004, 
+                                seed = sample(1:.Machine$integer.max, n)) {
+  # g = genotypes (molecular components). Replicate starting points for the walk
+  # w = fitnesses of the starting points
+  # n = number of steps in the walk
+  # seed = replicate seed for the run
+  result <- data.frame(netChangeW = numeric(nrow(g)),
+                       sumChangeW = numeric(nrow(g)))
+  nComps <- ncol(g)
+  rollingGenotypes <- g[1:n, ]
+  rollingFitnesses <- numeric(n)
+  
+  for (i in seq_len(nrow(g))) {
+    # Set the seed for each walk
+    set.seed(seed)
+    # Sample n steps per genotype per a normal distribution with a given width
+    # Assume width is split evenly across the components
+    mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
+    # cumulative sum each column to add it to rollingGenotypes
+    mutations <- apply(mutations, 2, cumsum)
+    rollingGenotypes <- g[rep(i, times = n),] + mutations
+    for (j in seq_len(n)) {
+      rollingFitnesses[j] <- CalcTraitAndFitness(rollingGenotypes[j,], 
+                                                 model,
+                                                 optima, 
+                                                 sigma)
+    }
+    # Calculate results - add in original fitness
+    result[i,]$netChangeW <- rollingFitnesses[n] - w[i]
+    result[i,]$sumChangeW <- sum(abs(diff(c(w[i], rollingFitnesses))))
+  }
+  return(result)
+}
+
 ################################################################################
 # Script
 ################################################################################
@@ -667,7 +744,7 @@ CalculatePartialInformationContent <- function(x) {
 models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
            "aZ", "bZ", "Hilln", "XMult", "base")
-NUM_RUNS <- 10000
+NUM_RUNS <- 1000
 MAX_COMP_SIZE <- 3
 
 # Generate hypercube of parameters
@@ -693,12 +770,13 @@ for (i in seq_len(nrow(pars))) {
   S[i] <- CalcTraitAndFitness(cbind(parsMasked[i,]), model, opt, sigma)
 }
 
-df_test <- data.frame(epsilon = seq(0, 10, length.out = 1000),
+df_test <- data.frame(epsilon = seq(0, 1, length.out = 1000),
                       H = numeric(1000),
                       M = numeric(1000))
 
 for (i in 1:nrow(df_test)) {
   psi <- GeneratePsi(parsMasked, S, df_test$epsilon[i])
+  #psi <- GeneratePsiVassilev(parsMasked, S, df_test$epsilon[i])
   df_test$H[i] <- CalculateInformationContent(psi)
   df_test$M[i] <- CalculatePartialInformationContent(psi)
 }
@@ -714,4 +792,42 @@ ggplot(df_test, aes(x = log10(epsilon), y = value, colour = stat)) +
   labs(x = TeX("$log_{10}(\\epsilon)$"), y = "Information curve") +
   theme(text = element_text(size = 14))
     
+# Nosil method
+# Generate Latin hypercube starting points
+NUM_RUNS <- 10000
+MAX_COMP_SIZE <- 3
+pars <- lhs.design(NUM_RUNS, 12, type = "random", factor.names = comps)
+pars <- pars * MAX_COMP_SIZE
 
+# Test
+model <- models[1]
+# randomly sample an optimum
+parsMasked <- ParsMask(pars, model)
+startSolution <- SolveModel(exp(parsMasked[1,]), model)
+startTraits <- GetTraitValues(startSolution, model, exp(parsMasked[1,]))
+sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+opt <- CalcOptima(startTraits, sigma, 0.9)
+fitnesses <- numeric(nrow(parsMasked)) 
+
+for (i in seq_len(nrow(parsMasked))) {
+  fitnesses[i] <- CalcTraitAndFitness(cbind(parsMasked[i,]), model, opt, sigma)
+}
+
+RugRes <- CalculateRuggedness(parsMasked, fitnesses, model, opt, sigma, 
+                              width = 0.01)
+
+RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
+
+saveRDS(RugRes, "rugres.RDS")
+
+# Plot ruggedness ratio
+ggplot(RugRes %>% filter(netChangeW != 0), 
+       aes(x = netChangeW, y = sumChangeW, colour = ruggedness)) +
+  geom_point() +
+  theme_bw() +
+  scale_colour_paletteer_c("grDevices::Viridis") +
+  labs(x = "Net change in fitness", y = "Total absolute change in fitness",
+       colour = "Landscape Ruggedness") +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+
+mean(RugRes$ruggedness)
