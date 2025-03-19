@@ -228,8 +228,8 @@ SteadyState <- function(df, startTime, stopTime, solutionIndex) {
   
   # Iterate over dataframe, find concentrations and change over time
   for (i in start:stop) {
-    c1 = df[i-1, solutionIndex]
-    c2 = df[i, solutionIndex]
+    c1 <- df[i-1, solutionIndex]
+    c2 <- df[i, solutionIndex]
     
     # If we're stable, increment the count and store the result
     if (abs(c2 - c1) < epsilon) {
@@ -447,8 +447,14 @@ CalcSelectionSigmas <- function(optTraits, fitnessCost, fitnessCostDistance, min
 
 # Fitness function
 FitnessFunction <- function(traits, optima, sigma) {
+  
   # Calculate fitness from a vector of inds' traits
   nTraits = length(traits)
+  
+  # Check the traits are valid, return an invalid fitness otherwise
+  if (nTraits != length(optima)) {
+    return(-1)
+  }
   
   # Calculate fitness width based on the given distance
   sigma = diag(sigma * sigma);
@@ -466,40 +472,45 @@ FitnessFunction <- function(traits, optima, sigma) {
 GetTraitValues <- function(solution, model, p) {
   solution <- as.data.frame(solution)
   
+  # If we have a dodgy solution, end early
+  if (any(is.nan(as.matrix(solution)))) {
+    return(-1)
+  }
+  
   # Steady state
   if (model == "NAR") {
-    data <- (SteadyState(solution, 1.0, 6.0, 3))[1:2]
-    return(data)
+    result <- (SteadyState(solution, 1.0, 6.0, 3))[1:2]
+    return(result)
   }
   
   if (model == "PAR") {
-    data <- double(3)
-    data[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
-    data[3] <- DelayTime(solution, 1.0, 6.0, 3, p["base"], p["aZ"])
-    return(data)
+    result <- double(3)
+    result[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
+    result[3] <- DelayTime(solution, 1.0, 6.0, 3, p["base"], p["aZ"])
+    return(result)
   }
   
   if (model == "FFLC1") {
-    data <- double(3)
-    data[3] <- DelayTime(solution, 1.0, 6.0, 4, p["base"], p["aZ"])
-    data[1:2] <- (SteadyState(solution, 1 + data[3], 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
+    result <- double(3)
+    result[3] <- DelayTime(solution, 1.0, 6.0, 4, p["base"], p["aZ"])
+    result[1:2] <- (SteadyState(solution, 1.0, 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
     
-    return(data)
+    return(result)
   }
   
   if (model == "FFLI1") {
-    data <- double(3)
+    result <- double(3)
     
-    data[1:2] <- MaxExpression(solution, 1.0, 4)
-    data[3] <- TimeAboveThreshold(solution, data[1] * 0.5, 4)
-    return(data)
+    result[1:2] <- MaxExpression(solution, 1.0, 4)
+    result[3] <- TimeAboveThreshold(solution, result[1] * 0.5, 4)
+    return(result)
   }
   
   if (model == "FFBH") {
-    data <- double(4)
-    data[1:2] <- MaxExpression(solution, 1.0, 4)
-    data[3:4] <- SecondSteadyState(solution, data[1], 6, 4)[1:2]
-    return(data)
+    result <- double(4)
+    result[1:2] <- MaxExpression(solution, 1.0, 4)
+    result[3:4] <- SecondSteadyState(solution, result[1], 6, 4)[1:2]
+    return(result)
   }
 }
 
@@ -561,8 +572,8 @@ ParsMask <- function(pars, model) {
 # between component hypercube samples x for a given epsilon value
 
 #e.g. data
-x <- matrix(c(1, 20, 10, 2, 50, 20), nrow = 3)
-y <- c(0.1, 0.6, 0.3)
+# x <- matrix(c(1, 20, 10, 2, 50, 20), nrow = 3)
+# y <- c(0.1, 0.6, 0.3)
 
 # Psi from Munoz et al. 2015
 GeneratePsi <- function(x, y, epsilon) {
@@ -702,7 +713,7 @@ CalculatePartialInformationContent <- function(x) {
 }
 
 # Nosil et al. 2020 method: based on Poursoltan and Neumann 2015
-CalculateRuggedness <- function(g, w, model, optima, sigma, n = 10, 
+CalculateRuggedness <- function(g, model, optima, sigma, n = 10, 
                                 width = 0.004, 
                                 seed = sample(1:.Machine$integer.max, n)) {
   # g = genotypes (molecular components). Replicate starting points for the walk
@@ -712,27 +723,32 @@ CalculateRuggedness <- function(g, w, model, optima, sigma, n = 10,
   result <- data.frame(netChangeW = numeric(nrow(g)),
                        sumChangeW = numeric(nrow(g)))
   nComps <- ncol(g)
-  rollingGenotypes <- g[1:n, ]
-  rollingFitnesses <- numeric(n)
+  rollingGenotypes <- g[1:(n+1), ]
+  rollingFitnesses <- numeric(n+1)
   
-  for (i in seq_len(nrow(g))) {
+  for (row_index in seq_len(nrow(g))) {
     # Set the seed for each walk
     set.seed(seed)
     # Sample n steps per genotype per a normal distribution with a given width
     # Assume width is split evenly across the components
     mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
+    mutations <- rbind(rep(0.0, nComps), mutations)
+    
     # cumulative sum each column to add it to rollingGenotypes
     mutations <- apply(mutations, 2, cumsum)
-    rollingGenotypes <- g[rep(i, times = n),] + mutations
-    for (j in seq_len(n)) {
+    rollingGenotypes <- g[rep(row_index, times = n+1),] + mutations
+    for (j in seq_len(n+1)) {
       rollingFitnesses[j] <- CalcTraitAndFitness(rollingGenotypes[j,], 
                                                  model,
                                                  optima, 
                                                  sigma)
     }
     # Calculate results - add in original fitness
-    result[i,]$netChangeW <- rollingFitnesses[n] - w[i]
-    result[i,]$sumChangeW <- sum(abs(diff(c(w[i], rollingFitnesses))))
+    # remove invalid fitnesses from bad solutions
+    changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
+    
+    result[row_index,]$netChangeW <- changeFitnesses[n+1] - changeFitnesses[1]
+    result[row_index,]$sumChangeW <- sum(abs(diff(changeFitnesses)))
   }
   return(result)
 }
@@ -796,29 +812,35 @@ ggplot(df_test, aes(x = log10(epsilon), y = value, colour = stat)) +
 # Generate Latin hypercube starting points
 NUM_RUNS <- 10000
 MAX_COMP_SIZE <- 3
+
+#seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 18799215
+seed <- 18799215
+
 pars <- lhs.design(NUM_RUNS, 12, type = "random", factor.names = comps)
 pars <- pars * MAX_COMP_SIZE
 
-# Test
-model <- models[1]
-# randomly sample an optimum
-parsMasked <- ParsMask(pars, model)
-startSolution <- SolveModel(exp(parsMasked[1,]), model)
-startTraits <- GetTraitValues(startSolution, model, exp(parsMasked[1,]))
-sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
-opt <- CalcOptima(startTraits, sigma, 0.9)
-fitnesses <- numeric(nrow(parsMasked)) 
+# # Test
+# model <- models[1]
+# # randomly sample an optimum
+# parsMasked <- ParsMask(pars, model)
+# startSolution <- SolveModel(exp(parsMasked[1,]), model)
+# startTraits <- GetTraitValues(startSolution, model, exp(parsMasked[1,]))
+# sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+# opt <- CalcOptima(startTraits, sigma, 0.9)
+# fitnesses <- numeric(nrow(parsMasked)) 
+# 
+# for (i in seq_len(nrow(parsMasked))) {
+#   fitnesses[i] <- CalcTraitAndFitness(cbind(parsMasked[i,]), model, opt, sigma)
+# }
+# 
+# RugRes <- CalculateRuggedness(parsMasked, fitnesses, model, opt, sigma, 
+#                               width = 0.01)
+# 
+# RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
 
-for (i in seq_len(nrow(parsMasked))) {
-  fitnesses[i] <- CalcTraitAndFitness(cbind(parsMasked[i,]), model, opt, sigma)
-}
-
-RugRes <- CalculateRuggedness(parsMasked, fitnesses, model, opt, sigma, 
-                              width = 0.01)
-
-RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
-
-saveRDS(RugRes, "rugres.RDS")
+# saveRDS(RugRes, "rugres.RDS")
 
 # Plot ruggedness ratio
 ggplot(RugRes %>% filter(netChangeW != 0), 
@@ -830,4 +852,31 @@ ggplot(RugRes %>% filter(netChangeW != 0),
        colour = "Landscape Ruggedness") +
   theme(text = element_text(size = 14), legend.position = "bottom")
 
-mean(RugRes$ruggedness)
+mean((RugRes %>% filter(netChangeW != 0))$ruggedness)
+
+# Run across all models
+d_ruggedness <- data.frame(netChangeW = numeric(nrow(pars) * 5),
+                           sumChangeW = numeric(nrow(pars) * 5),
+                           ruggedness = numeric(nrow(pars) * 5),
+                           model = character(nrow(pars) * 5))
+
+for (model in models) {
+  # randomly sample an optimum
+  parsMasked <- ParsMask(pars, model)
+  optMolComps <- as.data.frame(t(runif(ncol(parsMasked), 0, MAX_COMP_SIZE)))
+  colnames(optMolComps) <- colnames(parsMasked)
+  startSolution <- SolveModel(exp(optMolComps), model)
+  startTraits <- GetTraitValues(startSolution, model, exp(optMolComps))
+  sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+  opt <- CalcOptima(startTraits, sigma, 0.9)
+
+  RugRes <- CalculateRuggedness(parsMasked, model, opt, sigma, 
+                                width = 0.01)
+  
+  RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
+  RugRes$model <- model
+  
+  # Fill result data frame
+  output_index <- match(model, models)
+  d_ruggedness[(NUM_RUNS * (output_index - 1) + 1):(NUM_RUNS * output_index),] <- RugRes
+}
