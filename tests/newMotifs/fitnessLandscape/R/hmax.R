@@ -8,7 +8,11 @@ library(mvtnorm)
 library(broom)
 library(latex2exp)
 library(paletteer)
+library(ggbeeswarm)
 
+library(future)
+library(doParallel)
+library(foreach)
 
 
 ################################################################################
@@ -537,7 +541,7 @@ CalcTraitAndFitness <- function(p, model, optima, sigma) {
                        }
   )
   
-  if (all(is.na(solution))) {
+  if (any(is.na(solution))) {
     return(-1)
   }
   
@@ -721,7 +725,10 @@ CalculateRuggedness <- function(g, model, optima, sigma, n = 10,
   # n = number of steps in the walk
   # seed = replicate seed for the run
   result <- data.frame(netChangeW = numeric(nrow(g)),
-                       sumChangeW = numeric(nrow(g)))
+                       sumChangeW = numeric(nrow(g)),
+                       startW = numeric(nrow(g)),
+                       endW = numeric(nrow(g)),
+                       numFitnessHoles = numeric(nrow(g)))
   nComps <- ncol(g)
   rollingGenotypes <- g[1:(n+1), ]
   rollingFitnesses <- numeric(n+1)
@@ -746,13 +753,23 @@ CalculateRuggedness <- function(g, model, optima, sigma, n = 10,
     # Calculate results - add in original fitness
     # remove invalid fitnesses from bad solutions
     changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
+    result[row_index,]$startW <- rollingFitnesses[1]
+    result[row_index,]$endW <- rollingFitnesses[n+1]
     
-    result[row_index,]$netChangeW <- changeFitnesses[n+1] - changeFitnesses[1]
+    result[row_index,]$netChangeW <- changeFitnesses[length(changeFitnesses)] - changeFitnesses[1]
     result[row_index,]$sumChangeW <- sum(abs(diff(changeFitnesses)))
+    # Number of fitness holes: where there was no solution at a point in the walk
+    result[row_index,]$numFitnessHoles <- sum(rollingFitnesses <= 0.0)
   }
   return(result)
 }
 
+
+CalculateRuggednessParallel <- function(g, model, optima, sigma, n =10,
+                                        width = 0.004,
+                                        seed = sample(1:.Machine$integer.max, n)) {
+  
+}
 ################################################################################
 # Script
 ################################################################################
@@ -811,7 +828,7 @@ ggplot(df_test, aes(x = log10(epsilon), y = value, colour = stat)) +
 # Nosil method
 # Generate Latin hypercube starting points
 NUM_RUNS <- 10000
-MAX_COMP_SIZE <- 3
+MAX_COMP_SIZE <- log(3)
 
 #seed <- sample(1:.Machine$integer.max, 1)
 # > seed
@@ -855,12 +872,15 @@ ggplot(RugRes %>% filter(netChangeW != 0),
 mean((RugRes %>% filter(netChangeW != 0))$ruggedness)
 
 # Run across all models
-d_ruggedness <- data.frame(netChangeW = numeric(nrow(pars) * 5),
-                           sumChangeW = numeric(nrow(pars) * 5),
-                           ruggedness = numeric(nrow(pars) * 5),
-                           model = character(nrow(pars) * 5))
+cl <- parallel::makeCluster(5)
+doParallel::registerDoParallel(cl)
 
-for (model in models) {
+d_ruggedness <- foreach (model_index = seq_along(models), .combine = rbind) %dopar% {
+  require(tidyverse)
+  require(deSolve)
+  require(mvtnorm)
+  
+  model <- models[model_index]
   # randomly sample an optimum
   parsMasked <- ParsMask(pars, model)
   optMolComps <- as.data.frame(t(runif(ncol(parsMasked), 0, MAX_COMP_SIZE)))
@@ -871,12 +891,44 @@ for (model in models) {
   opt <- CalcOptima(startTraits, sigma, 0.9)
 
   RugRes <- CalculateRuggedness(parsMasked, model, opt, sigma, 
-                                width = 0.01)
+                                n = 20, width = 0.01)
   
   RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
   RugRes$model <- model
   
   # Fill result data frame
-  output_index <- match(model, models)
-  d_ruggedness[(NUM_RUNS * (output_index - 1) + 1):(NUM_RUNS * output_index),] <- RugRes
+  #output_index <- match(model, models)
+  return(RugRes)
+  #d_ruggedness[(NUM_RUNS * (output_index - 1) + 1):(NUM_RUNS * output_index),] <- RugRes
 }
+
+stopCluster(cl)
+
+saveRDS(d_ruggedness, "nosil_ruggedness.RDS")
+
+# Plot ruggedness ratio
+ggplot(d_ruggedness %>% filter(netChangeW != 0 & !is.na(netChangeW)), 
+       aes(x = netChangeW, y = sumChangeW, colour = ruggedness)) +
+  facet_grid(model~.) +
+  geom_point() +
+  theme_bw() +
+  scale_colour_paletteer_c("grDevices::Viridis") +
+  labs(x = "Net change in fitness", y = "Total absolute change in fitness",
+       colour = "Landscape Ruggedness") +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+
+# Plot number of fitness holes in the walk
+ggplot(d_ruggedness, 
+       aes(x = numFitnessHoles)) +
+  facet_grid(.~model) +
+  geom_histogram() +
+  theme_bw() +
+  scale_colour_paletteer_c("grDevices::Viridis") +
+  labs(x = "Model", y = "Number of fitness holes during the random walk",
+       colour = "Landscape Ruggedness") +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+
+d_ruggedness %>%
+  group_by(model) %>%
+  summarise(MeanFitnessHoles = mean(numFitnessHoles),
+            MeanRuggedness = mean(ruggedness, na.rm = T))
