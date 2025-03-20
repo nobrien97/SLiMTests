@@ -142,3 +142,45 @@ Will need to identify the direction of selection for each trait could be the ada
 Next - choose different starting conditions? All molecular components are at 1 to start with, shape of curve doesn't align with the function of the network (according to literature) - will need to adjust the starting point and make sure the shift is relative to that.
 
 Do we keep the randomised adaptation direction?  
+
+
+## Fitness landscape ruggedness
+
+I've run some further experiments looking at the ruggedness of the landscape.
+In the first attempt, I used gradient descent from randomly sampled spaces in the molecular component space. I used Latin hypercube sampling to sample 10,000
+genotypes, and calculated fitness based on those. Then, I used ``optim()`` in R to navigate the molecular component space until a local fitness peak was found.
+After replicating this across all sampled genotypes, I identified how similar those sampled genotypes were, and if they were in the same fitness peak. I then computed
+the proportion of fitness peaks which were unique across the fitness landscape as a measure of ruggedness.
+
+| model | totalOptima | countUniqueOptima | propUniqueOptima  |
+|-------|-------------|-------------------|-------------------|
+| NAR   | 9339        | 2542              | 0.272191883499304 |
+| PAR   | 8003        | 2862              | 0.357615894039735 |
+| FFLC1 | 8412        | 6758              | 0.803376129339039 |
+| FFLI1 | 6672        | 5288              | 0.792565947242206 |
+| FFBH  | 6662        | 6627              | 0.994746322425698 |
+
+This is more or less expected: the FFBH (the most complex) network is very rugged, whereas the NAR (the least complex network) is the opposite.
+I was somewhat skeptical of this result though - identifying the similarity of the sampled genotypes seems prone to error, and it felt like there might have been better methods for solving this problem.
+
+
+I found a method used by Nosil et al. (2020) which identifies ruggedness differently.
+In the method I use Latin hypercube sampling to generate 10,000 random samples of the genotype space and apply the following algorithm to each:
+1) Calculate the fitness of the starting point
+2) Generate 10 random mutations to create a random walk from the starting point through the genotype space
+3) Calculate the fitness of each step in the walk
+4) Measure the net change in fitness between the first and last genotypes in the walk
+5) Measure the total absolute change in fitness across the whole walk (the sum of absolute differences in fitness between each step)
+6) Calculate ruggedness as the difference between the net change and total absolute change 
+
+When random walks result in a monotonic fitness change, these two measures are the same so ruggedness = 0. However, when there are changes in the direction of fitness over the walk, the total absolute change may exceed (or subceed) the net change from start to end. Hence, the larger the difference, the more ruggedness in the landscape.
+
+We see some different results:
+
+![](../fitnessLandscape/R/plt_landscaperuggedness.png)
+
+So the FFBH is somehow less rugged than the other motifs! And FFL-I1 is even less rugged.
+But, there is less movement across each walk as well. So I had a look at the number of walks with at least one invalid phenotype (a fitness hole, i.e. holey landscape)
+
+![](../fitnessLandscape/R/plt_landscapeholeyness.png)
+There are many more holes in the landscape on these two models! So many random walks are unsuccessful because fitness craters. There is significant constraint arising from the genotype-phenotype map. The question is, how likely are each of the molecular components to contribute to evolution? If certain components are under strong selection by increasing the chance that there is an invalid solution, they will likely be held constant and not harbour much additive variance. Need to measure additive variance in each trait to understand this, and see how variance in each molecular component correlates with fitness.
