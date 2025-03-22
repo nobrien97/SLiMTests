@@ -23,8 +23,8 @@ source("./fitnesslandscapefunctions.R")
 
 CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10, nCores = availableCores(),
                                         width = 0.004,
-                                        seed = sample(1:.Machine$integer.max, nrow(g)),
-                                        DATA_PATH = DATA_PATH) {
+                                        seed,
+                                        path) {
   # g = genotypes (molecular components). Replicate starting points for the walk
   # w = fitnesses of the starting points
   # n = number of steps in the walk
@@ -38,7 +38,7 @@ CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10, nCores 
     require(deSolve)
     require(mvtnorm)
     
-    setwd(DATA_PATH)
+    setwd(path)
     source("./fitnesslandscapefunctions.R")
     
     nComps <- ncol(g)
@@ -154,7 +154,7 @@ for (model in models) {
   sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
   opt <- CalcOptima(startTraits, sigma, 0.9)
   
-  RugRes <- CalculateRuggednessParallel(parsMasked, model, opt, sigma, seed = seeds)
+  RugRes <- CalculateRuggednessParallel(parsMasked, model, opt, sigma, seed = seeds, path = DATA_PATH)
   
   # Set identifiers
   RugRes$molComp <- c(rep(comps, times = NUM_RUNS * NUM_BACKGROUNDS)) #comps[0:(nrow(RugRes) - 1) %% nComps + 1]
