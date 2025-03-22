@@ -1,11 +1,7 @@
 library(tidyverse)
-library(DoE.wrapper)
 library(deSolve)
 library(mvtnorm)
 library(broom)
-library(latex2exp)
-library(paletteer)
-library(ggbeeswarm)
 
 library(future)
 library(doParallel)

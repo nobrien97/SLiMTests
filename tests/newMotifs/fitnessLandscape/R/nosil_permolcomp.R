@@ -2,22 +2,29 @@
 # to see how each individually contributes to landscape ruggedness
 # each molecular component is varied n times across m genetic backgrounds to measure interactions
 library(tidyverse)
-library(DoE.wrapper)
+#library(DoE.wrapper)
 library(deSolve)
 library(mvtnorm)
 library(broom)
-library(latex2exp)
-library(paletteer)
-library(ggbeeswarm)
 
 library(future)
 library(doParallel)
 library(foreach)
+
+
+DATA_PATH <- "/home/564/nb9894/tests/newMotifs/fitnessLandscape/ruggedness/R/" 
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
+SAVE_PATH <- "/g/data/ht96/nb9894/newMotifs/fitnessLandscape/ruggedness/"
+
+setwd(DATA_PATH)
+
+# Load functions
 source("./fitnesslandscapefunctions.R")
 
 CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10, nCores = availableCores(),
                                         width = 0.004,
-                                        seed = sample(1:.Machine$integer.max, nrow(g))) {
+                                        seed = sample(1:.Machine$integer.max, nrow(g)),
+                                        DATA_PATH = DATA_PATH) {
   # g = genotypes (molecular components). Replicate starting points for the walk
   # w = fitnesses of the starting points
   # n = number of steps in the walk
@@ -31,7 +38,7 @@ CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10, nCores 
     require(deSolve)
     require(mvtnorm)
     
-    setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/")
+    setwd(DATA_PATH)
     source("./fitnesslandscapefunctions.R")
     
     nComps <- ncol(g)
@@ -83,9 +90,16 @@ MAX_COMP_SIZE <- log(3)
 nComps <- length(comps)
 
 # Hypercube is NUM_RUNs per molecular component, per genetic background
-pars <- lhs.design(NUM_RUNS, 1, type = "random")
-pars <- pars * MAX_COMP_SIZE
-pars <- pars[,1]
+# sample(1:.Machine$integer.max, 1)
+# [1] 1080888558
+#set.seed(1080888558)
+
+#pars <- lhs.design(NUM_RUNS, 1, type = "random")
+#pars <- pars * MAX_COMP_SIZE
+#pars <- pars[,1]
+
+#saveRDS(pars, "pars.RDS")
+pars <- readRDS(paste0(DATA_PATH, "pars.RDS"))
 
 # Generate backgrounds
 parBackgrounds <- matrix(runif((length(comps)) * NUM_BACKGROUNDS), ncol = (length(comps)))
@@ -98,7 +112,6 @@ parBackgrounds <-  parBackgrounds %x% rep(1, nComps)
 parBackgrounds <-  rep(1, NUM_RUNS) %x% parBackgrounds
 
 # replace diagonal components for each component and background
-repeated_pars <- rep(pars, each = nComps)
 for (i in seq_len(NUM_RUNS)) {
   # Fill NUM_BACKGROUNDS diagonals
   for (j in seq_len(NUM_BACKGROUNDS)) {
@@ -115,18 +128,22 @@ pars <- as.data.frame(parBackgrounds)
 
 # Run in parallel
 #seeds <- sample(1:.Machine$integer.max, NUM_RUNS)
+#seeds <- rep(seeds, each = NUM_BACKGROUNDS * nComps)
 #saveRDS(seeds, "seeds.RDS")
-seeds <- readRDS("seeds.RDS")
+seeds <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
 
 d_ruggedness <- data.frame(
-  model = character(NUM_RUNS * length(models)),
-  startW = numeric(NUM_RUNS * length(models)),
-  endW = numeric(NUM_RUNS * length(models)),
-  netChangeW = numeric(NUM_RUNS * length(models)),
-  sumChangeW = numeric(NUM_RUNS * length(models)),
-  numFitnessHoles = integer(NUM_RUNS * length(models))
+  model = character(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  startW = numeric(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  endW = numeric(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  netChangeW = numeric(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  sumChangeW = numeric(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  numFitnessHoles = integer(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  molComp <- character(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models)),
+  bkg <- integer(NUM_RUNS * NUM_BACKGROUNDS * nComps * length(models))
 )
 
+# Iterate over models
 for (model in models) {
   # randomly sample an optimum
   parsMasked <- ParsMask(pars, model)
@@ -139,6 +156,13 @@ for (model in models) {
   
   RugRes <- CalculateRuggednessParallel(parsMasked, model, opt, sigma, seed = seeds)
   
+  # Set identifiers
+  RugRes$molComp <- c(rep(comps, times = NUM_RUNS * NUM_BACKGROUNDS)) #comps[0:(nrow(RugRes) - 1) %% nComps + 1]
+  RugRes$bkg <- c(rep(rep(1:NUM_BACKGROUNDS, each = nComps), times = NUM_RUNS))
+  
   output_index <- match(model, models)
-  d_ruggedness[(NUM_RUNS * (output_index - 1) + 1):(NUM_RUNS * output_index),] <- RugRes
+  BLOCK_SIZE <- NUM_RUNS * NUM_BACKGROUNDS * nComps
+  d_ruggedness[(BLOCK_SIZE * (output_index - 1) + 1):(BLOCK_SIZE * output_index),] <- RugRes
 }
+
+saveRDS(d_ruggedness, paste0(SAVE_PATH, "d_ruggedness_percomp.RDS"))
