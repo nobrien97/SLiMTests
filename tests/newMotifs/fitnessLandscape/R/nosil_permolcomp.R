@@ -125,6 +125,7 @@ for (i in seq_len(NUM_RUNS)) {
 colnames(parBackgrounds) <- comps
 
 pars <- as.data.frame(parBackgrounds)
+saveRDS(pars, "pars.RDS")
 
 # Run in parallel
 #seeds <- sample(1:.Machine$integer.max, NUM_RUNS)
@@ -144,7 +145,7 @@ d_ruggedness <- data.frame(
 )
 
 # Iterate over models
-for (model in models) {
+for (model in models[2]) {
   # randomly sample an optimum
   parsMasked <- ParsMask(pars, model)
   optMolComps <- as.data.frame(t(runif(ncol(parsMasked), 0, MAX_COMP_SIZE)))
