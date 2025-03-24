@@ -1,11 +1,10 @@
 library(tidyverse)
-#library(DoE.wrapper)
 library(deSolve)
 library(mvtnorm)
 library(broom)
 
 DATA_PATH <- "/home/564/nb9894/tests/newMotifs/fitnessLandscape/ruggedness/R/" 
-#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
+# DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
 SAVE_PATH <- "/scratch/ht96/nb9894/newMotifs/fitnessLandscape/ruggedness/"
 
 setwd(DATA_PATH)
@@ -13,28 +12,33 @@ setwd(DATA_PATH)
 # Load functions
 source("./fitnesslandscapefunctions.R")
 
-CalculateRuggednessSingle <- function(g, model, optima, sigma, n = 10,
+CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10,
                                         width = 0.004,
+                                        nCores,
+                                        seed,
                                         path) {
   # g = genotypes (molecular components). Replicate starting points for the walk
   # w = fitnesses of the starting points
   # n = number of steps in the walk
   # seed = replicate seed for the run
   
-  df_result <- data.frame(model = character(nrow(g)),
-                          startW = numeric(nrow(g)),
-                          endW = numeric(nrow(g)),
-                          netChangeW = numeric(nrow(g)),
-                          sumChangeW = numeric(nrow(g)),
-                          numFitnessHoles = integer(nrow(g)))
+  cl <- parallel::makeCluster(nCores)
+  doParallel::registerDoParallel(cl)
   
-  for(row_index in seq_len(nrow(g))) {
+  df_result <- foreach (row_index = seq_len(nrow(g)), .combine = rbind) %dopar% {
+    require(tidyverse)
+    require(deSolve)
+    require(mvtnorm)
+    
+    setwd(path)
+    source("./fitnesslandscapefunctions.R")
+    
     nComps <- ncol(g)
     rollingGenotypes <- g[1:(n+1), ]
     rollingFitnesses <- numeric(n+1)
     
     # Set the seed for each walk
-    #set.seed(seed)
+    set.seed(seed[row_index])
     # Sample n steps per genotype per a normal distribution with a given width
     # Assume width is split evenly across the components
     mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
@@ -59,17 +63,18 @@ CalculateRuggednessSingle <- function(g, model, optima, sigma, n = 10,
                          netChangeW = changeFitnesses[length(changeFitnesses)] - changeFitnesses[1],
                          sumChangeW = sum(abs(diff(changeFitnesses))),
                          numFitnessHoles = sum(rollingFitnesses <= 0.0))
-    df_result[row_index,] <- result
+    return(result)
   }
   
+  stopCluster(cl)
   return(df_result)
 }
 
 
-# input arguments: seed and par
+# input arguments: index to load parameters
 args <- commandArgs(trailingOnly = T)
-seed_idx <- as.numeric(args[1])
-par_idx <- as.numeric(args[2])
+par_idx <- as.numeric(args[1])
+
 
 # Nosil method
 # Generate Latin hypercube starting points
@@ -79,25 +84,37 @@ comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
 
 NUM_RUNS <- 10000
 NUM_BACKGROUNDS <- 10
+REPS_PER_RUN <- 10
 MAX_COMP_SIZE <- log(3)
 nComps <- length(comps)
 
-pars <- readRDS("pars.RDS")
-pars <- pars[par_idx,]
+# 10 replicates per run, each run will return a dataframe with 1200 * 5 = 6000 (5 per model) rows in it
+# for 1000 total files to combine
+ROWS_PER_RUN <- nComps * NUM_BACKGROUNDS * REPS_PER_RUN
 
+# range of input rows to evaluate this run
+par_idx_range <- (ROWS_PER_RUN * (par_idx - 1) + 1):(ROWS_PER_RUN * par_idx)
+
+# Read in parameters:
+# Data frame in blocks of 120 (nComps * NUM_BACKGROUNDS)
+# each block is one replicate mutation applied in 10 backgrounds in 12 different molecular components
+# 10000 total replicates for 1200000 applications of that replicate in the backgrounds and mol comps
+# 
+pars <- readRDS("pars.RDS")
+pars <- pars[par_idx_range,]
 
 seeds <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
-seed <- seeds[seed_idx]
+seed <- seeds[par_idx_range]
 
 d_ruggedness <- data.frame(
-  model = character(length(models)),
-  startW = numeric(length(models)),
-  endW = numeric(length(models)),
-  netChangeW = numeric(length(models)),
-  sumChangeW = numeric(length(models)),
-  numFitnessHoles = integer(length(models)),
-  molComp <- character(length(models)),
-  bkg <- integer(length(models))
+  model = character(ROWS_PER_RUN * length(models)),
+  startW = numeric(ROWS_PER_RUN * length(models)),
+  endW = numeric(ROWS_PER_RUN * length(models)),
+  netChangeW = numeric(ROWS_PER_RUN * length(models)),
+  sumChangeW = numeric(ROWS_PER_RUN * length(models)),
+  numFitnessHoles = integer(ROWS_PER_RUN * length(models)),
+  molComp <- character(ROWS_PER_RUN * length(models)),
+  bkg <- integer(ROWS_PER_RUN * length(models))
 )
 
 
@@ -113,14 +130,17 @@ for (model in models) {
   sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
   opt <- CalcOptima(startTraits, sigma, 0.9)
   
-  RugRes <- CalculateRuggednessSingle(parsMasked, model, opt, sigma, path = DATA_PATH)
+  RugRes <- CalculateRuggednessParallel(parsMasked, model, opt, sigma,
+                                        nCores = future::availableCores(),
+                                        seed = seed,
+                                        path = DATA_PATH)
   
   # Set identifiers
-  RugRes$molComp <- comps[(par_idx - 1) %% nComps + 1]
-  RugRes$bkg <- c(rep(rep(1:NUM_BACKGROUNDS, each = nComps), times = NUM_RUNS))[par_idx]
+  RugRes$molComp <- comps[(par_idx_range - 1) %% nComps + 1]
+  RugRes$bkg <- c(rep(rep(1:NUM_BACKGROUNDS, each = nComps), times = REPS_PER_RUN))
   
   output_index <- match(model, models)
-  d_ruggedness[output_index,] <- RugRes
+  d_ruggedness[(ROWS_PER_RUN * (output_index - 1) + 1):(ROWS_PER_RUN * output_index),] <- RugRes
 }
 
-write_csv(d_ruggedness, paste0(SAVE_PATH, "d_ruggedness_", seed_idx, "_", par_idx, ".csv"), col_names = F)
+write_csv(d_ruggedness, paste0(SAVE_PATH, "d_ruggedness_", par_idx, ".csv"), col_names = F)

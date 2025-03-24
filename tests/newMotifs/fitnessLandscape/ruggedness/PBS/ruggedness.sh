@@ -30,7 +30,9 @@ if [ X$NJOB == X ]; then
     cd $PBS_O_WORKDIR
 
     # Make output folder
+    mkdir -p /scratch/ht96/nb9894/$FULLJOBNAME
     mkdir -p /g/data/ht96/nb9894/$FULLJOBNAME
+    mkdir -p $HOME/tests/$FULLJOBNAME/done
 fi
 
 #
@@ -54,11 +56,35 @@ cd $PBS_O_WORKDIR
 # ========================================================================
 # Make sure we're at the right place so we can find the bash script to run
 
-module load R/4.0.0
-module load intel-compiler/2021.10.1
+$ECHO "Running nci-parallel..."
+# Analogous to UQ Tinaroo embedded Nimrod
+# Use 1 core per SLiM run
+module load nci-parallel/1.0.0a
+export ncores_per_task=1
+export ncores_per_numanode=13
+
+# Calculate the range of parameter combinations we are exploring this job
+# CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
+CMDS_PATH=$HOME/tests/$FULLJOBNAME/PBS/cmds.txt
+CUR_TOT=$(cat $CMDS_PATH | wc -l)
+CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
+CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+
+if [ $CUR_MAX -gt $CUR_TOT ]; then
+    CUR_MAX=$CUR_TOT
+fi
+
+sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
+
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+
+$ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
-Rscript ../R/nosil_permolcomp.R
+cd /scratch/ht96/nb9894/$FULLJOBNAME/
+
+cat ./d_ruggedness_* >> $SAVEDIR/d_ruggedness_permolcomp.csv
+
 
 # 
 # Check the exit status
