@@ -9,7 +9,7 @@
   
   
 ECHO=/bin/echo
-JOBNAME=newMotifs/ruggedness
+JOBNAME=newMotifs/fitnessLandscape/ruggedness
 FULLJOBNAME=$JOBNAME
 #
 # These variables are assumed to be set:
@@ -48,6 +48,7 @@ $ECHO "Starting job $NJOB of $NJOBS"
 # Pre-job file manipulation goes here ...
 # 
 # INSERT CODE
+SAVEDIR=/g/data/ht96/nb9894/$FULLJOBNAME
 cd $PBS_O_WORKDIR
 
 
