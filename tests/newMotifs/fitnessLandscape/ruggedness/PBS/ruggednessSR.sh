@@ -9,7 +9,6 @@ SECONDS=0
 MODELINDEX=$1
 FILENAME=${MODELINDEX}
 JOBNAME=newMotifs/fitnessLandscape/ruggedness
-FULLJOBNAME=$JOBNAME
 TESTDIR=$HOME/tests/$JOBNAME
 
 echo "Beginning run modelindex = $MODELINDEX at $(date)"

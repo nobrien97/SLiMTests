@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -q normalsr
-#PBS -l walltime=48:00:00
-#PBS -l ncpus=104
-#PBS -l mem=500GB
-#PBS -l jobfs=400GB
+#PBS -l walltime=24:00:00
+#PBS -l ncpus=1040
+#PBS -l mem=5000GB
+#PBS -l jobfs=4000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
   
