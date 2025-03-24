@@ -57,27 +57,26 @@ cd $PBS_O_WORKDIR
 # ========================================================================
 # Make sure we're at the right place so we can find the bash script to run
 
-$ECHO "Running nci-parallel..."
+$ECHO "Running nci-parallel from ${PBS_O_WORKDIR}..."
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
 module load nci-parallel/1.0.0a
 export ncores_per_task=1
-export ncores_per_numanode=13
+export ncores_per_numanode=13           # 13 cores per NUMA node for sapphire rapids nodes
 
 # Calculate the range of parameter combinations we are exploring this job
-# CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
 CMDS_PATH=$HOME/tests/$FULLJOBNAME/PBS/cmds.txt
-CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+# CUR_TOT=$(cat $CMDS_PATH | wc -l)
+# CUR_MIN=$(( ( ($NJOB*$PBS_NCPUS+1) + ($ncores_per_task-1) ) / $ncores_per_task ))
+# CUR_MAX=$(( ( ( ($NJOB+1) * $PBS_NCPUS ) + ($ncores_per_task-1) ) / $ncores_per_task ))
 
-if [ $CUR_MAX -gt $CUR_TOT ]; then
-    CUR_MAX=$CUR_TOT
-fi
+# if [ $CUR_MAX -gt $CUR_TOT ]; then
+#     CUR_MAX=$CUR_TOT
+# fi
 
-sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
+# sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
 
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 86400
 
 $ECHO "All jobs finished, moving output..."
 
