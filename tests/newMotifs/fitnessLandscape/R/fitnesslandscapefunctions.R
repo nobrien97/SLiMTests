@@ -483,13 +483,13 @@ GetTraitValues <- function(solution, model, p) {
   if (model == "PAR") {
     result <- double(3)
     result[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
-    result[3] <- DelayTime(solution, 1.0, 6.0, 3, p["base"], p["aZ"])
+    result[3] <- DelayTime(solution, 1.0, 6.0, 3, p$base, p$aZ)
     return(result)
   }
   
   if (model == "FFLC1") {
     result <- double(3)
-    result[3] <- DelayTime(solution, 1.0, 6.0, 4, p["base"], p["aZ"])
+    result[3] <- DelayTime(solution, 1.0, 6.0, 4, p$base, p$aZ)
     result[1:2] <- (SteadyState(solution, 1.0, 6.0, 4)[1:2]) # Start at the delay time to avoid identifying that as steady state
     
     return(result)
