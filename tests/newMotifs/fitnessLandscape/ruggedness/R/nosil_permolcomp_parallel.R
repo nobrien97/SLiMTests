@@ -4,7 +4,7 @@ library(mvtnorm)
 library(broom)
 
 DATA_PATH <- "/home/564/nb9894/tests/newMotifs/fitnessLandscape/ruggedness/R/" 
-# DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
 SAVE_PATH <- "/scratch/ht96/nb9894/newMotifs/fitnessLandscape/ruggedness/"
 
 setwd(DATA_PATH)
@@ -14,7 +14,6 @@ source("./fitnesslandscapefunctions.R")
 
 CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10,
                                         width = 0.004,
-                                        nCores,
                                         seed,
                                         path) {
   # g = genotypes (molecular components). Replicate starting points for the walk
@@ -22,17 +21,14 @@ CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10,
   # n = number of steps in the walk
   # seed = replicate seed for the run
   
-  cl <- parallel::makeCluster(nCores)
-  doParallel::registerDoParallel(cl)
-  
-  df_result <- foreach (row_index = seq_len(nrow(g)), .combine = rbind) %dopar% {
-    require(tidyverse)
-    require(deSolve)
-    require(mvtnorm)
-    
-    setwd(path)
-    source("./fitnesslandscapefunctions.R")
-    
+  result <- data.frame(model = character(nrow(g)),
+                         startW = numeric(nrow(g)),
+                         endW = numeric(nrow(g)),
+                         netChangeW = numeric(nrow(g)),
+                         sumChangeW = numeric(nrow(g)),
+                         numFitnessHoles = integer(nrow(g)))
+
+  for(row_index in seq_len(nrow(g))) {
     nComps <- ncol(g)
     rollingGenotypes <- g[1:(n+1), ]
     rollingFitnesses <- numeric(n+1)
@@ -57,17 +53,15 @@ CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10,
     # remove invalid fitnesses from bad solutions
     changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
     
-    result <- data.frame(model = model,
+    result[row_index, ] <- c(model = model,
                          startW = rollingFitnesses[1],
                          endW = rollingFitnesses[n+1],
                          netChangeW = changeFitnesses[length(changeFitnesses)] - changeFitnesses[1],
                          sumChangeW = sum(abs(diff(changeFitnesses))),
                          numFitnessHoles = sum(rollingFitnesses <= 0.0))
-    return(result)
   }
   
-  stopCluster(cl)
-  return(df_result)
+  return(result)
 }
 
 
@@ -117,11 +111,14 @@ d_ruggedness <- data.frame(
   bkg <- integer(ROWS_PER_RUN * length(models))
 )
 
+# opt_seed <- sample(1:.Machine$integer.max, 1)
+# 423812551
+opt_seed <- 423812551L
 
 # Iterate over models
 for (model in models) {
   # randomly sample an optimum
-  set.seed(seed)
+  set.seed(opt_seed)
   parsMasked <- ParsMask(pars, model)
   optMolComps <- as.data.frame(t(runif(ncol(parsMasked), 0, MAX_COMP_SIZE)))
   colnames(optMolComps) <- colnames(parsMasked)
@@ -131,7 +128,6 @@ for (model in models) {
   opt <- CalcOptima(startTraits, sigma, 0.9)
   
   RugRes <- CalculateRuggednessParallel(parsMasked, model, opt, sigma,
-                                        nCores = 1,
                                         seed = seed,
                                         path = DATA_PATH)
   
