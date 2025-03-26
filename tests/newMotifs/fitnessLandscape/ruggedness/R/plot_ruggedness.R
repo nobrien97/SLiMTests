@@ -100,11 +100,16 @@ d_holes <- RugRes %>%
                                                 "KXZ", "KY", "Hilln", "base", "XMult") ) |
             model == "FFBH" )
 
+numSteps <- 10
 d_holes <- d_holes %>%
   group_by(model, bkg, replicate) %>%
   mutate(nHolesAcrossMolComps = sum(numFitnessHoles)) %>%
   ungroup() %>%
   mutate(propHoles = numFitnessHoles / nHolesAcrossMolComps)
+
+
+#TODO: calculate number of fitness holes across all possible steps in the walk
+#propHolesAmongAllSteps = propHoles * nHolesAcrossMolComps / (numSteps * n()
 
 # How many walks had fitness holes?
 holes_per_model_molcomp <- d_holes %>%
