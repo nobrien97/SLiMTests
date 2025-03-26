@@ -55,11 +55,17 @@ CalculateRuggednessParallel <- function(g, model, optima, sigma, n = 10,
     # Calculate results - add in original fitness
     # remove invalid fitnesses from bad solutions
     changeFitnesses <- rollingFitnesses[rollingFitnesses > fitness_epsilon]
+    netChangeW <- changeFitnesses[length(changeFitnesses)] - changeFitnesses[1]
+    
+    # 
+    if (length(netChangeW) == 0) {
+      netChangeW <- 0
+    }
     
     result[row_index, ] <- c(model = model,
                          startW = rollingFitnesses[1],
                          endW = rollingFitnesses[n+1],
-                         netChangeW = changeFitnesses[length(changeFitnesses)] - changeFitnesses[1],
+                         netChangeW = newChangeW,
                          sumChangeW = sum(abs(diff(changeFitnesses))),
                          numFitnessHoles = sum(rollingFitnesses < fitness_epsilon))
   }
