@@ -16,6 +16,7 @@ WRITE_PATH_MKR <- paste0("/scratch/ht96/nb9894/newMotifs/h2/getH2/out_h2_", run_
 
 # Load functions for loading relatedness/haplotype matrices
 source("~/tests/standingVar/getH2/R/helpFns.R")
+#source("../../../standingVar/getH2/R/helpFns.R")
 
 # Two methods: kernel and ridge regression based on pedigree or loci 
 # Pedigree is really an estimate of breeding values, loci should be more
@@ -25,7 +26,7 @@ source("~/tests/standingVar/getH2/R/helpFns.R")
 haplos <- scan(paste0("slim_haplo_sbst_", run, ".csv"), sep = ",")[-(1:3)]
 haplos_fix <- scan(paste0("slim_haplo_fix_sbst_", run, ".csv"), sep = ",")[-(1:3)]
 
-haplos <- decompressHap(haplos, 2000, 1024)
+haplos <- decompressHap(haplos, 2000, 1386)
 names(haplos) <- paste0("q_", seq_len(ncol(haplos)))
 haplos <- addFixedHaplos(haplos, haplos_fix)
 
@@ -52,7 +53,11 @@ mkrOrError <- possibly(mkr, otherwise = NA)
 mrrOrError <- possibly(mrr, otherwise = NA)
 
 # Get model info from modulo: type of model offset by 5
-model_mod <- (run_info[3] %% 5) + 1
+model_mod <- (run_info[3] %% 5)
+
+if (model_mod == 0) {
+  model_mod <- 5
+}
 
 switch (model_mod,
   model <- "NAR",
@@ -62,10 +67,10 @@ switch (model_mod,
   model <- "FFBH"
 )
 
-  # Molecular components
-  relPheno <- scan(paste0("slim_moltrait_sbst_", run, ".csv"), sep = ",")[-(1:3)]
-  names(relPheno) <- NULL
-  ind_names <- paste0(1:1000)
+# Molecular components
+relPheno <- scan(paste0("slim_moltrait_sbst_", run, ".csv"), sep = ",")[-(1:3)]
+names(relPheno) <- NULL
+ind_names <- paste0(1:1000)
 
 
 if (model == "NAR" | model == "PAR") {
@@ -77,8 +82,7 @@ if (model == "NAR" | model == "PAR") {
                              base  = log(relPheno[seq(5, length(relPheno), by = 7)]),
                              n     = log(relPheno[seq(6, length(relPheno), by = 7)]),
                              XMult = log(relPheno[seq(7, length(relPheno), by = 7)]))
-}
-else if (model == "FFLC1" | model == "FFLI1") {
+} else if (model == "FFLC1" | model == "FFLI1") {
   # Get molecular component dataframe
   relPheno_dat <- data.frame(aY    = log(relPheno[seq(1, length(relPheno), by = 9)]),
                              bY    = log(relPheno[seq(2, length(relPheno), by = 9)]),
@@ -89,8 +93,7 @@ else if (model == "FFLC1" | model == "FFLI1") {
                              base  = log(relPheno[seq(7, length(relPheno), by = 9)]),
                              n     = log(relPheno[seq(8, length(relPheno), by = 9)]),
                              XMult = log(relPheno[seq(9, length(relPheno), by = 9)]))
-}
-else if (model == "FFBH") {
+} else if (model == "FFBH") {
   relPheno_dat <- data.frame(aX    = log(relPheno[seq(1, length(relPheno), by = 11)]),
                              KZX   = log(relPheno[seq(2, length(relPheno), by = 11)]),
                              aY    = log(relPheno[seq(3, length(relPheno), by = 11)]),
@@ -147,12 +150,15 @@ mrr_result_df <- data.frame(gen = run_info[1],
 # fitness variance
 if (!is.na(mkr_fitness_result[1])) {
   mkr_result_df[1, "VA_w"] <- mkr_fitness_result$Vb
+  mkr_result_df[1, "h2_w"] <- mkr_fitness_result$h2
 }
 
 if (!is.na(mrr_fitness_result[1])) {
   mrr_result_df[1, "VA_w"] <- mrr_fitness_result$Vb
+  mrr_result_df[1, "h2_w"] <- mrr_fitness_result$h2
 }
 
+allMolTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
 
 # Write results to separate files
 if (!is.na(mkr_result[1])) {
@@ -168,20 +174,22 @@ if (!is.na(mkr_result[1])) {
   }
 
   if (model == "FFBH") {
-    molTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
+    molTraitNames <- allMolTraitNames
     colnames(mkr_result$Vb) <- molTraitNames
   }
 
   rownames(mkr_result$Vb) <- colnames(mkr_result$Vb)
   G <- matrix(NA, nrow = 11, ncol = 11)
-  colnames(G) <- molTraitNames
+  colnames(G) <- allMolTraitNames
   rownames(G) <- colnames(G)
   
   G[rownames(mkr_result$Vb), colnames(mkr_result$Vb)] <- mkr_result$Vb
   
-  h2 <- mkr_result$h2
+  h2 <- rep(NA, 11)
+  names(h2) <- allMolTraitNames
+  h2[molTraitNames] <- mkr_result$h2
   
-  cov_terms <- combn(molTraitNames, 2)
+  cov_terms <- combn(allMolTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
     
   # Get genetic variances
@@ -191,7 +199,7 @@ if (!is.na(mkr_result[1])) {
   mkr_result_df[1, cov_terms] <- G[t(upper.tri(G))]
   
   # heritability
-  mkr_result_df[1, paste("h2", molTraitNames, sep = "_")] <- h2
+  mkr_result_df[1, paste("h2", allMolTraitNames, sep = "_")] <- h2
   
 
   # Output file
@@ -204,31 +212,33 @@ if (!is.na(mrr_result[1])) {
   # Expand results with NA for Additive and ODE cases
   if (model == "NAR" | model == "PAR") {
     molTraitNames <- c("aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult")
-    colnames(mkr_result$Vb) <- molTraitNames
+    colnames(mrr_result$Vb) <- molTraitNames
   }
   
   if (model == "FFLC1" | model == "FFLI1") {
     molTraitNames <- c("aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
-    colnames(mkr_result$Vb) <- molTraitNames
+    colnames(mrr_result$Vb) <- molTraitNames
   }
 
   if (model == "FFBH") {
     molTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
-    colnames(mkr_result$Vb) <- molTraitNames
+    colnames(mrr_result$Vb) <- molTraitNames
   }
 
-  rownames(mkr_result$Vb) <- colnames(mkr_result$Vb)
+  rownames(mrr_result$Vb) <- colnames(mrr_result$Vb)
 
   
   G <- matrix(NA, nrow = 11, ncol = 11)
-  colnames(G) <- molTraitNames
+  colnames(G) <- allMolTraitNames
   rownames(G) <- colnames(G)
   
   G[rownames(mrr_result$Vb), colnames(mrr_result$Vb)] <- mrr_result$Vb
   
-  h2 <- mrr_result$h2
+  h2 <- rep(NA, 11)
+  names(h2) <- allMolTraitNames
+  h2[molTraitNames] <- mrr_result$h2
   
-  cov_terms <- combn(molTraitNames, 2)
+  cov_terms <- combn(allMolTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
   
   # Get genetic variances
@@ -238,7 +248,7 @@ if (!is.na(mrr_result[1])) {
   mrr_result_df[1, cov_terms] <- G[t(upper.tri(G))]
   
   # heritability
-  mrr_result_df[1, paste("h2", molTraitNames, sep = "_")] <- h2
+  mrr_result_df[1, paste("h2", allMolTraitNames, sep = "_")] <- h2
   
   # Output file
   print(paste0("Writing mrr output for model ", run, "..."))
