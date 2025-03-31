@@ -26,6 +26,7 @@ fi
 
 SCRATCHPATH=/scratch/ht96/nb9894/${SUBJOBNAME}
 DATAPATH=/g/data/ht96/nb9894/${SUBJOBNAME}
+#DATAPATH=./
 
 fix_haplo=$(tail -n "+${RUN}" $DATAPATH/slim_haplo_fix.csv | head -n 1)
 
@@ -47,8 +48,8 @@ Rscript ${RSCRIPTNAME} ${RUN} ${CHUNK}
 touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
 
 # Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
-# Chunks should consist of 3147 files
-if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) -ge 3147 ]; then
+# Chunks should consist of 1440 files
+if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) -ge 1440 ]; then
     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
     cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
     cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
