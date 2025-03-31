@@ -399,8 +399,11 @@ function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMod
 	
 	// Make sure we never have all individuals with 0 fitness
 	if (all(inds.fitnessScaling == 0.0)) { inds.fitnessScaling = 1e-6; }
-	sim.setValue("fitness", inds.fitnessScaling);
-
+	
+	// !HACK! Only write this fitness value for p1 individuals
+	if (inds[0].subpopulation == p1) {
+		sim.setValue("fitness", inds.fitnessScaling);
+	}
 }
 
 // For testing purposes
