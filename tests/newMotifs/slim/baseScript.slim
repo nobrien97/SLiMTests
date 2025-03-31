@@ -346,6 +346,7 @@ s1 late() {
 	// Check if we're at the end of burn-in
 	if (sim.cycle == burnTime) {
 		calcPhenotype(p2.individuals, modelType); // need to calculate phenotypes for p2 when we write
+		calcFitnessGaussian(p2.individuals, optTraits, modelType);
 		//writeLDmat(p1, T);
 		writeSharedMutFreqs(p1);
 		//writeGenMap();
@@ -393,6 +394,7 @@ s2 late() {
 		
 		// Write LD output and pedigree/heritability stuff
 		calcPhenotype(p2.individuals, modelType);
+		calcFitnessGaussian(p2.individuals, optimum, modelType);
 		//writeLDmat(p1, F);
 		writeSharedMutFreqs(p1);
 		//writeGenMap();
@@ -432,6 +434,7 @@ s2 late() {
 		return;
 	
 	calcPhenotype(p2.individuals, modelType);
+	calcFitnessGaussian(p2.individuals, optimum, modelType);
 	writePMMatrix(p2);
 	
 	writeQuantGenOutput(p1, "adaptation");
