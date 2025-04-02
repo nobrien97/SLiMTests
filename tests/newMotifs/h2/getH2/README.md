@@ -2,5 +2,5 @@
 
 This job calculates heritability and variance components using sommer mmer functions, using the data from the newMotifs slim experiment. 
 
-wc -l slim_haplo.csv -> 2880
+wc -l slim_haplo_fix.csv -> 1440
                         
