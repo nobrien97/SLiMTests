@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=10:00:00
-#PBS -l ncpus=2880
-#PBS -l mem=11400GB
+#PBS -l ncpus=1440
+#PBS -l mem=5700GB
 #PBS -l jobfs=12000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
@@ -10,9 +10,11 @@
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
+ECHO=/bin/echo
 
 JOBNAME=getH2
 JOBNAME_PREFIX=newMotifs/h2
+TOTALJOBNAME=${JOBNAME_PREFIX}/${JOBNAME}
 
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -27,9 +29,9 @@ if [ X$NJOB == X ]; then
     cd $PBS_O_WORKDIR
 
     # Make output folder
-    mkdir /scratch/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
-    mkdir /g/data/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
-    mkdir $HOME/tests/$JOBNAME_PREFIX/$JOBNAME/done
+    mkdir -p /scratch/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p /g/data/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p $HOME/tests/$TOTALJOBNAME/done
 
 fi
 
@@ -43,7 +45,7 @@ fi
 cd $PBS_O_WORKDIR
 
 
-SAVEDIR=/g/data/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
+SAVEDIR=/g/data/ht96/nb9894/$TOTALJOBNAME
 
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
@@ -54,7 +56,7 @@ export ncores_per_numanode=12
 # Calculate the range of parameter combinations we are exploring this job
 
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
-CMDS_PATH=$HOME/tests/$JOBNAME_PREFIX/$JOBNAME/PBS/cmds.txt
+CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
 CMD_LEN=$(cat $CMDS_PATH | wc -l)
 CMD_MIN=$((($CMD_LEN/($NJOBS+1))*($NJOB) + 1))
 CMD_MAX=$((($CMD_LEN/($NJOBS+1))*($NJOB+1)))
@@ -64,7 +66,7 @@ sed -n -e "${CMD_MIN},${CMD_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
 mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --dedicated --input-file ./JOB_PATH.txt --timeout 172800
 
 # Combine output into a single file
-cd /scratch/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
+cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
 cat ./*.csv >> $SAVEDIR/out_h2.csv
 
