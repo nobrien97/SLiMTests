@@ -49,13 +49,13 @@ touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
 
 # Check if we're the last in a chunk, if we are we need to do some cleanup, otherwise we can continue
 # Chunks should consist of 1440 files
-if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) -ge 1440 ]; then
-    echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
-    cat $SCRATCHPATH/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
-    cat $SCRATCHPATH/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
-    rm $SCRATCHPATH/*_${CHUNK}_mrr.csv
-    rm $SCRATCHPATH/*_${CHUNK}_mkr.csv
-fi
+# if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) -ge 1440 ]; then
+#     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
+#     cat $SCRATCHPATH/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
+#     cat $SCRATCHPATH/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
+#     rm $SCRATCHPATH/*_${CHUNK}_mrr.csv
+#     rm $SCRATCHPATH/*_${CHUNK}_mkr.csv
+# fi
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished at $(date)!"

@@ -66,7 +66,7 @@ mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/nc
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$JOBNAME_PREFIX/$JOBNAME
 
-cat ./*_done.csv >> $SAVEDIR/out_h2.csv
+cat ./*.csv >> $SAVEDIR/out_h2.csv
 
 # Delete loose files with
 rm ./*_done.csv
