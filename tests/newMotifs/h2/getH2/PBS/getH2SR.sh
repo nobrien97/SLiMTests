@@ -4,8 +4,8 @@ module load R/4.0.0
 
 cd $PBS_JOBFS
 SECONDS=0
-SUBJOBNAME=newMotifs/h2
-JOBNAME=getH2
+SUBJOBNAME=newMotifs
+JOBNAME=h2/getH2
 TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
 
 
@@ -24,7 +24,7 @@ if [ -f $HOME/tests/${TOTALJOBNAME}/done/${RUN}_* ]; then
     exit 0
 fi
 
-SCRATCHPATH=/scratch/ht96/nb9894/${SUBJOBNAME}
+SCRATCHPATH=/scratch/ht96/nb9894/${TOTALJOBNAME}
 DATAPATH=/g/data/ht96/nb9894/${SUBJOBNAME}
 #DATAPATH=./
 
@@ -51,10 +51,10 @@ touch $HOME/tests/${TOTALJOBNAME}/done/${RUN}_${CHUNK}
 # Chunks should consist of 1440 files
 if [ $(ls $HOME/tests/${TOTALJOBNAME}/done/*_${CHUNK} | wc -l) -ge 1440 ]; then
     echo "Chunk $CHUNK done, combining chunk files and cleaning up..."
-    cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
-    cat $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
-    rm $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mrr.csv
-    rm $SCRATCHPATH/$JOBNAME/*_${CHUNK}_mkr.csv
+    cat $SCRATCHPATH/*_${CHUNK}_mrr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mrr_done.csv
+    cat $SCRATCHPATH/*_${CHUNK}_mkr.csv >> $SCRATCHPATH/out_h2_${CHUNK}_mkr_done.csv
+    rm $SCRATCHPATH/*_${CHUNK}_mrr.csv
+    rm $SCRATCHPATH/*_${CHUNK}_mkr.csv
 fi
 
 DURATION=$SECONDS
