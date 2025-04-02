@@ -174,7 +174,7 @@ if (!is.na(mkr_result[1])) {
   }
 
   if (model == "FFBH") {
-    molTraitNames <- allMolTraitNames
+    molTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
     colnames(mkr_result$Vb) <- molTraitNames
   }
 
