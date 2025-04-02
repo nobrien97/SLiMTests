@@ -158,7 +158,7 @@ if (!is.na(mrr_fitness_result[1])) {
   mrr_result_df[1, "h2_w"] <- mrr_fitness_result$h2
 }
 
-allMolTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult")
+allMolTraitNames <- c("aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult")
 
 # Write results to separate files
 if (!is.na(mkr_result[1])) {
@@ -179,13 +179,13 @@ if (!is.na(mkr_result[1])) {
   }
 
   rownames(mkr_result$Vb) <- colnames(mkr_result$Vb)
-  G <- matrix(NA, nrow = 11, ncol = 11)
+  G <- matrix(NA, nrow = 12, ncol = 12)
   colnames(G) <- allMolTraitNames
   rownames(G) <- colnames(G)
   
   G[rownames(mkr_result$Vb), colnames(mkr_result$Vb)] <- mkr_result$Vb
   
-  h2 <- rep(NA, 11)
+  h2 <- rep(NA, 12)
   names(h2) <- allMolTraitNames
   h2[molTraitNames] <- mkr_result$h2
   
@@ -228,13 +228,13 @@ if (!is.na(mrr_result[1])) {
   rownames(mrr_result$Vb) <- colnames(mrr_result$Vb)
 
   
-  G <- matrix(NA, nrow = 11, ncol = 11)
+  G <- matrix(NA, nrow = 12, ncol = 12)
   colnames(G) <- allMolTraitNames
   rownames(G) <- colnames(G)
   
   G[rownames(mrr_result$Vb), colnames(mrr_result$Vb)] <- mrr_result$Vb
   
-  h2 <- rep(NA, 11)
+  h2 <- rep(NA, 12)
   names(h2) <- allMolTraitNames
   h2[molTraitNames] <- mrr_result$h2
   
