@@ -89,8 +89,10 @@ cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
 cat ./slim_muts* >> $SAVEDIR/slim_muts.csv
 cat ./slim_qg* >> $SAVEDIR/slim_qg.csv
 cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
-cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
 cat ./slim_haplo_fix* >> $SAVEDIR/slim_haplo_fix.csv
+# Remove haplo fix before we collect regular haplos - otherwise they get stuck to the end of the file
+rm ./slim_haplo_fix*
+cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
 cat ./slim_sampled_pheno* >> $SAVEDIR/slim_sampled_pheno.csv
 cat ./slim_sampled_moltrait* >> $SAVEDIR/slim_sampled_moltrait.csv
 cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
