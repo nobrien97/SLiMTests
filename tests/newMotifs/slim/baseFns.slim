@@ -807,9 +807,7 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 
 	// Remove fixations and store separately
 	colsToRemove = (colSums(haplos) == 2*n);
-	if (size(colsToRemove)) {
-		haploFixations = paste(sim.cycle, seed, modelindex, (0:(size(qtls)-1))[colsToRemove], sep = ",");
-	}
+	haploFixations = paste(sim.cycle, seed, modelindex, (0:(size(qtls)-1))[colsToRemove], sep = ",");
 
 	writeFile(outHaploFix, haploFixations, append = T);
 
