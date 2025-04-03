@@ -11,9 +11,9 @@ library(stargazer)
 library(ggridges)
 library(GGally)
 
-setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis")
-DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/pilot/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
-R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis/"
+setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis")
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
+R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 # Cowplot 1.1.3 bug: won't get legend, this fixes
@@ -66,12 +66,12 @@ d_qg <- AddCombosToDF(d_qg)
 # Initial optimum distance
 INIT_DIST <- sqrt(-2 * log(0.90))
 
-# Optimum: fitness > 98%
+# Optimum: fitness > 95%
 
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & w > 0.95)) %>%
   ungroup() -> d_qg
 
 # Proportion of each model that adapted
@@ -145,24 +145,6 @@ ggplot(d_qg_sum,
         panel.spacing = unit(0.75, "lines")) 
 ggsave("plt_random_adapt_w.png", width = 12, height = 5, device = png)
 
-# Fitness among replicates
-ggplot(d_qg %>% filter(isAdapted),
-       aes(x = gen, y = w, colour = model, group = interaction(modelindex, seed))) +
-  facet_grid(log10(r)~model) +
-  geom_line() +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
-                                         breaks = NULL, labels = NULL)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
-  labs(x = "Generations post-optimum shift", y = "Mean Fitness", 
-       colour = "Model") +
-  theme_bw() +
-  guides(colour = guide_legend(position = "bottom",
-                               override.aes=list(linewidth = 5))) +
-  theme(text = element_text(size = 12),
-        panel.spacing = unit(0.75, "lines")) 
-ggsave("plt_random_ind_adapt_w.png", width = 12, height = 5, device = png)
-
 # Identities of these simulations: what is adapting?
 d_combos <- read.table(paste0(DATA_PATH, "slim_opt.csv"), header = F,
                        col.names = c("seed", "modelindex", ""))
@@ -216,7 +198,7 @@ ggsave("plt_adapt_ind_w.png", width = 12, height = 5, device = png)
 
 # What direction is selection going for each adapted simulation?
 d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
-                          sep = ",", colClasses = c("integer", "factor", "factor", 
+                          sep = ",", colClasses = c("factor", "factor", 
                                                     rep("numeric", times = 29)), 
                           col.names = c("gen", "seed", "modelindex", "meanH", 
                                         "trait1_mean", "trait2_mean", "trait3_mean",

@@ -793,3 +793,130 @@ CalcSFS <- function(dat) {
     select(optPerc, seed, modelindex, 
            mutID, mutType, value, freqBin)
 }
+
+######################
+# G matrix functions #
+######################
+# transform IDs from matrices to a list form
+GetMatrixIDs <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(timePoint = x$timePoint, 
+               seed = x$seed, 
+               modelindex = x$modelindex, 
+               isAdapted = x$isAdapted)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
+
+# Calculate evolvability metrics (Hansen and Houle 2008)
+CalcECRA <- function(matList, id) {
+  require(matrixcalc)
+  require(Matrix)
+  
+  PCAdata <- data.frame(
+    ev = numeric(length(matList)),
+    cev = numeric(length(matList)),
+    res = numeric(length(matList)),
+    aut = numeric(length(matList))
+  )
+  
+  PCAdata <- PCAdata %>%
+    mutate(timePoint = id$timePoint,
+           seed = id$seed,
+           modelindex = id$modelindex,
+           clus = id$clus,
+           isAdapted = id$isAdapted)
+  
+  Hx <- function(x) {
+    1/mean(1/x)
+  }
+  
+  Ix <- function(x) {
+    var(x)/mean(x)^2
+  }
+  
+  for (i in seq_along(matList)) {
+    # Run PCA
+    g <- matList[[i]]
+    idx <- GetMotifParameterRange(as.character(id$model[i]))
+    
+    # Resize g to the proper dimensions
+    g <- g[idx, idx]
+  
+    # If the matrix isn't positive semi-definite, find the nearest PD
+    if (!is.positive.semi.definite(g)) {
+      g <- as.matrix(nearPD(g)$mat)
+    }
+    
+    pca <- eigen(g)
+    k <- length(pca$values)
+    
+    PCAdata$ev[i] <- mean(pca$values) #e
+    PCAdata$cev[i] <- Hx(pca$values) * (1 + (2*Ix(1/pca$values)) / (k+2) ) #c
+    PCAdata$res[i] <- sqrt(mean(pca$values^2)) * (1 - (Ix(pca$values^2) / (4*k+2) ) ) #r
+    PCAdata$aut[i] <- (Hx(pca$values) / mean(pca$values)) * (1 + 2 * (Ix(pca$values) + Ix(1/pca$values) - 1 + Hx(pca$values)/mean(pca$values) + 2 * Ix(pca$values) * Ix(1/pca$values)/(k+2))/(k+2)) #a
+  }
+  
+  return(PCAdata)
+}
+
+
+GetMotifParameterRange <- function(model) {
+  switch (model,
+    "'NAR'"   = { result <- c(1, 3, 5, 8, 10, 11, 12) },
+    "'PAR'"   = { result <- c(1, 3, 5, 8, 10, 11, 12) },
+    "'FFLC1'" = { result <- c(1, 2, 5, 7:12) },
+    "'FFLI1'" = { result <- c(1, 2, 5, 7:12) },
+    "'FFBH'"  = { result <- c(1:2, 4:12) }
+  )
+  return(result)
+} 
+
+# PCA similarity
+bootKrzCorFn <- function(x, group = "", PCASim = F) {
+require(evolqg)
+require(dplyr)
+
+fn <- ifelse(PCASim, evolqg::PCAsimilarity, evolqg::KrzCor)
+
+if (group != "") {
+  grps <- unique(x[,group])
+  nGrps <- length(grps)
+  
+  
+  # output data frame
+  res <- data.frame(group1 = character(length(grps)^2),
+                    group2 = character(length(grps)^2),
+                    krzCor = numeric(length(grps)^2))
+  
+  # Temporary data frame for filling inner loop
+  res_tmp <- data.frame(group1 = character(length(grps)),
+                        group2 = character(length(grps)),
+                        krzCor = numeric(length(grps)))
+  
+  for (i in seq_along(grps)) {
+    for (j in seq_along(grps)) {
+      # Sample matrices in different groups
+      g_1 <- slice_sample(x[group == grps[i]], n = 1)
+      g_2 <- slice_sample(x[group == grps[j]], n = 1)
+      res_tmp$group1[j] <- as.character(g_1[1,group])
+      res_tmp$group2[j] <- as.character(g_2[1,group])
+      res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
+    }
+    indices <- (nGrps*(i-1) + 1):(nGrps*i)
+    res[indices,] <- res_tmp
+  }
+  return(res)
+}
+
+# If group is "", sample two random matrices and return that
+g1 <- slice_sample(x, n = 1)
+g2 <- slice_sample(x, n = 1)
+return(fn(g1$g[[1]], g2$g[[1]]))
+}
