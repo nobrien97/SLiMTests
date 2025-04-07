@@ -34,9 +34,37 @@ source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
+select <- dplyr::select
+mutate <- dplyr::mutate
+filter <- dplyr::filter
 
-d_h2_mrr <- read_csv(paste0(DATA_PATH, "out_h2_mrr.csv"), col_names = F)
-d_h2_mkr <- read_csv(paste0(DATA_PATH, "out_h2_mkr.csv"), col_names = F)
+# Cowplot 1.1.3 bug: won't get legend, this fixes
+get_legend <- function(plot, legend = NULL) {
+  
+  gt <- ggplotGrob(plot)
+  
+  pattern <- "guide-box"
+  if (!is.null(legend)) {
+    pattern <- paste0(pattern, "-", legend)
+  }
+  
+  indices <- grep(pattern, gt$layout$name)
+  
+  not_empty <- !vapply(
+    gt$grobs[indices], 
+    inherits, what = "zeroGrob", 
+    FUN.VALUE = logical(1)
+  )
+  indices <- indices[not_empty]
+  
+  if (length(indices) > 0) {
+    return(gt$grobs[[indices[1]]])
+  }
+  return(NULL)
+}
+
+d_h2_mrr <- read_csv(paste0(DATA_PATH, "out_h2_mrr_c.csv"), col_names = F)
+d_h2_mkr <- read_csv(paste0(DATA_PATH, "out_h2_mkr_c.csv"), col_names = F)
 
 
 colnames(d_h2_mrr) <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_aX", "VA_KZX", 
@@ -130,7 +158,7 @@ d_h2 <- d_h2 %>% filter(calcMode == "mkr")
 boxplot(d_h2$h2_w)
 
 # Attach quant gen data
-d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
+d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg_c.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
                                                     rep("numeric", times = 29)), 
                           col.names = c("gen", "seed", "modelindex", "meanH",
@@ -228,7 +256,9 @@ ggplot(d_h2 %>%
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_names,
+                      guide = guide_legend(override.aes = list(shape = 16,
+                                                               size = 3))) +
   coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
@@ -276,6 +306,118 @@ ggplot(d_h2_molcomp %>%
         legend.position = "bottom")
 ggsave("plt_va_percomp.png", device = png, bg = "white",
        width = 560*6, height = (980*4)/3, units = "px")
+
+# What are the identities of the FFBH models which adapted and had high aZ? 
+# What does their trajectory look like compare to the other ones?
+# High aZ
+View(d_h2_molcomp %>%
+  filter(model == "'FFBH'", timePoint == "End", molComp == "aZ",
+         VA > 0.5))
+# Low aZ
+View(d_h2_molcomp %>%
+       filter(model == "'FFBH'", timePoint == "End", molComp == "aZ",
+              VA < 0.25))
+
+# Try to group these up so we can plot their trajectories
+d_qg$simID <- interaction(d_qg$seed, d_qg$modelindex)
+d_h2_molcomp$simID <- interaction(d_h2_molcomp$seed, d_h2_molcomp$modelindex)
+
+d_h2_ffbh_aZ <- d_h2_molcomp %>%
+  mutate(adaptedWithAZ = "Maladapted") %>%
+  filter(model == "'FFBH'", timePoint == "End", molComp == "aZ", isAdapted == T) %>%
+  drop_na(VA)
+d_h2_ffbh_aZ[(d_h2_ffbh_aZ$VA > 0.5),]$adaptedWithAZ <- "With aZ"
+d_h2_ffbh_aZ[(d_h2_ffbh_aZ$VA < 0.25),]$adaptedWithAZ <- "Without aZ"
+
+
+# Now attach these labels to the qg
+d_qg_ffbh_aZ$adaptedWithAZ <- "Maladapted"
+for (i in unique(d_h2_ffbh_aZ$simID)) {
+  d_qg_ffbh_aZ[d_qg_ffbh_aZ$simID == i,]$adaptedWithAZ <-
+    d_h2_ffbh_aZ[d_h2_ffbh_aZ$simID == i,]$adaptedWithAZ
+}
+
+# Plot adaptive walk for some example models
+ggplot(d_qg %>% filter((seed == 3245990319 & modelindex == 15) | # Adapted with aZ
+                         (seed == 2954984637 & modelindex == 15) | # Adapted without aZ
+                         seed == 1049021301 & modelindex == 15) %>% # Maladapted
+       mutate(seed = factor(seed, levels = c(3245990319, 2954984637, 1049021301))) %>%
+       filter(gen > 40000) %>%
+         mutate(gen = gen - 50000),
+       aes(x = gen, y = mean_w, colour = seed, group = seed)) +
+  geom_line() +
+  labs(x = "Generations post-optimum shift", y = "Mean population fitness", 
+       colour = "Simulation outcome") +
+  scale_colour_manual(values = c(paletteer_d("nationalparkcolors::Everglades", 2), "#666"), 
+                      labels = c("Adapted (high aZ)", 
+                                 "Adapted (low aZ)",
+                                 "Maladapted")) +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_example_sims.png", device = png, bg = "white",
+       width = 9, height = 4.5)
+
+# Now for all of them
+# Plot adaptive walk for these models
+maladapted_examples <- 
+  sample(unique(d_qg_ffbh_aZ[!d_qg_ffbh_aZ$isAdapted,]$simID),
+         5)
+
+ggplot(d_qg_ffbh_aZ %>% filter(adaptedWithAZ != "Maladapted" | 
+                                 simID %in% maladapted_examples) %>%
+         filter(gen > 40000) %>%
+         mutate(gen = gen - 50000),
+       aes(x = gen, y = mean_w, colour = adaptedWithAZ, group = simID)) +
+  geom_line() +
+  labs(x = "Generations post-optimum shift", y = "Mean population fitness", 
+       colour = "Simulation outcome") +
+  scale_colour_manual(values = c("#666", paletteer_d("nationalparkcolors::Everglades", 2))) +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_example_sims.png", device = png, bg = "white",
+       width = 9, height = 4.5)
+
+# Average
+d_qg_ffbh_sum <- d_qg_ffbh_aZ %>% 
+  filter(adaptedWithAZ != "Maladapted" | 
+               simID %in% maladapted_examples) %>%
+  mutate(gen = gen - 50000) %>%
+  group_by(gen, adaptedWithAZ) %>%
+  summarise(meanFitness = mean(mean_w),
+            SEFitness = se(mean_w),
+            meanFitnessVar = mean(var_w),
+            SEFitnessVar = se(var_w))
+
+ggplot(d_qg_ffbh_sum %>% 
+         filter(gen > -10500),
+       aes(x = gen, y = meanFitness, colour = adaptedWithAZ)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanFitness - SEFitness, 
+                  ymax = meanFitness + SEFitness, fill = adaptedWithAZ), colour = NA,
+              alpha = 0.2) +
+  labs(x = "Generations post-optimum shift", y = "Mean population fitness", 
+       colour = "Simulation outcome") +
+  scale_colour_manual(values = c("#666", paletteer_d("nationalparkcolors::Everglades", 2))) +
+  scale_fill_manual(values = c("#666", paletteer_d("nationalparkcolors::Everglades", 2)),
+                    guide = "none") +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) 
+ggsave("plt_av_ffbh_sims.png", device = png, bg = "white",
+       width = 9, height = 4.5)
+
+# So no real difference between the two groups in terms of the adaptive walks
+
+
+
 
 # Plot relative additive variance? What proportion of total is each contributing?
 
@@ -330,7 +472,7 @@ summary(gls.dva <- gls(totalDeltaVA ~ model + as.factor(r) + isAdapted,
                        d_h2_deltaVA, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.dva)
-# No difference between models
+# No difference between models in the change in VA between start and end
 
 
 d_h2 %>% filter(isAdapted) %>%
@@ -411,11 +553,12 @@ names(dimnames(tab)) <- c("cluster", "timePoint", "model", "r")
 tab <- as.data.frame(tab)
 
 # Model describes the clustering
-glm.clus <- glm(Freq~timePoint+model+r,family=poisson(),data=tab)
+glm.clus <- glm(Freq~model+r,family=poisson(),data=tab)
 summary(glm.clus)
 report::report(glm.clus)
 
-# Models and recombination rate matter
+# Models and recombination rate matter, but not the time point and no interaction
+# All models are pretty similar
 
 id %>% ungroup() %>%
   group_by(model, timePoint, r, clus) %>%
