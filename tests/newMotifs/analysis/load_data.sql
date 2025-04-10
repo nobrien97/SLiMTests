@@ -9,10 +9,8 @@ CREATE TABLE slim_muts(
     mutType       INTEGER,
     mutID         INTEGER,
     pos           INTEGER,
-    const         INTEGER,
     originGen     INTEGER,
     effect        REAL,
-    chi           REAL,
     freq          REAL,
     count         INTEGER,
     fixGen        INTEGER
@@ -31,20 +29,37 @@ CREATE TABLE slim_qg(
     seed            INTEGER,
     modelindex      INTEGER,
     meanH           REAL,
-    VA              REAL,
-    phenomean       REAL,
-    phenovar        REAL,
+    trait1_mean     REAL,
+    trait2_mean     REAL,
+    trait3_mean     REAL,
+    trait4_mean     REAL,
+    trait1_var      REAL,
+    trait2_var      REAL,
+    trait3_var      REAL,
+    trait4_var      REAL,
     dist            REAL,
-    w               REAL,
+    dist1           REAL,
+    dist2           REAL,
+    dist3           REAL,
+    dist4           REAL,
+    mean_w          REAL,
+    var_w           REAL,
     deltaPheno      REAL,
-    deltaw          REAL,
-    aZ              REAL,
-    bZ              REAL,
-    KZ              REAL,
-    KXZ             REAL       
+    deltaW          REAL,
+    meanMC1         REAL,
+    meanMC2         REAL,
+    meanMC3         REAL,
+    meanMC4         REAL,
+    meanMC5         REAL,
+    meanMC6         REAL,
+    meanMC7         REAL,
+    meanMC8         REAL,
+    meanMC9         REAL,
+    meanMC10        REAL,
+    meanMC11        REAL
 );
 
 .mode csv
-.import /g/data/ht96/nb9894/standingVar/slim_qg.csv slim_qg
+.import /g/data/ht96/nb9894/newMotifs/slim_qg.csv slim_qg
 
 .backup /iointensive/standingVarMuts.db.bak
