@@ -11,7 +11,7 @@
 
 # Path to updated version of sqlite
 SQLITE3=~/Tools/sqlite/sqlite3
-SAVEDIR=/g/data/ht96/nb9894/standingVar/calcMutationStats
+SAVEDIR=/g/data/ht96/nb9894/newMotifs/calcMutationStats
 RUNDIR=/iointensive
 
 cd $PBS_O_WORKDIR

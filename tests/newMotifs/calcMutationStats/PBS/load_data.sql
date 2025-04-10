@@ -38,4 +38,4 @@ CREATE TABLE tab_epistasis_freq(
 );
 
 .mode csv
-.import /g/data/ht96/nb9894/standingVar/newMotifs/d_epistasis_freqweight.csv tab_epistasis_freq
+.import /g/data/ht96/nb9894/newMotifs/calcMutationStats/d_epistasis_freqweight.csv tab_epistasis_freq
