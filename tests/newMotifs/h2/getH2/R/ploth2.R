@@ -329,6 +329,8 @@ d_h2_ffbh_aZ <- d_h2_molcomp %>%
 d_h2_ffbh_aZ[(d_h2_ffbh_aZ$VA > 0.5),]$adaptedWithAZ <- "With aZ"
 d_h2_ffbh_aZ[(d_h2_ffbh_aZ$VA < 0.25),]$adaptedWithAZ <- "Without aZ"
 
+d_qg_ffbh_aZ <- d_qg %>%
+  filter(model == "'FFBH'")
 
 # Now attach these labels to the qg
 d_qg_ffbh_aZ$adaptedWithAZ <- "Maladapted"
@@ -433,6 +435,13 @@ d_h2 %>%
   filter(n() > 1) %>%
   summarise(totalDeltaVA = sum(diff(VA_w))) -> d_h2_deltaVA
 
+# Change per molecular component
+d_h2 %>%
+  pivot_longer(starts_with("VA_"), names_to = "molComp", values_to = "VA") %>%
+  group_by(model, seed, r, molComp, isAdapted) %>%
+  filter(n() > 1) %>%
+  summarise(totalDeltaVA = sum(diff(VA))) -> d_h2_deltaVA_molComp
+boxplot(d_h2_deltaVA_molComp$totalDeltaVA)
 
 # total distribution
 boxplot(d_h2_deltaVA$totalDeltaVA)
@@ -441,6 +450,11 @@ d_h2_deltaVA %>%
   group_by(model, r, isAdapted) %>%
   summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
             seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_sum
+
+d_h2_deltaVA_molComp %>%
+  group_by(model, r, molComp, isAdapted) %>%
+  summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
+            seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_molComp_sum
 
 ggplot(d_h2_deltaVA %>% 
          mutate(r_title = "Recombination rate (log10)",
@@ -465,6 +479,29 @@ ggplot(d_h2_deltaVA %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 ggsave("plt_deltaVA.png", device = png, width = 9, height = 4)
+
+ggplot(d_h2_deltaVA_molComp %>% 
+         mutate(r_title = "Recombination rate (log10)",
+                adapted_title = "Did the population adapt?"),
+       aes(x = molComp, y = totalDeltaVA, colour = model)) +
+  facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
+  geom_quasirandom(dodge.width = 0.9) +
+  #coord_cartesian(ylim = c(0, 1)) +
+  geom_point(data = d_h2_deltaVA_molComp_sum %>% filter(!is.nan(meanDeltaVA)) %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      adapted_title = "Did the population adapt?"),
+             aes(x = molComp, y = meanDeltaVA, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Molecular component", 
+       y = TeX("Change in additive variance $(\\Delta V_A)$"),
+       colour = "Model") +
+  #scale_x_discrete(labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5)) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+ggsave("plt_deltaVA_molComp.png", device = png, width = 9, height = 4)
 
 # did the mean VA change with changing recombination and between adapted/nonadapted?
 library(nlme)
@@ -778,13 +815,24 @@ xtable(em.ev)
 # compare mean similarity between groups
 # data input: dataframe with ids and a column with the matrix
 
+# Each model has different molecular components, so really only makes sense to compare
+# within models
+
 krz_in <- id %>%
   mutate(g = h2_pd,
-         group = interaction(model, r))
+         group = interaction(model, log10(r)))
+
+krz_in_timePoint <- id %>%
+  mutate(g = h2_pd,
+         group = interaction(log10(r), timePoint))
 
 # Remove null matrices (no nearest matrix found)
 krz_in <- krz_in[!sapply(krz_in$g,is.null)];
+krz_in_timePoint <- krz_in_timePoint[!sapply(krz_in_timePoint$g,is.null)];
 
+# Save krz_in: run this part on HPC
+saveRDS(krz_in, "pca_in.RDS")
+saveRDS(krz_in_timePoint, "pca_tp_in.RDS")
 
 # Bootstrap in ten parts for RAM reasons
 # This is slow: uncomment to run, otherwise read in precalculated data
@@ -794,33 +842,62 @@ krz_in <- krz_in[!sapply(krz_in$g,is.null)];
 # 1698460455  886904095
 newseed <- c(407844323L, 2049133531L, 970639651L, 452738391L, 1161959903L, 
              506461634L, 2087592727L, 1740805001L, 1698460455L, 886904095L)
-bootPCASim <- vector(mode = "list", length = 10)
+bootPCASim <- vector(mode = "list", length = length(newseed))
+
+# Per model inputs
+krz_in_timePoint_NAR <- krz_in_timePoint %>% filter(model == "'NAR'")
+krz_in_timePoint_PAR <- krz_in_timePoint %>% filter(model == "'PAR'")
+krz_in_timePoint_FFLC1 <- krz_in_timePoint %>% filter(model == "'FFLC1'")
+krz_in_timePoint_FFLI1 <- krz_in_timePoint %>% filter(model == "'FFLI1'")
+krz_in_timePoint_FFBH <- krz_in_timePoint %>% filter(model == "'FFBH'")
+
+  
 for (i in seq_along(newseed)) {
   # Set seed
   set.seed(newseed[i])
-  # Run replicate
-  res <- mcreplicate::mc_replicate(1000, bootKrzCorFn(krz_in, "group", T))
-  bootPCASim[[i]] <- unnest(as.data.frame(t(res)), cols = everything())
+  # Run replicate but only within models
+  res_NAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_NAR, "group", T))
+  res_PAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_PAR, "group", T))
+  res_FFLC1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFLC1, "group", T))
+  res_FFLI1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFLI1, "group", T))
+  res_FFBH <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFBH, "group", T))
+  
+  # To data.frame
+  res_NAR <- unnest(as.data.frame(t(res_NAR)), cols = everything()) %>%
+    mutate(model = "'NAR'")
+  res_PAR <- unnest(as.data.frame(t(res_PAR)), cols = everything()) %>%
+    mutate(model = "'PAR'")
+  res_FFLC1 <- unnest(as.data.frame(t(res_FFLC1)), cols = everything()) %>%
+    mutate(model = "'FFLC1'")
+  res_FFLI1 <- unnest(as.data.frame(t(res_FFLI1)), cols = everything()) %>%
+    mutate(model = "'FFLI1'")
+  res_FFBH <- unnest(as.data.frame(t(res_FFBH)), cols = everything()) %>%
+    mutate(model = "'FFBH'")
+  
+  # Combine to output
+  bootPCASim[[i]] <- rbind(res_NAR, res_PAR, res_FFLC1, res_FFLI1, res_FFBH)
 }
+
+tpLevels <- c("Start", "End")
+
 # Output list into combined df
 bootPCASim2 <- bind_rows(bootPCASim)
 bootPCASim <- bootPCASim2 %>%
-  separate(group1, c("model1", "r1"), "\\.",
+  separate(group1, c("r1", "timePoint1"), "\\.",
            extra = "merge") %>%
-  separate(group2, c("model2", "r2"), "\\.",
+  separate(group2, c("r2", "timePoint2"), "\\.",
            extra = "merge") %>%
-  mutate(r1 = log10(as.numeric(r1)),
-         r2 = log10(as.numeric(r2)),
-         model1 = factor(model1, levels = model_names),
-         model2 = factor(model2, levels = model_names)) %>%
+  mutate(r1 = as.numeric(r1),
+         r2 = as.numeric(r2),
+         timePoint1 = factor(timePoint1, levels = tpLevels),
+         timePoint2 = factor(timePoint2, levels = tpLevels)) %>%
   rename(PCASim = krzCor)
 
-saveRDS(bootPCASim, "d_bootPCASim.RDS")
-bootPCASim <- readRDS(paste0(DATA_PATH, "d_bootPCASim.RDS"))
+saveRDS(bootPCASim, paste0(DATA_PATH, "d_bootPCASim_timepoints.RDS"))
+bootPCASim <- readRDS(paste0(DATA_PATH, "d_bootPCASim_timepoints.RDS"))
 
 # Plot
 # Split by model comparison
-model_comparisons <- combn(levels(id$model), 2)
 
 GetModelComparison <- function(model1, model2, model_names) {
   result <- character(length(model1))
@@ -844,18 +921,15 @@ GetModelComparison <- function(model1, model2, model_names) {
 }
 
 bootPCASim <- bootPCASim %>%
-  mutate(modelCombo = GetModelComparison(model1, model2, model_names),
+  mutate(tpCombo = GetModelComparison(timePoint1, timePoint2, tpLevels),
          rCombo = ifelse(r1 != r2, 
                          paste(as.character(r1), 
                                as.character(r2), sep = "_"), 
                          as.character(r1)))
 
-bootPCASim <- bootPCASim %>%
-  mutate(modelCombo = str_replace_all(modelCombo, "\'", ""))
-
 # recomb by modelCombo
 bootPCASim_sum <- bootPCASim %>%
-  group_by(r1, r2, modelCombo) %>%
+  group_by(r1, r2, model, tpCombo) %>%
   summarise(meanPCASim = mean(PCASim),
             ciPCASim = CI(PCASim))
 
@@ -863,7 +937,7 @@ bootPCASim_sum <- bootPCASim %>%
 ggplot(bootPCASim_sum, aes(
   x = as.factor(r1), y = as.factor(r2)
 )) +
-  facet_nested(. ~ "Model comparison" + modelCombo) + 
+  facet_nested("Model" + model ~ "Time point comparison" + tpCombo) + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
   geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
@@ -873,7 +947,7 @@ ggplot(bootPCASim_sum, aes(
        fill = "PCA Similarity") +
   theme(text = element_text(size = 10), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_r_modelCombo.png", device = png, width = 15, height = 4)
+ggsave("PCASim_r_tpCombo.png", device = png, width = 15, height = 4)
 
 # beta regression
 # Distributions
@@ -926,3 +1000,4 @@ pairs(em.fl.pcasim, simple = "rCombo")
 pwpp(em.fl.pcasim, by = "modelCombo")
 emmip(em.fl.pcasim,  ~ modelCombo | rCombo)
 xtable(em.fl.pcasim)
+
