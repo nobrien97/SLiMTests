@@ -30,62 +30,49 @@ d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
 
 # Load mutation data from database
 con <- DBI::dbConnect(RSQLite::SQLite(), 
-                      dbname = paste0(GDATA_PATH, "standingVarMuts.db"))
-# con <- DBI::dbConnect(RSQLite::SQLite(), 
-#                       dbname = paste0(dataPath, "standingVarMuts.db"))
+                      dbname = paste0(GDATA_PATH, "newMotifsMuts.db"))
 
 # Quantitative data
-d_adapted <- tbl(con, "slim_qg") %>%
+d_qg <- tbl(con, "slim_qg") %>%
   filter(gen >= 49500, modelindex == model) %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  filter(any(gen >= 59800 & between(phenomean, 1.9, 2.1))) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.95)) %>%
   ungroup()
-d_adapted <- d_adapted %>% collect()
+d_qg <- d_qg %>% collect()
 
-# If the model has 0 adapted runs, end early
-if (nrow(d_adapted) == 0) {
-  print(paste("Model ", run, " never adapted across all seeds, closing R."))
-  q(save = "no")
-  
-}
+# Measure at start and end of adaptive walk
+d_qg <- d_qg %>%
+filter(gen == 50000 | gen == 60000) %>%
+  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+         timePoint = factor(timePoint, levels = c("Start", "End")))
 
 # Mutation data
-adapted_seeds <- unique(d_adapted$seed)
-d_muts_adapted <- tbl(con, "slim_muts") %>% 
-  filter(modelindex == model, gen >= 49500, seed %in% adapted_seeds) %>%
-  select(!c(pos, chi))
-d_muts_adapted <- d_muts_adapted %>% collect()
+d_muts <- tbl(con, "slim_muts") %>% 
+  filter(modelindex == model, gen >= 49500) %>%
+  select(!c(pos))
+d_muts <- d_muts %>% collect()
 
 
 # Set data types for incorrect columns
-d_muts_adapted$seed <- as.factor(d_muts_adapted$seed)
-d_muts_adapted$modelindex <- as.factor(d_muts_adapted$modelindex)
-d_muts_adapted$mutType <- as.factor(d_muts_adapted$mutType)
-d_muts_adapted$fixGen <- as.numeric(d_muts_adapted$fixGen)
-d_muts_adapted <- d_muts_adapted %>% 
+d_muts$seed <- as.factor(d_muts$seed)
+d_muts$modelindex <- as.factor(d_muts$modelindex)
+d_muts$mutType <- as.factor(d_muts$mutType)
+d_muts$fixGen <- as.numeric(d_muts$fixGen)
+d_muts <- d_muts %>% 
   rename(value = effect)
 
-d_adapted$seed <- as.factor(d_adapted$seed)
-d_adapted$modelindex <- as.factor(d_adapted$modelindex)
+d_qg$seed <- as.factor(d_qg$seed)
+d_qg$modelindex <- as.factor(d_qg$modelindex)
 
 # dP/dt
 sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
-d_adapted %>%
-  mutate(dPdT = deltaPheno / sampleRate) -> d_adapted
+d_qg %>%
+  mutate(dPdT = deltaPheno / sampleRate) -> d_dpdt
 
-d_dpdt <- d_adapted %>%
-  filter(gen >= 50000) %>%
-  mutate(optPerc = (phenomean - 1))    # percent to optimum
-
-# Determine when we first reach 25%, 50%, 75%, 90% of the optimum 
-# (90% being our cutoff for adaptation)
-d_dpdt$optPerc <- cut(d_dpdt$optPerc, c(-Inf, 0.25, 0.5, 0.75, 0.9, Inf),
-                      right = F)
-
-# Mean change within each of these groups (from 25% to 50%, from 50% to 75% etc.)
+# Mean change within each of these groups
 d_dpdt %>%
-  group_by(optPerc, modelindex) %>%
+  group_by(timePoint, modelindex) %>%
   summarise(meandPdT = mean(dPdT),
             sddPdT = sd(dPdT)) -> d_dpdt_sum
 
@@ -96,13 +83,10 @@ data.table::fwrite(d_dpdt_sum,
 
 # filter by optPerc to select timepoints where populations 
 # first reached 50% adapted etc.
-d_adapted_optPerc <- d_dpdt %>%
-  group_by(optPerc, seed, modelindex) %>%
-  filter(row_number() == 1)
 
 # Filter mutations by optPerc generations
 # inner join the mutation w/ quantitative data + add model info
-d_com_adapted <- inner_join(d_adapted_optPerc, d_muts_adapted, 
+d_com_adapted <- inner_join(d_dpdt, d_muts_adapted, 
                             by = c("gen", "seed", "modelindex"))
 d_com_adapted <- AddCombosToDF(d_com_adapted)
 
@@ -112,7 +96,7 @@ d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
 d_SFS <- CalcSFS(d_com_adapted)
 
 d_SFS %>%
-  group_by(optPerc, modelindex, mutType, freqBin) %>%
+  group_by(timePoint, modelindex, mutType, freqBin) %>%
   summarise(countFreqBin = n(),
             meanValue = mean(value),
             sdValue = sd(value)) -> d_SFS_sum

@@ -14,8 +14,6 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
 AddCombosToDF <- function(df) {
   df %>% ungroup() %>%
     mutate(model = d_combos$model[as.numeric(levels(modelindex))[modelindex]],
-           nloci = d_combos$nloci[as.numeric(levels(modelindex))[modelindex]],
-           tau = d_combos$tau[as.numeric(levels(modelindex))[modelindex]],
            r = d_combos$r[as.numeric(levels(modelindex))[modelindex]])
 }
 
@@ -88,25 +86,40 @@ CalcAddEffects <- function(dat, dat_fixed) {
 
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
 ## for many individuals at once.
-runLandscaper <- function(df_path, output, width, optimum, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -w %f -p %f -t %i"
-  #command <- "ODELandscaper -i %s -o ./%s -w %f -p %f -t %i"
+runLandscaper <- function(df_path, output, width, optimum, motif, threads, useID = FALSE) {
+  command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -w %f -p %f -s %s -t %i"
+  #command <- "ODELandscaper -i %s -o ./%s -w %f -p %f -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
   system(sprintf(command,
-                 df_path, output, width, optimum, threads))
+                 df_path, output, width, optimum, motif, threads))
   result <- read_csv(paste0("./", output), col_names = F, col_types = "d")
+
+  result_names <- c("fitness", "trait1", "trait2")
+
+  # Column names depend on the motif 
+  switch(motif,
+    "NAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult") },
+    "PAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult") },
+    "FFLC1" = { result_names <- c(result_names, "trait_3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
+    "FFLI1" = { result_names <- c(result_names, "trait_3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
+    "FFBH"  = { result_names <- c(result_names, "trait_4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") }
+  )
+
+  # Add row id to the names
   if (useID) {
-    names(result) <- c("id", "fitness", "pheno", "aZ", "bZ", "KZ", "KXZ")
-  } else {
-    names(result) <- c("fitness", "pheno", "aZ", "bZ", "KZ", "KXZ")
+    result_names <- c("id", result_names)
   }
-  
+
+  names(result) <- result_names
+
   return(result)
 }
 
 ## Calculate fitness in network models
+## TODO: Adjust for multiple motifs, remember that base() needs to be adjusted because the default
+## value isn't 1, for the PAR it's 0.01, for others it's 0
 CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   # calculate cumulative molecular component values due to fixations,
   # add on the sampled mutation and recalculate phenotype
