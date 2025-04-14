@@ -86,14 +86,14 @@ data.table::fwrite(d_dpdt_sum,
 
 # Filter mutations by optPerc generations
 # inner join the mutation w/ quantitative data + add model info
-d_com_adapted <- inner_join(d_dpdt, d_muts_adapted, 
+d_com <- inner_join(d_dpdt, d_muts, 
                             by = c("gen", "seed", "modelindex"))
-d_com_adapted <- AddCombosToDF(d_com_adapted)
+d_com <- AddCombosToDF(d_com)
 
-d_fixed_adapted <- d_com_adapted %>% filter(!is.na(fixGen))
+d_fixed <- d_com %>% filter(!is.na(fixGen))
 
 # SFS
-d_SFS <- CalcSFS(d_com_adapted)
+d_SFS <- CalcSFS(d_com)
 
 d_SFS %>%
   group_by(timePoint, modelindex, mutType, freqBin) %>%
@@ -108,21 +108,21 @@ data.table::fwrite(d_SFS_sum,
 
 
 # Calculate phenotype effects
-d_phenofx <- CalcPhenotypeEffects(d_com_adapted %>% filter(is.na(fixGen)),
-                                  d_fixed_adapted)
+d_phenofx <- CalcPhenotypeEffects(d_com %>% filter(is.na(fixGen)),
+                                  d_fixed)
 
 d_phenofx <- d_phenofx %>%
   select(gen, seed, modelindex, mutType, mutID, s)
 
 
-d_epistasis <- PairwiseEpistasis(d_fixed_adapted,
-                                 d_com_adapted %>% 
+d_epistasis <- PairwiseEpistasis(d_fixed,
+                                 d_com %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, freq, value),
                                  m = 48, n = 1000, F, F)
 
-d_epistasis_freqweight <- PairwiseEpistasis(d_fixed_adapted,
-                                                  d_com_adapted %>% 
+d_epistasis_freqweight <- PairwiseEpistasis(d_fixed,
+                                                  d_com %>% 
                                                     filter(is.na(fixGen)) %>%
                                                     select(gen, seed, modelindex, mutType, freq, value),
                                                   m = 48, n = 1000, F, T)

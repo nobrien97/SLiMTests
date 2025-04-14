@@ -26,62 +26,24 @@ calcAddFitness <- function(phenotypes, optimum, width) {
 }
 
 CalcPhenotypeEffects <- function(dat, dat_fixed) {
+  # If there's no fixations, set the fixed value to 0
+  # TODO: Need to set to be relative to the baseline reference value (e.g. base = 0.01)
   if (nrow(dat_fixed) == 0) {
     dat_fixed[1,] <- dat[1,]
     dat_fixed %>% mutate(value = 0)
   }
   
-  if (dat[1, "model"] == "Add") {
-    return(CalcAddEffects(dat, dat_fixed))
+  if (dat[1, "model"] == "NAR" | dat[1, "model"] == "PAR") {
+    return(CalcNARPARPhenotypeEffects(dat, dat_fixed))
   }
-  
-  CalcNARPhenotypeEffects(dat, dat_fixed)
-}
 
-## Calculate the fitness effects in additive populations
-### Fitness/phenotype is calculated relative to "wildtype"
-### an individual with no mutations at all OR if there are fixations,
-### those count to the wildtype
-CalcAddEffects <- function(dat, dat_fixed) {
-  # If we are calculating fitness for segregating sites, need to evaluate fitness
-  # vs the fixed effect background at the timepoint (i.e. all fixations at timepoint gen)
-  # Fixation effect is multiplied by 2 because diploid
-  dat <- as.data.table(dat)
-  dat_fixed <- as.data.table(dat_fixed)
-  
-  dat_fixed <- dat_fixed %>%
-    group_by(gen, seed, modelindex) %>%
-    summarise(fixEffectSum = 2 * sum(value)) %>%
-    select(gen, seed, modelindex, fixEffectSum) %>%
-    ungroup()
-  
-  dat <- dat %>% inner_join(dat_fixed, by = c("gen", "seed", "modelindex"))
-  
-  # For segregating comparisons:
-  # AA = 1+s; Aa = 1+hs; aa = 1
-  # AA = fixEffectSum + 2 * value
-  # Aa = fixEffectSum + value
-  # aa = fixEffectSum
-  # Get effect
-  Aa <- calcAddFitness(dat$fixEffectSum + dat$value, 2, 0.05)
-  AA <- calcAddFitness(dat$fixEffectSum + dat$value * 2, 2, 0.05)
-  aa <- calcAddFitness(dat$fixEffectSum, 2, 0.05)
-  
-  dat %>% 
-    mutate(AA_pheno = fixEffectSum + 2 * value,
-           Aa_pheno = fixEffectSum + value,
-           aa_pheno = fixEffectSum,
-           value_AA = value * 2,
-)
-  dat$avFit <- Aa - aa
-  dat$avFit_AA <- AA - aa
-  dat$value_AA <- dat$value * 2
-  dat$wAA <- AA
-  dat$wAa <- Aa
-  dat$waa <- aa
-  dat$s <- AA - aa
-  
-  return(as_tibble(dat))
+  if (dat[1, "model"] == "FFLC1" | dat[1, "model"] == "FFLI1") {
+    return(CalcFFLPhenotypeEffects(dat, dat_fixed))
+  }
+
+  if (dat[1, "model"] == "FFBH") {
+    return(CalcFFBHPhenotypeEffects(dat, dat_fixed))
+  }
 }
 
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
@@ -120,7 +82,7 @@ runLandscaper <- function(df_path, output, width, optimum, motif, threads, useID
 ## Calculate fitness in network models
 ## TODO: Adjust for multiple motifs, remember that base() needs to be adjusted because the default
 ## value isn't 1, for the PAR it's 0.01, for others it's 0
-CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
+CalcNARPARPhenotypeEffects <- function(dat, dat_fixed) {
   # calculate cumulative molecular component values due to fixations,
   # add on the sampled mutation and recalculate phenotype
   # multiply by 2 because diploid
@@ -145,26 +107,22 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   dat <- dat %>%
     mutate(mutType2 = mutType) %>%
     pivot_wider(names_from = mutType2, values_from = value,
-                names_glue = "{.value}_{mutType2}", values_fill = 0)
-  
-  if (any(dat$model == "ODE")) {
-    dat$fixEffectSum_5 <- 1
-    dat$fixEffectSum_6 <- 1
-    dat$value_5 <- 0
-    dat$value_6 <- 0
-    }
-    
+                names_glue = "{.value}_{mutType2}", values_fill = 0)    
   
   dat <- dat %>% inner_join(dat_fixed, 
                             by = c("gen", "seed", "modelindex"))
   
   dat$rowID <- as.integer(rownames(dat))
+
+  # Get optima and selection strength
+  
   
   # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
-                dplyr::select(rowID, fixEffectSum_3, fixEffectSum_4, fixEffectSum_5, fixEffectSum_6), 
+                dplyr::select(rowID, starts_with("fixEffectSum")), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+  d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
+                           width, optima, model, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -801,10 +759,8 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
 # Calculates the site frequency spectra for mutations
 CalcSFS <- function(dat) {
   dat$freqBin <- cut(dat$freq, breaks = 10)
-  dat$optPerc <- dat$phenomean - 1
-  dat$optPerc <- cut(dat$optPerc, c(-Inf, 0.25, 0.5, 0.75, Inf))
   
   dat %>% 
-    select(optPerc, seed, modelindex, 
+    select(timePoint, seed, modelindex, 
            mutID, mutType, value, freqBin)
 }
