@@ -1,0 +1,470 @@
+// set up a simple neutral simulation
+initialize() {
+	if (!exists("slimgui")) {
+		defineConstant("seed", getSeed());
+	}
+	else {
+		setSeed(asInteger(round(runif(1, 1, 2^62 - 1))));
+		defineConstant("seed", getSeed());
+		catn("Actual seed: " + asInteger(seed));
+	}
+	
+	
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/randomisedStarts/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/slim/"); // 
+	// Load functions from file
+	source(paste0(wd, "baseFns.slim"));
+	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
+	
+	// Declare/define parameters if they haven't been by the command line arguments
+	// Values from literature are cited
+	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
+	setCfgParam("modelType", "NAR"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
+	setCfgParam("mu", 1e-5); // Per locus mutation rate
+	setCfgParam("N", 5000); // Population size
+	setCfgParam("N_sires", 5); // Number of sires for sampling
+	setCfgParam("N_dam", 20); // Number of dams per sire
+	setCfgParam("N_perdam", 10); // Number of offspring per dam
+	setCfgParam("N_samp", N_sires*N_dam*N_perdam); // Sample size for haplotypes etc.
+	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
+	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
+	setCfgParam("rwide", 0.1); // Whole genome recombination rate
+	setCfgParam("nloci", 1386); // Number of sites: common multiple of all n_C in all models
+	setCfgParam("genomelength", 1386); // Loci across the genome
+	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
+	setCfgParam("locisigma", 0.004); // Variance used for QTL effect pulls - the effect size distribution
+	setCfgParam("fitnessCost", 0.05);	// 5% drop in fitness
+	setCfgParam("fitnessCostDistance", 0.1); // 10% phenotypic unit deviation to cause fitnessCost% decay in fitness
+	setCfgParam("maxStartMolCompValue", 2.0); // Maximum value a molecular component can be when starting the simulation (prior to exp)
+	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
+//	setCfgParam("optBurn", matrix(c(0.5, 0.5, -1.0, -1.0, 	// NAR:    Response time, steady state conc
+//															0.5, 0.25, -1.0, -1.0,	// PAR:    Response time, steady state conc
+//															1.3, 0.3, 0.1, -1.0,	// C1-FFL: Response time, Response delay, steady state conc
+//															0.3, 0.3, 5.0, -1.0, 	// I1-FFL: Time to half max expression, max exp conc, time above half max expression
+//															1.7, 0.2, 1.0, 0.0		// FFBH:   Time to half max expression, max exp conc, response time second state, second steady state conc
+//									 													), ncol = 4, byrow = T)); // Optimum during burn-in
+// DEPRECATED: optShift, now shift is a fixed distance across each axis given by their widths
+//	setCfgParam("optShift", matrix(c(-0.5, 1.0, 0.0, 0.0, 	// NAR:    Response time, steady state conc
+//									 0.5, 0.1, 1.0, 0.0,	// PAR:    Response time, Response delay, steady state conc
+//									 0.5, 1.0, 1.0, 0.0,	// C1-FFL: Response time, Response delay, steady state conc
+//									 -0.5, 1.0, 1.5, 0.0, 	// I1-FFL: Time to max expression, max expression conc, time above half max expression
+//									 0.5, 1.0, -0.5, 1.0		// FFBH:   Time to max expression, max expression conc, response time second state, second steady state conc
+//									 ), ncol = 4, byrow = T)); // Shift in the optimum values following burnin (optBurn + optShift)		
+									 		
+	// Precompute distance to optimum after optimum shift
+	defineGlobal("initDist", sqrt( -2 * log(1 - fitnessCost) ));
+	defineGlobal("curDist", initDist); // Current mean distance to the optimum
+	// Matrix of phenotype checkpoints where we measure relatedness/haplotypes. 
+	// First column is a lower bound for check if mean phenotype is at least this value
+	// Second column keeps track of if this checkpoint has been written already (0 = not written, 1 = written)
+	defineGlobal("checkpoints", matrix(c(initDist*0.75, 0,  
+										initDist*0.5, 0,
+										initDist*0.25, 0,
+										initDist*0.05, 0), ncol = 2, byrow = T));
+
+	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
+	setCfgParam("burnTime", 10 * N); // Number of generations of neutral burn-in before the test period
+	setCfgParam("testTime", 10000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
+	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("molTraitFix", -1); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
+	setCfgParam("testSampling", 50); // Sample rate during test period
+	setCfgParam("adaptiveSampling", F); // Enable adaptive sampling rates to sample more often when phenotypes are changing rapidly. 
+	setCfgParam("sampleLimits", c(0.1*samplerate, 5*samplerate)); // Set maximum and minimum sample rates to adjust between 
+	
+	setCfgParam("modelindex", 1); // Identifier for the combination of predictors used in latin hypercube: this is the row number 
+	// in the lscombos.csv file
+	setCfgParam("identifier", paste(asString(seed), modelindex, sep = "_")); // Unique identifier for the run - seed_modelindex
+	
+	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
+	//	We write to /$PBS_JOBFS and copy all files of the same type after the full job is complete to a combined file
+	// IMPORTANT: in the PBS script remember to cd $PBS_JOBFS
+	
+	setCfgParam("outPositions", paste0('slim_pos', identifier, '.csv')); // Output filename/path for locus positions
+	setCfgParam("outQG", paste0('slim_qg', identifier, '.csv')); // Output filename/path for the trait means/variance
+	setCfgParam("outOpt", paste0('slim_opt', identifier, '.csv')); // Output filename/path for the trait optimum values for each run
+	setCfgParam("outMuts", paste0('slim_muts', identifier, '.csv')); //Output filename/path for the mutation information
+	//setCfgParam("outODEPars", paste0('slim_medodepar', identifier, '.csv')); // Output filename/path for the median ODE parameter combination
+	setCfgParam("outPMMat", paste0('slim_PMmat', identifier, '.csv')); // Output filename/path for the molecular trait G matrices
+	setCfgParam("outSharedMutFreqs", c(paste0('slim_sharedmutfreqs', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
+	setCfgParam("outInd", paste0('slim_indPheno', identifier, '.csv')); // Output filename/path for individual phenotype data
+	setCfgParam("outPed", paste0('slim_pedigree', identifier, '.csv')); // Output filepath for pedigree
+	setCfgParam("outHaplo", paste0('slim_haplo', identifier, '.csv')); // Output filepath for haplotypes
+	setCfgParam("outHaploFix", paste0('slim_haplo_fix', identifier, '.csv')); // Output filepath for fixations in haplotype
+	setCfgParam("outPhenoSample", paste0('slim_sampled_pheno', identifier, '.csv')); // Output filepath for sampled phenotypes
+	setCfgParam("outMolSample", paste0('slim_sampled_moltrait', identifier, '.csv')); // Output filepath for sampled molecular trait values
+	//setCfgParam("outGenMap", paste0('slim_genmap', identifier, '.csv')); // Output filepath for genetic map
+	setCfgParam("outRelPos", paste0('slim_relPos', identifier, '.csv')); // Output filepath for relatedness matrix non zero positions (columnwise upper triangle
+	setCfgParam("outRelVals", paste0('slim_relVals', identifier, '.csv')); // Output filepath for relatedness matrix values
+	setCfgParam("outFX", paste0('slim_fx', identifier, '.csv')); // Output filepath for effect sizes associated with haplotypes
+	setCfgParam("outPopState", paste0('slim_popstate', identifier, '.bin')); // Output binary population saved state
+	//setCfgParam("outMutsInd", paste0('slim_indMut', identifier, '.csv')); // Output individual mutation/allele information
+	setCfgParam("outHet", paste0('slim_locusHo', identifier, '.csv')); // Output per locus heterozygosity information
+	
+	
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/newMotifs/randomisedStarts/"); // Directory to move output to at end of simulation
+	
+	// Time tests
+	setCfgParam("outTime", paste0('slim_time', identifier, '.csv'));
+	
+	if (debug == T)
+		defineConstant("beginTime", clock());
+	
+	// Expected values for theta and heterozygosity at mutation-drift equilibrium	
+	defineConstant("expTheta", 4*N*mu);
+	defineConstant("expHe", expTheta/(1+expTheta));
+	
+	// Misc constants
+	
+	// Lookup table for round to digits
+	defineGlobal("roundFactor", 10^(1:6));	
+	
+	
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(keepPedigrees=T);
+	//	initializeTreeSeq();
+	initializeMutationRate(mu);
+	
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	
+	// m2 mutation type: background
+	initializeMutationType("m2", 0.5, "n", 0.0, 1.0);
+	m2.color = "red";
+	m1.convertToSubstitution = T;
+	
+	//m3 mutation type: aZ mutation
+	initializeMutationType("m3", 0.5, "n", locimu, locisigma);
+	m3.color = "green";
+	m3.convertToSubstitution = T;
+	
+	//m4 mutation type: bZ mutation
+	initializeMutationType("m4", 0.5, "n", locimu, locisigma);
+	m4.color = "blue";
+	m4.convertToSubstitution = T;
+	
+	//m5 mutation type: KZ mutation
+	initializeMutationType("m5", 0.5, "n", locimu, locisigma);
+	m5.color = "cyan";
+	m5.convertToSubstitution = T;
+	
+	//m6 mutation type: KXZ mutation
+	initializeMutationType("m6", 0.5, "n", locimu, locisigma);
+	m6.color = "purple";
+	m6.convertToSubstitution = T;
+	
+	//m7 mutation type: constitutive rate (NAR/PAR), bZ (FFL) or KY (FFBH)
+	initializeMutationType("m7", 0.5, "n", 0.0, 1.0);
+	m7.convertToSubstitution = T;
+	
+	//m8 mutation type: hill coefficient (NAR/PAR), KXZ (FFL) or aZ (FFBH)
+	initializeMutationType("m8", 0.5, "n", 0.0, 1.0);
+	m8.convertToSubstitution = T;
+	
+	//m9 mutation type: XMult (NAR/PAR), constitutive rate (FFL) or bZ (FFBH)
+	initializeMutationType("m9", 0.5, "n", 0.0, 1.0);
+	m9.convertToSubstitution = T;
+	
+	//m10 mutation type: hill coefficient (FFL) or KXZ (FFBH)
+	initializeMutationType("m10", 0.5, "n", 0.0, 1.0);
+	m10.convertToSubstitution = T;
+
+	//m11 mutation type: XMult (FFL) or constitutive rate (FFBH)
+	initializeMutationType("m11", 0.5, "n", 0.0, 1.0);
+	m11.convertToSubstitution = T;
+
+	//m12 mutation type: hill coefficient (FFBH)
+	initializeMutationType("m12", 0.5, "n", 0.0, 1.0);
+	m12.convertToSubstitution = T;
+
+	//m13 mutation type: XMult mutation (sensitivity to cue) (FFBH)
+	initializeMutationType("m13", 0.5, "n", 0.0, 1.0);
+	m13.convertToSubstitution = T;
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 100 kb with uniform recombination
+	initializeGenomicElement(g1, 0, genomelength-1);
+	initializeRecombinationRate(rwide);
+
+}
+
+mutation(m1) {
+	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
+	mut.setMutationType(sampleMutTypeFromSite(mut.position));
+	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
+	
+	// Neutral mutation: Get rid of
+//	if (mut.mutationType == sim.mutationTypes[0])
+//		return F;
+	
+	if (all(molTraitFix == -1))
+		return T;
+	
+	// Check if the mutation type is meant to be locked: if it is, don't mutate	
+	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2]))
+		return F;
+	
+	return T;
+}
+
+mutationEffect(m2) {
+	return 1.0;
+}
+
+mutationEffect(m3) {
+	return 1.0;
+}
+mutationEffect(m4) {
+	return 1.0;
+}
+mutationEffect(m5) {
+	return 1.0;
+}
+mutationEffect(m6) {
+	return 1.0;
+}
+mutationEffect(m7) {
+	return 1.0;
+}
+mutationEffect(m8) {
+	return 1.0;
+}
+mutationEffect(m9) {
+	return 1.0;
+}
+mutationEffect(m10) {
+	return 1.0;
+}
+mutationEffect(m11) {
+	return 1.0;
+}
+mutationEffect(m12) {
+	return 1.0;
+}
+mutationEffect(m13) {
+	return 1.0;
+}
+
+
+// create a population of 500 individuals
+1 early() {
+	sim.addSubpop("p1", N);
+	sim.addSubpop("p2", 0); // Staging population for crossing experiment
+	
+	
+	assignQTLPositions(); // Assign QTL behaviours
+
+	// Randomise the molecular components
+	RandomiseMolCompStartingValues();
+
+	// Get burn-in optima
+	startTraits = getStartTraitValues(modelType);
+	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
+
+	defineGlobal("traitShiftDir", getRandomTraitShiftDirection(size(startTraits)));
+	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
+		
+	
+	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
+	// s1: stabilising selection for X generations around
+	// s2: Shift optimum, end the simulation and write/move output files 
+	community.rescheduleScriptBlock(s1, start = 1, end = burnTime);
+	community.rescheduleScriptBlock(s5, start = 2, end = 2); // Write output at gen 1
+	community.rescheduleScriptBlock(s2, start = burnTime+1, end = burnTime + testTime);
+	// Script blocks for reproduction callbacks: burn-in vs test period
+	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
+	community.rescheduleScriptBlock(s4, start = burnTime+1, end = burnTime + testTime);
+	
+	// Diagnostics for this run
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
+	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
+
+}
+
+// Burn-in under stabilising selection
+s3 reproduction() {
+	
+	// Mating design at end of burn-in
+	if ( (sim.cycle) == burnTime ) {
+		sires = p1.sampleIndividuals(N_sires);
+		for (sire in sires) {
+			dams = p1.sampleIndividuals(N_dam, exclude = sire);
+			for (dam in dams) {
+				p2.addCrossed(sire, dam, count = N_perdam);
+			}
+		}
+	}
+	
+	inds = p1.individuals;
+	fitness = sim.getValue("fitness");
+	parent1 = sample(inds, N, replace = T, weights = fitness);
+	parent2 = sample(inds, N, replace = T, weights = fitness);
+	
+	for (i in seqLen(N))
+		p1.addCrossed(parent1[i], parent2[i]);
+	
+	self.active = 0;
+}
+// full-sib half-sib mating design: we want to keep variability around though,
+// so we still sample the rest of the population according to the regular rules
+s4 reproduction() {
+	// Only do the mating design a generation before we sample, add individuals to the staging population
+	if (!((sim.cycle) % testSampling) | (sim.cycle) == (burnTime+testTime)) {
+		sires = p1.sampleIndividuals(N_sires);
+		for (sire in sires) {
+			dams = p1.sampleIndividuals(N_dam, exclude = sire);
+			for (dam in dams) {
+				p2.addCrossed(sire, dam, count = N_perdam);
+			}
+		}
+		// Calc phenotypes
+		// calcPhenotype(p2.individuals);
+	}
+	
+	inds = p1.individuals;
+	fitness = sim.getValue("fitness");
+	parent1 = sample(inds, N, replace = T, weights = fitness);
+	parent2 = sample(inds, N, replace = T, weights = fitness);
+	
+	for (i in seqLen(N))
+		p1.addCrossed(parent1[i], parent2[i]);
+	
+	self.active = 0;
+}
+
+survival() {
+	return (individual.age == 0);
+}
+
+// Burn in
+s1 late() {
+	inds = p1.individuals;
+	calcPhenotype(inds, modelType);
+	optTraits = optBurn;//getOptTraits(optBurn, modelType);
+	//calcFitnessGaussian(inds, optTraits, modelType);
+	
+	// Check if we're at the end of burn-in
+	if (sim.cycle == burnTime) {
+		calcPhenotype(p2.individuals, modelType); // need to calculate phenotypes for p2 when we write
+		calcFitnessGaussian(p2.individuals, optTraits, modelType);
+		//writeLDmat(p1, T);
+		writeSharedMutFreqs(p1);
+		//writeGenMap();
+		writeHaploRel(p2, N_samp);
+		writePMMatrix(p2);
+		savePopState();
+		setSeed(seed); // Reset the seed so its the same when we reload the file to calculate h2
+	}
+	
+	
+	// Check if we are sampling type 1 output this generation (quant gen)
+	if (sim.cycle % samplerate[0])
+		return;
+	
+	writeQuantGenOutput(p1, "burnin");
+	
+	
+	if (debug)
+		writeTimeData();
+	
+	
+	// Check if we are sampling type 2 output this generation (alleles)
+	if (sim.cycle % samplerate[1])
+		return;
+	writeAlleleData();
+	writeIndOutput(p1);
+
+}
+
+// Write output in gen 1
+s5 late() {
+	writeQuantGenOutput(p1, "burnin");
+}
+
+s2 late() {
+	inds = p1.individuals;
+	calcPhenotype(inds, modelType);
+	calcFitnessGaussian(inds, optimum, modelType);
+	
+	
+	if (sim.cycle == (burnTime + testTime)) {
+		// Write last output
+		writeQuantGenOutput(p1, "adaptation");
+		writeIndOutput(p1);
+		
+		// Write LD output and pedigree/heritability stuff
+		calcPhenotype(p2.individuals, modelType);
+		calcFitnessGaussian(p2.individuals, optimum, modelType);
+		//writeLDmat(p1, F);
+		writeSharedMutFreqs(p1);
+		//writeGenMap();
+		writeHaploRel(p2, N_samp); // write haplo and rel at end of sim regardless of checkpoints
+		writeHetData();
+		writePMMatrix(p2);
+
+		// Move output to scratch storage
+		system(paste0("mv ./", outPositions, " ", moveDir));
+		system(paste0("mv ./", outOpt, " ", moveDir));
+		system(paste0("mv ./", outMuts, " ", moveDir));
+		system(paste0("mv ./", outQG, " ", moveDir));
+		system(paste0("mv ./", outInd, " ", moveDir));
+		system(paste0("mv ./", outHaplo, " ", moveDir));
+		system(paste0("mv ./", outHaploFix, " ", moveDir));
+		system(paste0("mv ./", outPhenoSample, " ", moveDir));
+		system(paste0("mv ./", outMolSample, " ", moveDir));
+		system(paste0("mv ./", outFX, " ", moveDir));
+		system(paste0("mv ./", outHet, " ", moveDir));
+		system(paste0("mv ./", outPMMat, " ", moveDir)); 
+		system(paste0("mv ./", outRelPos, " ", moveDir)); 
+		system(paste0("mv ./", outRelVals, " ", moveDir)); 
+		system(paste0("mv ./", outSharedMutFreqs, " ", moveDir)); 		
+		system(paste0("mv ./", outPopState, " ", moveDir));
+		
+		if (debug) {
+			writeTimeData();
+			system(paste0("mv ./", outTime, " ", moveDir));
+		}
+		
+		
+		sim.simulationFinished();
+		return;
+	}
+	// Check if we're sampling this generation
+	if (sim.cycle % testSampling)
+		return;
+	
+	calcPhenotype(p2.individuals, modelType);
+	calcFitnessGaussian(p2.individuals, optimum, modelType);
+	writePMMatrix(p2);
+	
+	writeQuantGenOutput(p1, "adaptation");
+	writeAlleleData();
+	writeIndOutput(p1);
+	writeHetData();
+
+
+	// Only store haplotype and relatedness matrix at certain checkpoints in the simulation
+	// Also genotype frequencies
+	// e.g. phenotype at 25%, 50%, 75%, 95%
+	curCheckpoint = checkpoints[,0][c(curDist < checkpoints[, 0])];
+	curCheckpoint = whichMax(curCheckpoint);
+	if (!isNULL(curCheckpoint)) {
+		if (checkpoints[curCheckpoint, 1] < 1) {
+			writeSharedMutFreqs(p1);
+			writeHaploRel(p2, N_samp);
+			// make sure we don't write again, also write any that we might have skipped (e.g. if we
+			// went straight from 25% to 75%, we need to write 50%)
+			for (i in curCheckpoint:0) {
+				checkpoints[i, 1] = 1;
+			}
+		}
+	}
+
+	
+	
+	if (debug)
+		writeTimeData();
+
+}
+
