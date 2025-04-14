@@ -108,8 +108,23 @@ data.table::fwrite(d_SFS_sum,
 
 
 # Calculate phenotype effects
+
+## Get optima and selection strength
+d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
+                          sep = ",", colClasses = c("factor", "factor", 
+                                                    rep("numeric", times = 12)), 
+                          col.names = c("seed", "modelindex", "trait1_opt", "trait2_opt",
+                                        "trait3_opt", "trait4_opt", "trait1_sig", "trait2_sig",
+                                        "trait3_sig", "trait4_sig", "trait1_dir", "trait2_dir",
+                                        "trait3_dir", "trait4_dir"), 
+                          fill = T)
+
+# Get the optimum traits and width of the fitness function for this simulation
+# We are running this on multiple seeds which have their own optima
+d_opt <- d_opt %>% filter(modelindex == model)
+
 d_phenofx <- CalcPhenotypeEffects(d_com %>% filter(is.na(fixGen)),
-                                  d_fixed)
+                                  d_fixed, d_opt)
 
 d_phenofx <- d_phenofx %>%
   select(gen, seed, modelindex, mutType, mutID, s)
@@ -119,7 +134,7 @@ d_epistasis <- PairwiseEpistasis(d_fixed,
                                  d_com %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, freq, value),
-                                 m = 48, n = 1000, F, F)
+                                 m = 24, n = 1000, F, F)
 
 d_epistasis_freqweight <- PairwiseEpistasis(d_fixed,
                                                   d_com %>% 

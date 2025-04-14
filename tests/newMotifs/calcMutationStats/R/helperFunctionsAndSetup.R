@@ -82,7 +82,7 @@ runLandscaper <- function(df_path, output, width, optimum, motif, threads, useID
 ## Calculate fitness in network models
 ## TODO: Adjust for multiple motifs, remember that base() needs to be adjusted because the default
 ## value isn't 1, for the PAR it's 0.01, for others it's 0
-CalcNARPARPhenotypeEffects <- function(dat, dat_fixed) {
+CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # calculate cumulative molecular component values due to fixations,
   # add on the sampled mutation and recalculate phenotype
   # multiply by 2 because diploid
@@ -114,15 +114,28 @@ CalcNARPARPhenotypeEffects <- function(dat, dat_fixed) {
   
   dat$rowID <- as.integer(rownames(dat))
 
-  # Get optima and selection strength
-  
+  # TODO: Extract the right optima and widths
+  opt <- unlist(dat_opt %>% filter(seed == dat_fixed$seed[1]) %>% select(trait1_opt, trait2_opt, trait3_opt, trait4_opt))
+  sig <- unlist(dat_sig %>% filter(seed == dat_fixed$seed[1]) %>% select(trait1_sig, trait2_sig, trait3_sig, trait4_sig))
+
+
+  # Select correct traits
+  if (model == "NAR" | model == "PAR") {
+    opt <- opt[1:2]
+    sig <- sig[1:2]
+  }
+
+  if (model == "FFLC1" | model == "FFLI1") {
+    opt <- opt[1:3]
+    sig <- sig[1:4]
+  }
   
   # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, starts_with("fixEffectSum")), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
   d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                           width, optima, model, 4, TRUE)
+                           sig, opt, model, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -132,18 +145,13 @@ CalcNARPARPhenotypeEffects <- function(dat, dat_fixed) {
   # aa = d_popfx$fixEffectSum
   
   # Add on the segregating effect to the fixation effects
+  # TODO fix this: programmatically name variables 
   d_dat_withFX <- dat
   d_dat_withFX$aZ <- exp(log(d_dat_withFX$fixEffectSum_3) + d_dat_withFX$value_3)
   d_dat_withFX$bZ <- exp(log(d_dat_withFX$fixEffectSum_4) + d_dat_withFX$value_4)
   d_dat_withFX$KZ <- exp(log(d_dat_withFX$fixEffectSum_5) + d_dat_withFX$value_5)
   d_dat_withFX$KXZ <- exp(log(d_dat_withFX$fixEffectSum_6) + d_dat_withFX$value_6)
-  
-  # homozygous effect
-  d_dat_withFX$aZ_AA <- exp(log(d_dat_withFX$fixEffectSum_3) + 2 * d_dat_withFX$value_3)
-  d_dat_withFX$bZ_AA <- exp(log(d_dat_withFX$fixEffectSum_4) + 2 * d_dat_withFX$value_4)
-  d_dat_withFX$KZ_AA <- exp(log(d_dat_withFX$fixEffectSum_5) + 2 * d_dat_withFX$value_5)
-  d_dat_withFX$KXZ_AA <- exp(log(d_dat_withFX$fixEffectSum_6) + 2 * d_dat_withFX$value_6)
-  
+    
   # Get phenotypes with the mutation
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
@@ -154,14 +162,13 @@ CalcNARPARPhenotypeEffects <- function(dat, dat_fixed) {
                 dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
   AA <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
-
   
   # Ensure that the tables are aligned by id before we join them
   dat <- dat %>% arrange(rowID)
   Aa <- Aa %>% arrange(id)
   AA <- AA %>% arrange(id)
   
-  # Get effect
+  # TODO Get effect
   dat$AA_pheno <- AA$pheno
   dat$Aa_pheno <- Aa$pheno
   dat$aa_pheno <- d_popfx$pheno
