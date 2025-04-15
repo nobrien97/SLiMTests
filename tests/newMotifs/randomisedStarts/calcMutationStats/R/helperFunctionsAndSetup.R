@@ -25,7 +25,7 @@ calcAddFitness <- function(phenotypes, optimum, width) {
   return(exp(-(dists * width)))
 }
 
-CalcPhenotypeEffects <- function(dat, dat_fixed) {
+CalcPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # If there's no fixations, set the fixed value to 0
   # TODO: Need to set to be relative to the baseline reference value (e.g. base = 0.01)
   if (nrow(dat_fixed) == 0) {
@@ -33,29 +33,19 @@ CalcPhenotypeEffects <- function(dat, dat_fixed) {
     dat_fixed %>% mutate(value = 0)
   }
   
-  if (dat[1, "model"] == "NAR" | dat[1, "model"] == "PAR") {
-    return(CalcNARPARPhenotypeEffects(dat, dat_fixed))
-  }
-
-  if (dat[1, "model"] == "FFLC1" | dat[1, "model"] == "FFLI1") {
-    return(CalcFFLPhenotypeEffects(dat, dat_fixed))
-  }
-
-  if (dat[1, "model"] == "FFBH") {
-    return(CalcFFBHPhenotypeEffects(dat, dat_fixed))
-  }
+  return(CalcNetworkPhenotypeEffects(dat, dat_fixed, dat_opt))
 }
 
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
 ## for many individuals at once.
-runLandscaper <- function(df_path, output, width, optimum, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -w %f -p %f -s %s -t %i"
-  #command <- "ODELandscaper -i %s -o ./%s -w %f -p %f -s %s -t %i"
+runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
+  command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
+  #command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
   system(sprintf(command,
-                 df_path, output, width, optimum, motif, threads))
+                 df_path, output, optimum, motif, threads))
   result <- read_csv(paste0("./", output), col_names = F, col_types = "d")
 
   result_names <- c("fitness", "trait1", "trait2")
@@ -64,9 +54,9 @@ runLandscaper <- function(df_path, output, width, optimum, motif, threads, useID
   switch(motif,
     "NAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult") },
     "PAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult") },
-    "FFLC1" = { result_names <- c(result_names, "trait_3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
-    "FFLI1" = { result_names <- c(result_names, "trait_3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
-    "FFBH"  = { result_names <- c(result_names, "trait_4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") }
+    "FFLC1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
+    "FFLI1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
+    "FFBH"  = { result_names <- c(result_names, "trait4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") }
   )
 
   # Add row id to the names
@@ -114,28 +104,15 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   
   dat$rowID <- as.integer(rownames(dat))
 
-  # TODO: Extract the right optima and widths
-  opt <- unlist(dat_opt %>% filter(seed == dat_fixed$seed[1]) %>% select(trait1_opt, trait2_opt, trait3_opt, trait4_opt))
-  sig <- unlist(dat_sig %>% filter(seed == dat_fixed$seed[1]) %>% select(trait1_sig, trait2_sig, trait3_sig, trait4_sig))
+  # Write optimum file
+  WriteOptimumInputTable(dat_opt, dat)
 
-
-  # Select correct traits
-  if (model == "NAR" | model == "PAR") {
-    opt <- opt[1:2]
-    sig <- sig[1:2]
-  }
-
-  if (model == "FFLC1" | model == "FFLI1") {
-    opt <- opt[1:3]
-    sig <- sig[1:4]
-  }
-  
   # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, starts_with("fixEffectSum")), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
   d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                           sig, opt, model, 4, TRUE)
+                           paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -147,21 +124,28 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # Add on the segregating effect to the fixation effects
   # TODO fix this: programmatically name variables 
   d_dat_withFX <- dat
-  d_dat_withFX$aZ <- exp(log(d_dat_withFX$fixEffectSum_3) + d_dat_withFX$value_3)
-  d_dat_withFX$bZ <- exp(log(d_dat_withFX$fixEffectSum_4) + d_dat_withFX$value_4)
-  d_dat_withFX$KZ <- exp(log(d_dat_withFX$fixEffectSum_5) + d_dat_withFX$value_5)
-  d_dat_withFX$KXZ <- exp(log(d_dat_withFX$fixEffectSum_6) + d_dat_withFX$value_6)
+  nMutTypes <- GetNMutTypes(dat$model[1])
+
+  for (i in seq_len(nMutTypes)) {
+    mutType <- as.character(i + 2) # offset by first 2 mut types (not included)
+    d_dat_withFX[,paste0("mutValue_", mutType)] <- 
+      exp(log(d_dat_withFX[,paste0("fixEffectSum_", mutType)]) + d_dat_withFX[,paste0("value_", mutType)])
+    d_dat_withFX[,paste0("mutValueAA_", mutType)] <- 
+      exp(log(d_dat_withFX[,paste0("fixEffectSum_", mutType)]) + 2 * d_dat_withFX[,paste0("value_", mutType)])
+  }
     
   # Get phenotypes with the mutation
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
-                dplyr::select(rowID, aZ, bZ, KZ, KXZ), 
+                dplyr::select(rowID, starts_with("mutValue_")), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  Aa <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+  Aa <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
+                      paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
 
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
-                dplyr::select(rowID, aZ_AA, bZ_AA, KZ, KXZ), 
+                dplyr::select(rowID, starts_with("mutValueAA_")), 
               paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  AA <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+  AA <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
+                      paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
   
   # Ensure that the tables are aligned by id before we join them
   dat <- dat %>% arrange(rowID)
@@ -169,18 +153,67 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   AA <- AA %>% arrange(id)
   
   # TODO Get effect
-  dat$AA_pheno <- AA$pheno
-  dat$Aa_pheno <- Aa$pheno
-  dat$aa_pheno <- d_popfx$pheno
-  dat$avFX <- Aa$pheno - d_popfx$pheno
+  # Total effect is the sum of differences between the traits
+  # But traits are on different scales, so it doesn't make much sense to measure that way
+  # Focus on fitness changes and effect size in terms of fitness?
+  dat$AA_trait1 <- AA[,"trait1"]
+  dat$AA_trait2 <- AA[,"trait2"]
+  dat$AA_trait3 <- AA[,"trait3"]
+  dat$AA_trait4 <- AA[,"trait4"]
+  dat$Aa_trait1 <- Aa[,"trait1"]
+  dat$Aa_trait2 <- Aa[,"trait2"]
+  dat$Aa_trait3 <- Aa[,"trait3"]
+  dat$Aa_trait4 <- Aa[,"trait4"]
+  dat$aa_trait1 <- d_popfx[,"trait1"]
+  dat$aa_trait2 <- d_popfx[,"trait2"]
+  dat$aa_trait3 <- d_popfx[,"trait3"]
+  dat$aa_trait4 <- d_popfx[,"trait4"]
   dat$avFit <- Aa$fitness - d_popfx$fitness
-  dat$avFX_AA <- AA$pheno - d_popfx$pheno
   dat$avFit_AA <- AA$fitness - d_popfx$fitness
   dat$wAA <- AA$fitness
   dat$wAa <- Aa$fitness
   dat$waa <- d_popfx$fitness
-  dat$s <- dat$wAA - dat$waa
+  dat$s <- dat$wAa - dat$waa
   return(dat)
+}
+
+GetModelInvalidTraitIndices <- function(model) {
+  switch(model,
+    "NAR"   = { return( c(3,4) ) },
+    "PAR"   = { return( c(3,4) ) },
+    "FFLC1" = { return( c(4) ) },
+    "FFLI1" = { return( c(4) ) },
+    "FFBH"  = { return( numeric(0) ) }
+  )
+}
+
+GetNMutTypes <- function(model) {
+  switch(model,
+    "NAR"   = { return( 7 ) },
+    "PAR"   = { return( 7 ) },
+    "FFLC1" = { return( 9 ) },
+    "FFLI1" = { return( 9 ) },
+    "FFBH"  = { return( 11 ) }
+  )
+}
+
+WriteOptimumInputTable <- function(dat_opt, dat) {
+  # Extract the right optima and widths
+  dat_opt <- dat_opt %>% filter(modelindex == dat$modelindex[1]) 
+  
+  exclude_indices <- GetModelInvalidTraitIndices(dat$model[1])
+  exclude_indices <- paste0("trait", exclude_indices)
+
+  # Filter out the unneeded traits for non-FFBH models
+  dat_opt <- dat_opt %>% filter(!starts_with(exclude_indices))
+
+  # Attach opt and sigma to the dataframe, match by seed and modelindex
+  dat <- dat %>% inner_join(dat_opt, by = c("seed", "modelindex"))
+
+  # Now create a table for the optima and sigmas
+  write.table(dat %>% ungroup() %>%
+                dplyr::select(rowID, ends_with(c("opt", "sig"))), 
+              paste0("d_grid_opt", model, ".csv"), sep = ",", col.names = F, row.names = F)
 }
 
 PairwiseFitnessRank <- function(dat_fixed, muts, A_ids, B_ids) {
@@ -203,115 +236,6 @@ PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10,
 }
 
 
-# Calculate pairwise epistasis between combinations of additive mutational effects
-# relative to their wildtype background
-# muts is a N x 4 dataframe of mutations with gen, seed, modelindex for matching 
-# to dat_fixed where N is the number of mutants to test
-# will have to do bootstrap methods, since there are a lot of mutations,
-# and we're really only interested in an average
-# n is the number of iterations to do, m = number of mutations to sample each iteration
-PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10, 
-                                      returnAverage = F, weightABByFreq = F) {
-  # Get fixed effects/wildtype
-  dat_fixed <- as.data.table(dat_fixed)
-  
-  dat <- dat_fixed %>%
-    group_by(gen, seed, modelindex) %>%
-    summarise(fixEffectSum = 2 * sum(value)) %>%
-    select(gen, seed, modelindex, fixEffectSum) %>%
-    ungroup()
-  
-  # output dataframe: number of generations/seeds/modelindices * iterations
-  output_len <- nrow(dat) * n * m
-  out <- tibble(gen = numeric(output_len),
-                seed = rep(dat$seed, each = n * m),
-                modelindex = rep(dat$modelindex, each = n * m),
-                wa = numeric(output_len),
-                wb = numeric(output_len),
-                wab = numeric(output_len),
-                Pwt = numeric(output_len),
-                Pa = numeric(output_len),
-                Pb = numeric(output_len),
-                Pab = numeric(output_len),
-                ew = numeric(output_len),
-                ep = numeric(output_len))
-                
-  # Iterate bootstrap
-  i = 1
-  pb <- progress::progress_bar$new(
-    format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
-  pb$tick(0)
-  while (i <= n) {
-    # Sample m mutations from each of muts for a and b: note: chance to sample the
-    # same mutation twice, so some epistasis might be dominance: chance is low though,
-    # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
-    # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
-    a <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, replace = T,
-                   weight_by = case_when(weightABByFreq == T ~ freq, 
-                                         weightABByFreq == F ~ rep(1, times = n()))) %>%
-      rename(a = value)
-    b <- muts %>% group_by(gen, seed, modelindex) %>% 
-      slice_sample(n = m, replace = T,
-                   weight_by = case_when(weightABByFreq == T ~ freq, 
-                                         weightABByFreq == F ~ rep(1, times = n()))) %>%
-      rename(b = value)
-    
-    # Join a and b and add fixed effects
-    result <- a %>% select(-freq)
-    result$b <- b$b
-    result <- inner_join(result, dat, by = c("gen", "seed", "modelindex"))
-
-    # Calculate phenotype and fitness effects
-    result$Pwt <- result$fixEffectSum
-    result$Pa <- result$fixEffectSum + result$a
-    result$Pb <- result$fixEffectSum + result$b
-    result$Pab <- result$fixEffectSum + result$a + result$b
-    result$wa <- calcAddFitness(result$Pa, 2, 0.05)
-    result$wb <- calcAddFitness(result$Pb, 2, 0.05)
-    result$wab <- calcAddFitness(result$Pab, 2, 0.05)
-    
-    # Epistasis (fitness and trait)
-    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
-    result$ep <- ( result$Pab - result$Pwt ) - 
-      ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) # should always be zero for additive
-        
-  
-    # Calculate mean and se for this iteration
-    # put into output vector
-    thisIterRange <- ( (i-1) * (nrow(dat) * m) + 1 ):( i * (nrow(dat) * m) )
-    out[thisIterRange,] <- result %>%
-      select(gen, seed, modelindex, wa, wb, wab, Pwt, Pa, Pb, Pab, ew, ep)
-    pb$tick(1)
-    i <- i + 1
-  }
-    
-  if (returnAverage) {
-    out <- out %>%
-      group_by(gen, seed, modelindex) %>%
-      summarise(meanEP = mean(ep),
-                meanEW = mean(ew),
-                meanPwt = mean(Pwt),
-                meanPa = mean(Pa),
-                meanPb = mean(Pb),
-                meanPab = mean(Pab),
-                meanwa = mean(wa),
-                meanwb = mean(wb),
-                meanwab = mean(wab),
-                sdEP = sd(ep),
-                sdEW = sd(ew),
-                sdPwt = sd(Pwt),
-                sdPa = sd(Pa),
-                sdPb = sd(Pb),
-                sdPab = sd(Pab),
-                sdwa = sd(wa),
-                sdwb = sd(wb),
-                sdwab = sd(wab))
-  }
-  
-  return(out)
-}
-
 # Calculate pairwise epistasis between combinations of network mutational effects
 # relative to their wildtype background
 # muts is a N x 4 dataframe of mutations with gen, seed, modelindex for matching 
@@ -323,7 +247,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
 # repetitions and m mutations per repetition. When returnAverage = F, the result is
 # not averaged over the n repetitions (i.e. each replicate gets its own average over
 # the m mutations)
-PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10, 
+PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10, 
                                  returnAverage = F, weightABByFreq = F) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
@@ -331,13 +255,12 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   model <- as.character(dat_fixed$modelindex)[1]
   
   fixEffectDat <- dat_fixed %>%
-    group_by(gen, seed, modelindex, mutType) %>%
+    group_by(gen, seed, modelindex, model, mutType) %>%
     summarise(fixEffectSum = exp(2 * sum(value))) %>%
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
-  nMutTypes <- length(unique(muts$mutType)) # could be 2 or 4, depending on model
-  nPossibleMutTypes <- 4                    # always 4
+  nMutTypes <- GetNMutTypes(dat_fixed$model[1])
 
   # output dataframe: number of generations/seeds/modelindices * iterations
   output_len <- nrow(fixEffectDat) / nMutTypes * n * m
@@ -350,12 +273,8 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
                 wa = numeric(output_len),
                 wb = numeric(output_len),
                 wab = numeric(output_len),
-                Pwt = numeric(output_len),
-                Pa = numeric(output_len),
-                Pb = numeric(output_len),
-                Pab = numeric(output_len),
-                ew = numeric(output_len),
-                ep = numeric(output_len))
+                wwt = numeric(output_len),
+                ew = numeric(output_len))
   
   # Pivot wider for easier access to fixed effects for the result vector
   fixEffectDat <- fixEffectDat %>% 
@@ -389,34 +308,31 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     result$mutType_b <- b$mutType
     result$b <- b$value
     result <- inner_join(result, fixEffectDat, by = c("gen", "seed", "modelindex")) %>%
-      select(gen, seed, modelindex, mutType_a, mutType_b, a, b, 
+      select(gen, seed, modelindex, model, mutType_a, mutType_b, a, b, 
              starts_with("fixEffectSum")) %>%
       mutate(mutType_ab = paste(mutType_a, mutType_b, sep = "_"))
   
-    abNames <- paste(c(rep("a", times = 4), rep("b", times = 4)), 3:6, sep = "_")
+    # Column names: mutTypes for a and b mutations
+    abNames <- paste(c(rep("a", times = nMutTypes), rep("b", times = nMutTypes)), (1:nMutTypes) + 2, sep = "_")
     result[,abNames] <- 0
-    
-    # if this is an ODE/not K model, we need to add on fixed effects for KZ and KXZ
-    # TODO: handle this better
-    if (any(dat_fixed$model == "ODE")) {
-      result$fixEffectSum_5 <- 1
-      result$fixEffectSum_6 <- 1
-    }
-    
+        
     # initialize a and b values for the right molecular component
-    for (i in (1:nPossibleMutTypes) + 2) {
+    for (i in (1:nMutTypes) + 2) {
       result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
       result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
     }
     
     # Add on a, b, ab to the base effect
-    for (i in (1:nPossibleMutTypes) + 2) {
+    for (i in (1:nMutTypes) + 2) {
       result[, paste0("a_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
       result[, paste0("b_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
       result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
     }
     result$rowID <- as.integer(rownames(result))
     
+    # Get optimum and write to table
+    WriteOptimumInputTable(dat_opt, result)
+
     # Split the result into wt, a, b, and ab to reduce non-unique solutions
     d_wildtype <- result %>%
       group_by(gen, seed, modelindex) %>%
@@ -428,7 +344,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     d_a <- result %>%
       group_by(gen, seed, modelindex) %>%
       select(gen, seed, modelindex,
-             rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
+             rowID, starts_with("a_molComp")) %>%
       ungroup() %>% select(!(gen:modelindex)) %>%
       mutate(rowID = as.numeric(paste0(rowID, 2)))
   
@@ -437,7 +353,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     d_b <- result %>%
       group_by(gen, seed, modelindex) %>%
       select(gen, seed, modelindex, 
-             rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
+             rowID, starts_with("b_molComp")) %>%
       ungroup() %>% select(!(gen:modelindex)) %>%
       mutate(rowID = as.numeric(paste0(rowID, 3)))
     
@@ -445,22 +361,23 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     d_ab <- result %>%
       group_by(gen, seed, modelindex) %>%
       select(gen, seed, modelindex, 
-             rowID, ab_molComp_3, ab_molComp_4, ab_molComp_5, ab_molComp_6) %>%
+             rowID, starts_with("ab_molComp")) %>%
       ungroup() %>% select(!(gen:modelindex)) %>%
       mutate(rowID = as.numeric(paste0(rowID, 4)))
   
     # Remove column names so we can join them
-    colnames(d_wildtype) <- paste0("v", 1:5)
-    colnames(d_a) <- paste0("v", 1:5)
-    colnames(d_b) <- paste0("v", 1:5)
-    colnames(d_ab) <- paste0("v", 1:5)
+    colnames(d_wildtype) <- paste0("v", 1:ncol(d_wildtype))
+    colnames(d_a) <- paste0("v", 1:ncol(d_a))
+    colnames(d_b) <- paste0("v", 1:ncol(d_b))
+    colnames(d_ab) <- paste0("v", 1:ncol(d_ab))
   
     d_landscaper <- rbind(d_wildtype, d_a, d_b, d_ab)
     
     # Run landscaper
     data.table::fwrite(d_landscaper, 
                 paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-    d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+    d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
+                  paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
     
   
     # Ensure that the tables are aligned by id before we join them
@@ -486,21 +403,16 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     result$wa <- d_a$fitness
     result$wb <- d_b$fitness
     result$wab <- d_ab$fitness
-    result$Pwt <- d_wildtype$pheno
-    result$Pa <- d_a$pheno
-    result$Pb <- d_b$pheno
-    result$Pab <- d_ab$pheno
+    result$wwt <- d_wildtype$fitness
     
-    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
-    result$ep <- ( result$Pab - result$Pwt ) - 
-      ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) 
+    result$ew <- log(result$wab) - (log(result$wa) + log(result$wb))
     
     # Fill output: figure out which range of the output vector to fill
     thisIterRange <- ( (j-1) * (nrow(fixEffectDat) * m) + 1 ):( j * (nrow(fixEffectDat) * m) )
     
     out[thisIterRange,] <- result %>%
       ungroup() %>%
-      select(gen, seed, modelindex, mutType_ab, wa, wb, wab, Pwt, Pa, Pb, Pab, ew, ep)
+      select(gen, seed, modelindex, mutType_ab, wa, wb, wab, wwt, ew)
 
     pb$tick(1)
     j <- j + 1
@@ -512,88 +424,23 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
   if (returnAverage) {
     out <- out %>%
       group_by(gen, seed, modelindex, mutType_ab) %>%
-      summarise(meanEP = mean(ep),
-                meanEW = mean(ew),
-                meanPwt = mean(Pwt),
-                meanPa = mean(Pa),
-                meanPb = mean(Pb),
-                meanPab = mean(Pab),
+      summarise(meanEW = mean(ew),
                 meanwa = mean(wa),
                 meanwb = mean(wb),
                 meanwab = mean(wab),
-                sdEP = sd(ep),
+                meanwwt = mean(wwt),
                 sdEW = sd(ew),
-                sdPwt = sd(Pwt),
-                sdPa = sd(Pa),
-                sdPb = sd(Pb),
-                sdPab = sd(Pab),
                 sdwa = sd(wa),
                 sdwb = sd(wb),
-                sdwab = sd(wab))
+                sdwab = sd(wab),
+                sdwwt = sd(wwt))
   }
 
   return(out)
 }
 
-PairwiseFitnessRankAdditive <- function(dat_fixed, muts, A_ids, B_ids) {
-  # Get fixed effects/wildtype
-  dat_fixed <- as.data.table(dat_fixed)
-  
-  if (nrow(dat_fixed) == 0) {
-    dat_fixed <- dat_fixed %>% add_row(muts[1,])
-    dat_fixed$value <- 0
-  }
 
-  dat <- dat_fixed %>%
-    group_by(gen, seed, modelindex) %>%
-    summarise(fixEffectSum = 2 * sum(value)) %>%
-    select(gen, seed, modelindex, fixEffectSum) %>%
-    ungroup()
-  
-  
-  # split mutations into A and B
-  A_pos <- match(A_ids, muts$mutID)
-  B_pos <- match(B_ids, muts$mutID)
-  mutsA <- muts[A_pos[A_pos > 0 & B_pos > 0],]
-  mutsB <- muts[B_pos[A_pos > 0 & B_pos > 0],]
-  
-
-  # output dataframe: ranking fitness of parental ab/AB
-  # parab = parental alleles, parAB = derived alleles
-  # solve for fitness of each genotype, which we can then use to 
-  # rearrange the LD genotypes according to fitness (so ab lowest fitness, AB highest)
-  output_len <- nrow(mutsA)
-  out <- tibble(gen = dat$gen, # assumes there is only one gen/seed/modelindex
-                seed = dat$seed,
-                modelindex = dat$modelindex,
-                mutIDA = numeric(output_len),
-                mutIDB = numeric(output_len),
-                wparab = numeric(output_len),
-                wparaB = numeric(output_len),
-                wparAb = numeric(output_len),
-                wparAB = numeric(output_len)
-                )
-  
-    # Calculate phenotype and fitness effects
-    Pab <- dat$fixEffectSum
-    PAb <- dat$fixEffectSum + mutsA$value
-    PaB <- dat$fixEffectSum + mutsB$value
-    PAB <- dat$fixEffectSum + mutsA$value + mutsB$value
-    
-    out$mutIDA <- mutsA$mutID
-    out$mutIDB <- mutsB$mutID
-    out$wparab <- calcAddFitness(Pab, 2, 0.05)
-    out$wparaB <- calcAddFitness(PaB, 2, 0.05)
-    out$wparAb <- calcAddFitness(PAb, 2, 0.05)
-    out$wparAB <- calcAddFitness(PAB, 2, 0.05)
-    
-    # Filter NA results
-    out <- out %>% filter(!is.na(mutIDA), !is.na(mutIDB))
-    
-    return(out)
-}
-
-PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
+PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed) %>% distinct()
   muts <- muts %>% distinct()
@@ -613,9 +460,7 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
     select(gen, seed, modelindex, mutType, fixEffectSum) %>%
     ungroup()
   
-  nMutTypes <- length(unique(muts$mutType)) # could be 2 or 4, depending on model
-  nPossibleMutTypes <- 4                    # always 4
-  
+  nMutTypes <- GetNMutTypes(muts$model[1])   
   
   # split mutations into A and B
   A_pos <- match(A_ids, muts$mutID, nomatch = 0)
@@ -647,43 +492,37 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   dat <- dat %>% 
     pivot_wider(names_from = mutType, values_from = fixEffectSum,
                 names_glue = "{.value}_{mutType}", values_fill = 1)
-    
-  columns_to_add <- c(
-    fixEffectSum_3 = 1,
-    fixEffectSum_4 = 1,
-    fixEffectSum_5 = 1,
-    fixEffectSum_6 = 1
-  )
-  
-  # Add other fixed effects (that might be missing)  
-  dat <- dat %>%
-    add_column(!!!columns_to_add[!names(columns_to_add) %in% names(.)])
+      
 
   result <- mutsA
   result <- result %>% rename(a = value, mutType_a = mutType)
   result$mutType_b <- mutsB$mutType
   result$b <- mutsB$value
   result <- inner_join(result, dat, by = c("gen", "seed", "modelindex")) %>%
-    select(gen, seed, modelindex, mutType_a, mutType_b, a, b, 
+    select(gen, seed, modelindex, model, mutType_a, mutType_b, a, b, 
            starts_with("fixEffectSum")) %>%
     mutate(mutType_ab = paste(mutType_a, mutType_b, sep = "_"))
   
-  abNames <- paste(c(rep("a", times = 4), rep("b", times = 4)), 3:6, sep = "_")
-  result[,abNames] <- 0
+    abNames <- paste(c(rep("a", times = nMutTypes), rep("b", times = nMutTypes)), (1:nMutTypes) + 2, sep = "_")
+    result[,abNames] <- 0
   
   # initialize a and b values for the right molecular component
-  for (i in (1:nPossibleMutTypes) + 2) {
+  for (i in (1:nMutTypes) + 2) {
     result[result$mutType_a == paste0(i), paste0("a_", i)] <- result[result$mutType_a == paste0(i), "a"]
     result[result$mutType_b == paste0(i), paste0("b_", i)] <- result[result$mutType_b == paste0(i), "b"]
   }
   
   # Add on a, b, ab to the base effect
-  for (i in (1:nPossibleMutTypes) + 2) {
+  for (i in (1:nMutTypes) + 2) {
     result[, paste0("a_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)])
     result[, paste0("b_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("b_", i)])
     result[, paste0("ab_molComp_", i)] <- exp(log(result[,paste0("fixEffectSum_", i)]) + result[,paste0("a_", i)] + result[,paste0("b_", i)])
   }
   result$rowID <- as.integer(rownames(result))
+
+  # Get optimum and write to table
+  WriteOptimumInputTable(dat_opt, result)
+
   
   # Split the result into wt, a, b, and ab to reduce non-unique solutions
   d_wildtype <- result %>%
@@ -696,7 +535,7 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   d_a <- result %>%
     group_by(gen, seed, modelindex) %>%
     select(gen, seed, modelindex,
-           rowID, a_molComp_3, a_molComp_4, a_molComp_5, a_molComp_6) %>%
+           rowID, starts_with("a_molComp")) %>%
     ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 2)))
   
@@ -705,7 +544,7 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   d_b <- result %>%
     group_by(gen, seed, modelindex) %>%
     select(gen, seed, modelindex, 
-           rowID, b_molComp_3, b_molComp_4, b_molComp_5, b_molComp_6) %>%
+           rowID, starts_with("b_molComp")) %>%
     ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 3)))
   
@@ -713,22 +552,24 @@ PairwiseFitnessRankNAR <- function(dat_fixed, muts, A_ids, B_ids) {
   d_ab <- result %>%
     group_by(gen, seed, modelindex) %>%
     select(gen, seed, modelindex, 
-           rowID, ab_molComp_3, ab_molComp_4, ab_molComp_5, ab_molComp_6) %>%
+           rowID, starts_with("ab_molComp")) %>%
     ungroup() %>% select(!(gen:modelindex)) %>%
     mutate(rowID = as.numeric(paste0(rowID, 4)))
   
   # Remove column names so we can join them
-  colnames(d_wildtype) <- paste0("v", 1:5)
-  colnames(d_a) <- paste0("v", 1:5)
-  colnames(d_b) <- paste0("v", 1:5)
-  colnames(d_ab) <- paste0("v", 1:5)
+  colnames(d_wildtype) <- paste0("v", 1:ncol(d_wildtype))
+  colnames(d_a) <- paste0("v", 1:ncol(d_a))
+  colnames(d_b) <- paste0("v", 1:ncol(d_b))
+  colnames(d_ab) <- paste0("v", 1:ncol(d_ab))
   
   d_landscaper <- rbind(d_wildtype, d_a, d_b, d_ab)
   
+
   # Run landscaper
   data.table::fwrite(d_landscaper, 
-                     paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 0.05, 2, 4, TRUE)
+                paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
+                  paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
   
   
   # Ensure that the tables are aligned by id before we join them
