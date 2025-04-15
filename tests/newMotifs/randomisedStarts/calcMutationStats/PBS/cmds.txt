@@ -1,0 +1,15 @@
+./calcMutationStatsSR.sh 1
+./calcMutationStatsSR.sh 2
+./calcMutationStatsSR.sh 3
+./calcMutationStatsSR.sh 4
+./calcMutationStatsSR.sh 5
+./calcMutationStatsSR.sh 6
+./calcMutationStatsSR.sh 7
+./calcMutationStatsSR.sh 8
+./calcMutationStatsSR.sh 9
+./calcMutationStatsSR.sh 10
+./calcMutationStatsSR.sh 11
+./calcMutationStatsSR.sh 12
+./calcMutationStatsSR.sh 13
+./calcMutationStatsSR.sh 14
+./calcMutationStatsSR.sh 15
