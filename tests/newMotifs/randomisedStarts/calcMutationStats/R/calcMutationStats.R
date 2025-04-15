@@ -7,17 +7,17 @@ library(readr)
 library(data.table)
 
 # Get command line arguments
-## 1: model (ODE, K, or Additive)
+## 1: model (modelindex)
 args <- commandArgs(trailingOnly = T)
 model <- as.numeric(args[1])
 
 # Paths
-R_PATH <- "~/tests/newMotifs/calcMutationStats/R/"
+R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
 COMBO_PATH <- "~/tests/newMotifs/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
-GDATA_PATH <- "/g/data/ht96/nb9894/newMotifs/"
+GDATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
 
-WRITE_PATH <- "/scratch/ht96/nb9894/newMotifs/calcMutationStats/"
+WRITE_PATH <- "/scratch/ht96/nb9894/newMotifs/randomisedStarts/calcMutationStats/"
 EPISTASIS_FILE <- paste0(WRITE_PATH, "d_epistasis_", model, ".csv")
 EPISTASIS_WEIGHTED_FILE <- paste0(WRITE_PATH, "d_freqweight_epistasis_", model, ".csv")
 EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_", model, ".csv")
@@ -110,7 +110,7 @@ data.table::fwrite(d_SFS_sum,
 # Calculate phenotype effects
 
 ## Get optima and selection strength
-d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
+d_opt <- data.table::fread(paste0(GDATA_PATH, "slim_opt.csv"), header = F, 
                           sep = ",", colClasses = c("factor", "factor", 
                                                     rep("numeric", times = 12)), 
                           col.names = c("seed", "modelindex", "trait1_opt", "trait2_opt",
