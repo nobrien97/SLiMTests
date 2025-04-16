@@ -38,7 +38,7 @@ CalcPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
 ## for many individuals at once.
 runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscape/ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o ./%s -O %s -s %s -t %i"
   #command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
