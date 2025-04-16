@@ -72,9 +72,10 @@ d_qg %>%
 
 # Mean change within each of these groups
 d_dpdt %>%
-  group_by(timePoint, modelindex) %>%
+  group_by(timePoint, modelindex, isAdapted) %>%
   summarise(meandPdT = mean(dPdT),
-            sddPdT = sd(dPdT)) -> d_dpdt_sum
+            sddPdT = sd(dPdT),
+            n = n()) -> d_dpdt_sum
 
 # write
 data.table::fwrite(d_dpdt_sum, 
@@ -96,7 +97,7 @@ d_fixed <- d_com %>% filter(!is.na(fixGen))
 d_SFS <- CalcSFS(d_com)
 
 d_SFS %>%
-  group_by(timePoint, modelindex, mutType, freqBin) %>%
+  group_by(timePoint, modelindex, isAdapted, mutType, freqBin) %>%
   summarise(countFreqBin = n(),
             meanValue = mean(value),
             sdValue = sd(value)) -> d_SFS_sum
