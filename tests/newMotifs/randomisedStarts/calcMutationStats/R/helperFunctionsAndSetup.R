@@ -27,7 +27,6 @@ calcAddFitness <- function(phenotypes, optimum, width) {
 
 CalcPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # If there's no fixations, set the fixed value to 0
-  # TODO: Need to set to be relative to the baseline reference value (e.g. base = 0.01)
   if (nrow(dat_fixed) == 0) {
     dat_fixed[1,] <- dat[1,]
     dat_fixed %>% mutate(value = 0)
@@ -78,12 +77,13 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # multiply by 2 because diploid
   dat <- as.data.table(dat)
   dat_fixed <- as.data.table(dat_fixed)
-  model <- as.character(dat$modelindex)[1]
+  model_num <- as.character(dat$modelindex)[1]
+  model_string <- dat$model[1]
 
   dat_fixed <- dat_fixed %>%
-    group_by(gen, seed, modelindex, mutType) %>%
+    group_by(gen, seed, modelindex, model, mutType) %>%
     summarise(fixEffectSum = exp(2 * sum(value))) %>%
-    select(gen, seed, modelindex, mutType, fixEffectSum) %>%
+    select(gen, seed, modelindex, model, mutType, fixEffectSum) %>%
     ungroup()
   
   # Pivot fixEffectSums and values 
@@ -100,7 +100,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
                 names_glue = "{.value}_{mutType2}", values_fill = 0)    
   
   dat <- dat %>% inner_join(dat_fixed, 
-                            by = c("gen", "seed", "modelindex"))
+                            by = c("gen", "seed", "modelindex", "model"))
   
   dat$rowID <- as.integer(rownames(dat))
 
@@ -110,9 +110,9 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # Get phenotypes without the mutation
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, starts_with("fixEffectSum")), 
-              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  d_popfx <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                           paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
+              paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_popfx <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
+                           paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -137,15 +137,15 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   # Get phenotypes with the mutation
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, starts_with("mutValue_")), 
-              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  Aa <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                      paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
+              paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+  Aa <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
+                      paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
 
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, starts_with("mutValueAA_")), 
-              paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  AA <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                      paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
+              paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+  AA <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
+                      paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
   
   # Ensure that the tables are aligned by id before we join them
   dat <- dat %>% arrange(rowID)
@@ -199,39 +199,30 @@ GetNMutTypes <- function(model) {
 
 WriteOptimumInputTable <- function(dat_opt, dat) {
   # Extract the right optima and widths
-  dat_opt <- dat_opt %>% filter(modelindex == dat$modelindex[1]) 
+  dat_opt <- dat_opt %>% filter(as.character(modelindex) == as.character(dat$modelindex[1])) 
   
   exclude_indices <- GetModelInvalidTraitIndices(dat$model[1])
   exclude_indices <- paste0("trait", exclude_indices)
 
   # Filter out the unneeded traits for non-FFBH models
-  dat_opt <- dat_opt %>% filter(!starts_with(exclude_indices))
+  dat_opt <- dat_opt %>% select(!starts_with(exclude_indices))
 
   # Attach opt and sigma to the dataframe, match by seed and modelindex
-  dat <- dat %>% inner_join(dat_opt, by = c("seed", "modelindex"))
+  dat <- dat %>% inner_join(dat_opt, by = c("seed", "modelindex", "model", "r"))
 
   # Now create a table for the optima and sigmas
   write.table(dat %>% ungroup() %>%
                 dplyr::select(rowID, ends_with(c("opt", "sig"))), 
-              paste0("d_grid_opt", model, ".csv"), sep = ",", col.names = F, row.names = F)
+              paste0("d_grid_opt", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
 }
 
-PairwiseFitnessRank <- function(dat_fixed, muts, A_ids, B_ids) {
-  if (muts[1, "model"] == "Add") {
-    return(PairwiseFitnessRankAdditive(dat_fixed, muts, A_ids, B_ids))
-  }
-  
-  PairwiseFitnessRankNAR(dat_fixed, muts, A_ids, B_ids)
+PairwiseFitnessRank <- function(dat_fixed, muts, dat_opt, A_ids, B_ids) {  
+  PairwiseFitnessRankNetwork(dat_fixed, muts, dat_opt, A_ids, B_ids)
 }
 
-PairwiseEpistasis <- function(dat_fixed, muts, n = 1000, m = 10, 
-                              returnAverage = F, weightABByFreq = F) {
-  if (dat_fixed[1, "model"] == "Add") {
-    return(PairwiseEpistasisAdditive(dat_fixed, muts, n, m, 
-                                     returnAverage, weightABByFreq))
-  }
-  
-  PairwiseEpistasisNAR(dat_fixed, muts, n, m, 
+PairwiseEpistasis <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10, 
+                              returnAverage = F, weightABByFreq = F) {  
+  PairwiseEpistasisNetwork(dat_fixed, muts, dat_opt, n, m, 
                        returnAverage, weightABByFreq)
 }
 
@@ -252,12 +243,13 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed)
 
-  model <- as.character(dat_fixed$modelindex)[1]
+  model_num <- as.character(dat_fixed$modelindex)[1]
+  model_string <- dat_fixed$model[1]
   
   fixEffectDat <- dat_fixed %>%
     group_by(gen, seed, modelindex, model, mutType) %>%
     summarise(fixEffectSum = exp(2 * sum(value))) %>%
-    select(gen, seed, modelindex, mutType, fixEffectSum) %>%
+    select(gen, seed, modelindex, model, mutType, fixEffectSum) %>%
     ungroup()
   
   nMutTypes <- GetNMutTypes(dat_fixed$model[1])
@@ -288,10 +280,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
    format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
   pb$tick(0)
   while (j <= n) {
-    # Sample m mutations from each of muts for a and b: note: chance to sample the
-    # same mutation twice, so some epistasis might be dominance: chance is low though,
-    # p = 2 * (1 - ((m-1)/m)^2 - 2 * 1/m * ((m-1)/m))
-    # for m = 100, p = 0.0002: will probably happen sometimes, but rarely
+    # Sample m mutations from each of muts for a and b
     a <- muts %>% group_by(gen, seed, modelindex) %>% 
       slice_sample(n = m, replace = T,
                    weight_by = case_when(weightABByFreq == T ~ freq, 
@@ -375,9 +364,9 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     
     # Run landscaper
     data.table::fwrite(d_landscaper, 
-                paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-    d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                  paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
+                paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+    d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
+                  paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
     
   
     # Ensure that the tables are aligned by id before we join them
@@ -450,9 +439,12 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
     dat_fixed$value <- 0
   }
   
-  model <- paste0(as.character(dat_fixed$gen)[1], "_", 
+  model_comp <- paste0(as.character(dat_fixed$gen)[1], "_", 
                   as.character(dat_fixed$modelindex)[1], "_", 
                   as.character(dat_fixed$seed)[1])
+
+  model_num <- as.character(dat_fixed$modelindex[1])
+  model_string <- dat_fixed$model[1]
   
   dat <- dat_fixed %>%
     group_by(gen, seed, modelindex, mutType) %>%
@@ -567,9 +559,9 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
 
   # Run landscaper
   data.table::fwrite(d_landscaper, 
-                paste0("d_grid", model, ".csv"), sep = ",", col.names = F, row.names = F)
-  d_phenos <- runLandscaper(paste0("d_grid", model, ".csv"), paste0("data_popfx", model, ".csv"), 
-                  paste0("d_grid_opt", model, ".csv"), model, 4, TRUE)
+                paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
+                  paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
   
   
   # Ensure that the tables are aligned by id before we join them

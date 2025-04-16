@@ -129,18 +129,20 @@ d_phenofx <- CalcPhenotypeEffects(d_com %>% filter(is.na(fixGen)),
 d_phenofx <- d_phenofx %>%
   select(gen, seed, modelindex, mutType, mutID, s)
 
+# m needs to be a multiple of the number of molecular components - set to twice the number of components
+mValue <- GetNMutTypes(d_com$model[1]) * 2
 
 d_epistasis <- PairwiseEpistasis(d_fixed,
                                  d_com %>% 
                                    filter(is.na(fixGen)) %>%
                                    select(gen, seed, modelindex, mutType, freq, value),
-                                 m = 24, n = 1000, F, F)
+                                 m = mValue, n = 100, F, F)
 
 d_epistasis_freqweight <- PairwiseEpistasis(d_fixed,
                                                   d_com %>% 
                                                     filter(is.na(fixGen)) %>%
                                                     select(gen, seed, modelindex, mutType, freq, value),
-                                                  m = 48, n = 1000, F, T)
+                                                  m = mValue, n = 100, F, T)
 
 # write to file
 data.table::fwrite(d_epistasis, 
