@@ -38,8 +38,8 @@ CalcPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
 ## Run the ODELandscaper tool to evaluate phenotype and fitness
 ## for many individuals at once.
 runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o ./%s -O %s -s %s -t %i"
-  #command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
+  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o ./%s -O %s -s %s -t %i"
+  command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
@@ -105,6 +105,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   dat$rowID <- as.integer(rownames(dat))
 
   # Write optimum file
+  dat_opt <- AddCombosToDF(dat_opt)
   WriteOptimumInputTable(dat_opt, dat)
 
   # Get phenotypes without the mutation
@@ -320,6 +321,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     result$rowID <- as.integer(rownames(result))
     
     # Get optimum and write to table
+    dat_opt <- AddCombosToDF(dat_opt)
     WriteOptimumInputTable(dat_opt, result)
 
     # Split the result into wt, a, b, and ab to reduce non-unique solutions
@@ -513,6 +515,7 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
   result$rowID <- as.integer(rownames(result))
 
   # Get optimum and write to table
+  dat_opt <- AddCombosToDF(dat_opt)
   WriteOptimumInputTable(dat_opt, result)
 
   
@@ -601,6 +604,6 @@ CalcSFS <- function(dat) {
   dat$freqBin <- cut(dat$freq, breaks = 10)
   
   dat %>% 
-    select(timePoint, seed, modelindex, 
+    select(timePoint, seed, modelindex, isAdapted,
            mutID, mutType, value, freqBin)
 }
