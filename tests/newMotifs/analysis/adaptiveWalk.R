@@ -12,7 +12,7 @@ library(ggridges)
 library(GGally)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis")
-DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/pilot/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
@@ -83,7 +83,7 @@ d_prop_adapted <- d_qg %>% group_by(model, r) %>%
   )
 
 # Output to table
-stargazer(d_prop_adapted %>% mutate(r = as.character(r)) %>%as.data.frame(.), type = "html", summary = F)
+stargazer(d_prop_adapted %>% mutate(r = as.character(r)) %>% as.data.frame(.), type = "html", summary = F)
 
 # Summarise phenotype trajectories
 d_qg_sum <- d_qg %>% 
@@ -143,13 +143,32 @@ ggplot(d_qg_sum,
                                override.aes=list(linewidth = 5))) +
   theme(text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
-ggsave("plt_random_adapt_w.png", width = 12, height = 5, device = png)
+ggsave("plt_randomisedStarts_adapt_w.png", width = 12, height = 5, device = png)
 
-# Identities of these simulations: what is adapting?
-d_combos <- read.table(paste0(DATA_PATH, "slim_opt.csv"), header = F,
-                       col.names = c("seed", "modelindex", ""))
+# Separate runs
+d_qg$simID <- interaction(d_qg$seed, d_qg$modelindex)
 
+sampled_examples <- d_qg %>%
+  group_by(model, r, isAdapted) %>%
+  slice_sample(n = 3) %>%
+  ungroup() %>%
+  select(simID) %>% unlist(.)
 
+ggplot(d_qg %>% filter(simID %in% sampled_examples) %>%
+         filter(gen > 40000) %>%
+         mutate(gen = gen - 50000),
+       aes(x = gen, y = w, colour = model, group = simID)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~ "Did the population adapt?" + isAdapted) +
+  geom_line() +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
+  labs(x = "Generations post-optimum shift", y = "Mean population fitness",
+       colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines"),
+        legend.position = "bottom") 
+ggsave("plt_randomisedStarts_adapt_w_eg.png", width = 12, height = 5, device = png)
 
 
 # Variance in fitness
@@ -175,7 +194,7 @@ ggplot(d_qg_sum,
   theme(text = element_text(size = 12),
         panel.spacing = unit(0.75, "lines")) 
 
-ggsave("plt_adapt_wvar.png", width = 12, height = 5, device = png)
+ggsave("plt_randomisedStarts_adapt_wvar.png", width = 12, height = 5, device = png)
 
 # Plot individual simulations among adapted populations
 ggplot(d_qg %>% filter(isAdapted == T),
@@ -186,7 +205,7 @@ ggplot(d_qg %>% filter(isAdapted == T),
                                          breaks = NULL, labels = NULL)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
                       labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
-  labs(x = "Generations post-optimum shift", y = "Mean variance in fitness", 
+  labs(x = "Generations post-optimum shift", y = "Mean fitness", 
        colour = "Model") +
   theme_bw() +
   # guides(colour = guide_legend(position = "bottom",
@@ -194,7 +213,7 @@ ggplot(d_qg %>% filter(isAdapted == T),
   theme(text = element_text(size = 12), legend.position = "none",
         panel.spacing = unit(0.75, "lines")) 
 
-ggsave("plt_adapt_ind_w.png", width = 12, height = 5, device = png)
+ggsave("plt_randomisedStarts_adapt_ind_w.png", width = 12, height = 5, device = png)
 
 # What direction is selection going for each adapted simulation?
 d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
