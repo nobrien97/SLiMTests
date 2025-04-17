@@ -3,6 +3,7 @@
 library(dplyr)
 library(tibble)
 library(tidyr)
+library(stringr)
 library(readr)
 library(data.table)
 
@@ -97,7 +98,7 @@ d_fixed <- d_com %>% filter(!is.na(fixGen))
 d_SFS <- CalcSFS(d_com)
 
 d_SFS %>%
-  group_by(timePoint, modelindex, isAdapted, mutType, freqBin) %>%
+  group_by(timePoint, modelindex, mutType, freqBin) %>%
   summarise(countFreqBin = n(),
             meanValue = mean(value),
             sdValue = sd(value)) -> d_SFS_sum
@@ -136,14 +137,21 @@ mValue <- GetNMutTypes(d_com$model[1]) * 2
 d_epistasis <- PairwiseEpistasis(d_fixed,
                                  d_com %>% 
                                    filter(is.na(fixGen)) %>%
-                                   select(gen, seed, modelindex, mutType, freq, value),
+                                   dplyr::select(gen, seed, modelindex, mutType, freq, value),
+                                 d_opt,
                                  m = mValue, n = 100, F, F)
+
+# d_epistasis <- PairwiseEpistasis(d_fixed,
+#                                  d_com,
+#                                  d_opt,
+#                                  m = mValue, n = 2, F, F)
 
 d_epistasis_freqweight <- PairwiseEpistasis(d_fixed,
                                                   d_com %>% 
                                                     filter(is.na(fixGen)) %>%
-                                                    select(gen, seed, modelindex, mutType, freq, value),
-                                                  m = mValue, n = 100, F, T)
+                                                    dplyr::select(gen, seed, modelindex, mutType, freq, value),
+                                            d_opt,
+                                            m = mValue, n = 100, F, T)
 
 # write to file
 data.table::fwrite(d_epistasis, 
