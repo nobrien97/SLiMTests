@@ -10,12 +10,8 @@ CREATE TABLE tab_epistasis(
     wa              REAL,
     wb              REAL,
     wab             REAL,
-    Pwt             REAL,
-    Pa              REAL,
-    Pb              REAL,
-    Pab             REAL,
+    wwt             REAL,
     ew              REAL,
-    ep              REAL
 );
 
 .mode csv
@@ -29,12 +25,8 @@ CREATE TABLE tab_epistasis_freq(
     wa              REAL,
     wb              REAL,
     wab             REAL,
-    Pwt             REAL,
-    Pa              REAL,
-    Pb              REAL,
-    Pab             REAL,
+    wwt             REAL,
     ew              REAL,
-    ep              REAL
 );
 
 .mode csv
