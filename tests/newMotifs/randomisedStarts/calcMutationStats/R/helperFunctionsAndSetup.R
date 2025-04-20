@@ -121,7 +121,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
                 dplyr::select(rowID, starts_with("fixEffectSum")), 
               paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
   d_popfx <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                           paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
+                           paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
   
   # Segregating mutation calculations
   # For segregating comparisons:
@@ -149,13 +149,13 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
                 dplyr::select(rowID, starts_with("mutValue_")), 
               paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
   Aa <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                      paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
+                      paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
 
   data.table::fwrite(d_dat_withFX %>% ungroup() %>% 
                 dplyr::select(rowID, starts_with("mutValueAA_")), 
               paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
   AA <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                      paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
+                      paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
   
   # Ensure that the tables are aligned by id before we join them
   dat <- dat %>% arrange(rowID)
@@ -402,7 +402,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     data.table::fwrite(d_landscaper, 
                 paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
     d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                  paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
+                  paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
     
   
     # Ensure that the tables are aligned by id before we join them
@@ -629,7 +629,7 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
   data.table::fwrite(d_landscaper, 
                 paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
   d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                  paste0("d_grid_opt", model_num, ".csv"), model_string, 4, TRUE)
+                  paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
   
   
   # Ensure that the tables are aligned by id before we join them

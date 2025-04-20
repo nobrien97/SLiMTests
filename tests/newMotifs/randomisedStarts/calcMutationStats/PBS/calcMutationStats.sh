@@ -1,23 +1,23 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=912
-#PBS -l mem=3610GB
-#PBS -l jobfs=1000GB
+#PBS -l ncpus=96
+#PBS -l mem=380GB
+#PBS -l jobfs=800GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
-# Run with -v NJOBS=1 -W depend=beforeok:sqlsetup
+# Run with -v NJOBS=1 - 15 models, 12 cores per model
 
 # Calculates statistics for mutation data
 ECHO=/bin/echo
-SUBJOBNAME=newMotifs
-JOBNAME=randomisedStarts/calcMutationStats
+SUBJOBNAME=newMotifs/randomisedStarts
+JOBNAME=calcMutationStats
 TOTALJOBNAME=$SUBJOBNAME/$JOBNAME
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
-#   For this job, NJOBS should = 4
+#   For this job, NJOBS should = 1
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -64,7 +64,7 @@ $ECHO "Running nci-parallel..."
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
 module load nci-parallel/1.0.0a
-export ncores_per_task=4
+export ncores_per_task=12
 export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
