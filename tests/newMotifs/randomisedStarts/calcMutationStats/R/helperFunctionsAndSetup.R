@@ -496,7 +496,7 @@ WriteOptimumInputTableRowIDs <- function(opt, wt, a, b, ab, model_string) {
 }
 
 
-PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
+PairwiseFitnessRankNetwork <- function(dat_fixed, muts, dat_opt, A_ids, B_ids) {
   # Get fixed effects/wildtype
   dat_fixed <- as.data.table(dat_fixed) %>% distinct()
   muts <- muts %>% distinct()

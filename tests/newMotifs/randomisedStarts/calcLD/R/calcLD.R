@@ -115,6 +115,19 @@ d_combos <- read.table("~/tests/newMotifs/R/combos.csv", header = F,
 # d_muts$mutType <- as.factor(d_muts$mutType)
 # d_muts$fixGen <- as.numeric(d_muts$fixGen)
 
+## Get optima and selection strength
+d_opt <- data.table::fread(paste0(GDATA_PATH, "slim_opt.csv"), header = F, 
+                          sep = ",", colClasses = c("factor", "factor", 
+                                                    rep("numeric", times = 12)), 
+                          col.names = c("seed", "modelindex", "trait1_opt", "trait2_opt",
+                                        "trait3_opt", "trait4_opt", "trait1_sig", "trait2_sig",
+                                        "trait3_sig", "trait4_sig", "trait1_dir", "trait2_dir",
+                                        "trait3_dir", "trait4_dir"), 
+                          fill = T)
+
+# Get the optimum traits and width of the fitness function for this simulation
+# We are running this on multiple seeds which have their own optima
+d_opt <- d_opt %>% filter(modelindex == run_modelindex)
 
 d_muts <- AddCombosToDF(d_muts)
 # From the mutations, calculate the fitness of genotypes to determine which is AB/ab
@@ -123,6 +136,7 @@ d_muts <- AddCombosToDF(d_muts)
 ## In example parental effect is 0
 d_rank <- PairwiseFitnessRank(d_muts %>% filter(!is.na(fixGen)), 
                              d_muts %>% filter(is.na(fixGen)),
+                             d_opt,
                              mutAID, mutBID)
 
 relabeled_freqs <- RelabelGenotypeFrequencies(d_rank, mut_freqs)
