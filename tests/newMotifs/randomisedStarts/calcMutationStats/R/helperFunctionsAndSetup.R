@@ -581,55 +581,68 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, A_ids, B_ids) {
 
   # Get optimum and write to table
   dat_opt <- AddCombosToDF(dat_opt)
-  WriteOptimumInputTable(dat_opt, result)
-
   
   # Split the result into wt, a, b, and ab to reduce non-unique solutions
   d_wildtype <- result %>%
     group_by(gen, seed, modelindex) %>%
     filter(row_number() == 1) %>%
-    select(gen, seed, modelindex, rowID, starts_with("fixEffectSum")) %>%
-    ungroup() %>% select(!(gen:modelindex)) %>%
+    dplyr::select(gen, seed, modelindex, rowID, starts_with("fixEffectSum")) %>%
+    ungroup() %>%
     mutate(rowID = as.numeric(paste0(rowID, 1)))
-  
+    
   d_a <- result %>%
     group_by(gen, seed, modelindex) %>%
-    select(gen, seed, modelindex,
+    dplyr::select(gen, seed, modelindex,
            rowID, starts_with("a_molComp")) %>%
-    ungroup() %>% select(!(gen:modelindex)) %>%
+    ungroup() %>%
     mutate(rowID = as.numeric(paste0(rowID, 2)))
-  
+
   # b is organised differently to a, need to calculate first m for each mutgroup
   # and repeat that for the remaining
   d_b <- result %>%
     group_by(gen, seed, modelindex) %>%
-    select(gen, seed, modelindex, 
+    dplyr::select(gen, seed, modelindex, 
            rowID, starts_with("b_molComp")) %>%
-    ungroup() %>% select(!(gen:modelindex)) %>%
+    ungroup() %>%
     mutate(rowID = as.numeric(paste0(rowID, 3)))
   
   
   d_ab <- result %>%
     group_by(gen, seed, modelindex) %>%
-    select(gen, seed, modelindex, 
+    dplyr::select(gen, seed, modelindex, 
            rowID, starts_with("ab_molComp")) %>%
-    ungroup() %>% select(!(gen:modelindex)) %>%
+    ungroup() %>%
     mutate(rowID = as.numeric(paste0(rowID, 4)))
-  
+
+  # Get optimum and write to table
+  WriteOptimumInputTableRowIDs(dat_opt, d_wildtype, d_a, d_b, d_ab, result$model[1])
+
+  # Remove gen, seed, modelindex from mutation tables
+  d_wildtype <- d_wildtype %>%
+    dplyr::select(!(gen:modelindex))
+
+  d_a <- d_a %>%
+    dplyr::select(!(gen:modelindex))
+
+  d_b <- d_b %>%
+    dplyr::select(!(gen:modelindex))
+
+  d_ab <- d_ab %>%
+    dplyr::select(!(gen:modelindex))
+
   # Remove column names so we can join them
   colnames(d_wildtype) <- paste0("v", 1:ncol(d_wildtype))
   colnames(d_a) <- paste0("v", 1:ncol(d_a))
   colnames(d_b) <- paste0("v", 1:ncol(d_b))
   colnames(d_ab) <- paste0("v", 1:ncol(d_ab))
-  
+
   d_landscaper <- rbind(d_wildtype, d_a, d_b, d_ab)
   
-
   # Run landscaper
   data.table::fwrite(d_landscaper, 
                 paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
   d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                  paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
+                  paste0("d_grid_opt", model_num, ".csv"), model_string, 1, TRUE)
   
   
   # Ensure that the tables are aligned by id before we join them
