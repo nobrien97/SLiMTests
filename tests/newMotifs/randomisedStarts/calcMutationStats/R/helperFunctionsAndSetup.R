@@ -469,11 +469,12 @@ WriteOptimumInputTableRowIDs <- function(opt, wt, a, b, ab, model_string) {
   model_num <- as.character(wt$modelindex[1])
   opt <- opt %>% filter(as.character(modelindex) == model_num) 
   
-  exclude_indices <- GetModelInvalidTraitIndices(model_string)
-  exclude_indices <- paste0("trait", exclude_indices)
-
-  # Filter out the unneeded traits for non-FFBH models
-  opt <- opt %>% dplyr::select(!starts_with(exclude_indices))
+  if (model_string != "FFBH") {
+    # Filter out the unneeded traits for non-FFBH models
+    exclude_indices <- GetModelInvalidTraitIndices(model_string)
+    exclude_indices <- paste0("trait", exclude_indices)
+    opt <- opt %>% dplyr::select(!starts_with(exclude_indices))
+  }
 
   # Attach opt and sigma to the dataframe, match by seed and modelindex
   wt <- wt %>% inner_join(opt, by = c("seed", "modelindex")) %>% dplyr::select(rowID, ends_with(c("opt", "sig")))
