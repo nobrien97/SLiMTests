@@ -261,6 +261,10 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
 
   model_num <- as.character(dat_fixed$modelindex)[1]
   model_string <- dat_fixed$model[1]
+
+  model_comp <- paste0(as.character(dat_fixed$gen)[1], "_", 
+                  as.character(dat_fixed$modelindex)[1], "_", 
+                  as.character(dat_fixed$seed)[1])
   
   fixEffectDat <- dat_fixed %>%
     group_by(gen, seed, modelindex, model, mutType) %>%
@@ -372,7 +376,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
       mutate(rowID = as.numeric(paste0(rowID, 4)))
   
     # Get optimum and write to table
-    WriteOptimumInputTableRowIDs(dat_opt, d_wildtype, d_a, d_b, d_ab, result$model[1])
+    WriteOptimumInputTableRowIDs(dat_opt, d_wildtype, d_a, d_b, d_ab, result$model[1], model_comp)
 
     # Remove gen, seed, modelindex from mutation tables
     d_wildtype <- d_wildtype %>%
@@ -464,7 +468,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
   return(out)
 }
 
-WriteOptimumInputTableRowIDs <- function(opt, wt, a, b, ab, model_string) {
+WriteOptimumInputTableRowIDs <- function(opt, wt, a, b, ab, model_string, fileID) {
   # Extract the right optima and widths
   model_num <- as.character(wt$modelindex[1])
   opt <- opt %>% filter(as.character(modelindex) == model_num) 
@@ -493,7 +497,7 @@ WriteOptimumInputTableRowIDs <- function(opt, wt, a, b, ab, model_string) {
 
   # Now create a table for the optima and sigmas
   write.table(opt, 
-              paste0("d_grid_opt", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
+              paste0("d_grid_opt", fileID, ".csv"), sep = ",", col.names = F, row.names = F)
 }
 
 
@@ -616,7 +620,7 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, dat_opt, A_ids, B_ids) {
     mutate(rowID = as.numeric(paste0(rowID, 4)))
 
   # Get optimum and write to table
-  WriteOptimumInputTableRowIDs(dat_opt, d_wildtype, d_a, d_b, d_ab, result$model[1])
+  WriteOptimumInputTableRowIDs(dat_opt, d_wildtype, d_a, d_b, d_ab, result$model[1], model_comp)
 
   # Remove gen, seed, modelindex from mutation tables
   d_wildtype <- d_wildtype %>%
@@ -641,9 +645,9 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, dat_opt, A_ids, B_ids) {
   
   # Run landscaper
   data.table::fwrite(d_landscaper, 
-                paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
-  d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                  paste0("d_grid_opt", model_num, ".csv"), model_string, 1, TRUE)
+                paste0("d_grid", model_comp, ".csv"), sep = ",", col.names = F, row.names = F)
+  d_phenos <- runLandscaper(paste0("d_grid", model_comp, ".csv"), paste0("data_popfx", model_comp, ".csv"), 
+                  paste0("d_grid_opt", model_comp, ".csv"), model_string, 1, TRUE)
   
   
   # Ensure that the tables are aligned by id before we join them
