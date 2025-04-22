@@ -55,7 +55,7 @@ runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALS
     "PAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "n", "XMult") },
     "FFLC1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
     "FFLI1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") },
-    "FFBH"  = { result_names <- c(result_names, "trait4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") }
+    "FFBH"  = { result_names <- c(result_names, "trait3", "trait4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "n", "XMult") }
   )
 
   # Add row id to the names
