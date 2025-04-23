@@ -71,16 +71,30 @@ d_ld <- left_join(d_ld, d_qg, by = c("gen", "seed", "modelindex"))
 d_ld <- d_ld %>%
   mutate(timePoint = if_else(gen == 50000, "Start", "End"),
          timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
-  group_by(timePoint, model, r) %>%
+  group_by(timePoint, isAdapted, model, r) %>%
   mutate(propDP = nDP / nD,
          propDN = nDN / nD)
 
 # average across replicates
 d_ld_sum <- d_ld %>%
-  group_by(timePoint, model, r) %>%
-  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, sd = sd), na.rm = T)
+  group_by(timePoint, isAdapted, model, r) %>%
+  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, se = se), na.rm = T)
 
+# plot average
+ggplot(d_ld_sum %>%
+         filter(timePoint == "Start"), 
+       aes(x = model, y = meanD_mean, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r) ~ 
+                 "Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanD_mean - meanD_se, ymax = meanD_mean + meanD_se)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  labs(x = "Model", y = "D") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom")
 
+  
 
 # plot average distributions
 
