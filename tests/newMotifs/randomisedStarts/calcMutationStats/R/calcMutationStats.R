@@ -24,6 +24,7 @@ EPISTASIS_WEIGHTED_FILE <- paste0(WRITE_PATH, "d_freqweight_epistasis_", model, 
 EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_", model, ".csv")
 DPDT_FILE <- paste0(WRITE_PATH, "d_dpdt_", model, ".csv")
 SFS_FILE <- paste0(WRITE_PATH, "d_SFS_", model, ".csv")
+FIX_FILE <- paste0(WRITE_PATH, "d_fixed_", model, ".csv")
 
 # Load combo information
 d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
@@ -106,6 +107,15 @@ d_SFS %>%
 
 data.table::fwrite(d_SFS_sum, 
                    SFS_FILE, sep = ",", 
+                   col.names = F, row.names = F)
+
+# Number of fixations
+d_fixed %>%
+  group_by(gen, modelindex, seed) %>%
+  summarise(nFix = n()) -> d_fixations
+
+data.table::fwrite(d_fixations, 
+                   FIX_FILE, sep = ",", 
                    col.names = F, row.names = F)
 
 

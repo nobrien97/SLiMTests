@@ -91,6 +91,7 @@ cat ./d_freqweight_* >> $SAVEDIR/d_epistasis_freqweight.csv
 cat ./d_dpdt_* >> $SAVEDIR/d_dpdt.csv
 cat ./d_SFS_* >> $SAVEDIR/d_SFS.csv
 cat ./d_fx_* >> $SAVEDIR/d_fx.csv
+cat ./d_fixed_* >> $SAVEDIR/d_fixed.csv 
 
 # 
 # Check the exit status
