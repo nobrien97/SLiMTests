@@ -16,6 +16,7 @@ FULLJOBNAME=$JOBNAME/randomisedStarts
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
 #   For this job, NJOBS should = 0
+# Submit as two separate jobs: NJOBS=0, NJOB=0 and NJOBS=0, NJOB=1
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -84,30 +85,30 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$FULLJOBNAME/
 
-cat ./slim_pos* >> $SAVEDIR/slim_pos.csv
-cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
-cat ./slim_muts* >> $SAVEDIR/slim_muts.csv
-cat ./slim_qg* >> $SAVEDIR/slim_qg.csv
-cat ./slim_indPheno* >> $SAVEDIR/slim_indPheno.csv
-cat ./slim_haplo_fix* >> $SAVEDIR/slim_haplo_fix.csv
+cat ./slim_pos*_${NJOB} >> $SAVEDIR/slim_pos_${NJOB}.csv
+cat ./slim_opt*_${NJOB} >> $SAVEDIR/slim_opt_${NJOB}.csv
+cat ./slim_muts*_${NJOB} >> $SAVEDIR/slim_muts_${NJOB}.csv
+cat ./slim_qg*_${NJOB} >> $SAVEDIR/slim_qg_${NJOB}.csv
+cat ./slim_indPheno*_${NJOB} >> $SAVEDIR/slim_indPheno_${NJOB}.csv
+cat ./slim_haplo_fix*_${NJOB} >> $SAVEDIR/slim_haplo_fix_${NJOB}.csv
 # Remove haplo fix before we collect regular haplos - otherwise they get stuck to the end of the file
-rm ./slim_haplo_fix*
-cat ./slim_haplo* >> $SAVEDIR/slim_haplo.csv
-cat ./slim_sampled_pheno* >> $SAVEDIR/slim_sampled_pheno.csv
-cat ./slim_sampled_moltrait* >> $SAVEDIR/slim_sampled_moltrait.csv
-cat ./slim_fx* >> $SAVEDIR/slim_fx.csv
-cat ./slim_locusHo* >> $SAVEDIR/slim_locusHo.csv
-cat ./slim_PMmat* >> $SAVEDIR/slim_PMmat.csv
-cat ./slim_relPos* >> $SAVEDIR/slim_relPos.csv
-cat ./slim_relVals* >> $SAVEDIR/slim_relVals.csv
-cat ./slim_sharedmutfreqs* >> $SAVEDIR/slim_sharedmutfreqs.csv
+rm ./slim_haplo_fix*_${NJOB}
+cat ./slim_haplo*_${NJOB} >> $SAVEDIR/slim_haplo_${NJOB}.csv
+cat ./slim_sampled_pheno*_${NJOB} >> $SAVEDIR/slim_sampled_pheno_${NJOB}.csv
+cat ./slim_sampled_moltrait*_${NJOB} >> $SAVEDIR/slim_sampled_moltrait_${NJOB}.csv
+cat ./slim_fx*_${NJOB} >> $SAVEDIR/slim_fx_${NJOB}.csv
+cat ./slim_locusHo*_${NJOB} >> $SAVEDIR/slim_locusHo_${NJOB}.csv
+cat ./slim_PMmat*_${NJOB} >> $SAVEDIR/slim_PMmat_${NJOB}.csv
+cat ./slim_relPos*_${NJOB} >> $SAVEDIR/slim_relPos_${NJOB}.csv
+cat ./slim_relVals*_${NJOB} >> $SAVEDIR/slim_relVals_${NJOB}.csv
+cat ./slim_sharedmutfreqs*_${NJOB} >> $SAVEDIR/slim_sharedmutfreqs_${NJOB}.csv
 
 # Save population state
 mkdir -p $SAVEDIR/popstates
-mv ./slim_popstate* $SAVEDIR/popstates
+mv ./slim_popstate*_${NJOB} $SAVEDIR/popstates
 
 # Delete loose files with seed and model indices
-find -regex ".*[0-9]*_*[0-9].csv+" -delete
+find -regex ".*[0-9]+_[0-9]+_${NJOB}.csv+" -delete
 
 # 
 # Check the exit status

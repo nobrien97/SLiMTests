@@ -1,1560 +1,3120 @@
-./newMotifsSR.sh 1 1
-./newMotifsSR.sh 1 2
-./newMotifsSR.sh 1 3
-./newMotifsSR.sh 1 4
-./newMotifsSR.sh 1 5
-./newMotifsSR.sh 1 6
-./newMotifsSR.sh 1 7
-./newMotifsSR.sh 1 8
-./newMotifsSR.sh 1 9
-./newMotifsSR.sh 1 10
-./newMotifsSR.sh 1 11
-./newMotifsSR.sh 1 12
-./newMotifsSR.sh 1 13
-./newMotifsSR.sh 1 14
-./newMotifsSR.sh 1 15
-./newMotifsSR.sh 1 16
-./newMotifsSR.sh 1 17
-./newMotifsSR.sh 1 18
-./newMotifsSR.sh 1 19
-./newMotifsSR.sh 1 20
-./newMotifsSR.sh 1 21
-./newMotifsSR.sh 1 22
-./newMotifsSR.sh 1 23
-./newMotifsSR.sh 1 24
-./newMotifsSR.sh 1 25
-./newMotifsSR.sh 1 26
-./newMotifsSR.sh 1 27
-./newMotifsSR.sh 1 28
-./newMotifsSR.sh 1 29
-./newMotifsSR.sh 1 30
-./newMotifsSR.sh 1 31
-./newMotifsSR.sh 1 32
-./newMotifsSR.sh 1 33
-./newMotifsSR.sh 1 34
-./newMotifsSR.sh 1 35
-./newMotifsSR.sh 1 36
-./newMotifsSR.sh 1 37
-./newMotifsSR.sh 1 38
-./newMotifsSR.sh 1 39
-./newMotifsSR.sh 1 40
-./newMotifsSR.sh 1 41
-./newMotifsSR.sh 1 42
-./newMotifsSR.sh 1 43
-./newMotifsSR.sh 1 44
-./newMotifsSR.sh 1 45
-./newMotifsSR.sh 1 46
-./newMotifsSR.sh 1 47
-./newMotifsSR.sh 1 48
-./newMotifsSR.sh 1 49
-./newMotifsSR.sh 1 50
-./newMotifsSR.sh 1 51
-./newMotifsSR.sh 1 52
-./newMotifsSR.sh 1 53
-./newMotifsSR.sh 1 54
-./newMotifsSR.sh 1 55
-./newMotifsSR.sh 1 56
-./newMotifsSR.sh 1 57
-./newMotifsSR.sh 1 58
-./newMotifsSR.sh 1 59
-./newMotifsSR.sh 1 60
-./newMotifsSR.sh 1 61
-./newMotifsSR.sh 1 62
-./newMotifsSR.sh 1 63
-./newMotifsSR.sh 1 64
-./newMotifsSR.sh 1 65
-./newMotifsSR.sh 1 66
-./newMotifsSR.sh 1 67
-./newMotifsSR.sh 1 68
-./newMotifsSR.sh 1 69
-./newMotifsSR.sh 1 70
-./newMotifsSR.sh 1 71
-./newMotifsSR.sh 1 72
-./newMotifsSR.sh 1 73
-./newMotifsSR.sh 1 74
-./newMotifsSR.sh 1 75
-./newMotifsSR.sh 1 76
-./newMotifsSR.sh 1 77
-./newMotifsSR.sh 1 78
-./newMotifsSR.sh 1 79
-./newMotifsSR.sh 1 80
-./newMotifsSR.sh 1 81
-./newMotifsSR.sh 1 82
-./newMotifsSR.sh 1 83
-./newMotifsSR.sh 1 84
-./newMotifsSR.sh 1 85
-./newMotifsSR.sh 1 86
-./newMotifsSR.sh 1 87
-./newMotifsSR.sh 1 88
-./newMotifsSR.sh 1 89
-./newMotifsSR.sh 1 90
-./newMotifsSR.sh 1 91
-./newMotifsSR.sh 1 92
-./newMotifsSR.sh 1 93
-./newMotifsSR.sh 1 94
-./newMotifsSR.sh 1 95
-./newMotifsSR.sh 1 96
-./newMotifsSR.sh 1 97
-./newMotifsSR.sh 1 98
-./newMotifsSR.sh 1 99
-./newMotifsSR.sh 1 100
-./newMotifsSR.sh 1 101
-./newMotifsSR.sh 1 102
-./newMotifsSR.sh 1 103
-./newMotifsSR.sh 1 104
-./newMotifsSR.sh 2 1
-./newMotifsSR.sh 2 2
-./newMotifsSR.sh 2 3
-./newMotifsSR.sh 2 4
-./newMotifsSR.sh 2 5
-./newMotifsSR.sh 2 6
-./newMotifsSR.sh 2 7
-./newMotifsSR.sh 2 8
-./newMotifsSR.sh 2 9
-./newMotifsSR.sh 2 10
-./newMotifsSR.sh 2 11
-./newMotifsSR.sh 2 12
-./newMotifsSR.sh 2 13
-./newMotifsSR.sh 2 14
-./newMotifsSR.sh 2 15
-./newMotifsSR.sh 2 16
-./newMotifsSR.sh 2 17
-./newMotifsSR.sh 2 18
-./newMotifsSR.sh 2 19
-./newMotifsSR.sh 2 20
-./newMotifsSR.sh 2 21
-./newMotifsSR.sh 2 22
-./newMotifsSR.sh 2 23
-./newMotifsSR.sh 2 24
-./newMotifsSR.sh 2 25
-./newMotifsSR.sh 2 26
-./newMotifsSR.sh 2 27
-./newMotifsSR.sh 2 28
-./newMotifsSR.sh 2 29
-./newMotifsSR.sh 2 30
-./newMotifsSR.sh 2 31
-./newMotifsSR.sh 2 32
-./newMotifsSR.sh 2 33
-./newMotifsSR.sh 2 34
-./newMotifsSR.sh 2 35
-./newMotifsSR.sh 2 36
-./newMotifsSR.sh 2 37
-./newMotifsSR.sh 2 38
-./newMotifsSR.sh 2 39
-./newMotifsSR.sh 2 40
-./newMotifsSR.sh 2 41
-./newMotifsSR.sh 2 42
-./newMotifsSR.sh 2 43
-./newMotifsSR.sh 2 44
-./newMotifsSR.sh 2 45
-./newMotifsSR.sh 2 46
-./newMotifsSR.sh 2 47
-./newMotifsSR.sh 2 48
-./newMotifsSR.sh 2 49
-./newMotifsSR.sh 2 50
-./newMotifsSR.sh 2 51
-./newMotifsSR.sh 2 52
-./newMotifsSR.sh 2 53
-./newMotifsSR.sh 2 54
-./newMotifsSR.sh 2 55
-./newMotifsSR.sh 2 56
-./newMotifsSR.sh 2 57
-./newMotifsSR.sh 2 58
-./newMotifsSR.sh 2 59
-./newMotifsSR.sh 2 60
-./newMotifsSR.sh 2 61
-./newMotifsSR.sh 2 62
-./newMotifsSR.sh 2 63
-./newMotifsSR.sh 2 64
-./newMotifsSR.sh 2 65
-./newMotifsSR.sh 2 66
-./newMotifsSR.sh 2 67
-./newMotifsSR.sh 2 68
-./newMotifsSR.sh 2 69
-./newMotifsSR.sh 2 70
-./newMotifsSR.sh 2 71
-./newMotifsSR.sh 2 72
-./newMotifsSR.sh 2 73
-./newMotifsSR.sh 2 74
-./newMotifsSR.sh 2 75
-./newMotifsSR.sh 2 76
-./newMotifsSR.sh 2 77
-./newMotifsSR.sh 2 78
-./newMotifsSR.sh 2 79
-./newMotifsSR.sh 2 80
-./newMotifsSR.sh 2 81
-./newMotifsSR.sh 2 82
-./newMotifsSR.sh 2 83
-./newMotifsSR.sh 2 84
-./newMotifsSR.sh 2 85
-./newMotifsSR.sh 2 86
-./newMotifsSR.sh 2 87
-./newMotifsSR.sh 2 88
-./newMotifsSR.sh 2 89
-./newMotifsSR.sh 2 90
-./newMotifsSR.sh 2 91
-./newMotifsSR.sh 2 92
-./newMotifsSR.sh 2 93
-./newMotifsSR.sh 2 94
-./newMotifsSR.sh 2 95
-./newMotifsSR.sh 2 96
-./newMotifsSR.sh 2 97
-./newMotifsSR.sh 2 98
-./newMotifsSR.sh 2 99
-./newMotifsSR.sh 2 100
-./newMotifsSR.sh 2 101
-./newMotifsSR.sh 2 102
-./newMotifsSR.sh 2 103
-./newMotifsSR.sh 2 104
-./newMotifsSR.sh 3 1
-./newMotifsSR.sh 3 2
-./newMotifsSR.sh 3 3
-./newMotifsSR.sh 3 4
-./newMotifsSR.sh 3 5
-./newMotifsSR.sh 3 6
-./newMotifsSR.sh 3 7
-./newMotifsSR.sh 3 8
-./newMotifsSR.sh 3 9
-./newMotifsSR.sh 3 10
-./newMotifsSR.sh 3 11
-./newMotifsSR.sh 3 12
-./newMotifsSR.sh 3 13
-./newMotifsSR.sh 3 14
-./newMotifsSR.sh 3 15
-./newMotifsSR.sh 3 16
-./newMotifsSR.sh 3 17
-./newMotifsSR.sh 3 18
-./newMotifsSR.sh 3 19
-./newMotifsSR.sh 3 20
-./newMotifsSR.sh 3 21
-./newMotifsSR.sh 3 22
-./newMotifsSR.sh 3 23
-./newMotifsSR.sh 3 24
-./newMotifsSR.sh 3 25
-./newMotifsSR.sh 3 26
-./newMotifsSR.sh 3 27
-./newMotifsSR.sh 3 28
-./newMotifsSR.sh 3 29
-./newMotifsSR.sh 3 30
-./newMotifsSR.sh 3 31
-./newMotifsSR.sh 3 32
-./newMotifsSR.sh 3 33
-./newMotifsSR.sh 3 34
-./newMotifsSR.sh 3 35
-./newMotifsSR.sh 3 36
-./newMotifsSR.sh 3 37
-./newMotifsSR.sh 3 38
-./newMotifsSR.sh 3 39
-./newMotifsSR.sh 3 40
-./newMotifsSR.sh 3 41
-./newMotifsSR.sh 3 42
-./newMotifsSR.sh 3 43
-./newMotifsSR.sh 3 44
-./newMotifsSR.sh 3 45
-./newMotifsSR.sh 3 46
-./newMotifsSR.sh 3 47
-./newMotifsSR.sh 3 48
-./newMotifsSR.sh 3 49
-./newMotifsSR.sh 3 50
-./newMotifsSR.sh 3 51
-./newMotifsSR.sh 3 52
-./newMotifsSR.sh 3 53
-./newMotifsSR.sh 3 54
-./newMotifsSR.sh 3 55
-./newMotifsSR.sh 3 56
-./newMotifsSR.sh 3 57
-./newMotifsSR.sh 3 58
-./newMotifsSR.sh 3 59
-./newMotifsSR.sh 3 60
-./newMotifsSR.sh 3 61
-./newMotifsSR.sh 3 62
-./newMotifsSR.sh 3 63
-./newMotifsSR.sh 3 64
-./newMotifsSR.sh 3 65
-./newMotifsSR.sh 3 66
-./newMotifsSR.sh 3 67
-./newMotifsSR.sh 3 68
-./newMotifsSR.sh 3 69
-./newMotifsSR.sh 3 70
-./newMotifsSR.sh 3 71
-./newMotifsSR.sh 3 72
-./newMotifsSR.sh 3 73
-./newMotifsSR.sh 3 74
-./newMotifsSR.sh 3 75
-./newMotifsSR.sh 3 76
-./newMotifsSR.sh 3 77
-./newMotifsSR.sh 3 78
-./newMotifsSR.sh 3 79
-./newMotifsSR.sh 3 80
-./newMotifsSR.sh 3 81
-./newMotifsSR.sh 3 82
-./newMotifsSR.sh 3 83
-./newMotifsSR.sh 3 84
-./newMotifsSR.sh 3 85
-./newMotifsSR.sh 3 86
-./newMotifsSR.sh 3 87
-./newMotifsSR.sh 3 88
-./newMotifsSR.sh 3 89
-./newMotifsSR.sh 3 90
-./newMotifsSR.sh 3 91
-./newMotifsSR.sh 3 92
-./newMotifsSR.sh 3 93
-./newMotifsSR.sh 3 94
-./newMotifsSR.sh 3 95
-./newMotifsSR.sh 3 96
-./newMotifsSR.sh 3 97
-./newMotifsSR.sh 3 98
-./newMotifsSR.sh 3 99
-./newMotifsSR.sh 3 100
-./newMotifsSR.sh 3 101
-./newMotifsSR.sh 3 102
-./newMotifsSR.sh 3 103
-./newMotifsSR.sh 3 104
-./newMotifsSR.sh 4 1
-./newMotifsSR.sh 4 2
-./newMotifsSR.sh 4 3
-./newMotifsSR.sh 4 4
-./newMotifsSR.sh 4 5
-./newMotifsSR.sh 4 6
-./newMotifsSR.sh 4 7
-./newMotifsSR.sh 4 8
-./newMotifsSR.sh 4 9
-./newMotifsSR.sh 4 10
-./newMotifsSR.sh 4 11
-./newMotifsSR.sh 4 12
-./newMotifsSR.sh 4 13
-./newMotifsSR.sh 4 14
-./newMotifsSR.sh 4 15
-./newMotifsSR.sh 4 16
-./newMotifsSR.sh 4 17
-./newMotifsSR.sh 4 18
-./newMotifsSR.sh 4 19
-./newMotifsSR.sh 4 20
-./newMotifsSR.sh 4 21
-./newMotifsSR.sh 4 22
-./newMotifsSR.sh 4 23
-./newMotifsSR.sh 4 24
-./newMotifsSR.sh 4 25
-./newMotifsSR.sh 4 26
-./newMotifsSR.sh 4 27
-./newMotifsSR.sh 4 28
-./newMotifsSR.sh 4 29
-./newMotifsSR.sh 4 30
-./newMotifsSR.sh 4 31
-./newMotifsSR.sh 4 32
-./newMotifsSR.sh 4 33
-./newMotifsSR.sh 4 34
-./newMotifsSR.sh 4 35
-./newMotifsSR.sh 4 36
-./newMotifsSR.sh 4 37
-./newMotifsSR.sh 4 38
-./newMotifsSR.sh 4 39
-./newMotifsSR.sh 4 40
-./newMotifsSR.sh 4 41
-./newMotifsSR.sh 4 42
-./newMotifsSR.sh 4 43
-./newMotifsSR.sh 4 44
-./newMotifsSR.sh 4 45
-./newMotifsSR.sh 4 46
-./newMotifsSR.sh 4 47
-./newMotifsSR.sh 4 48
-./newMotifsSR.sh 4 49
-./newMotifsSR.sh 4 50
-./newMotifsSR.sh 4 51
-./newMotifsSR.sh 4 52
-./newMotifsSR.sh 4 53
-./newMotifsSR.sh 4 54
-./newMotifsSR.sh 4 55
-./newMotifsSR.sh 4 56
-./newMotifsSR.sh 4 57
-./newMotifsSR.sh 4 58
-./newMotifsSR.sh 4 59
-./newMotifsSR.sh 4 60
-./newMotifsSR.sh 4 61
-./newMotifsSR.sh 4 62
-./newMotifsSR.sh 4 63
-./newMotifsSR.sh 4 64
-./newMotifsSR.sh 4 65
-./newMotifsSR.sh 4 66
-./newMotifsSR.sh 4 67
-./newMotifsSR.sh 4 68
-./newMotifsSR.sh 4 69
-./newMotifsSR.sh 4 70
-./newMotifsSR.sh 4 71
-./newMotifsSR.sh 4 72
-./newMotifsSR.sh 4 73
-./newMotifsSR.sh 4 74
-./newMotifsSR.sh 4 75
-./newMotifsSR.sh 4 76
-./newMotifsSR.sh 4 77
-./newMotifsSR.sh 4 78
-./newMotifsSR.sh 4 79
-./newMotifsSR.sh 4 80
-./newMotifsSR.sh 4 81
-./newMotifsSR.sh 4 82
-./newMotifsSR.sh 4 83
-./newMotifsSR.sh 4 84
-./newMotifsSR.sh 4 85
-./newMotifsSR.sh 4 86
-./newMotifsSR.sh 4 87
-./newMotifsSR.sh 4 88
-./newMotifsSR.sh 4 89
-./newMotifsSR.sh 4 90
-./newMotifsSR.sh 4 91
-./newMotifsSR.sh 4 92
-./newMotifsSR.sh 4 93
-./newMotifsSR.sh 4 94
-./newMotifsSR.sh 4 95
-./newMotifsSR.sh 4 96
-./newMotifsSR.sh 4 97
-./newMotifsSR.sh 4 98
-./newMotifsSR.sh 4 99
-./newMotifsSR.sh 4 100
-./newMotifsSR.sh 4 101
-./newMotifsSR.sh 4 102
-./newMotifsSR.sh 4 103
-./newMotifsSR.sh 4 104
-./newMotifsSR.sh 5 1
-./newMotifsSR.sh 5 2
-./newMotifsSR.sh 5 3
-./newMotifsSR.sh 5 4
-./newMotifsSR.sh 5 5
-./newMotifsSR.sh 5 6
-./newMotifsSR.sh 5 7
-./newMotifsSR.sh 5 8
-./newMotifsSR.sh 5 9
-./newMotifsSR.sh 5 10
-./newMotifsSR.sh 5 11
-./newMotifsSR.sh 5 12
-./newMotifsSR.sh 5 13
-./newMotifsSR.sh 5 14
-./newMotifsSR.sh 5 15
-./newMotifsSR.sh 5 16
-./newMotifsSR.sh 5 17
-./newMotifsSR.sh 5 18
-./newMotifsSR.sh 5 19
-./newMotifsSR.sh 5 20
-./newMotifsSR.sh 5 21
-./newMotifsSR.sh 5 22
-./newMotifsSR.sh 5 23
-./newMotifsSR.sh 5 24
-./newMotifsSR.sh 5 25
-./newMotifsSR.sh 5 26
-./newMotifsSR.sh 5 27
-./newMotifsSR.sh 5 28
-./newMotifsSR.sh 5 29
-./newMotifsSR.sh 5 30
-./newMotifsSR.sh 5 31
-./newMotifsSR.sh 5 32
-./newMotifsSR.sh 5 33
-./newMotifsSR.sh 5 34
-./newMotifsSR.sh 5 35
-./newMotifsSR.sh 5 36
-./newMotifsSR.sh 5 37
-./newMotifsSR.sh 5 38
-./newMotifsSR.sh 5 39
-./newMotifsSR.sh 5 40
-./newMotifsSR.sh 5 41
-./newMotifsSR.sh 5 42
-./newMotifsSR.sh 5 43
-./newMotifsSR.sh 5 44
-./newMotifsSR.sh 5 45
-./newMotifsSR.sh 5 46
-./newMotifsSR.sh 5 47
-./newMotifsSR.sh 5 48
-./newMotifsSR.sh 5 49
-./newMotifsSR.sh 5 50
-./newMotifsSR.sh 5 51
-./newMotifsSR.sh 5 52
-./newMotifsSR.sh 5 53
-./newMotifsSR.sh 5 54
-./newMotifsSR.sh 5 55
-./newMotifsSR.sh 5 56
-./newMotifsSR.sh 5 57
-./newMotifsSR.sh 5 58
-./newMotifsSR.sh 5 59
-./newMotifsSR.sh 5 60
-./newMotifsSR.sh 5 61
-./newMotifsSR.sh 5 62
-./newMotifsSR.sh 5 63
-./newMotifsSR.sh 5 64
-./newMotifsSR.sh 5 65
-./newMotifsSR.sh 5 66
-./newMotifsSR.sh 5 67
-./newMotifsSR.sh 5 68
-./newMotifsSR.sh 5 69
-./newMotifsSR.sh 5 70
-./newMotifsSR.sh 5 71
-./newMotifsSR.sh 5 72
-./newMotifsSR.sh 5 73
-./newMotifsSR.sh 5 74
-./newMotifsSR.sh 5 75
-./newMotifsSR.sh 5 76
-./newMotifsSR.sh 5 77
-./newMotifsSR.sh 5 78
-./newMotifsSR.sh 5 79
-./newMotifsSR.sh 5 80
-./newMotifsSR.sh 5 81
-./newMotifsSR.sh 5 82
-./newMotifsSR.sh 5 83
-./newMotifsSR.sh 5 84
-./newMotifsSR.sh 5 85
-./newMotifsSR.sh 5 86
-./newMotifsSR.sh 5 87
-./newMotifsSR.sh 5 88
-./newMotifsSR.sh 5 89
-./newMotifsSR.sh 5 90
-./newMotifsSR.sh 5 91
-./newMotifsSR.sh 5 92
-./newMotifsSR.sh 5 93
-./newMotifsSR.sh 5 94
-./newMotifsSR.sh 5 95
-./newMotifsSR.sh 5 96
-./newMotifsSR.sh 5 97
-./newMotifsSR.sh 5 98
-./newMotifsSR.sh 5 99
-./newMotifsSR.sh 5 100
-./newMotifsSR.sh 5 101
-./newMotifsSR.sh 5 102
-./newMotifsSR.sh 5 103
-./newMotifsSR.sh 5 104
-./newMotifsSR.sh 6 1
-./newMotifsSR.sh 6 2
-./newMotifsSR.sh 6 3
-./newMotifsSR.sh 6 4
-./newMotifsSR.sh 6 5
-./newMotifsSR.sh 6 6
-./newMotifsSR.sh 6 7
-./newMotifsSR.sh 6 8
-./newMotifsSR.sh 6 9
-./newMotifsSR.sh 6 10
-./newMotifsSR.sh 6 11
-./newMotifsSR.sh 6 12
-./newMotifsSR.sh 6 13
-./newMotifsSR.sh 6 14
-./newMotifsSR.sh 6 15
-./newMotifsSR.sh 6 16
-./newMotifsSR.sh 6 17
-./newMotifsSR.sh 6 18
-./newMotifsSR.sh 6 19
-./newMotifsSR.sh 6 20
-./newMotifsSR.sh 6 21
-./newMotifsSR.sh 6 22
-./newMotifsSR.sh 6 23
-./newMotifsSR.sh 6 24
-./newMotifsSR.sh 6 25
-./newMotifsSR.sh 6 26
-./newMotifsSR.sh 6 27
-./newMotifsSR.sh 6 28
-./newMotifsSR.sh 6 29
-./newMotifsSR.sh 6 30
-./newMotifsSR.sh 6 31
-./newMotifsSR.sh 6 32
-./newMotifsSR.sh 6 33
-./newMotifsSR.sh 6 34
-./newMotifsSR.sh 6 35
-./newMotifsSR.sh 6 36
-./newMotifsSR.sh 6 37
-./newMotifsSR.sh 6 38
-./newMotifsSR.sh 6 39
-./newMotifsSR.sh 6 40
-./newMotifsSR.sh 6 41
-./newMotifsSR.sh 6 42
-./newMotifsSR.sh 6 43
-./newMotifsSR.sh 6 44
-./newMotifsSR.sh 6 45
-./newMotifsSR.sh 6 46
-./newMotifsSR.sh 6 47
-./newMotifsSR.sh 6 48
-./newMotifsSR.sh 6 49
-./newMotifsSR.sh 6 50
-./newMotifsSR.sh 6 51
-./newMotifsSR.sh 6 52
-./newMotifsSR.sh 6 53
-./newMotifsSR.sh 6 54
-./newMotifsSR.sh 6 55
-./newMotifsSR.sh 6 56
-./newMotifsSR.sh 6 57
-./newMotifsSR.sh 6 58
-./newMotifsSR.sh 6 59
-./newMotifsSR.sh 6 60
-./newMotifsSR.sh 6 61
-./newMotifsSR.sh 6 62
-./newMotifsSR.sh 6 63
-./newMotifsSR.sh 6 64
-./newMotifsSR.sh 6 65
-./newMotifsSR.sh 6 66
-./newMotifsSR.sh 6 67
-./newMotifsSR.sh 6 68
-./newMotifsSR.sh 6 69
-./newMotifsSR.sh 6 70
-./newMotifsSR.sh 6 71
-./newMotifsSR.sh 6 72
-./newMotifsSR.sh 6 73
-./newMotifsSR.sh 6 74
-./newMotifsSR.sh 6 75
-./newMotifsSR.sh 6 76
-./newMotifsSR.sh 6 77
-./newMotifsSR.sh 6 78
-./newMotifsSR.sh 6 79
-./newMotifsSR.sh 6 80
-./newMotifsSR.sh 6 81
-./newMotifsSR.sh 6 82
-./newMotifsSR.sh 6 83
-./newMotifsSR.sh 6 84
-./newMotifsSR.sh 6 85
-./newMotifsSR.sh 6 86
-./newMotifsSR.sh 6 87
-./newMotifsSR.sh 6 88
-./newMotifsSR.sh 6 89
-./newMotifsSR.sh 6 90
-./newMotifsSR.sh 6 91
-./newMotifsSR.sh 6 92
-./newMotifsSR.sh 6 93
-./newMotifsSR.sh 6 94
-./newMotifsSR.sh 6 95
-./newMotifsSR.sh 6 96
-./newMotifsSR.sh 6 97
-./newMotifsSR.sh 6 98
-./newMotifsSR.sh 6 99
-./newMotifsSR.sh 6 100
-./newMotifsSR.sh 6 101
-./newMotifsSR.sh 6 102
-./newMotifsSR.sh 6 103
-./newMotifsSR.sh 6 104
-./newMotifsSR.sh 7 1
-./newMotifsSR.sh 7 2
-./newMotifsSR.sh 7 3
-./newMotifsSR.sh 7 4
-./newMotifsSR.sh 7 5
-./newMotifsSR.sh 7 6
-./newMotifsSR.sh 7 7
-./newMotifsSR.sh 7 8
-./newMotifsSR.sh 7 9
-./newMotifsSR.sh 7 10
-./newMotifsSR.sh 7 11
-./newMotifsSR.sh 7 12
-./newMotifsSR.sh 7 13
-./newMotifsSR.sh 7 14
-./newMotifsSR.sh 7 15
-./newMotifsSR.sh 7 16
-./newMotifsSR.sh 7 17
-./newMotifsSR.sh 7 18
-./newMotifsSR.sh 7 19
-./newMotifsSR.sh 7 20
-./newMotifsSR.sh 7 21
-./newMotifsSR.sh 7 22
-./newMotifsSR.sh 7 23
-./newMotifsSR.sh 7 24
-./newMotifsSR.sh 7 25
-./newMotifsSR.sh 7 26
-./newMotifsSR.sh 7 27
-./newMotifsSR.sh 7 28
-./newMotifsSR.sh 7 29
-./newMotifsSR.sh 7 30
-./newMotifsSR.sh 7 31
-./newMotifsSR.sh 7 32
-./newMotifsSR.sh 7 33
-./newMotifsSR.sh 7 34
-./newMotifsSR.sh 7 35
-./newMotifsSR.sh 7 36
-./newMotifsSR.sh 7 37
-./newMotifsSR.sh 7 38
-./newMotifsSR.sh 7 39
-./newMotifsSR.sh 7 40
-./newMotifsSR.sh 7 41
-./newMotifsSR.sh 7 42
-./newMotifsSR.sh 7 43
-./newMotifsSR.sh 7 44
-./newMotifsSR.sh 7 45
-./newMotifsSR.sh 7 46
-./newMotifsSR.sh 7 47
-./newMotifsSR.sh 7 48
-./newMotifsSR.sh 7 49
-./newMotifsSR.sh 7 50
-./newMotifsSR.sh 7 51
-./newMotifsSR.sh 7 52
-./newMotifsSR.sh 7 53
-./newMotifsSR.sh 7 54
-./newMotifsSR.sh 7 55
-./newMotifsSR.sh 7 56
-./newMotifsSR.sh 7 57
-./newMotifsSR.sh 7 58
-./newMotifsSR.sh 7 59
-./newMotifsSR.sh 7 60
-./newMotifsSR.sh 7 61
-./newMotifsSR.sh 7 62
-./newMotifsSR.sh 7 63
-./newMotifsSR.sh 7 64
-./newMotifsSR.sh 7 65
-./newMotifsSR.sh 7 66
-./newMotifsSR.sh 7 67
-./newMotifsSR.sh 7 68
-./newMotifsSR.sh 7 69
-./newMotifsSR.sh 7 70
-./newMotifsSR.sh 7 71
-./newMotifsSR.sh 7 72
-./newMotifsSR.sh 7 73
-./newMotifsSR.sh 7 74
-./newMotifsSR.sh 7 75
-./newMotifsSR.sh 7 76
-./newMotifsSR.sh 7 77
-./newMotifsSR.sh 7 78
-./newMotifsSR.sh 7 79
-./newMotifsSR.sh 7 80
-./newMotifsSR.sh 7 81
-./newMotifsSR.sh 7 82
-./newMotifsSR.sh 7 83
-./newMotifsSR.sh 7 84
-./newMotifsSR.sh 7 85
-./newMotifsSR.sh 7 86
-./newMotifsSR.sh 7 87
-./newMotifsSR.sh 7 88
-./newMotifsSR.sh 7 89
-./newMotifsSR.sh 7 90
-./newMotifsSR.sh 7 91
-./newMotifsSR.sh 7 92
-./newMotifsSR.sh 7 93
-./newMotifsSR.sh 7 94
-./newMotifsSR.sh 7 95
-./newMotifsSR.sh 7 96
-./newMotifsSR.sh 7 97
-./newMotifsSR.sh 7 98
-./newMotifsSR.sh 7 99
-./newMotifsSR.sh 7 100
-./newMotifsSR.sh 7 101
-./newMotifsSR.sh 7 102
-./newMotifsSR.sh 7 103
-./newMotifsSR.sh 7 104
-./newMotifsSR.sh 8 1
-./newMotifsSR.sh 8 2
-./newMotifsSR.sh 8 3
-./newMotifsSR.sh 8 4
-./newMotifsSR.sh 8 5
-./newMotifsSR.sh 8 6
-./newMotifsSR.sh 8 7
-./newMotifsSR.sh 8 8
-./newMotifsSR.sh 8 9
-./newMotifsSR.sh 8 10
-./newMotifsSR.sh 8 11
-./newMotifsSR.sh 8 12
-./newMotifsSR.sh 8 13
-./newMotifsSR.sh 8 14
-./newMotifsSR.sh 8 15
-./newMotifsSR.sh 8 16
-./newMotifsSR.sh 8 17
-./newMotifsSR.sh 8 18
-./newMotifsSR.sh 8 19
-./newMotifsSR.sh 8 20
-./newMotifsSR.sh 8 21
-./newMotifsSR.sh 8 22
-./newMotifsSR.sh 8 23
-./newMotifsSR.sh 8 24
-./newMotifsSR.sh 8 25
-./newMotifsSR.sh 8 26
-./newMotifsSR.sh 8 27
-./newMotifsSR.sh 8 28
-./newMotifsSR.sh 8 29
-./newMotifsSR.sh 8 30
-./newMotifsSR.sh 8 31
-./newMotifsSR.sh 8 32
-./newMotifsSR.sh 8 33
-./newMotifsSR.sh 8 34
-./newMotifsSR.sh 8 35
-./newMotifsSR.sh 8 36
-./newMotifsSR.sh 8 37
-./newMotifsSR.sh 8 38
-./newMotifsSR.sh 8 39
-./newMotifsSR.sh 8 40
-./newMotifsSR.sh 8 41
-./newMotifsSR.sh 8 42
-./newMotifsSR.sh 8 43
-./newMotifsSR.sh 8 44
-./newMotifsSR.sh 8 45
-./newMotifsSR.sh 8 46
-./newMotifsSR.sh 8 47
-./newMotifsSR.sh 8 48
-./newMotifsSR.sh 8 49
-./newMotifsSR.sh 8 50
-./newMotifsSR.sh 8 51
-./newMotifsSR.sh 8 52
-./newMotifsSR.sh 8 53
-./newMotifsSR.sh 8 54
-./newMotifsSR.sh 8 55
-./newMotifsSR.sh 8 56
-./newMotifsSR.sh 8 57
-./newMotifsSR.sh 8 58
-./newMotifsSR.sh 8 59
-./newMotifsSR.sh 8 60
-./newMotifsSR.sh 8 61
-./newMotifsSR.sh 8 62
-./newMotifsSR.sh 8 63
-./newMotifsSR.sh 8 64
-./newMotifsSR.sh 8 65
-./newMotifsSR.sh 8 66
-./newMotifsSR.sh 8 67
-./newMotifsSR.sh 8 68
-./newMotifsSR.sh 8 69
-./newMotifsSR.sh 8 70
-./newMotifsSR.sh 8 71
-./newMotifsSR.sh 8 72
-./newMotifsSR.sh 8 73
-./newMotifsSR.sh 8 74
-./newMotifsSR.sh 8 75
-./newMotifsSR.sh 8 76
-./newMotifsSR.sh 8 77
-./newMotifsSR.sh 8 78
-./newMotifsSR.sh 8 79
-./newMotifsSR.sh 8 80
-./newMotifsSR.sh 8 81
-./newMotifsSR.sh 8 82
-./newMotifsSR.sh 8 83
-./newMotifsSR.sh 8 84
-./newMotifsSR.sh 8 85
-./newMotifsSR.sh 8 86
-./newMotifsSR.sh 8 87
-./newMotifsSR.sh 8 88
-./newMotifsSR.sh 8 89
-./newMotifsSR.sh 8 90
-./newMotifsSR.sh 8 91
-./newMotifsSR.sh 8 92
-./newMotifsSR.sh 8 93
-./newMotifsSR.sh 8 94
-./newMotifsSR.sh 8 95
-./newMotifsSR.sh 8 96
-./newMotifsSR.sh 8 97
-./newMotifsSR.sh 8 98
-./newMotifsSR.sh 8 99
-./newMotifsSR.sh 8 100
-./newMotifsSR.sh 8 101
-./newMotifsSR.sh 8 102
-./newMotifsSR.sh 8 103
-./newMotifsSR.sh 8 104
-./newMotifsSR.sh 9 1
-./newMotifsSR.sh 9 2
-./newMotifsSR.sh 9 3
-./newMotifsSR.sh 9 4
-./newMotifsSR.sh 9 5
-./newMotifsSR.sh 9 6
-./newMotifsSR.sh 9 7
-./newMotifsSR.sh 9 8
-./newMotifsSR.sh 9 9
-./newMotifsSR.sh 9 10
-./newMotifsSR.sh 9 11
-./newMotifsSR.sh 9 12
-./newMotifsSR.sh 9 13
-./newMotifsSR.sh 9 14
-./newMotifsSR.sh 9 15
-./newMotifsSR.sh 9 16
-./newMotifsSR.sh 9 17
-./newMotifsSR.sh 9 18
-./newMotifsSR.sh 9 19
-./newMotifsSR.sh 9 20
-./newMotifsSR.sh 9 21
-./newMotifsSR.sh 9 22
-./newMotifsSR.sh 9 23
-./newMotifsSR.sh 9 24
-./newMotifsSR.sh 9 25
-./newMotifsSR.sh 9 26
-./newMotifsSR.sh 9 27
-./newMotifsSR.sh 9 28
-./newMotifsSR.sh 9 29
-./newMotifsSR.sh 9 30
-./newMotifsSR.sh 9 31
-./newMotifsSR.sh 9 32
-./newMotifsSR.sh 9 33
-./newMotifsSR.sh 9 34
-./newMotifsSR.sh 9 35
-./newMotifsSR.sh 9 36
-./newMotifsSR.sh 9 37
-./newMotifsSR.sh 9 38
-./newMotifsSR.sh 9 39
-./newMotifsSR.sh 9 40
-./newMotifsSR.sh 9 41
-./newMotifsSR.sh 9 42
-./newMotifsSR.sh 9 43
-./newMotifsSR.sh 9 44
-./newMotifsSR.sh 9 45
-./newMotifsSR.sh 9 46
-./newMotifsSR.sh 9 47
-./newMotifsSR.sh 9 48
-./newMotifsSR.sh 9 49
-./newMotifsSR.sh 9 50
-./newMotifsSR.sh 9 51
-./newMotifsSR.sh 9 52
-./newMotifsSR.sh 9 53
-./newMotifsSR.sh 9 54
-./newMotifsSR.sh 9 55
-./newMotifsSR.sh 9 56
-./newMotifsSR.sh 9 57
-./newMotifsSR.sh 9 58
-./newMotifsSR.sh 9 59
-./newMotifsSR.sh 9 60
-./newMotifsSR.sh 9 61
-./newMotifsSR.sh 9 62
-./newMotifsSR.sh 9 63
-./newMotifsSR.sh 9 64
-./newMotifsSR.sh 9 65
-./newMotifsSR.sh 9 66
-./newMotifsSR.sh 9 67
-./newMotifsSR.sh 9 68
-./newMotifsSR.sh 9 69
-./newMotifsSR.sh 9 70
-./newMotifsSR.sh 9 71
-./newMotifsSR.sh 9 72
-./newMotifsSR.sh 9 73
-./newMotifsSR.sh 9 74
-./newMotifsSR.sh 9 75
-./newMotifsSR.sh 9 76
-./newMotifsSR.sh 9 77
-./newMotifsSR.sh 9 78
-./newMotifsSR.sh 9 79
-./newMotifsSR.sh 9 80
-./newMotifsSR.sh 9 81
-./newMotifsSR.sh 9 82
-./newMotifsSR.sh 9 83
-./newMotifsSR.sh 9 84
-./newMotifsSR.sh 9 85
-./newMotifsSR.sh 9 86
-./newMotifsSR.sh 9 87
-./newMotifsSR.sh 9 88
-./newMotifsSR.sh 9 89
-./newMotifsSR.sh 9 90
-./newMotifsSR.sh 9 91
-./newMotifsSR.sh 9 92
-./newMotifsSR.sh 9 93
-./newMotifsSR.sh 9 94
-./newMotifsSR.sh 9 95
-./newMotifsSR.sh 9 96
-./newMotifsSR.sh 9 97
-./newMotifsSR.sh 9 98
-./newMotifsSR.sh 9 99
-./newMotifsSR.sh 9 100
-./newMotifsSR.sh 9 101
-./newMotifsSR.sh 9 102
-./newMotifsSR.sh 9 103
-./newMotifsSR.sh 9 104
-./newMotifsSR.sh 10 1
-./newMotifsSR.sh 10 2
-./newMotifsSR.sh 10 3
-./newMotifsSR.sh 10 4
-./newMotifsSR.sh 10 5
-./newMotifsSR.sh 10 6
-./newMotifsSR.sh 10 7
-./newMotifsSR.sh 10 8
-./newMotifsSR.sh 10 9
-./newMotifsSR.sh 10 10
-./newMotifsSR.sh 10 11
-./newMotifsSR.sh 10 12
-./newMotifsSR.sh 10 13
-./newMotifsSR.sh 10 14
-./newMotifsSR.sh 10 15
-./newMotifsSR.sh 10 16
-./newMotifsSR.sh 10 17
-./newMotifsSR.sh 10 18
-./newMotifsSR.sh 10 19
-./newMotifsSR.sh 10 20
-./newMotifsSR.sh 10 21
-./newMotifsSR.sh 10 22
-./newMotifsSR.sh 10 23
-./newMotifsSR.sh 10 24
-./newMotifsSR.sh 10 25
-./newMotifsSR.sh 10 26
-./newMotifsSR.sh 10 27
-./newMotifsSR.sh 10 28
-./newMotifsSR.sh 10 29
-./newMotifsSR.sh 10 30
-./newMotifsSR.sh 10 31
-./newMotifsSR.sh 10 32
-./newMotifsSR.sh 10 33
-./newMotifsSR.sh 10 34
-./newMotifsSR.sh 10 35
-./newMotifsSR.sh 10 36
-./newMotifsSR.sh 10 37
-./newMotifsSR.sh 10 38
-./newMotifsSR.sh 10 39
-./newMotifsSR.sh 10 40
-./newMotifsSR.sh 10 41
-./newMotifsSR.sh 10 42
-./newMotifsSR.sh 10 43
-./newMotifsSR.sh 10 44
-./newMotifsSR.sh 10 45
-./newMotifsSR.sh 10 46
-./newMotifsSR.sh 10 47
-./newMotifsSR.sh 10 48
-./newMotifsSR.sh 10 49
-./newMotifsSR.sh 10 50
-./newMotifsSR.sh 10 51
-./newMotifsSR.sh 10 52
-./newMotifsSR.sh 10 53
-./newMotifsSR.sh 10 54
-./newMotifsSR.sh 10 55
-./newMotifsSR.sh 10 56
-./newMotifsSR.sh 10 57
-./newMotifsSR.sh 10 58
-./newMotifsSR.sh 10 59
-./newMotifsSR.sh 10 60
-./newMotifsSR.sh 10 61
-./newMotifsSR.sh 10 62
-./newMotifsSR.sh 10 63
-./newMotifsSR.sh 10 64
-./newMotifsSR.sh 10 65
-./newMotifsSR.sh 10 66
-./newMotifsSR.sh 10 67
-./newMotifsSR.sh 10 68
-./newMotifsSR.sh 10 69
-./newMotifsSR.sh 10 70
-./newMotifsSR.sh 10 71
-./newMotifsSR.sh 10 72
-./newMotifsSR.sh 10 73
-./newMotifsSR.sh 10 74
-./newMotifsSR.sh 10 75
-./newMotifsSR.sh 10 76
-./newMotifsSR.sh 10 77
-./newMotifsSR.sh 10 78
-./newMotifsSR.sh 10 79
-./newMotifsSR.sh 10 80
-./newMotifsSR.sh 10 81
-./newMotifsSR.sh 10 82
-./newMotifsSR.sh 10 83
-./newMotifsSR.sh 10 84
-./newMotifsSR.sh 10 85
-./newMotifsSR.sh 10 86
-./newMotifsSR.sh 10 87
-./newMotifsSR.sh 10 88
-./newMotifsSR.sh 10 89
-./newMotifsSR.sh 10 90
-./newMotifsSR.sh 10 91
-./newMotifsSR.sh 10 92
-./newMotifsSR.sh 10 93
-./newMotifsSR.sh 10 94
-./newMotifsSR.sh 10 95
-./newMotifsSR.sh 10 96
-./newMotifsSR.sh 10 97
-./newMotifsSR.sh 10 98
-./newMotifsSR.sh 10 99
-./newMotifsSR.sh 10 100
-./newMotifsSR.sh 10 101
-./newMotifsSR.sh 10 102
-./newMotifsSR.sh 10 103
-./newMotifsSR.sh 10 104
-./newMotifsSR.sh 11 1
-./newMotifsSR.sh 11 2
-./newMotifsSR.sh 11 3
-./newMotifsSR.sh 11 4
-./newMotifsSR.sh 11 5
-./newMotifsSR.sh 11 6
-./newMotifsSR.sh 11 7
-./newMotifsSR.sh 11 8
-./newMotifsSR.sh 11 9
-./newMotifsSR.sh 11 10
-./newMotifsSR.sh 11 11
-./newMotifsSR.sh 11 12
-./newMotifsSR.sh 11 13
-./newMotifsSR.sh 11 14
-./newMotifsSR.sh 11 15
-./newMotifsSR.sh 11 16
-./newMotifsSR.sh 11 17
-./newMotifsSR.sh 11 18
-./newMotifsSR.sh 11 19
-./newMotifsSR.sh 11 20
-./newMotifsSR.sh 11 21
-./newMotifsSR.sh 11 22
-./newMotifsSR.sh 11 23
-./newMotifsSR.sh 11 24
-./newMotifsSR.sh 11 25
-./newMotifsSR.sh 11 26
-./newMotifsSR.sh 11 27
-./newMotifsSR.sh 11 28
-./newMotifsSR.sh 11 29
-./newMotifsSR.sh 11 30
-./newMotifsSR.sh 11 31
-./newMotifsSR.sh 11 32
-./newMotifsSR.sh 11 33
-./newMotifsSR.sh 11 34
-./newMotifsSR.sh 11 35
-./newMotifsSR.sh 11 36
-./newMotifsSR.sh 11 37
-./newMotifsSR.sh 11 38
-./newMotifsSR.sh 11 39
-./newMotifsSR.sh 11 40
-./newMotifsSR.sh 11 41
-./newMotifsSR.sh 11 42
-./newMotifsSR.sh 11 43
-./newMotifsSR.sh 11 44
-./newMotifsSR.sh 11 45
-./newMotifsSR.sh 11 46
-./newMotifsSR.sh 11 47
-./newMotifsSR.sh 11 48
-./newMotifsSR.sh 11 49
-./newMotifsSR.sh 11 50
-./newMotifsSR.sh 11 51
-./newMotifsSR.sh 11 52
-./newMotifsSR.sh 11 53
-./newMotifsSR.sh 11 54
-./newMotifsSR.sh 11 55
-./newMotifsSR.sh 11 56
-./newMotifsSR.sh 11 57
-./newMotifsSR.sh 11 58
-./newMotifsSR.sh 11 59
-./newMotifsSR.sh 11 60
-./newMotifsSR.sh 11 61
-./newMotifsSR.sh 11 62
-./newMotifsSR.sh 11 63
-./newMotifsSR.sh 11 64
-./newMotifsSR.sh 11 65
-./newMotifsSR.sh 11 66
-./newMotifsSR.sh 11 67
-./newMotifsSR.sh 11 68
-./newMotifsSR.sh 11 69
-./newMotifsSR.sh 11 70
-./newMotifsSR.sh 11 71
-./newMotifsSR.sh 11 72
-./newMotifsSR.sh 11 73
-./newMotifsSR.sh 11 74
-./newMotifsSR.sh 11 75
-./newMotifsSR.sh 11 76
-./newMotifsSR.sh 11 77
-./newMotifsSR.sh 11 78
-./newMotifsSR.sh 11 79
-./newMotifsSR.sh 11 80
-./newMotifsSR.sh 11 81
-./newMotifsSR.sh 11 82
-./newMotifsSR.sh 11 83
-./newMotifsSR.sh 11 84
-./newMotifsSR.sh 11 85
-./newMotifsSR.sh 11 86
-./newMotifsSR.sh 11 87
-./newMotifsSR.sh 11 88
-./newMotifsSR.sh 11 89
-./newMotifsSR.sh 11 90
-./newMotifsSR.sh 11 91
-./newMotifsSR.sh 11 92
-./newMotifsSR.sh 11 93
-./newMotifsSR.sh 11 94
-./newMotifsSR.sh 11 95
-./newMotifsSR.sh 11 96
-./newMotifsSR.sh 11 97
-./newMotifsSR.sh 11 98
-./newMotifsSR.sh 11 99
-./newMotifsSR.sh 11 100
-./newMotifsSR.sh 11 101
-./newMotifsSR.sh 11 102
-./newMotifsSR.sh 11 103
-./newMotifsSR.sh 11 104
-./newMotifsSR.sh 12 1
-./newMotifsSR.sh 12 2
-./newMotifsSR.sh 12 3
-./newMotifsSR.sh 12 4
-./newMotifsSR.sh 12 5
-./newMotifsSR.sh 12 6
-./newMotifsSR.sh 12 7
-./newMotifsSR.sh 12 8
-./newMotifsSR.sh 12 9
-./newMotifsSR.sh 12 10
-./newMotifsSR.sh 12 11
-./newMotifsSR.sh 12 12
-./newMotifsSR.sh 12 13
-./newMotifsSR.sh 12 14
-./newMotifsSR.sh 12 15
-./newMotifsSR.sh 12 16
-./newMotifsSR.sh 12 17
-./newMotifsSR.sh 12 18
-./newMotifsSR.sh 12 19
-./newMotifsSR.sh 12 20
-./newMotifsSR.sh 12 21
-./newMotifsSR.sh 12 22
-./newMotifsSR.sh 12 23
-./newMotifsSR.sh 12 24
-./newMotifsSR.sh 12 25
-./newMotifsSR.sh 12 26
-./newMotifsSR.sh 12 27
-./newMotifsSR.sh 12 28
-./newMotifsSR.sh 12 29
-./newMotifsSR.sh 12 30
-./newMotifsSR.sh 12 31
-./newMotifsSR.sh 12 32
-./newMotifsSR.sh 12 33
-./newMotifsSR.sh 12 34
-./newMotifsSR.sh 12 35
-./newMotifsSR.sh 12 36
-./newMotifsSR.sh 12 37
-./newMotifsSR.sh 12 38
-./newMotifsSR.sh 12 39
-./newMotifsSR.sh 12 40
-./newMotifsSR.sh 12 41
-./newMotifsSR.sh 12 42
-./newMotifsSR.sh 12 43
-./newMotifsSR.sh 12 44
-./newMotifsSR.sh 12 45
-./newMotifsSR.sh 12 46
-./newMotifsSR.sh 12 47
-./newMotifsSR.sh 12 48
-./newMotifsSR.sh 12 49
-./newMotifsSR.sh 12 50
-./newMotifsSR.sh 12 51
-./newMotifsSR.sh 12 52
-./newMotifsSR.sh 12 53
-./newMotifsSR.sh 12 54
-./newMotifsSR.sh 12 55
-./newMotifsSR.sh 12 56
-./newMotifsSR.sh 12 57
-./newMotifsSR.sh 12 58
-./newMotifsSR.sh 12 59
-./newMotifsSR.sh 12 60
-./newMotifsSR.sh 12 61
-./newMotifsSR.sh 12 62
-./newMotifsSR.sh 12 63
-./newMotifsSR.sh 12 64
-./newMotifsSR.sh 12 65
-./newMotifsSR.sh 12 66
-./newMotifsSR.sh 12 67
-./newMotifsSR.sh 12 68
-./newMotifsSR.sh 12 69
-./newMotifsSR.sh 12 70
-./newMotifsSR.sh 12 71
-./newMotifsSR.sh 12 72
-./newMotifsSR.sh 12 73
-./newMotifsSR.sh 12 74
-./newMotifsSR.sh 12 75
-./newMotifsSR.sh 12 76
-./newMotifsSR.sh 12 77
-./newMotifsSR.sh 12 78
-./newMotifsSR.sh 12 79
-./newMotifsSR.sh 12 80
-./newMotifsSR.sh 12 81
-./newMotifsSR.sh 12 82
-./newMotifsSR.sh 12 83
-./newMotifsSR.sh 12 84
-./newMotifsSR.sh 12 85
-./newMotifsSR.sh 12 86
-./newMotifsSR.sh 12 87
-./newMotifsSR.sh 12 88
-./newMotifsSR.sh 12 89
-./newMotifsSR.sh 12 90
-./newMotifsSR.sh 12 91
-./newMotifsSR.sh 12 92
-./newMotifsSR.sh 12 93
-./newMotifsSR.sh 12 94
-./newMotifsSR.sh 12 95
-./newMotifsSR.sh 12 96
-./newMotifsSR.sh 12 97
-./newMotifsSR.sh 12 98
-./newMotifsSR.sh 12 99
-./newMotifsSR.sh 12 100
-./newMotifsSR.sh 12 101
-./newMotifsSR.sh 12 102
-./newMotifsSR.sh 12 103
-./newMotifsSR.sh 12 104
-./newMotifsSR.sh 13 1
-./newMotifsSR.sh 13 2
-./newMotifsSR.sh 13 3
-./newMotifsSR.sh 13 4
-./newMotifsSR.sh 13 5
-./newMotifsSR.sh 13 6
-./newMotifsSR.sh 13 7
-./newMotifsSR.sh 13 8
-./newMotifsSR.sh 13 9
-./newMotifsSR.sh 13 10
-./newMotifsSR.sh 13 11
-./newMotifsSR.sh 13 12
-./newMotifsSR.sh 13 13
-./newMotifsSR.sh 13 14
-./newMotifsSR.sh 13 15
-./newMotifsSR.sh 13 16
-./newMotifsSR.sh 13 17
-./newMotifsSR.sh 13 18
-./newMotifsSR.sh 13 19
-./newMotifsSR.sh 13 20
-./newMotifsSR.sh 13 21
-./newMotifsSR.sh 13 22
-./newMotifsSR.sh 13 23
-./newMotifsSR.sh 13 24
-./newMotifsSR.sh 13 25
-./newMotifsSR.sh 13 26
-./newMotifsSR.sh 13 27
-./newMotifsSR.sh 13 28
-./newMotifsSR.sh 13 29
-./newMotifsSR.sh 13 30
-./newMotifsSR.sh 13 31
-./newMotifsSR.sh 13 32
-./newMotifsSR.sh 13 33
-./newMotifsSR.sh 13 34
-./newMotifsSR.sh 13 35
-./newMotifsSR.sh 13 36
-./newMotifsSR.sh 13 37
-./newMotifsSR.sh 13 38
-./newMotifsSR.sh 13 39
-./newMotifsSR.sh 13 40
-./newMotifsSR.sh 13 41
-./newMotifsSR.sh 13 42
-./newMotifsSR.sh 13 43
-./newMotifsSR.sh 13 44
-./newMotifsSR.sh 13 45
-./newMotifsSR.sh 13 46
-./newMotifsSR.sh 13 47
-./newMotifsSR.sh 13 48
-./newMotifsSR.sh 13 49
-./newMotifsSR.sh 13 50
-./newMotifsSR.sh 13 51
-./newMotifsSR.sh 13 52
-./newMotifsSR.sh 13 53
-./newMotifsSR.sh 13 54
-./newMotifsSR.sh 13 55
-./newMotifsSR.sh 13 56
-./newMotifsSR.sh 13 57
-./newMotifsSR.sh 13 58
-./newMotifsSR.sh 13 59
-./newMotifsSR.sh 13 60
-./newMotifsSR.sh 13 61
-./newMotifsSR.sh 13 62
-./newMotifsSR.sh 13 63
-./newMotifsSR.sh 13 64
-./newMotifsSR.sh 13 65
-./newMotifsSR.sh 13 66
-./newMotifsSR.sh 13 67
-./newMotifsSR.sh 13 68
-./newMotifsSR.sh 13 69
-./newMotifsSR.sh 13 70
-./newMotifsSR.sh 13 71
-./newMotifsSR.sh 13 72
-./newMotifsSR.sh 13 73
-./newMotifsSR.sh 13 74
-./newMotifsSR.sh 13 75
-./newMotifsSR.sh 13 76
-./newMotifsSR.sh 13 77
-./newMotifsSR.sh 13 78
-./newMotifsSR.sh 13 79
-./newMotifsSR.sh 13 80
-./newMotifsSR.sh 13 81
-./newMotifsSR.sh 13 82
-./newMotifsSR.sh 13 83
-./newMotifsSR.sh 13 84
-./newMotifsSR.sh 13 85
-./newMotifsSR.sh 13 86
-./newMotifsSR.sh 13 87
-./newMotifsSR.sh 13 88
-./newMotifsSR.sh 13 89
-./newMotifsSR.sh 13 90
-./newMotifsSR.sh 13 91
-./newMotifsSR.sh 13 92
-./newMotifsSR.sh 13 93
-./newMotifsSR.sh 13 94
-./newMotifsSR.sh 13 95
-./newMotifsSR.sh 13 96
-./newMotifsSR.sh 13 97
-./newMotifsSR.sh 13 98
-./newMotifsSR.sh 13 99
-./newMotifsSR.sh 13 100
-./newMotifsSR.sh 13 101
-./newMotifsSR.sh 13 102
-./newMotifsSR.sh 13 103
-./newMotifsSR.sh 13 104
-./newMotifsSR.sh 14 1
-./newMotifsSR.sh 14 2
-./newMotifsSR.sh 14 3
-./newMotifsSR.sh 14 4
-./newMotifsSR.sh 14 5
-./newMotifsSR.sh 14 6
-./newMotifsSR.sh 14 7
-./newMotifsSR.sh 14 8
-./newMotifsSR.sh 14 9
-./newMotifsSR.sh 14 10
-./newMotifsSR.sh 14 11
-./newMotifsSR.sh 14 12
-./newMotifsSR.sh 14 13
-./newMotifsSR.sh 14 14
-./newMotifsSR.sh 14 15
-./newMotifsSR.sh 14 16
-./newMotifsSR.sh 14 17
-./newMotifsSR.sh 14 18
-./newMotifsSR.sh 14 19
-./newMotifsSR.sh 14 20
-./newMotifsSR.sh 14 21
-./newMotifsSR.sh 14 22
-./newMotifsSR.sh 14 23
-./newMotifsSR.sh 14 24
-./newMotifsSR.sh 14 25
-./newMotifsSR.sh 14 26
-./newMotifsSR.sh 14 27
-./newMotifsSR.sh 14 28
-./newMotifsSR.sh 14 29
-./newMotifsSR.sh 14 30
-./newMotifsSR.sh 14 31
-./newMotifsSR.sh 14 32
-./newMotifsSR.sh 14 33
-./newMotifsSR.sh 14 34
-./newMotifsSR.sh 14 35
-./newMotifsSR.sh 14 36
-./newMotifsSR.sh 14 37
-./newMotifsSR.sh 14 38
-./newMotifsSR.sh 14 39
-./newMotifsSR.sh 14 40
-./newMotifsSR.sh 14 41
-./newMotifsSR.sh 14 42
-./newMotifsSR.sh 14 43
-./newMotifsSR.sh 14 44
-./newMotifsSR.sh 14 45
-./newMotifsSR.sh 14 46
-./newMotifsSR.sh 14 47
-./newMotifsSR.sh 14 48
-./newMotifsSR.sh 14 49
-./newMotifsSR.sh 14 50
-./newMotifsSR.sh 14 51
-./newMotifsSR.sh 14 52
-./newMotifsSR.sh 14 53
-./newMotifsSR.sh 14 54
-./newMotifsSR.sh 14 55
-./newMotifsSR.sh 14 56
-./newMotifsSR.sh 14 57
-./newMotifsSR.sh 14 58
-./newMotifsSR.sh 14 59
-./newMotifsSR.sh 14 60
-./newMotifsSR.sh 14 61
-./newMotifsSR.sh 14 62
-./newMotifsSR.sh 14 63
-./newMotifsSR.sh 14 64
-./newMotifsSR.sh 14 65
-./newMotifsSR.sh 14 66
-./newMotifsSR.sh 14 67
-./newMotifsSR.sh 14 68
-./newMotifsSR.sh 14 69
-./newMotifsSR.sh 14 70
-./newMotifsSR.sh 14 71
-./newMotifsSR.sh 14 72
-./newMotifsSR.sh 14 73
-./newMotifsSR.sh 14 74
-./newMotifsSR.sh 14 75
-./newMotifsSR.sh 14 76
-./newMotifsSR.sh 14 77
-./newMotifsSR.sh 14 78
-./newMotifsSR.sh 14 79
-./newMotifsSR.sh 14 80
-./newMotifsSR.sh 14 81
-./newMotifsSR.sh 14 82
-./newMotifsSR.sh 14 83
-./newMotifsSR.sh 14 84
-./newMotifsSR.sh 14 85
-./newMotifsSR.sh 14 86
-./newMotifsSR.sh 14 87
-./newMotifsSR.sh 14 88
-./newMotifsSR.sh 14 89
-./newMotifsSR.sh 14 90
-./newMotifsSR.sh 14 91
-./newMotifsSR.sh 14 92
-./newMotifsSR.sh 14 93
-./newMotifsSR.sh 14 94
-./newMotifsSR.sh 14 95
-./newMotifsSR.sh 14 96
-./newMotifsSR.sh 14 97
-./newMotifsSR.sh 14 98
-./newMotifsSR.sh 14 99
-./newMotifsSR.sh 14 100
-./newMotifsSR.sh 14 101
-./newMotifsSR.sh 14 102
-./newMotifsSR.sh 14 103
-./newMotifsSR.sh 14 104
-./newMotifsSR.sh 15 1
-./newMotifsSR.sh 15 2
-./newMotifsSR.sh 15 3
-./newMotifsSR.sh 15 4
-./newMotifsSR.sh 15 5
-./newMotifsSR.sh 15 6
-./newMotifsSR.sh 15 7
-./newMotifsSR.sh 15 8
-./newMotifsSR.sh 15 9
-./newMotifsSR.sh 15 10
-./newMotifsSR.sh 15 11
-./newMotifsSR.sh 15 12
-./newMotifsSR.sh 15 13
-./newMotifsSR.sh 15 14
-./newMotifsSR.sh 15 15
-./newMotifsSR.sh 15 16
-./newMotifsSR.sh 15 17
-./newMotifsSR.sh 15 18
-./newMotifsSR.sh 15 19
-./newMotifsSR.sh 15 20
-./newMotifsSR.sh 15 21
-./newMotifsSR.sh 15 22
-./newMotifsSR.sh 15 23
-./newMotifsSR.sh 15 24
-./newMotifsSR.sh 15 25
-./newMotifsSR.sh 15 26
-./newMotifsSR.sh 15 27
-./newMotifsSR.sh 15 28
-./newMotifsSR.sh 15 29
-./newMotifsSR.sh 15 30
-./newMotifsSR.sh 15 31
-./newMotifsSR.sh 15 32
-./newMotifsSR.sh 15 33
-./newMotifsSR.sh 15 34
-./newMotifsSR.sh 15 35
-./newMotifsSR.sh 15 36
-./newMotifsSR.sh 15 37
-./newMotifsSR.sh 15 38
-./newMotifsSR.sh 15 39
-./newMotifsSR.sh 15 40
-./newMotifsSR.sh 15 41
-./newMotifsSR.sh 15 42
-./newMotifsSR.sh 15 43
-./newMotifsSR.sh 15 44
-./newMotifsSR.sh 15 45
-./newMotifsSR.sh 15 46
-./newMotifsSR.sh 15 47
-./newMotifsSR.sh 15 48
-./newMotifsSR.sh 15 49
-./newMotifsSR.sh 15 50
-./newMotifsSR.sh 15 51
-./newMotifsSR.sh 15 52
-./newMotifsSR.sh 15 53
-./newMotifsSR.sh 15 54
-./newMotifsSR.sh 15 55
-./newMotifsSR.sh 15 56
-./newMotifsSR.sh 15 57
-./newMotifsSR.sh 15 58
-./newMotifsSR.sh 15 59
-./newMotifsSR.sh 15 60
-./newMotifsSR.sh 15 61
-./newMotifsSR.sh 15 62
-./newMotifsSR.sh 15 63
-./newMotifsSR.sh 15 64
-./newMotifsSR.sh 15 65
-./newMotifsSR.sh 15 66
-./newMotifsSR.sh 15 67
-./newMotifsSR.sh 15 68
-./newMotifsSR.sh 15 69
-./newMotifsSR.sh 15 70
-./newMotifsSR.sh 15 71
-./newMotifsSR.sh 15 72
-./newMotifsSR.sh 15 73
-./newMotifsSR.sh 15 74
-./newMotifsSR.sh 15 75
-./newMotifsSR.sh 15 76
-./newMotifsSR.sh 15 77
-./newMotifsSR.sh 15 78
-./newMotifsSR.sh 15 79
-./newMotifsSR.sh 15 80
-./newMotifsSR.sh 15 81
-./newMotifsSR.sh 15 82
-./newMotifsSR.sh 15 83
-./newMotifsSR.sh 15 84
-./newMotifsSR.sh 15 85
-./newMotifsSR.sh 15 86
-./newMotifsSR.sh 15 87
-./newMotifsSR.sh 15 88
-./newMotifsSR.sh 15 89
-./newMotifsSR.sh 15 90
-./newMotifsSR.sh 15 91
-./newMotifsSR.sh 15 92
-./newMotifsSR.sh 15 93
-./newMotifsSR.sh 15 94
-./newMotifsSR.sh 15 95
-./newMotifsSR.sh 15 96
-./newMotifsSR.sh 15 97
-./newMotifsSR.sh 15 98
-./newMotifsSR.sh 15 99
-./newMotifsSR.sh 15 100
-./newMotifsSR.sh 15 101
-./newMotifsSR.sh 15 102
-./newMotifsSR.sh 15 103
-./newMotifsSR.sh 15 104
+./newMotifsSR.sh 1 1 0
+./newMotifsSR.sh 1 2 0
+./newMotifsSR.sh 1 3 0
+./newMotifsSR.sh 1 4 0
+./newMotifsSR.sh 1 5 0
+./newMotifsSR.sh 1 6 0
+./newMotifsSR.sh 1 7 0
+./newMotifsSR.sh 1 8 0
+./newMotifsSR.sh 1 9 0
+./newMotifsSR.sh 1 10 0
+./newMotifsSR.sh 1 11 0
+./newMotifsSR.sh 1 12 0
+./newMotifsSR.sh 1 13 0
+./newMotifsSR.sh 1 14 0
+./newMotifsSR.sh 1 15 0
+./newMotifsSR.sh 1 16 0
+./newMotifsSR.sh 1 17 0
+./newMotifsSR.sh 1 18 0
+./newMotifsSR.sh 1 19 0
+./newMotifsSR.sh 1 20 0
+./newMotifsSR.sh 1 21 0
+./newMotifsSR.sh 1 22 0
+./newMotifsSR.sh 1 23 0
+./newMotifsSR.sh 1 24 0
+./newMotifsSR.sh 1 25 0
+./newMotifsSR.sh 1 26 0
+./newMotifsSR.sh 1 27 0
+./newMotifsSR.sh 1 28 0
+./newMotifsSR.sh 1 29 0
+./newMotifsSR.sh 1 30 0
+./newMotifsSR.sh 1 31 0
+./newMotifsSR.sh 1 32 0
+./newMotifsSR.sh 1 33 0
+./newMotifsSR.sh 1 34 0
+./newMotifsSR.sh 1 35 0
+./newMotifsSR.sh 1 36 0
+./newMotifsSR.sh 1 37 0
+./newMotifsSR.sh 1 38 0
+./newMotifsSR.sh 1 39 0
+./newMotifsSR.sh 1 40 0
+./newMotifsSR.sh 1 41 0
+./newMotifsSR.sh 1 42 0
+./newMotifsSR.sh 1 43 0
+./newMotifsSR.sh 1 44 0
+./newMotifsSR.sh 1 45 0
+./newMotifsSR.sh 1 46 0
+./newMotifsSR.sh 1 47 0
+./newMotifsSR.sh 1 48 0
+./newMotifsSR.sh 1 49 0
+./newMotifsSR.sh 1 50 0
+./newMotifsSR.sh 1 51 0
+./newMotifsSR.sh 1 52 0
+./newMotifsSR.sh 1 53 0
+./newMotifsSR.sh 1 54 0
+./newMotifsSR.sh 1 55 0
+./newMotifsSR.sh 1 56 0
+./newMotifsSR.sh 1 57 0
+./newMotifsSR.sh 1 58 0
+./newMotifsSR.sh 1 59 0
+./newMotifsSR.sh 1 60 0
+./newMotifsSR.sh 1 61 0
+./newMotifsSR.sh 1 62 0
+./newMotifsSR.sh 1 63 0
+./newMotifsSR.sh 1 64 0
+./newMotifsSR.sh 1 65 0
+./newMotifsSR.sh 1 66 0
+./newMotifsSR.sh 1 67 0
+./newMotifsSR.sh 1 68 0
+./newMotifsSR.sh 1 69 0
+./newMotifsSR.sh 1 70 0
+./newMotifsSR.sh 1 71 0
+./newMotifsSR.sh 1 72 0
+./newMotifsSR.sh 1 73 0
+./newMotifsSR.sh 1 74 0
+./newMotifsSR.sh 1 75 0
+./newMotifsSR.sh 1 76 0
+./newMotifsSR.sh 1 77 0
+./newMotifsSR.sh 1 78 0
+./newMotifsSR.sh 1 79 0
+./newMotifsSR.sh 1 80 0
+./newMotifsSR.sh 1 81 0
+./newMotifsSR.sh 1 82 0
+./newMotifsSR.sh 1 83 0
+./newMotifsSR.sh 1 84 0
+./newMotifsSR.sh 1 85 0
+./newMotifsSR.sh 1 86 0
+./newMotifsSR.sh 1 87 0
+./newMotifsSR.sh 1 88 0
+./newMotifsSR.sh 1 89 0
+./newMotifsSR.sh 1 90 0
+./newMotifsSR.sh 1 91 0
+./newMotifsSR.sh 1 92 0
+./newMotifsSR.sh 1 93 0
+./newMotifsSR.sh 1 94 0
+./newMotifsSR.sh 1 95 0
+./newMotifsSR.sh 1 96 0
+./newMotifsSR.sh 1 97 0
+./newMotifsSR.sh 1 98 0
+./newMotifsSR.sh 1 99 0
+./newMotifsSR.sh 1 100 0
+./newMotifsSR.sh 1 101 0
+./newMotifsSR.sh 1 102 0
+./newMotifsSR.sh 1 103 0
+./newMotifsSR.sh 1 104 0
+./newMotifsSR.sh 1 105 0
+./newMotifsSR.sh 1 106 0
+./newMotifsSR.sh 1 107 0
+./newMotifsSR.sh 1 108 0
+./newMotifsSR.sh 1 109 0
+./newMotifsSR.sh 1 110 0
+./newMotifsSR.sh 1 111 0
+./newMotifsSR.sh 1 112 0
+./newMotifsSR.sh 1 113 0
+./newMotifsSR.sh 1 114 0
+./newMotifsSR.sh 1 115 0
+./newMotifsSR.sh 1 116 0
+./newMotifsSR.sh 1 117 0
+./newMotifsSR.sh 1 118 0
+./newMotifsSR.sh 1 119 0
+./newMotifsSR.sh 1 120 0
+./newMotifsSR.sh 1 121 0
+./newMotifsSR.sh 1 122 0
+./newMotifsSR.sh 1 123 0
+./newMotifsSR.sh 1 124 0
+./newMotifsSR.sh 1 125 0
+./newMotifsSR.sh 1 126 0
+./newMotifsSR.sh 1 127 0
+./newMotifsSR.sh 1 128 0
+./newMotifsSR.sh 1 129 0
+./newMotifsSR.sh 1 130 0
+./newMotifsSR.sh 1 131 0
+./newMotifsSR.sh 1 132 0
+./newMotifsSR.sh 1 133 0
+./newMotifsSR.sh 1 134 0
+./newMotifsSR.sh 1 135 0
+./newMotifsSR.sh 1 136 0
+./newMotifsSR.sh 1 137 0
+./newMotifsSR.sh 1 138 0
+./newMotifsSR.sh 1 139 0
+./newMotifsSR.sh 1 140 0
+./newMotifsSR.sh 1 141 0
+./newMotifsSR.sh 1 142 0
+./newMotifsSR.sh 1 143 0
+./newMotifsSR.sh 1 144 0
+./newMotifsSR.sh 1 145 0
+./newMotifsSR.sh 1 146 0
+./newMotifsSR.sh 1 147 0
+./newMotifsSR.sh 1 148 0
+./newMotifsSR.sh 1 149 0
+./newMotifsSR.sh 1 150 0
+./newMotifsSR.sh 1 151 0
+./newMotifsSR.sh 1 152 0
+./newMotifsSR.sh 1 153 0
+./newMotifsSR.sh 1 154 0
+./newMotifsSR.sh 1 155 0
+./newMotifsSR.sh 1 156 0
+./newMotifsSR.sh 1 157 0
+./newMotifsSR.sh 1 158 0
+./newMotifsSR.sh 1 159 0
+./newMotifsSR.sh 1 160 0
+./newMotifsSR.sh 1 161 0
+./newMotifsSR.sh 1 162 0
+./newMotifsSR.sh 1 163 0
+./newMotifsSR.sh 1 164 0
+./newMotifsSR.sh 1 165 0
+./newMotifsSR.sh 1 166 0
+./newMotifsSR.sh 1 167 0
+./newMotifsSR.sh 1 168 0
+./newMotifsSR.sh 1 169 0
+./newMotifsSR.sh 1 170 0
+./newMotifsSR.sh 1 171 0
+./newMotifsSR.sh 1 172 0
+./newMotifsSR.sh 1 173 0
+./newMotifsSR.sh 1 174 0
+./newMotifsSR.sh 1 175 0
+./newMotifsSR.sh 1 176 0
+./newMotifsSR.sh 1 177 0
+./newMotifsSR.sh 1 178 0
+./newMotifsSR.sh 1 179 0
+./newMotifsSR.sh 1 180 0
+./newMotifsSR.sh 1 181 0
+./newMotifsSR.sh 1 182 0
+./newMotifsSR.sh 1 183 0
+./newMotifsSR.sh 1 184 0
+./newMotifsSR.sh 1 185 0
+./newMotifsSR.sh 1 186 0
+./newMotifsSR.sh 1 187 0
+./newMotifsSR.sh 1 188 0
+./newMotifsSR.sh 1 189 0
+./newMotifsSR.sh 1 190 0
+./newMotifsSR.sh 1 191 0
+./newMotifsSR.sh 1 192 0
+./newMotifsSR.sh 1 193 0
+./newMotifsSR.sh 1 194 0
+./newMotifsSR.sh 1 195 0
+./newMotifsSR.sh 1 196 0
+./newMotifsSR.sh 1 197 0
+./newMotifsSR.sh 1 198 0
+./newMotifsSR.sh 1 199 0
+./newMotifsSR.sh 1 200 0
+./newMotifsSR.sh 1 201 0
+./newMotifsSR.sh 1 202 0
+./newMotifsSR.sh 1 203 0
+./newMotifsSR.sh 1 204 0
+./newMotifsSR.sh 1 205 0
+./newMotifsSR.sh 1 206 0
+./newMotifsSR.sh 1 207 0
+./newMotifsSR.sh 1 208 0
+./newMotifsSR.sh 2 1 0
+./newMotifsSR.sh 2 2 0
+./newMotifsSR.sh 2 3 0
+./newMotifsSR.sh 2 4 0
+./newMotifsSR.sh 2 5 0
+./newMotifsSR.sh 2 6 0
+./newMotifsSR.sh 2 7 0
+./newMotifsSR.sh 2 8 0
+./newMotifsSR.sh 2 9 0
+./newMotifsSR.sh 2 10 0
+./newMotifsSR.sh 2 11 0
+./newMotifsSR.sh 2 12 0
+./newMotifsSR.sh 2 13 0
+./newMotifsSR.sh 2 14 0
+./newMotifsSR.sh 2 15 0
+./newMotifsSR.sh 2 16 0
+./newMotifsSR.sh 2 17 0
+./newMotifsSR.sh 2 18 0
+./newMotifsSR.sh 2 19 0
+./newMotifsSR.sh 2 20 0
+./newMotifsSR.sh 2 21 0
+./newMotifsSR.sh 2 22 0
+./newMotifsSR.sh 2 23 0
+./newMotifsSR.sh 2 24 0
+./newMotifsSR.sh 2 25 0
+./newMotifsSR.sh 2 26 0
+./newMotifsSR.sh 2 27 0
+./newMotifsSR.sh 2 28 0
+./newMotifsSR.sh 2 29 0
+./newMotifsSR.sh 2 30 0
+./newMotifsSR.sh 2 31 0
+./newMotifsSR.sh 2 32 0
+./newMotifsSR.sh 2 33 0
+./newMotifsSR.sh 2 34 0
+./newMotifsSR.sh 2 35 0
+./newMotifsSR.sh 2 36 0
+./newMotifsSR.sh 2 37 0
+./newMotifsSR.sh 2 38 0
+./newMotifsSR.sh 2 39 0
+./newMotifsSR.sh 2 40 0
+./newMotifsSR.sh 2 41 0
+./newMotifsSR.sh 2 42 0
+./newMotifsSR.sh 2 43 0
+./newMotifsSR.sh 2 44 0
+./newMotifsSR.sh 2 45 0
+./newMotifsSR.sh 2 46 0
+./newMotifsSR.sh 2 47 0
+./newMotifsSR.sh 2 48 0
+./newMotifsSR.sh 2 49 0
+./newMotifsSR.sh 2 50 0
+./newMotifsSR.sh 2 51 0
+./newMotifsSR.sh 2 52 0
+./newMotifsSR.sh 2 53 0
+./newMotifsSR.sh 2 54 0
+./newMotifsSR.sh 2 55 0
+./newMotifsSR.sh 2 56 0
+./newMotifsSR.sh 2 57 0
+./newMotifsSR.sh 2 58 0
+./newMotifsSR.sh 2 59 0
+./newMotifsSR.sh 2 60 0
+./newMotifsSR.sh 2 61 0
+./newMotifsSR.sh 2 62 0
+./newMotifsSR.sh 2 63 0
+./newMotifsSR.sh 2 64 0
+./newMotifsSR.sh 2 65 0
+./newMotifsSR.sh 2 66 0
+./newMotifsSR.sh 2 67 0
+./newMotifsSR.sh 2 68 0
+./newMotifsSR.sh 2 69 0
+./newMotifsSR.sh 2 70 0
+./newMotifsSR.sh 2 71 0
+./newMotifsSR.sh 2 72 0
+./newMotifsSR.sh 2 73 0
+./newMotifsSR.sh 2 74 0
+./newMotifsSR.sh 2 75 0
+./newMotifsSR.sh 2 76 0
+./newMotifsSR.sh 2 77 0
+./newMotifsSR.sh 2 78 0
+./newMotifsSR.sh 2 79 0
+./newMotifsSR.sh 2 80 0
+./newMotifsSR.sh 2 81 0
+./newMotifsSR.sh 2 82 0
+./newMotifsSR.sh 2 83 0
+./newMotifsSR.sh 2 84 0
+./newMotifsSR.sh 2 85 0
+./newMotifsSR.sh 2 86 0
+./newMotifsSR.sh 2 87 0
+./newMotifsSR.sh 2 88 0
+./newMotifsSR.sh 2 89 0
+./newMotifsSR.sh 2 90 0
+./newMotifsSR.sh 2 91 0
+./newMotifsSR.sh 2 92 0
+./newMotifsSR.sh 2 93 0
+./newMotifsSR.sh 2 94 0
+./newMotifsSR.sh 2 95 0
+./newMotifsSR.sh 2 96 0
+./newMotifsSR.sh 2 97 0
+./newMotifsSR.sh 2 98 0
+./newMotifsSR.sh 2 99 0
+./newMotifsSR.sh 2 100 0
+./newMotifsSR.sh 2 101 0
+./newMotifsSR.sh 2 102 0
+./newMotifsSR.sh 2 103 0
+./newMotifsSR.sh 2 104 0
+./newMotifsSR.sh 2 105 0
+./newMotifsSR.sh 2 106 0
+./newMotifsSR.sh 2 107 0
+./newMotifsSR.sh 2 108 0
+./newMotifsSR.sh 2 109 0
+./newMotifsSR.sh 2 110 0
+./newMotifsSR.sh 2 111 0
+./newMotifsSR.sh 2 112 0
+./newMotifsSR.sh 2 113 0
+./newMotifsSR.sh 2 114 0
+./newMotifsSR.sh 2 115 0
+./newMotifsSR.sh 2 116 0
+./newMotifsSR.sh 2 117 0
+./newMotifsSR.sh 2 118 0
+./newMotifsSR.sh 2 119 0
+./newMotifsSR.sh 2 120 0
+./newMotifsSR.sh 2 121 0
+./newMotifsSR.sh 2 122 0
+./newMotifsSR.sh 2 123 0
+./newMotifsSR.sh 2 124 0
+./newMotifsSR.sh 2 125 0
+./newMotifsSR.sh 2 126 0
+./newMotifsSR.sh 2 127 0
+./newMotifsSR.sh 2 128 0
+./newMotifsSR.sh 2 129 0
+./newMotifsSR.sh 2 130 0
+./newMotifsSR.sh 2 131 0
+./newMotifsSR.sh 2 132 0
+./newMotifsSR.sh 2 133 0
+./newMotifsSR.sh 2 134 0
+./newMotifsSR.sh 2 135 0
+./newMotifsSR.sh 2 136 0
+./newMotifsSR.sh 2 137 0
+./newMotifsSR.sh 2 138 0
+./newMotifsSR.sh 2 139 0
+./newMotifsSR.sh 2 140 0
+./newMotifsSR.sh 2 141 0
+./newMotifsSR.sh 2 142 0
+./newMotifsSR.sh 2 143 0
+./newMotifsSR.sh 2 144 0
+./newMotifsSR.sh 2 145 0
+./newMotifsSR.sh 2 146 0
+./newMotifsSR.sh 2 147 0
+./newMotifsSR.sh 2 148 0
+./newMotifsSR.sh 2 149 0
+./newMotifsSR.sh 2 150 0
+./newMotifsSR.sh 2 151 0
+./newMotifsSR.sh 2 152 0
+./newMotifsSR.sh 2 153 0
+./newMotifsSR.sh 2 154 0
+./newMotifsSR.sh 2 155 0
+./newMotifsSR.sh 2 156 0
+./newMotifsSR.sh 2 157 0
+./newMotifsSR.sh 2 158 0
+./newMotifsSR.sh 2 159 0
+./newMotifsSR.sh 2 160 0
+./newMotifsSR.sh 2 161 0
+./newMotifsSR.sh 2 162 0
+./newMotifsSR.sh 2 163 0
+./newMotifsSR.sh 2 164 0
+./newMotifsSR.sh 2 165 0
+./newMotifsSR.sh 2 166 0
+./newMotifsSR.sh 2 167 0
+./newMotifsSR.sh 2 168 0
+./newMotifsSR.sh 2 169 0
+./newMotifsSR.sh 2 170 0
+./newMotifsSR.sh 2 171 0
+./newMotifsSR.sh 2 172 0
+./newMotifsSR.sh 2 173 0
+./newMotifsSR.sh 2 174 0
+./newMotifsSR.sh 2 175 0
+./newMotifsSR.sh 2 176 0
+./newMotifsSR.sh 2 177 0
+./newMotifsSR.sh 2 178 0
+./newMotifsSR.sh 2 179 0
+./newMotifsSR.sh 2 180 0
+./newMotifsSR.sh 2 181 0
+./newMotifsSR.sh 2 182 0
+./newMotifsSR.sh 2 183 0
+./newMotifsSR.sh 2 184 0
+./newMotifsSR.sh 2 185 0
+./newMotifsSR.sh 2 186 0
+./newMotifsSR.sh 2 187 0
+./newMotifsSR.sh 2 188 0
+./newMotifsSR.sh 2 189 0
+./newMotifsSR.sh 2 190 0
+./newMotifsSR.sh 2 191 0
+./newMotifsSR.sh 2 192 0
+./newMotifsSR.sh 2 193 0
+./newMotifsSR.sh 2 194 0
+./newMotifsSR.sh 2 195 0
+./newMotifsSR.sh 2 196 0
+./newMotifsSR.sh 2 197 0
+./newMotifsSR.sh 2 198 0
+./newMotifsSR.sh 2 199 0
+./newMotifsSR.sh 2 200 0
+./newMotifsSR.sh 2 201 0
+./newMotifsSR.sh 2 202 0
+./newMotifsSR.sh 2 203 0
+./newMotifsSR.sh 2 204 0
+./newMotifsSR.sh 2 205 0
+./newMotifsSR.sh 2 206 0
+./newMotifsSR.sh 2 207 0
+./newMotifsSR.sh 2 208 0
+./newMotifsSR.sh 3 1 0
+./newMotifsSR.sh 3 2 0
+./newMotifsSR.sh 3 3 0
+./newMotifsSR.sh 3 4 0
+./newMotifsSR.sh 3 5 0
+./newMotifsSR.sh 3 6 0
+./newMotifsSR.sh 3 7 0
+./newMotifsSR.sh 3 8 0
+./newMotifsSR.sh 3 9 0
+./newMotifsSR.sh 3 10 0
+./newMotifsSR.sh 3 11 0
+./newMotifsSR.sh 3 12 0
+./newMotifsSR.sh 3 13 0
+./newMotifsSR.sh 3 14 0
+./newMotifsSR.sh 3 15 0
+./newMotifsSR.sh 3 16 0
+./newMotifsSR.sh 3 17 0
+./newMotifsSR.sh 3 18 0
+./newMotifsSR.sh 3 19 0
+./newMotifsSR.sh 3 20 0
+./newMotifsSR.sh 3 21 0
+./newMotifsSR.sh 3 22 0
+./newMotifsSR.sh 3 23 0
+./newMotifsSR.sh 3 24 0
+./newMotifsSR.sh 3 25 0
+./newMotifsSR.sh 3 26 0
+./newMotifsSR.sh 3 27 0
+./newMotifsSR.sh 3 28 0
+./newMotifsSR.sh 3 29 0
+./newMotifsSR.sh 3 30 0
+./newMotifsSR.sh 3 31 0
+./newMotifsSR.sh 3 32 0
+./newMotifsSR.sh 3 33 0
+./newMotifsSR.sh 3 34 0
+./newMotifsSR.sh 3 35 0
+./newMotifsSR.sh 3 36 0
+./newMotifsSR.sh 3 37 0
+./newMotifsSR.sh 3 38 0
+./newMotifsSR.sh 3 39 0
+./newMotifsSR.sh 3 40 0
+./newMotifsSR.sh 3 41 0
+./newMotifsSR.sh 3 42 0
+./newMotifsSR.sh 3 43 0
+./newMotifsSR.sh 3 44 0
+./newMotifsSR.sh 3 45 0
+./newMotifsSR.sh 3 46 0
+./newMotifsSR.sh 3 47 0
+./newMotifsSR.sh 3 48 0
+./newMotifsSR.sh 3 49 0
+./newMotifsSR.sh 3 50 0
+./newMotifsSR.sh 3 51 0
+./newMotifsSR.sh 3 52 0
+./newMotifsSR.sh 3 53 0
+./newMotifsSR.sh 3 54 0
+./newMotifsSR.sh 3 55 0
+./newMotifsSR.sh 3 56 0
+./newMotifsSR.sh 3 57 0
+./newMotifsSR.sh 3 58 0
+./newMotifsSR.sh 3 59 0
+./newMotifsSR.sh 3 60 0
+./newMotifsSR.sh 3 61 0
+./newMotifsSR.sh 3 62 0
+./newMotifsSR.sh 3 63 0
+./newMotifsSR.sh 3 64 0
+./newMotifsSR.sh 3 65 0
+./newMotifsSR.sh 3 66 0
+./newMotifsSR.sh 3 67 0
+./newMotifsSR.sh 3 68 0
+./newMotifsSR.sh 3 69 0
+./newMotifsSR.sh 3 70 0
+./newMotifsSR.sh 3 71 0
+./newMotifsSR.sh 3 72 0
+./newMotifsSR.sh 3 73 0
+./newMotifsSR.sh 3 74 0
+./newMotifsSR.sh 3 75 0
+./newMotifsSR.sh 3 76 0
+./newMotifsSR.sh 3 77 0
+./newMotifsSR.sh 3 78 0
+./newMotifsSR.sh 3 79 0
+./newMotifsSR.sh 3 80 0
+./newMotifsSR.sh 3 81 0
+./newMotifsSR.sh 3 82 0
+./newMotifsSR.sh 3 83 0
+./newMotifsSR.sh 3 84 0
+./newMotifsSR.sh 3 85 0
+./newMotifsSR.sh 3 86 0
+./newMotifsSR.sh 3 87 0
+./newMotifsSR.sh 3 88 0
+./newMotifsSR.sh 3 89 0
+./newMotifsSR.sh 3 90 0
+./newMotifsSR.sh 3 91 0
+./newMotifsSR.sh 3 92 0
+./newMotifsSR.sh 3 93 0
+./newMotifsSR.sh 3 94 0
+./newMotifsSR.sh 3 95 0
+./newMotifsSR.sh 3 96 0
+./newMotifsSR.sh 3 97 0
+./newMotifsSR.sh 3 98 0
+./newMotifsSR.sh 3 99 0
+./newMotifsSR.sh 3 100 0
+./newMotifsSR.sh 3 101 0
+./newMotifsSR.sh 3 102 0
+./newMotifsSR.sh 3 103 0
+./newMotifsSR.sh 3 104 0
+./newMotifsSR.sh 3 105 0
+./newMotifsSR.sh 3 106 0
+./newMotifsSR.sh 3 107 0
+./newMotifsSR.sh 3 108 0
+./newMotifsSR.sh 3 109 0
+./newMotifsSR.sh 3 110 0
+./newMotifsSR.sh 3 111 0
+./newMotifsSR.sh 3 112 0
+./newMotifsSR.sh 3 113 0
+./newMotifsSR.sh 3 114 0
+./newMotifsSR.sh 3 115 0
+./newMotifsSR.sh 3 116 0
+./newMotifsSR.sh 3 117 0
+./newMotifsSR.sh 3 118 0
+./newMotifsSR.sh 3 119 0
+./newMotifsSR.sh 3 120 0
+./newMotifsSR.sh 3 121 0
+./newMotifsSR.sh 3 122 0
+./newMotifsSR.sh 3 123 0
+./newMotifsSR.sh 3 124 0
+./newMotifsSR.sh 3 125 0
+./newMotifsSR.sh 3 126 0
+./newMotifsSR.sh 3 127 0
+./newMotifsSR.sh 3 128 0
+./newMotifsSR.sh 3 129 0
+./newMotifsSR.sh 3 130 0
+./newMotifsSR.sh 3 131 0
+./newMotifsSR.sh 3 132 0
+./newMotifsSR.sh 3 133 0
+./newMotifsSR.sh 3 134 0
+./newMotifsSR.sh 3 135 0
+./newMotifsSR.sh 3 136 0
+./newMotifsSR.sh 3 137 0
+./newMotifsSR.sh 3 138 0
+./newMotifsSR.sh 3 139 0
+./newMotifsSR.sh 3 140 0
+./newMotifsSR.sh 3 141 0
+./newMotifsSR.sh 3 142 0
+./newMotifsSR.sh 3 143 0
+./newMotifsSR.sh 3 144 0
+./newMotifsSR.sh 3 145 0
+./newMotifsSR.sh 3 146 0
+./newMotifsSR.sh 3 147 0
+./newMotifsSR.sh 3 148 0
+./newMotifsSR.sh 3 149 0
+./newMotifsSR.sh 3 150 0
+./newMotifsSR.sh 3 151 0
+./newMotifsSR.sh 3 152 0
+./newMotifsSR.sh 3 153 0
+./newMotifsSR.sh 3 154 0
+./newMotifsSR.sh 3 155 0
+./newMotifsSR.sh 3 156 0
+./newMotifsSR.sh 3 157 0
+./newMotifsSR.sh 3 158 0
+./newMotifsSR.sh 3 159 0
+./newMotifsSR.sh 3 160 0
+./newMotifsSR.sh 3 161 0
+./newMotifsSR.sh 3 162 0
+./newMotifsSR.sh 3 163 0
+./newMotifsSR.sh 3 164 0
+./newMotifsSR.sh 3 165 0
+./newMotifsSR.sh 3 166 0
+./newMotifsSR.sh 3 167 0
+./newMotifsSR.sh 3 168 0
+./newMotifsSR.sh 3 169 0
+./newMotifsSR.sh 3 170 0
+./newMotifsSR.sh 3 171 0
+./newMotifsSR.sh 3 172 0
+./newMotifsSR.sh 3 173 0
+./newMotifsSR.sh 3 174 0
+./newMotifsSR.sh 3 175 0
+./newMotifsSR.sh 3 176 0
+./newMotifsSR.sh 3 177 0
+./newMotifsSR.sh 3 178 0
+./newMotifsSR.sh 3 179 0
+./newMotifsSR.sh 3 180 0
+./newMotifsSR.sh 3 181 0
+./newMotifsSR.sh 3 182 0
+./newMotifsSR.sh 3 183 0
+./newMotifsSR.sh 3 184 0
+./newMotifsSR.sh 3 185 0
+./newMotifsSR.sh 3 186 0
+./newMotifsSR.sh 3 187 0
+./newMotifsSR.sh 3 188 0
+./newMotifsSR.sh 3 189 0
+./newMotifsSR.sh 3 190 0
+./newMotifsSR.sh 3 191 0
+./newMotifsSR.sh 3 192 0
+./newMotifsSR.sh 3 193 0
+./newMotifsSR.sh 3 194 0
+./newMotifsSR.sh 3 195 0
+./newMotifsSR.sh 3 196 0
+./newMotifsSR.sh 3 197 0
+./newMotifsSR.sh 3 198 0
+./newMotifsSR.sh 3 199 0
+./newMotifsSR.sh 3 200 0
+./newMotifsSR.sh 3 201 0
+./newMotifsSR.sh 3 202 0
+./newMotifsSR.sh 3 203 0
+./newMotifsSR.sh 3 204 0
+./newMotifsSR.sh 3 205 0
+./newMotifsSR.sh 3 206 0
+./newMotifsSR.sh 3 207 0
+./newMotifsSR.sh 3 208 0
+./newMotifsSR.sh 4 1 0
+./newMotifsSR.sh 4 2 0
+./newMotifsSR.sh 4 3 0
+./newMotifsSR.sh 4 4 0
+./newMotifsSR.sh 4 5 0
+./newMotifsSR.sh 4 6 0
+./newMotifsSR.sh 4 7 0
+./newMotifsSR.sh 4 8 0
+./newMotifsSR.sh 4 9 0
+./newMotifsSR.sh 4 10 0
+./newMotifsSR.sh 4 11 0
+./newMotifsSR.sh 4 12 0
+./newMotifsSR.sh 4 13 0
+./newMotifsSR.sh 4 14 0
+./newMotifsSR.sh 4 15 0
+./newMotifsSR.sh 4 16 0
+./newMotifsSR.sh 4 17 0
+./newMotifsSR.sh 4 18 0
+./newMotifsSR.sh 4 19 0
+./newMotifsSR.sh 4 20 0
+./newMotifsSR.sh 4 21 0
+./newMotifsSR.sh 4 22 0
+./newMotifsSR.sh 4 23 0
+./newMotifsSR.sh 4 24 0
+./newMotifsSR.sh 4 25 0
+./newMotifsSR.sh 4 26 0
+./newMotifsSR.sh 4 27 0
+./newMotifsSR.sh 4 28 0
+./newMotifsSR.sh 4 29 0
+./newMotifsSR.sh 4 30 0
+./newMotifsSR.sh 4 31 0
+./newMotifsSR.sh 4 32 0
+./newMotifsSR.sh 4 33 0
+./newMotifsSR.sh 4 34 0
+./newMotifsSR.sh 4 35 0
+./newMotifsSR.sh 4 36 0
+./newMotifsSR.sh 4 37 0
+./newMotifsSR.sh 4 38 0
+./newMotifsSR.sh 4 39 0
+./newMotifsSR.sh 4 40 0
+./newMotifsSR.sh 4 41 0
+./newMotifsSR.sh 4 42 0
+./newMotifsSR.sh 4 43 0
+./newMotifsSR.sh 4 44 0
+./newMotifsSR.sh 4 45 0
+./newMotifsSR.sh 4 46 0
+./newMotifsSR.sh 4 47 0
+./newMotifsSR.sh 4 48 0
+./newMotifsSR.sh 4 49 0
+./newMotifsSR.sh 4 50 0
+./newMotifsSR.sh 4 51 0
+./newMotifsSR.sh 4 52 0
+./newMotifsSR.sh 4 53 0
+./newMotifsSR.sh 4 54 0
+./newMotifsSR.sh 4 55 0
+./newMotifsSR.sh 4 56 0
+./newMotifsSR.sh 4 57 0
+./newMotifsSR.sh 4 58 0
+./newMotifsSR.sh 4 59 0
+./newMotifsSR.sh 4 60 0
+./newMotifsSR.sh 4 61 0
+./newMotifsSR.sh 4 62 0
+./newMotifsSR.sh 4 63 0
+./newMotifsSR.sh 4 64 0
+./newMotifsSR.sh 4 65 0
+./newMotifsSR.sh 4 66 0
+./newMotifsSR.sh 4 67 0
+./newMotifsSR.sh 4 68 0
+./newMotifsSR.sh 4 69 0
+./newMotifsSR.sh 4 70 0
+./newMotifsSR.sh 4 71 0
+./newMotifsSR.sh 4 72 0
+./newMotifsSR.sh 4 73 0
+./newMotifsSR.sh 4 74 0
+./newMotifsSR.sh 4 75 0
+./newMotifsSR.sh 4 76 0
+./newMotifsSR.sh 4 77 0
+./newMotifsSR.sh 4 78 0
+./newMotifsSR.sh 4 79 0
+./newMotifsSR.sh 4 80 0
+./newMotifsSR.sh 4 81 0
+./newMotifsSR.sh 4 82 0
+./newMotifsSR.sh 4 83 0
+./newMotifsSR.sh 4 84 0
+./newMotifsSR.sh 4 85 0
+./newMotifsSR.sh 4 86 0
+./newMotifsSR.sh 4 87 0
+./newMotifsSR.sh 4 88 0
+./newMotifsSR.sh 4 89 0
+./newMotifsSR.sh 4 90 0
+./newMotifsSR.sh 4 91 0
+./newMotifsSR.sh 4 92 0
+./newMotifsSR.sh 4 93 0
+./newMotifsSR.sh 4 94 0
+./newMotifsSR.sh 4 95 0
+./newMotifsSR.sh 4 96 0
+./newMotifsSR.sh 4 97 0
+./newMotifsSR.sh 4 98 0
+./newMotifsSR.sh 4 99 0
+./newMotifsSR.sh 4 100 0
+./newMotifsSR.sh 4 101 0
+./newMotifsSR.sh 4 102 0
+./newMotifsSR.sh 4 103 0
+./newMotifsSR.sh 4 104 0
+./newMotifsSR.sh 4 105 0
+./newMotifsSR.sh 4 106 0
+./newMotifsSR.sh 4 107 0
+./newMotifsSR.sh 4 108 0
+./newMotifsSR.sh 4 109 0
+./newMotifsSR.sh 4 110 0
+./newMotifsSR.sh 4 111 0
+./newMotifsSR.sh 4 112 0
+./newMotifsSR.sh 4 113 0
+./newMotifsSR.sh 4 114 0
+./newMotifsSR.sh 4 115 0
+./newMotifsSR.sh 4 116 0
+./newMotifsSR.sh 4 117 0
+./newMotifsSR.sh 4 118 0
+./newMotifsSR.sh 4 119 0
+./newMotifsSR.sh 4 120 0
+./newMotifsSR.sh 4 121 0
+./newMotifsSR.sh 4 122 0
+./newMotifsSR.sh 4 123 0
+./newMotifsSR.sh 4 124 0
+./newMotifsSR.sh 4 125 0
+./newMotifsSR.sh 4 126 0
+./newMotifsSR.sh 4 127 0
+./newMotifsSR.sh 4 128 0
+./newMotifsSR.sh 4 129 0
+./newMotifsSR.sh 4 130 0
+./newMotifsSR.sh 4 131 0
+./newMotifsSR.sh 4 132 0
+./newMotifsSR.sh 4 133 0
+./newMotifsSR.sh 4 134 0
+./newMotifsSR.sh 4 135 0
+./newMotifsSR.sh 4 136 0
+./newMotifsSR.sh 4 137 0
+./newMotifsSR.sh 4 138 0
+./newMotifsSR.sh 4 139 0
+./newMotifsSR.sh 4 140 0
+./newMotifsSR.sh 4 141 0
+./newMotifsSR.sh 4 142 0
+./newMotifsSR.sh 4 143 0
+./newMotifsSR.sh 4 144 0
+./newMotifsSR.sh 4 145 0
+./newMotifsSR.sh 4 146 0
+./newMotifsSR.sh 4 147 0
+./newMotifsSR.sh 4 148 0
+./newMotifsSR.sh 4 149 0
+./newMotifsSR.sh 4 150 0
+./newMotifsSR.sh 4 151 0
+./newMotifsSR.sh 4 152 0
+./newMotifsSR.sh 4 153 0
+./newMotifsSR.sh 4 154 0
+./newMotifsSR.sh 4 155 0
+./newMotifsSR.sh 4 156 0
+./newMotifsSR.sh 4 157 0
+./newMotifsSR.sh 4 158 0
+./newMotifsSR.sh 4 159 0
+./newMotifsSR.sh 4 160 0
+./newMotifsSR.sh 4 161 0
+./newMotifsSR.sh 4 162 0
+./newMotifsSR.sh 4 163 0
+./newMotifsSR.sh 4 164 0
+./newMotifsSR.sh 4 165 0
+./newMotifsSR.sh 4 166 0
+./newMotifsSR.sh 4 167 0
+./newMotifsSR.sh 4 168 0
+./newMotifsSR.sh 4 169 0
+./newMotifsSR.sh 4 170 0
+./newMotifsSR.sh 4 171 0
+./newMotifsSR.sh 4 172 0
+./newMotifsSR.sh 4 173 0
+./newMotifsSR.sh 4 174 0
+./newMotifsSR.sh 4 175 0
+./newMotifsSR.sh 4 176 0
+./newMotifsSR.sh 4 177 0
+./newMotifsSR.sh 4 178 0
+./newMotifsSR.sh 4 179 0
+./newMotifsSR.sh 4 180 0
+./newMotifsSR.sh 4 181 0
+./newMotifsSR.sh 4 182 0
+./newMotifsSR.sh 4 183 0
+./newMotifsSR.sh 4 184 0
+./newMotifsSR.sh 4 185 0
+./newMotifsSR.sh 4 186 0
+./newMotifsSR.sh 4 187 0
+./newMotifsSR.sh 4 188 0
+./newMotifsSR.sh 4 189 0
+./newMotifsSR.sh 4 190 0
+./newMotifsSR.sh 4 191 0
+./newMotifsSR.sh 4 192 0
+./newMotifsSR.sh 4 193 0
+./newMotifsSR.sh 4 194 0
+./newMotifsSR.sh 4 195 0
+./newMotifsSR.sh 4 196 0
+./newMotifsSR.sh 4 197 0
+./newMotifsSR.sh 4 198 0
+./newMotifsSR.sh 4 199 0
+./newMotifsSR.sh 4 200 0
+./newMotifsSR.sh 4 201 0
+./newMotifsSR.sh 4 202 0
+./newMotifsSR.sh 4 203 0
+./newMotifsSR.sh 4 204 0
+./newMotifsSR.sh 4 205 0
+./newMotifsSR.sh 4 206 0
+./newMotifsSR.sh 4 207 0
+./newMotifsSR.sh 4 208 0
+./newMotifsSR.sh 5 1 0
+./newMotifsSR.sh 5 2 0
+./newMotifsSR.sh 5 3 0
+./newMotifsSR.sh 5 4 0
+./newMotifsSR.sh 5 5 0
+./newMotifsSR.sh 5 6 0
+./newMotifsSR.sh 5 7 0
+./newMotifsSR.sh 5 8 0
+./newMotifsSR.sh 5 9 0
+./newMotifsSR.sh 5 10 0
+./newMotifsSR.sh 5 11 0
+./newMotifsSR.sh 5 12 0
+./newMotifsSR.sh 5 13 0
+./newMotifsSR.sh 5 14 0
+./newMotifsSR.sh 5 15 0
+./newMotifsSR.sh 5 16 0
+./newMotifsSR.sh 5 17 0
+./newMotifsSR.sh 5 18 0
+./newMotifsSR.sh 5 19 0
+./newMotifsSR.sh 5 20 0
+./newMotifsSR.sh 5 21 0
+./newMotifsSR.sh 5 22 0
+./newMotifsSR.sh 5 23 0
+./newMotifsSR.sh 5 24 0
+./newMotifsSR.sh 5 25 0
+./newMotifsSR.sh 5 26 0
+./newMotifsSR.sh 5 27 0
+./newMotifsSR.sh 5 28 0
+./newMotifsSR.sh 5 29 0
+./newMotifsSR.sh 5 30 0
+./newMotifsSR.sh 5 31 0
+./newMotifsSR.sh 5 32 0
+./newMotifsSR.sh 5 33 0
+./newMotifsSR.sh 5 34 0
+./newMotifsSR.sh 5 35 0
+./newMotifsSR.sh 5 36 0
+./newMotifsSR.sh 5 37 0
+./newMotifsSR.sh 5 38 0
+./newMotifsSR.sh 5 39 0
+./newMotifsSR.sh 5 40 0
+./newMotifsSR.sh 5 41 0
+./newMotifsSR.sh 5 42 0
+./newMotifsSR.sh 5 43 0
+./newMotifsSR.sh 5 44 0
+./newMotifsSR.sh 5 45 0
+./newMotifsSR.sh 5 46 0
+./newMotifsSR.sh 5 47 0
+./newMotifsSR.sh 5 48 0
+./newMotifsSR.sh 5 49 0
+./newMotifsSR.sh 5 50 0
+./newMotifsSR.sh 5 51 0
+./newMotifsSR.sh 5 52 0
+./newMotifsSR.sh 5 53 0
+./newMotifsSR.sh 5 54 0
+./newMotifsSR.sh 5 55 0
+./newMotifsSR.sh 5 56 0
+./newMotifsSR.sh 5 57 0
+./newMotifsSR.sh 5 58 0
+./newMotifsSR.sh 5 59 0
+./newMotifsSR.sh 5 60 0
+./newMotifsSR.sh 5 61 0
+./newMotifsSR.sh 5 62 0
+./newMotifsSR.sh 5 63 0
+./newMotifsSR.sh 5 64 0
+./newMotifsSR.sh 5 65 0
+./newMotifsSR.sh 5 66 0
+./newMotifsSR.sh 5 67 0
+./newMotifsSR.sh 5 68 0
+./newMotifsSR.sh 5 69 0
+./newMotifsSR.sh 5 70 0
+./newMotifsSR.sh 5 71 0
+./newMotifsSR.sh 5 72 0
+./newMotifsSR.sh 5 73 0
+./newMotifsSR.sh 5 74 0
+./newMotifsSR.sh 5 75 0
+./newMotifsSR.sh 5 76 0
+./newMotifsSR.sh 5 77 0
+./newMotifsSR.sh 5 78 0
+./newMotifsSR.sh 5 79 0
+./newMotifsSR.sh 5 80 0
+./newMotifsSR.sh 5 81 0
+./newMotifsSR.sh 5 82 0
+./newMotifsSR.sh 5 83 0
+./newMotifsSR.sh 5 84 0
+./newMotifsSR.sh 5 85 0
+./newMotifsSR.sh 5 86 0
+./newMotifsSR.sh 5 87 0
+./newMotifsSR.sh 5 88 0
+./newMotifsSR.sh 5 89 0
+./newMotifsSR.sh 5 90 0
+./newMotifsSR.sh 5 91 0
+./newMotifsSR.sh 5 92 0
+./newMotifsSR.sh 5 93 0
+./newMotifsSR.sh 5 94 0
+./newMotifsSR.sh 5 95 0
+./newMotifsSR.sh 5 96 0
+./newMotifsSR.sh 5 97 0
+./newMotifsSR.sh 5 98 0
+./newMotifsSR.sh 5 99 0
+./newMotifsSR.sh 5 100 0
+./newMotifsSR.sh 5 101 0
+./newMotifsSR.sh 5 102 0
+./newMotifsSR.sh 5 103 0
+./newMotifsSR.sh 5 104 0
+./newMotifsSR.sh 5 105 0
+./newMotifsSR.sh 5 106 0
+./newMotifsSR.sh 5 107 0
+./newMotifsSR.sh 5 108 0
+./newMotifsSR.sh 5 109 0
+./newMotifsSR.sh 5 110 0
+./newMotifsSR.sh 5 111 0
+./newMotifsSR.sh 5 112 0
+./newMotifsSR.sh 5 113 0
+./newMotifsSR.sh 5 114 0
+./newMotifsSR.sh 5 115 0
+./newMotifsSR.sh 5 116 0
+./newMotifsSR.sh 5 117 0
+./newMotifsSR.sh 5 118 0
+./newMotifsSR.sh 5 119 0
+./newMotifsSR.sh 5 120 0
+./newMotifsSR.sh 5 121 0
+./newMotifsSR.sh 5 122 0
+./newMotifsSR.sh 5 123 0
+./newMotifsSR.sh 5 124 0
+./newMotifsSR.sh 5 125 0
+./newMotifsSR.sh 5 126 0
+./newMotifsSR.sh 5 127 0
+./newMotifsSR.sh 5 128 0
+./newMotifsSR.sh 5 129 0
+./newMotifsSR.sh 5 130 0
+./newMotifsSR.sh 5 131 0
+./newMotifsSR.sh 5 132 0
+./newMotifsSR.sh 5 133 0
+./newMotifsSR.sh 5 134 0
+./newMotifsSR.sh 5 135 0
+./newMotifsSR.sh 5 136 0
+./newMotifsSR.sh 5 137 0
+./newMotifsSR.sh 5 138 0
+./newMotifsSR.sh 5 139 0
+./newMotifsSR.sh 5 140 0
+./newMotifsSR.sh 5 141 0
+./newMotifsSR.sh 5 142 0
+./newMotifsSR.sh 5 143 0
+./newMotifsSR.sh 5 144 0
+./newMotifsSR.sh 5 145 0
+./newMotifsSR.sh 5 146 0
+./newMotifsSR.sh 5 147 0
+./newMotifsSR.sh 5 148 0
+./newMotifsSR.sh 5 149 0
+./newMotifsSR.sh 5 150 0
+./newMotifsSR.sh 5 151 0
+./newMotifsSR.sh 5 152 0
+./newMotifsSR.sh 5 153 0
+./newMotifsSR.sh 5 154 0
+./newMotifsSR.sh 5 155 0
+./newMotifsSR.sh 5 156 0
+./newMotifsSR.sh 5 157 0
+./newMotifsSR.sh 5 158 0
+./newMotifsSR.sh 5 159 0
+./newMotifsSR.sh 5 160 0
+./newMotifsSR.sh 5 161 0
+./newMotifsSR.sh 5 162 0
+./newMotifsSR.sh 5 163 0
+./newMotifsSR.sh 5 164 0
+./newMotifsSR.sh 5 165 0
+./newMotifsSR.sh 5 166 0
+./newMotifsSR.sh 5 167 0
+./newMotifsSR.sh 5 168 0
+./newMotifsSR.sh 5 169 0
+./newMotifsSR.sh 5 170 0
+./newMotifsSR.sh 5 171 0
+./newMotifsSR.sh 5 172 0
+./newMotifsSR.sh 5 173 0
+./newMotifsSR.sh 5 174 0
+./newMotifsSR.sh 5 175 0
+./newMotifsSR.sh 5 176 0
+./newMotifsSR.sh 5 177 0
+./newMotifsSR.sh 5 178 0
+./newMotifsSR.sh 5 179 0
+./newMotifsSR.sh 5 180 0
+./newMotifsSR.sh 5 181 0
+./newMotifsSR.sh 5 182 0
+./newMotifsSR.sh 5 183 0
+./newMotifsSR.sh 5 184 0
+./newMotifsSR.sh 5 185 0
+./newMotifsSR.sh 5 186 0
+./newMotifsSR.sh 5 187 0
+./newMotifsSR.sh 5 188 0
+./newMotifsSR.sh 5 189 0
+./newMotifsSR.sh 5 190 0
+./newMotifsSR.sh 5 191 0
+./newMotifsSR.sh 5 192 0
+./newMotifsSR.sh 5 193 0
+./newMotifsSR.sh 5 194 0
+./newMotifsSR.sh 5 195 0
+./newMotifsSR.sh 5 196 0
+./newMotifsSR.sh 5 197 0
+./newMotifsSR.sh 5 198 0
+./newMotifsSR.sh 5 199 0
+./newMotifsSR.sh 5 200 0
+./newMotifsSR.sh 5 201 0
+./newMotifsSR.sh 5 202 0
+./newMotifsSR.sh 5 203 0
+./newMotifsSR.sh 5 204 0
+./newMotifsSR.sh 5 205 0
+./newMotifsSR.sh 5 206 0
+./newMotifsSR.sh 5 207 0
+./newMotifsSR.sh 5 208 0
+./newMotifsSR.sh 6 1 0
+./newMotifsSR.sh 6 2 0
+./newMotifsSR.sh 6 3 0
+./newMotifsSR.sh 6 4 0
+./newMotifsSR.sh 6 5 0
+./newMotifsSR.sh 6 6 0
+./newMotifsSR.sh 6 7 0
+./newMotifsSR.sh 6 8 0
+./newMotifsSR.sh 6 9 0
+./newMotifsSR.sh 6 10 0
+./newMotifsSR.sh 6 11 0
+./newMotifsSR.sh 6 12 0
+./newMotifsSR.sh 6 13 0
+./newMotifsSR.sh 6 14 0
+./newMotifsSR.sh 6 15 0
+./newMotifsSR.sh 6 16 0
+./newMotifsSR.sh 6 17 0
+./newMotifsSR.sh 6 18 0
+./newMotifsSR.sh 6 19 0
+./newMotifsSR.sh 6 20 0
+./newMotifsSR.sh 6 21 0
+./newMotifsSR.sh 6 22 0
+./newMotifsSR.sh 6 23 0
+./newMotifsSR.sh 6 24 0
+./newMotifsSR.sh 6 25 0
+./newMotifsSR.sh 6 26 0
+./newMotifsSR.sh 6 27 0
+./newMotifsSR.sh 6 28 0
+./newMotifsSR.sh 6 29 0
+./newMotifsSR.sh 6 30 0
+./newMotifsSR.sh 6 31 0
+./newMotifsSR.sh 6 32 0
+./newMotifsSR.sh 6 33 0
+./newMotifsSR.sh 6 34 0
+./newMotifsSR.sh 6 35 0
+./newMotifsSR.sh 6 36 0
+./newMotifsSR.sh 6 37 0
+./newMotifsSR.sh 6 38 0
+./newMotifsSR.sh 6 39 0
+./newMotifsSR.sh 6 40 0
+./newMotifsSR.sh 6 41 0
+./newMotifsSR.sh 6 42 0
+./newMotifsSR.sh 6 43 0
+./newMotifsSR.sh 6 44 0
+./newMotifsSR.sh 6 45 0
+./newMotifsSR.sh 6 46 0
+./newMotifsSR.sh 6 47 0
+./newMotifsSR.sh 6 48 0
+./newMotifsSR.sh 6 49 0
+./newMotifsSR.sh 6 50 0
+./newMotifsSR.sh 6 51 0
+./newMotifsSR.sh 6 52 0
+./newMotifsSR.sh 6 53 0
+./newMotifsSR.sh 6 54 0
+./newMotifsSR.sh 6 55 0
+./newMotifsSR.sh 6 56 0
+./newMotifsSR.sh 6 57 0
+./newMotifsSR.sh 6 58 0
+./newMotifsSR.sh 6 59 0
+./newMotifsSR.sh 6 60 0
+./newMotifsSR.sh 6 61 0
+./newMotifsSR.sh 6 62 0
+./newMotifsSR.sh 6 63 0
+./newMotifsSR.sh 6 64 0
+./newMotifsSR.sh 6 65 0
+./newMotifsSR.sh 6 66 0
+./newMotifsSR.sh 6 67 0
+./newMotifsSR.sh 6 68 0
+./newMotifsSR.sh 6 69 0
+./newMotifsSR.sh 6 70 0
+./newMotifsSR.sh 6 71 0
+./newMotifsSR.sh 6 72 0
+./newMotifsSR.sh 6 73 0
+./newMotifsSR.sh 6 74 0
+./newMotifsSR.sh 6 75 0
+./newMotifsSR.sh 6 76 0
+./newMotifsSR.sh 6 77 0
+./newMotifsSR.sh 6 78 0
+./newMotifsSR.sh 6 79 0
+./newMotifsSR.sh 6 80 0
+./newMotifsSR.sh 6 81 0
+./newMotifsSR.sh 6 82 0
+./newMotifsSR.sh 6 83 0
+./newMotifsSR.sh 6 84 0
+./newMotifsSR.sh 6 85 0
+./newMotifsSR.sh 6 86 0
+./newMotifsSR.sh 6 87 0
+./newMotifsSR.sh 6 88 0
+./newMotifsSR.sh 6 89 0
+./newMotifsSR.sh 6 90 0
+./newMotifsSR.sh 6 91 0
+./newMotifsSR.sh 6 92 0
+./newMotifsSR.sh 6 93 0
+./newMotifsSR.sh 6 94 0
+./newMotifsSR.sh 6 95 0
+./newMotifsSR.sh 6 96 0
+./newMotifsSR.sh 6 97 0
+./newMotifsSR.sh 6 98 0
+./newMotifsSR.sh 6 99 0
+./newMotifsSR.sh 6 100 0
+./newMotifsSR.sh 6 101 0
+./newMotifsSR.sh 6 102 0
+./newMotifsSR.sh 6 103 0
+./newMotifsSR.sh 6 104 0
+./newMotifsSR.sh 6 105 0
+./newMotifsSR.sh 6 106 0
+./newMotifsSR.sh 6 107 0
+./newMotifsSR.sh 6 108 0
+./newMotifsSR.sh 6 109 0
+./newMotifsSR.sh 6 110 0
+./newMotifsSR.sh 6 111 0
+./newMotifsSR.sh 6 112 0
+./newMotifsSR.sh 6 113 0
+./newMotifsSR.sh 6 114 0
+./newMotifsSR.sh 6 115 0
+./newMotifsSR.sh 6 116 0
+./newMotifsSR.sh 6 117 0
+./newMotifsSR.sh 6 118 0
+./newMotifsSR.sh 6 119 0
+./newMotifsSR.sh 6 120 0
+./newMotifsSR.sh 6 121 0
+./newMotifsSR.sh 6 122 0
+./newMotifsSR.sh 6 123 0
+./newMotifsSR.sh 6 124 0
+./newMotifsSR.sh 6 125 0
+./newMotifsSR.sh 6 126 0
+./newMotifsSR.sh 6 127 0
+./newMotifsSR.sh 6 128 0
+./newMotifsSR.sh 6 129 0
+./newMotifsSR.sh 6 130 0
+./newMotifsSR.sh 6 131 0
+./newMotifsSR.sh 6 132 0
+./newMotifsSR.sh 6 133 0
+./newMotifsSR.sh 6 134 0
+./newMotifsSR.sh 6 135 0
+./newMotifsSR.sh 6 136 0
+./newMotifsSR.sh 6 137 0
+./newMotifsSR.sh 6 138 0
+./newMotifsSR.sh 6 139 0
+./newMotifsSR.sh 6 140 0
+./newMotifsSR.sh 6 141 0
+./newMotifsSR.sh 6 142 0
+./newMotifsSR.sh 6 143 0
+./newMotifsSR.sh 6 144 0
+./newMotifsSR.sh 6 145 0
+./newMotifsSR.sh 6 146 0
+./newMotifsSR.sh 6 147 0
+./newMotifsSR.sh 6 148 0
+./newMotifsSR.sh 6 149 0
+./newMotifsSR.sh 6 150 0
+./newMotifsSR.sh 6 151 0
+./newMotifsSR.sh 6 152 0
+./newMotifsSR.sh 6 153 0
+./newMotifsSR.sh 6 154 0
+./newMotifsSR.sh 6 155 0
+./newMotifsSR.sh 6 156 0
+./newMotifsSR.sh 6 157 0
+./newMotifsSR.sh 6 158 0
+./newMotifsSR.sh 6 159 0
+./newMotifsSR.sh 6 160 0
+./newMotifsSR.sh 6 161 0
+./newMotifsSR.sh 6 162 0
+./newMotifsSR.sh 6 163 0
+./newMotifsSR.sh 6 164 0
+./newMotifsSR.sh 6 165 0
+./newMotifsSR.sh 6 166 0
+./newMotifsSR.sh 6 167 0
+./newMotifsSR.sh 6 168 0
+./newMotifsSR.sh 6 169 0
+./newMotifsSR.sh 6 170 0
+./newMotifsSR.sh 6 171 0
+./newMotifsSR.sh 6 172 0
+./newMotifsSR.sh 6 173 0
+./newMotifsSR.sh 6 174 0
+./newMotifsSR.sh 6 175 0
+./newMotifsSR.sh 6 176 0
+./newMotifsSR.sh 6 177 0
+./newMotifsSR.sh 6 178 0
+./newMotifsSR.sh 6 179 0
+./newMotifsSR.sh 6 180 0
+./newMotifsSR.sh 6 181 0
+./newMotifsSR.sh 6 182 0
+./newMotifsSR.sh 6 183 0
+./newMotifsSR.sh 6 184 0
+./newMotifsSR.sh 6 185 0
+./newMotifsSR.sh 6 186 0
+./newMotifsSR.sh 6 187 0
+./newMotifsSR.sh 6 188 0
+./newMotifsSR.sh 6 189 0
+./newMotifsSR.sh 6 190 0
+./newMotifsSR.sh 6 191 0
+./newMotifsSR.sh 6 192 0
+./newMotifsSR.sh 6 193 0
+./newMotifsSR.sh 6 194 0
+./newMotifsSR.sh 6 195 0
+./newMotifsSR.sh 6 196 0
+./newMotifsSR.sh 6 197 0
+./newMotifsSR.sh 6 198 0
+./newMotifsSR.sh 6 199 0
+./newMotifsSR.sh 6 200 0
+./newMotifsSR.sh 6 201 0
+./newMotifsSR.sh 6 202 0
+./newMotifsSR.sh 6 203 0
+./newMotifsSR.sh 6 204 0
+./newMotifsSR.sh 6 205 0
+./newMotifsSR.sh 6 206 0
+./newMotifsSR.sh 6 207 0
+./newMotifsSR.sh 6 208 0
+./newMotifsSR.sh 7 1 0
+./newMotifsSR.sh 7 2 0
+./newMotifsSR.sh 7 3 0
+./newMotifsSR.sh 7 4 0
+./newMotifsSR.sh 7 5 0
+./newMotifsSR.sh 7 6 0
+./newMotifsSR.sh 7 7 0
+./newMotifsSR.sh 7 8 0
+./newMotifsSR.sh 7 9 0
+./newMotifsSR.sh 7 10 0
+./newMotifsSR.sh 7 11 0
+./newMotifsSR.sh 7 12 0
+./newMotifsSR.sh 7 13 0
+./newMotifsSR.sh 7 14 0
+./newMotifsSR.sh 7 15 0
+./newMotifsSR.sh 7 16 0
+./newMotifsSR.sh 7 17 0
+./newMotifsSR.sh 7 18 0
+./newMotifsSR.sh 7 19 0
+./newMotifsSR.sh 7 20 0
+./newMotifsSR.sh 7 21 0
+./newMotifsSR.sh 7 22 0
+./newMotifsSR.sh 7 23 0
+./newMotifsSR.sh 7 24 0
+./newMotifsSR.sh 7 25 0
+./newMotifsSR.sh 7 26 0
+./newMotifsSR.sh 7 27 0
+./newMotifsSR.sh 7 28 0
+./newMotifsSR.sh 7 29 0
+./newMotifsSR.sh 7 30 0
+./newMotifsSR.sh 7 31 0
+./newMotifsSR.sh 7 32 0
+./newMotifsSR.sh 7 33 0
+./newMotifsSR.sh 7 34 0
+./newMotifsSR.sh 7 35 0
+./newMotifsSR.sh 7 36 0
+./newMotifsSR.sh 7 37 0
+./newMotifsSR.sh 7 38 0
+./newMotifsSR.sh 7 39 0
+./newMotifsSR.sh 7 40 0
+./newMotifsSR.sh 7 41 0
+./newMotifsSR.sh 7 42 0
+./newMotifsSR.sh 7 43 0
+./newMotifsSR.sh 7 44 0
+./newMotifsSR.sh 7 45 0
+./newMotifsSR.sh 7 46 0
+./newMotifsSR.sh 7 47 0
+./newMotifsSR.sh 7 48 0
+./newMotifsSR.sh 7 49 0
+./newMotifsSR.sh 7 50 0
+./newMotifsSR.sh 7 51 0
+./newMotifsSR.sh 7 52 0
+./newMotifsSR.sh 7 53 0
+./newMotifsSR.sh 7 54 0
+./newMotifsSR.sh 7 55 0
+./newMotifsSR.sh 7 56 0
+./newMotifsSR.sh 7 57 0
+./newMotifsSR.sh 7 58 0
+./newMotifsSR.sh 7 59 0
+./newMotifsSR.sh 7 60 0
+./newMotifsSR.sh 7 61 0
+./newMotifsSR.sh 7 62 0
+./newMotifsSR.sh 7 63 0
+./newMotifsSR.sh 7 64 0
+./newMotifsSR.sh 7 65 0
+./newMotifsSR.sh 7 66 0
+./newMotifsSR.sh 7 67 0
+./newMotifsSR.sh 7 68 0
+./newMotifsSR.sh 7 69 0
+./newMotifsSR.sh 7 70 0
+./newMotifsSR.sh 7 71 0
+./newMotifsSR.sh 7 72 0
+./newMotifsSR.sh 7 73 0
+./newMotifsSR.sh 7 74 0
+./newMotifsSR.sh 7 75 0
+./newMotifsSR.sh 7 76 0
+./newMotifsSR.sh 7 77 0
+./newMotifsSR.sh 7 78 0
+./newMotifsSR.sh 7 79 0
+./newMotifsSR.sh 7 80 0
+./newMotifsSR.sh 7 81 0
+./newMotifsSR.sh 7 82 0
+./newMotifsSR.sh 7 83 0
+./newMotifsSR.sh 7 84 0
+./newMotifsSR.sh 7 85 0
+./newMotifsSR.sh 7 86 0
+./newMotifsSR.sh 7 87 0
+./newMotifsSR.sh 7 88 0
+./newMotifsSR.sh 7 89 0
+./newMotifsSR.sh 7 90 0
+./newMotifsSR.sh 7 91 0
+./newMotifsSR.sh 7 92 0
+./newMotifsSR.sh 7 93 0
+./newMotifsSR.sh 7 94 0
+./newMotifsSR.sh 7 95 0
+./newMotifsSR.sh 7 96 0
+./newMotifsSR.sh 7 97 0
+./newMotifsSR.sh 7 98 0
+./newMotifsSR.sh 7 99 0
+./newMotifsSR.sh 7 100 0
+./newMotifsSR.sh 7 101 0
+./newMotifsSR.sh 7 102 0
+./newMotifsSR.sh 7 103 0
+./newMotifsSR.sh 7 104 0
+./newMotifsSR.sh 7 105 0
+./newMotifsSR.sh 7 106 0
+./newMotifsSR.sh 7 107 0
+./newMotifsSR.sh 7 108 0
+./newMotifsSR.sh 7 109 0
+./newMotifsSR.sh 7 110 0
+./newMotifsSR.sh 7 111 0
+./newMotifsSR.sh 7 112 0
+./newMotifsSR.sh 7 113 0
+./newMotifsSR.sh 7 114 0
+./newMotifsSR.sh 7 115 0
+./newMotifsSR.sh 7 116 0
+./newMotifsSR.sh 7 117 0
+./newMotifsSR.sh 7 118 0
+./newMotifsSR.sh 7 119 0
+./newMotifsSR.sh 7 120 0
+./newMotifsSR.sh 7 121 0
+./newMotifsSR.sh 7 122 0
+./newMotifsSR.sh 7 123 0
+./newMotifsSR.sh 7 124 0
+./newMotifsSR.sh 7 125 0
+./newMotifsSR.sh 7 126 0
+./newMotifsSR.sh 7 127 0
+./newMotifsSR.sh 7 128 0
+./newMotifsSR.sh 7 129 0
+./newMotifsSR.sh 7 130 0
+./newMotifsSR.sh 7 131 0
+./newMotifsSR.sh 7 132 0
+./newMotifsSR.sh 7 133 0
+./newMotifsSR.sh 7 134 0
+./newMotifsSR.sh 7 135 0
+./newMotifsSR.sh 7 136 0
+./newMotifsSR.sh 7 137 0
+./newMotifsSR.sh 7 138 0
+./newMotifsSR.sh 7 139 0
+./newMotifsSR.sh 7 140 0
+./newMotifsSR.sh 7 141 0
+./newMotifsSR.sh 7 142 0
+./newMotifsSR.sh 7 143 0
+./newMotifsSR.sh 7 144 0
+./newMotifsSR.sh 7 145 0
+./newMotifsSR.sh 7 146 0
+./newMotifsSR.sh 7 147 0
+./newMotifsSR.sh 7 148 0
+./newMotifsSR.sh 7 149 0
+./newMotifsSR.sh 7 150 0
+./newMotifsSR.sh 7 151 0
+./newMotifsSR.sh 7 152 0
+./newMotifsSR.sh 7 153 0
+./newMotifsSR.sh 7 154 0
+./newMotifsSR.sh 7 155 0
+./newMotifsSR.sh 7 156 0
+./newMotifsSR.sh 7 157 0
+./newMotifsSR.sh 7 158 0
+./newMotifsSR.sh 7 159 0
+./newMotifsSR.sh 7 160 0
+./newMotifsSR.sh 7 161 0
+./newMotifsSR.sh 7 162 0
+./newMotifsSR.sh 7 163 0
+./newMotifsSR.sh 7 164 0
+./newMotifsSR.sh 7 165 0
+./newMotifsSR.sh 7 166 0
+./newMotifsSR.sh 7 167 0
+./newMotifsSR.sh 7 168 0
+./newMotifsSR.sh 7 169 0
+./newMotifsSR.sh 7 170 0
+./newMotifsSR.sh 7 171 0
+./newMotifsSR.sh 7 172 0
+./newMotifsSR.sh 7 173 0
+./newMotifsSR.sh 7 174 0
+./newMotifsSR.sh 7 175 0
+./newMotifsSR.sh 7 176 0
+./newMotifsSR.sh 7 177 0
+./newMotifsSR.sh 7 178 0
+./newMotifsSR.sh 7 179 0
+./newMotifsSR.sh 7 180 0
+./newMotifsSR.sh 7 181 0
+./newMotifsSR.sh 7 182 0
+./newMotifsSR.sh 7 183 0
+./newMotifsSR.sh 7 184 0
+./newMotifsSR.sh 7 185 0
+./newMotifsSR.sh 7 186 0
+./newMotifsSR.sh 7 187 0
+./newMotifsSR.sh 7 188 0
+./newMotifsSR.sh 7 189 0
+./newMotifsSR.sh 7 190 0
+./newMotifsSR.sh 7 191 0
+./newMotifsSR.sh 7 192 0
+./newMotifsSR.sh 7 193 0
+./newMotifsSR.sh 7 194 0
+./newMotifsSR.sh 7 195 0
+./newMotifsSR.sh 7 196 0
+./newMotifsSR.sh 7 197 0
+./newMotifsSR.sh 7 198 0
+./newMotifsSR.sh 7 199 0
+./newMotifsSR.sh 7 200 0
+./newMotifsSR.sh 7 201 0
+./newMotifsSR.sh 7 202 0
+./newMotifsSR.sh 7 203 0
+./newMotifsSR.sh 7 204 0
+./newMotifsSR.sh 7 205 0
+./newMotifsSR.sh 7 206 0
+./newMotifsSR.sh 7 207 0
+./newMotifsSR.sh 7 208 0
+./newMotifsSR.sh 8 1 0
+./newMotifsSR.sh 8 2 0
+./newMotifsSR.sh 8 3 0
+./newMotifsSR.sh 8 4 0
+./newMotifsSR.sh 8 5 0
+./newMotifsSR.sh 8 6 0
+./newMotifsSR.sh 8 7 0
+./newMotifsSR.sh 8 8 0
+./newMotifsSR.sh 8 9 0
+./newMotifsSR.sh 8 10 0
+./newMotifsSR.sh 8 11 0
+./newMotifsSR.sh 8 12 0
+./newMotifsSR.sh 8 13 0
+./newMotifsSR.sh 8 14 0
+./newMotifsSR.sh 8 15 0
+./newMotifsSR.sh 8 16 0
+./newMotifsSR.sh 8 17 0
+./newMotifsSR.sh 8 18 0
+./newMotifsSR.sh 8 19 0
+./newMotifsSR.sh 8 20 0
+./newMotifsSR.sh 8 21 0
+./newMotifsSR.sh 8 22 0
+./newMotifsSR.sh 8 23 0
+./newMotifsSR.sh 8 24 0
+./newMotifsSR.sh 8 25 0
+./newMotifsSR.sh 8 26 0
+./newMotifsSR.sh 8 27 0
+./newMotifsSR.sh 8 28 0
+./newMotifsSR.sh 8 29 0
+./newMotifsSR.sh 8 30 0
+./newMotifsSR.sh 8 31 0
+./newMotifsSR.sh 8 32 0
+./newMotifsSR.sh 8 33 0
+./newMotifsSR.sh 8 34 0
+./newMotifsSR.sh 8 35 0
+./newMotifsSR.sh 8 36 0
+./newMotifsSR.sh 8 37 0
+./newMotifsSR.sh 8 38 0
+./newMotifsSR.sh 8 39 0
+./newMotifsSR.sh 8 40 0
+./newMotifsSR.sh 8 41 0
+./newMotifsSR.sh 8 42 0
+./newMotifsSR.sh 8 43 0
+./newMotifsSR.sh 8 44 0
+./newMotifsSR.sh 8 45 0
+./newMotifsSR.sh 8 46 0
+./newMotifsSR.sh 8 47 0
+./newMotifsSR.sh 8 48 0
+./newMotifsSR.sh 8 49 0
+./newMotifsSR.sh 8 50 0
+./newMotifsSR.sh 8 51 0
+./newMotifsSR.sh 8 52 0
+./newMotifsSR.sh 8 53 0
+./newMotifsSR.sh 8 54 0
+./newMotifsSR.sh 8 55 0
+./newMotifsSR.sh 8 56 0
+./newMotifsSR.sh 8 57 0
+./newMotifsSR.sh 8 58 0
+./newMotifsSR.sh 8 59 0
+./newMotifsSR.sh 8 60 0
+./newMotifsSR.sh 8 61 0
+./newMotifsSR.sh 8 62 0
+./newMotifsSR.sh 8 63 0
+./newMotifsSR.sh 8 64 0
+./newMotifsSR.sh 8 65 0
+./newMotifsSR.sh 8 66 0
+./newMotifsSR.sh 8 67 0
+./newMotifsSR.sh 8 68 0
+./newMotifsSR.sh 8 69 0
+./newMotifsSR.sh 8 70 0
+./newMotifsSR.sh 8 71 0
+./newMotifsSR.sh 8 72 0
+./newMotifsSR.sh 8 73 0
+./newMotifsSR.sh 8 74 0
+./newMotifsSR.sh 8 75 0
+./newMotifsSR.sh 8 76 0
+./newMotifsSR.sh 8 77 0
+./newMotifsSR.sh 8 78 0
+./newMotifsSR.sh 8 79 0
+./newMotifsSR.sh 8 80 0
+./newMotifsSR.sh 8 81 0
+./newMotifsSR.sh 8 82 0
+./newMotifsSR.sh 8 83 0
+./newMotifsSR.sh 8 84 0
+./newMotifsSR.sh 8 85 0
+./newMotifsSR.sh 8 86 0
+./newMotifsSR.sh 8 87 0
+./newMotifsSR.sh 8 88 0
+./newMotifsSR.sh 8 89 0
+./newMotifsSR.sh 8 90 0
+./newMotifsSR.sh 8 91 0
+./newMotifsSR.sh 8 92 0
+./newMotifsSR.sh 8 93 0
+./newMotifsSR.sh 8 94 0
+./newMotifsSR.sh 8 95 0
+./newMotifsSR.sh 8 96 0
+./newMotifsSR.sh 8 97 0
+./newMotifsSR.sh 8 98 0
+./newMotifsSR.sh 8 99 0
+./newMotifsSR.sh 8 100 0
+./newMotifsSR.sh 8 101 0
+./newMotifsSR.sh 8 102 0
+./newMotifsSR.sh 8 103 0
+./newMotifsSR.sh 8 104 0
+./newMotifsSR.sh 8 105 1
+./newMotifsSR.sh 8 106 1
+./newMotifsSR.sh 8 107 1
+./newMotifsSR.sh 8 108 1
+./newMotifsSR.sh 8 109 1
+./newMotifsSR.sh 8 110 1
+./newMotifsSR.sh 8 111 1
+./newMotifsSR.sh 8 112 1
+./newMotifsSR.sh 8 113 1
+./newMotifsSR.sh 8 114 1
+./newMotifsSR.sh 8 115 1
+./newMotifsSR.sh 8 116 1
+./newMotifsSR.sh 8 117 1
+./newMotifsSR.sh 8 118 1
+./newMotifsSR.sh 8 119 1
+./newMotifsSR.sh 8 120 1
+./newMotifsSR.sh 8 121 1
+./newMotifsSR.sh 8 122 1
+./newMotifsSR.sh 8 123 1
+./newMotifsSR.sh 8 124 1
+./newMotifsSR.sh 8 125 1
+./newMotifsSR.sh 8 126 1
+./newMotifsSR.sh 8 127 1
+./newMotifsSR.sh 8 128 1
+./newMotifsSR.sh 8 129 1
+./newMotifsSR.sh 8 130 1
+./newMotifsSR.sh 8 131 1
+./newMotifsSR.sh 8 132 1
+./newMotifsSR.sh 8 133 1
+./newMotifsSR.sh 8 134 1
+./newMotifsSR.sh 8 135 1
+./newMotifsSR.sh 8 136 1
+./newMotifsSR.sh 8 137 1
+./newMotifsSR.sh 8 138 1
+./newMotifsSR.sh 8 139 1
+./newMotifsSR.sh 8 140 1
+./newMotifsSR.sh 8 141 1
+./newMotifsSR.sh 8 142 1
+./newMotifsSR.sh 8 143 1
+./newMotifsSR.sh 8 144 1
+./newMotifsSR.sh 8 145 1
+./newMotifsSR.sh 8 146 1
+./newMotifsSR.sh 8 147 1
+./newMotifsSR.sh 8 148 1
+./newMotifsSR.sh 8 149 1
+./newMotifsSR.sh 8 150 1
+./newMotifsSR.sh 8 151 1
+./newMotifsSR.sh 8 152 1
+./newMotifsSR.sh 8 153 1
+./newMotifsSR.sh 8 154 1
+./newMotifsSR.sh 8 155 1
+./newMotifsSR.sh 8 156 1
+./newMotifsSR.sh 8 157 1
+./newMotifsSR.sh 8 158 1
+./newMotifsSR.sh 8 159 1
+./newMotifsSR.sh 8 160 1
+./newMotifsSR.sh 8 161 1
+./newMotifsSR.sh 8 162 1
+./newMotifsSR.sh 8 163 1
+./newMotifsSR.sh 8 164 1
+./newMotifsSR.sh 8 165 1
+./newMotifsSR.sh 8 166 1
+./newMotifsSR.sh 8 167 1
+./newMotifsSR.sh 8 168 1
+./newMotifsSR.sh 8 169 1
+./newMotifsSR.sh 8 170 1
+./newMotifsSR.sh 8 171 1
+./newMotifsSR.sh 8 172 1
+./newMotifsSR.sh 8 173 1
+./newMotifsSR.sh 8 174 1
+./newMotifsSR.sh 8 175 1
+./newMotifsSR.sh 8 176 1
+./newMotifsSR.sh 8 177 1
+./newMotifsSR.sh 8 178 1
+./newMotifsSR.sh 8 179 1
+./newMotifsSR.sh 8 180 1
+./newMotifsSR.sh 8 181 1
+./newMotifsSR.sh 8 182 1
+./newMotifsSR.sh 8 183 1
+./newMotifsSR.sh 8 184 1
+./newMotifsSR.sh 8 185 1
+./newMotifsSR.sh 8 186 1
+./newMotifsSR.sh 8 187 1
+./newMotifsSR.sh 8 188 1
+./newMotifsSR.sh 8 189 1
+./newMotifsSR.sh 8 190 1
+./newMotifsSR.sh 8 191 1
+./newMotifsSR.sh 8 192 1
+./newMotifsSR.sh 8 193 1
+./newMotifsSR.sh 8 194 1
+./newMotifsSR.sh 8 195 1
+./newMotifsSR.sh 8 196 1
+./newMotifsSR.sh 8 197 1
+./newMotifsSR.sh 8 198 1
+./newMotifsSR.sh 8 199 1
+./newMotifsSR.sh 8 200 1
+./newMotifsSR.sh 8 201 1
+./newMotifsSR.sh 8 202 1
+./newMotifsSR.sh 8 203 1
+./newMotifsSR.sh 8 204 1
+./newMotifsSR.sh 8 205 1
+./newMotifsSR.sh 8 206 1
+./newMotifsSR.sh 8 207 1
+./newMotifsSR.sh 8 208 1
+./newMotifsSR.sh 9 1 1
+./newMotifsSR.sh 9 2 1
+./newMotifsSR.sh 9 3 1
+./newMotifsSR.sh 9 4 1
+./newMotifsSR.sh 9 5 1
+./newMotifsSR.sh 9 6 1
+./newMotifsSR.sh 9 7 1
+./newMotifsSR.sh 9 8 1
+./newMotifsSR.sh 9 9 1
+./newMotifsSR.sh 9 10 1
+./newMotifsSR.sh 9 11 1
+./newMotifsSR.sh 9 12 1
+./newMotifsSR.sh 9 13 1
+./newMotifsSR.sh 9 14 1
+./newMotifsSR.sh 9 15 1
+./newMotifsSR.sh 9 16 1
+./newMotifsSR.sh 9 17 1
+./newMotifsSR.sh 9 18 1
+./newMotifsSR.sh 9 19 1
+./newMotifsSR.sh 9 20 1
+./newMotifsSR.sh 9 21 1
+./newMotifsSR.sh 9 22 1
+./newMotifsSR.sh 9 23 1
+./newMotifsSR.sh 9 24 1
+./newMotifsSR.sh 9 25 1
+./newMotifsSR.sh 9 26 1
+./newMotifsSR.sh 9 27 1
+./newMotifsSR.sh 9 28 1
+./newMotifsSR.sh 9 29 1
+./newMotifsSR.sh 9 30 1
+./newMotifsSR.sh 9 31 1
+./newMotifsSR.sh 9 32 1
+./newMotifsSR.sh 9 33 1
+./newMotifsSR.sh 9 34 1
+./newMotifsSR.sh 9 35 1
+./newMotifsSR.sh 9 36 1
+./newMotifsSR.sh 9 37 1
+./newMotifsSR.sh 9 38 1
+./newMotifsSR.sh 9 39 1
+./newMotifsSR.sh 9 40 1
+./newMotifsSR.sh 9 41 1
+./newMotifsSR.sh 9 42 1
+./newMotifsSR.sh 9 43 1
+./newMotifsSR.sh 9 44 1
+./newMotifsSR.sh 9 45 1
+./newMotifsSR.sh 9 46 1
+./newMotifsSR.sh 9 47 1
+./newMotifsSR.sh 9 48 1
+./newMotifsSR.sh 9 49 1
+./newMotifsSR.sh 9 50 1
+./newMotifsSR.sh 9 51 1
+./newMotifsSR.sh 9 52 1
+./newMotifsSR.sh 9 53 1
+./newMotifsSR.sh 9 54 1
+./newMotifsSR.sh 9 55 1
+./newMotifsSR.sh 9 56 1
+./newMotifsSR.sh 9 57 1
+./newMotifsSR.sh 9 58 1
+./newMotifsSR.sh 9 59 1
+./newMotifsSR.sh 9 60 1
+./newMotifsSR.sh 9 61 1
+./newMotifsSR.sh 9 62 1
+./newMotifsSR.sh 9 63 1
+./newMotifsSR.sh 9 64 1
+./newMotifsSR.sh 9 65 1
+./newMotifsSR.sh 9 66 1
+./newMotifsSR.sh 9 67 1
+./newMotifsSR.sh 9 68 1
+./newMotifsSR.sh 9 69 1
+./newMotifsSR.sh 9 70 1
+./newMotifsSR.sh 9 71 1
+./newMotifsSR.sh 9 72 1
+./newMotifsSR.sh 9 73 1
+./newMotifsSR.sh 9 74 1
+./newMotifsSR.sh 9 75 1
+./newMotifsSR.sh 9 76 1
+./newMotifsSR.sh 9 77 1
+./newMotifsSR.sh 9 78 1
+./newMotifsSR.sh 9 79 1
+./newMotifsSR.sh 9 80 1
+./newMotifsSR.sh 9 81 1
+./newMotifsSR.sh 9 82 1
+./newMotifsSR.sh 9 83 1
+./newMotifsSR.sh 9 84 1
+./newMotifsSR.sh 9 85 1
+./newMotifsSR.sh 9 86 1
+./newMotifsSR.sh 9 87 1
+./newMotifsSR.sh 9 88 1
+./newMotifsSR.sh 9 89 1
+./newMotifsSR.sh 9 90 1
+./newMotifsSR.sh 9 91 1
+./newMotifsSR.sh 9 92 1
+./newMotifsSR.sh 9 93 1
+./newMotifsSR.sh 9 94 1
+./newMotifsSR.sh 9 95 1
+./newMotifsSR.sh 9 96 1
+./newMotifsSR.sh 9 97 1
+./newMotifsSR.sh 9 98 1
+./newMotifsSR.sh 9 99 1
+./newMotifsSR.sh 9 100 1
+./newMotifsSR.sh 9 101 1
+./newMotifsSR.sh 9 102 1
+./newMotifsSR.sh 9 103 1
+./newMotifsSR.sh 9 104 1
+./newMotifsSR.sh 9 105 1
+./newMotifsSR.sh 9 106 1
+./newMotifsSR.sh 9 107 1
+./newMotifsSR.sh 9 108 1
+./newMotifsSR.sh 9 109 1
+./newMotifsSR.sh 9 110 1
+./newMotifsSR.sh 9 111 1
+./newMotifsSR.sh 9 112 1
+./newMotifsSR.sh 9 113 1
+./newMotifsSR.sh 9 114 1
+./newMotifsSR.sh 9 115 1
+./newMotifsSR.sh 9 116 1
+./newMotifsSR.sh 9 117 1
+./newMotifsSR.sh 9 118 1
+./newMotifsSR.sh 9 119 1
+./newMotifsSR.sh 9 120 1
+./newMotifsSR.sh 9 121 1
+./newMotifsSR.sh 9 122 1
+./newMotifsSR.sh 9 123 1
+./newMotifsSR.sh 9 124 1
+./newMotifsSR.sh 9 125 1
+./newMotifsSR.sh 9 126 1
+./newMotifsSR.sh 9 127 1
+./newMotifsSR.sh 9 128 1
+./newMotifsSR.sh 9 129 1
+./newMotifsSR.sh 9 130 1
+./newMotifsSR.sh 9 131 1
+./newMotifsSR.sh 9 132 1
+./newMotifsSR.sh 9 133 1
+./newMotifsSR.sh 9 134 1
+./newMotifsSR.sh 9 135 1
+./newMotifsSR.sh 9 136 1
+./newMotifsSR.sh 9 137 1
+./newMotifsSR.sh 9 138 1
+./newMotifsSR.sh 9 139 1
+./newMotifsSR.sh 9 140 1
+./newMotifsSR.sh 9 141 1
+./newMotifsSR.sh 9 142 1
+./newMotifsSR.sh 9 143 1
+./newMotifsSR.sh 9 144 1
+./newMotifsSR.sh 9 145 1
+./newMotifsSR.sh 9 146 1
+./newMotifsSR.sh 9 147 1
+./newMotifsSR.sh 9 148 1
+./newMotifsSR.sh 9 149 1
+./newMotifsSR.sh 9 150 1
+./newMotifsSR.sh 9 151 1
+./newMotifsSR.sh 9 152 1
+./newMotifsSR.sh 9 153 1
+./newMotifsSR.sh 9 154 1
+./newMotifsSR.sh 9 155 1
+./newMotifsSR.sh 9 156 1
+./newMotifsSR.sh 9 157 1
+./newMotifsSR.sh 9 158 1
+./newMotifsSR.sh 9 159 1
+./newMotifsSR.sh 9 160 1
+./newMotifsSR.sh 9 161 1
+./newMotifsSR.sh 9 162 1
+./newMotifsSR.sh 9 163 1
+./newMotifsSR.sh 9 164 1
+./newMotifsSR.sh 9 165 1
+./newMotifsSR.sh 9 166 1
+./newMotifsSR.sh 9 167 1
+./newMotifsSR.sh 9 168 1
+./newMotifsSR.sh 9 169 1
+./newMotifsSR.sh 9 170 1
+./newMotifsSR.sh 9 171 1
+./newMotifsSR.sh 9 172 1
+./newMotifsSR.sh 9 173 1
+./newMotifsSR.sh 9 174 1
+./newMotifsSR.sh 9 175 1
+./newMotifsSR.sh 9 176 1
+./newMotifsSR.sh 9 177 1
+./newMotifsSR.sh 9 178 1
+./newMotifsSR.sh 9 179 1
+./newMotifsSR.sh 9 180 1
+./newMotifsSR.sh 9 181 1
+./newMotifsSR.sh 9 182 1
+./newMotifsSR.sh 9 183 1
+./newMotifsSR.sh 9 184 1
+./newMotifsSR.sh 9 185 1
+./newMotifsSR.sh 9 186 1
+./newMotifsSR.sh 9 187 1
+./newMotifsSR.sh 9 188 1
+./newMotifsSR.sh 9 189 1
+./newMotifsSR.sh 9 190 1
+./newMotifsSR.sh 9 191 1
+./newMotifsSR.sh 9 192 1
+./newMotifsSR.sh 9 193 1
+./newMotifsSR.sh 9 194 1
+./newMotifsSR.sh 9 195 1
+./newMotifsSR.sh 9 196 1
+./newMotifsSR.sh 9 197 1
+./newMotifsSR.sh 9 198 1
+./newMotifsSR.sh 9 199 1
+./newMotifsSR.sh 9 200 1
+./newMotifsSR.sh 9 201 1
+./newMotifsSR.sh 9 202 1
+./newMotifsSR.sh 9 203 1
+./newMotifsSR.sh 9 204 1
+./newMotifsSR.sh 9 205 1
+./newMotifsSR.sh 9 206 1
+./newMotifsSR.sh 9 207 1
+./newMotifsSR.sh 9 208 1
+./newMotifsSR.sh 10 1 1
+./newMotifsSR.sh 10 2 1
+./newMotifsSR.sh 10 3 1
+./newMotifsSR.sh 10 4 1
+./newMotifsSR.sh 10 5 1
+./newMotifsSR.sh 10 6 1
+./newMotifsSR.sh 10 7 1
+./newMotifsSR.sh 10 8 1
+./newMotifsSR.sh 10 9 1
+./newMotifsSR.sh 10 10 1
+./newMotifsSR.sh 10 11 1
+./newMotifsSR.sh 10 12 1
+./newMotifsSR.sh 10 13 1
+./newMotifsSR.sh 10 14 1
+./newMotifsSR.sh 10 15 1
+./newMotifsSR.sh 10 16 1
+./newMotifsSR.sh 10 17 1
+./newMotifsSR.sh 10 18 1
+./newMotifsSR.sh 10 19 1
+./newMotifsSR.sh 10 20 1
+./newMotifsSR.sh 10 21 1
+./newMotifsSR.sh 10 22 1
+./newMotifsSR.sh 10 23 1
+./newMotifsSR.sh 10 24 1
+./newMotifsSR.sh 10 25 1
+./newMotifsSR.sh 10 26 1
+./newMotifsSR.sh 10 27 1
+./newMotifsSR.sh 10 28 1
+./newMotifsSR.sh 10 29 1
+./newMotifsSR.sh 10 30 1
+./newMotifsSR.sh 10 31 1
+./newMotifsSR.sh 10 32 1
+./newMotifsSR.sh 10 33 1
+./newMotifsSR.sh 10 34 1
+./newMotifsSR.sh 10 35 1
+./newMotifsSR.sh 10 36 1
+./newMotifsSR.sh 10 37 1
+./newMotifsSR.sh 10 38 1
+./newMotifsSR.sh 10 39 1
+./newMotifsSR.sh 10 40 1
+./newMotifsSR.sh 10 41 1
+./newMotifsSR.sh 10 42 1
+./newMotifsSR.sh 10 43 1
+./newMotifsSR.sh 10 44 1
+./newMotifsSR.sh 10 45 1
+./newMotifsSR.sh 10 46 1
+./newMotifsSR.sh 10 47 1
+./newMotifsSR.sh 10 48 1
+./newMotifsSR.sh 10 49 1
+./newMotifsSR.sh 10 50 1
+./newMotifsSR.sh 10 51 1
+./newMotifsSR.sh 10 52 1
+./newMotifsSR.sh 10 53 1
+./newMotifsSR.sh 10 54 1
+./newMotifsSR.sh 10 55 1
+./newMotifsSR.sh 10 56 1
+./newMotifsSR.sh 10 57 1
+./newMotifsSR.sh 10 58 1
+./newMotifsSR.sh 10 59 1
+./newMotifsSR.sh 10 60 1
+./newMotifsSR.sh 10 61 1
+./newMotifsSR.sh 10 62 1
+./newMotifsSR.sh 10 63 1
+./newMotifsSR.sh 10 64 1
+./newMotifsSR.sh 10 65 1
+./newMotifsSR.sh 10 66 1
+./newMotifsSR.sh 10 67 1
+./newMotifsSR.sh 10 68 1
+./newMotifsSR.sh 10 69 1
+./newMotifsSR.sh 10 70 1
+./newMotifsSR.sh 10 71 1
+./newMotifsSR.sh 10 72 1
+./newMotifsSR.sh 10 73 1
+./newMotifsSR.sh 10 74 1
+./newMotifsSR.sh 10 75 1
+./newMotifsSR.sh 10 76 1
+./newMotifsSR.sh 10 77 1
+./newMotifsSR.sh 10 78 1
+./newMotifsSR.sh 10 79 1
+./newMotifsSR.sh 10 80 1
+./newMotifsSR.sh 10 81 1
+./newMotifsSR.sh 10 82 1
+./newMotifsSR.sh 10 83 1
+./newMotifsSR.sh 10 84 1
+./newMotifsSR.sh 10 85 1
+./newMotifsSR.sh 10 86 1
+./newMotifsSR.sh 10 87 1
+./newMotifsSR.sh 10 88 1
+./newMotifsSR.sh 10 89 1
+./newMotifsSR.sh 10 90 1
+./newMotifsSR.sh 10 91 1
+./newMotifsSR.sh 10 92 1
+./newMotifsSR.sh 10 93 1
+./newMotifsSR.sh 10 94 1
+./newMotifsSR.sh 10 95 1
+./newMotifsSR.sh 10 96 1
+./newMotifsSR.sh 10 97 1
+./newMotifsSR.sh 10 98 1
+./newMotifsSR.sh 10 99 1
+./newMotifsSR.sh 10 100 1
+./newMotifsSR.sh 10 101 1
+./newMotifsSR.sh 10 102 1
+./newMotifsSR.sh 10 103 1
+./newMotifsSR.sh 10 104 1
+./newMotifsSR.sh 10 105 1
+./newMotifsSR.sh 10 106 1
+./newMotifsSR.sh 10 107 1
+./newMotifsSR.sh 10 108 1
+./newMotifsSR.sh 10 109 1
+./newMotifsSR.sh 10 110 1
+./newMotifsSR.sh 10 111 1
+./newMotifsSR.sh 10 112 1
+./newMotifsSR.sh 10 113 1
+./newMotifsSR.sh 10 114 1
+./newMotifsSR.sh 10 115 1
+./newMotifsSR.sh 10 116 1
+./newMotifsSR.sh 10 117 1
+./newMotifsSR.sh 10 118 1
+./newMotifsSR.sh 10 119 1
+./newMotifsSR.sh 10 120 1
+./newMotifsSR.sh 10 121 1
+./newMotifsSR.sh 10 122 1
+./newMotifsSR.sh 10 123 1
+./newMotifsSR.sh 10 124 1
+./newMotifsSR.sh 10 125 1
+./newMotifsSR.sh 10 126 1
+./newMotifsSR.sh 10 127 1
+./newMotifsSR.sh 10 128 1
+./newMotifsSR.sh 10 129 1
+./newMotifsSR.sh 10 130 1
+./newMotifsSR.sh 10 131 1
+./newMotifsSR.sh 10 132 1
+./newMotifsSR.sh 10 133 1
+./newMotifsSR.sh 10 134 1
+./newMotifsSR.sh 10 135 1
+./newMotifsSR.sh 10 136 1
+./newMotifsSR.sh 10 137 1
+./newMotifsSR.sh 10 138 1
+./newMotifsSR.sh 10 139 1
+./newMotifsSR.sh 10 140 1
+./newMotifsSR.sh 10 141 1
+./newMotifsSR.sh 10 142 1
+./newMotifsSR.sh 10 143 1
+./newMotifsSR.sh 10 144 1
+./newMotifsSR.sh 10 145 1
+./newMotifsSR.sh 10 146 1
+./newMotifsSR.sh 10 147 1
+./newMotifsSR.sh 10 148 1
+./newMotifsSR.sh 10 149 1
+./newMotifsSR.sh 10 150 1
+./newMotifsSR.sh 10 151 1
+./newMotifsSR.sh 10 152 1
+./newMotifsSR.sh 10 153 1
+./newMotifsSR.sh 10 154 1
+./newMotifsSR.sh 10 155 1
+./newMotifsSR.sh 10 156 1
+./newMotifsSR.sh 10 157 1
+./newMotifsSR.sh 10 158 1
+./newMotifsSR.sh 10 159 1
+./newMotifsSR.sh 10 160 1
+./newMotifsSR.sh 10 161 1
+./newMotifsSR.sh 10 162 1
+./newMotifsSR.sh 10 163 1
+./newMotifsSR.sh 10 164 1
+./newMotifsSR.sh 10 165 1
+./newMotifsSR.sh 10 166 1
+./newMotifsSR.sh 10 167 1
+./newMotifsSR.sh 10 168 1
+./newMotifsSR.sh 10 169 1
+./newMotifsSR.sh 10 170 1
+./newMotifsSR.sh 10 171 1
+./newMotifsSR.sh 10 172 1
+./newMotifsSR.sh 10 173 1
+./newMotifsSR.sh 10 174 1
+./newMotifsSR.sh 10 175 1
+./newMotifsSR.sh 10 176 1
+./newMotifsSR.sh 10 177 1
+./newMotifsSR.sh 10 178 1
+./newMotifsSR.sh 10 179 1
+./newMotifsSR.sh 10 180 1
+./newMotifsSR.sh 10 181 1
+./newMotifsSR.sh 10 182 1
+./newMotifsSR.sh 10 183 1
+./newMotifsSR.sh 10 184 1
+./newMotifsSR.sh 10 185 1
+./newMotifsSR.sh 10 186 1
+./newMotifsSR.sh 10 187 1
+./newMotifsSR.sh 10 188 1
+./newMotifsSR.sh 10 189 1
+./newMotifsSR.sh 10 190 1
+./newMotifsSR.sh 10 191 1
+./newMotifsSR.sh 10 192 1
+./newMotifsSR.sh 10 193 1
+./newMotifsSR.sh 10 194 1
+./newMotifsSR.sh 10 195 1
+./newMotifsSR.sh 10 196 1
+./newMotifsSR.sh 10 197 1
+./newMotifsSR.sh 10 198 1
+./newMotifsSR.sh 10 199 1
+./newMotifsSR.sh 10 200 1
+./newMotifsSR.sh 10 201 1
+./newMotifsSR.sh 10 202 1
+./newMotifsSR.sh 10 203 1
+./newMotifsSR.sh 10 204 1
+./newMotifsSR.sh 10 205 1
+./newMotifsSR.sh 10 206 1
+./newMotifsSR.sh 10 207 1
+./newMotifsSR.sh 10 208 1
+./newMotifsSR.sh 11 1 1
+./newMotifsSR.sh 11 2 1
+./newMotifsSR.sh 11 3 1
+./newMotifsSR.sh 11 4 1
+./newMotifsSR.sh 11 5 1
+./newMotifsSR.sh 11 6 1
+./newMotifsSR.sh 11 7 1
+./newMotifsSR.sh 11 8 1
+./newMotifsSR.sh 11 9 1
+./newMotifsSR.sh 11 10 1
+./newMotifsSR.sh 11 11 1
+./newMotifsSR.sh 11 12 1
+./newMotifsSR.sh 11 13 1
+./newMotifsSR.sh 11 14 1
+./newMotifsSR.sh 11 15 1
+./newMotifsSR.sh 11 16 1
+./newMotifsSR.sh 11 17 1
+./newMotifsSR.sh 11 18 1
+./newMotifsSR.sh 11 19 1
+./newMotifsSR.sh 11 20 1
+./newMotifsSR.sh 11 21 1
+./newMotifsSR.sh 11 22 1
+./newMotifsSR.sh 11 23 1
+./newMotifsSR.sh 11 24 1
+./newMotifsSR.sh 11 25 1
+./newMotifsSR.sh 11 26 1
+./newMotifsSR.sh 11 27 1
+./newMotifsSR.sh 11 28 1
+./newMotifsSR.sh 11 29 1
+./newMotifsSR.sh 11 30 1
+./newMotifsSR.sh 11 31 1
+./newMotifsSR.sh 11 32 1
+./newMotifsSR.sh 11 33 1
+./newMotifsSR.sh 11 34 1
+./newMotifsSR.sh 11 35 1
+./newMotifsSR.sh 11 36 1
+./newMotifsSR.sh 11 37 1
+./newMotifsSR.sh 11 38 1
+./newMotifsSR.sh 11 39 1
+./newMotifsSR.sh 11 40 1
+./newMotifsSR.sh 11 41 1
+./newMotifsSR.sh 11 42 1
+./newMotifsSR.sh 11 43 1
+./newMotifsSR.sh 11 44 1
+./newMotifsSR.sh 11 45 1
+./newMotifsSR.sh 11 46 1
+./newMotifsSR.sh 11 47 1
+./newMotifsSR.sh 11 48 1
+./newMotifsSR.sh 11 49 1
+./newMotifsSR.sh 11 50 1
+./newMotifsSR.sh 11 51 1
+./newMotifsSR.sh 11 52 1
+./newMotifsSR.sh 11 53 1
+./newMotifsSR.sh 11 54 1
+./newMotifsSR.sh 11 55 1
+./newMotifsSR.sh 11 56 1
+./newMotifsSR.sh 11 57 1
+./newMotifsSR.sh 11 58 1
+./newMotifsSR.sh 11 59 1
+./newMotifsSR.sh 11 60 1
+./newMotifsSR.sh 11 61 1
+./newMotifsSR.sh 11 62 1
+./newMotifsSR.sh 11 63 1
+./newMotifsSR.sh 11 64 1
+./newMotifsSR.sh 11 65 1
+./newMotifsSR.sh 11 66 1
+./newMotifsSR.sh 11 67 1
+./newMotifsSR.sh 11 68 1
+./newMotifsSR.sh 11 69 1
+./newMotifsSR.sh 11 70 1
+./newMotifsSR.sh 11 71 1
+./newMotifsSR.sh 11 72 1
+./newMotifsSR.sh 11 73 1
+./newMotifsSR.sh 11 74 1
+./newMotifsSR.sh 11 75 1
+./newMotifsSR.sh 11 76 1
+./newMotifsSR.sh 11 77 1
+./newMotifsSR.sh 11 78 1
+./newMotifsSR.sh 11 79 1
+./newMotifsSR.sh 11 80 1
+./newMotifsSR.sh 11 81 1
+./newMotifsSR.sh 11 82 1
+./newMotifsSR.sh 11 83 1
+./newMotifsSR.sh 11 84 1
+./newMotifsSR.sh 11 85 1
+./newMotifsSR.sh 11 86 1
+./newMotifsSR.sh 11 87 1
+./newMotifsSR.sh 11 88 1
+./newMotifsSR.sh 11 89 1
+./newMotifsSR.sh 11 90 1
+./newMotifsSR.sh 11 91 1
+./newMotifsSR.sh 11 92 1
+./newMotifsSR.sh 11 93 1
+./newMotifsSR.sh 11 94 1
+./newMotifsSR.sh 11 95 1
+./newMotifsSR.sh 11 96 1
+./newMotifsSR.sh 11 97 1
+./newMotifsSR.sh 11 98 1
+./newMotifsSR.sh 11 99 1
+./newMotifsSR.sh 11 100 1
+./newMotifsSR.sh 11 101 1
+./newMotifsSR.sh 11 102 1
+./newMotifsSR.sh 11 103 1
+./newMotifsSR.sh 11 104 1
+./newMotifsSR.sh 11 105 1
+./newMotifsSR.sh 11 106 1
+./newMotifsSR.sh 11 107 1
+./newMotifsSR.sh 11 108 1
+./newMotifsSR.sh 11 109 1
+./newMotifsSR.sh 11 110 1
+./newMotifsSR.sh 11 111 1
+./newMotifsSR.sh 11 112 1
+./newMotifsSR.sh 11 113 1
+./newMotifsSR.sh 11 114 1
+./newMotifsSR.sh 11 115 1
+./newMotifsSR.sh 11 116 1
+./newMotifsSR.sh 11 117 1
+./newMotifsSR.sh 11 118 1
+./newMotifsSR.sh 11 119 1
+./newMotifsSR.sh 11 120 1
+./newMotifsSR.sh 11 121 1
+./newMotifsSR.sh 11 122 1
+./newMotifsSR.sh 11 123 1
+./newMotifsSR.sh 11 124 1
+./newMotifsSR.sh 11 125 1
+./newMotifsSR.sh 11 126 1
+./newMotifsSR.sh 11 127 1
+./newMotifsSR.sh 11 128 1
+./newMotifsSR.sh 11 129 1
+./newMotifsSR.sh 11 130 1
+./newMotifsSR.sh 11 131 1
+./newMotifsSR.sh 11 132 1
+./newMotifsSR.sh 11 133 1
+./newMotifsSR.sh 11 134 1
+./newMotifsSR.sh 11 135 1
+./newMotifsSR.sh 11 136 1
+./newMotifsSR.sh 11 137 1
+./newMotifsSR.sh 11 138 1
+./newMotifsSR.sh 11 139 1
+./newMotifsSR.sh 11 140 1
+./newMotifsSR.sh 11 141 1
+./newMotifsSR.sh 11 142 1
+./newMotifsSR.sh 11 143 1
+./newMotifsSR.sh 11 144 1
+./newMotifsSR.sh 11 145 1
+./newMotifsSR.sh 11 146 1
+./newMotifsSR.sh 11 147 1
+./newMotifsSR.sh 11 148 1
+./newMotifsSR.sh 11 149 1
+./newMotifsSR.sh 11 150 1
+./newMotifsSR.sh 11 151 1
+./newMotifsSR.sh 11 152 1
+./newMotifsSR.sh 11 153 1
+./newMotifsSR.sh 11 154 1
+./newMotifsSR.sh 11 155 1
+./newMotifsSR.sh 11 156 1
+./newMotifsSR.sh 11 157 1
+./newMotifsSR.sh 11 158 1
+./newMotifsSR.sh 11 159 1
+./newMotifsSR.sh 11 160 1
+./newMotifsSR.sh 11 161 1
+./newMotifsSR.sh 11 162 1
+./newMotifsSR.sh 11 163 1
+./newMotifsSR.sh 11 164 1
+./newMotifsSR.sh 11 165 1
+./newMotifsSR.sh 11 166 1
+./newMotifsSR.sh 11 167 1
+./newMotifsSR.sh 11 168 1
+./newMotifsSR.sh 11 169 1
+./newMotifsSR.sh 11 170 1
+./newMotifsSR.sh 11 171 1
+./newMotifsSR.sh 11 172 1
+./newMotifsSR.sh 11 173 1
+./newMotifsSR.sh 11 174 1
+./newMotifsSR.sh 11 175 1
+./newMotifsSR.sh 11 176 1
+./newMotifsSR.sh 11 177 1
+./newMotifsSR.sh 11 178 1
+./newMotifsSR.sh 11 179 1
+./newMotifsSR.sh 11 180 1
+./newMotifsSR.sh 11 181 1
+./newMotifsSR.sh 11 182 1
+./newMotifsSR.sh 11 183 1
+./newMotifsSR.sh 11 184 1
+./newMotifsSR.sh 11 185 1
+./newMotifsSR.sh 11 186 1
+./newMotifsSR.sh 11 187 1
+./newMotifsSR.sh 11 188 1
+./newMotifsSR.sh 11 189 1
+./newMotifsSR.sh 11 190 1
+./newMotifsSR.sh 11 191 1
+./newMotifsSR.sh 11 192 1
+./newMotifsSR.sh 11 193 1
+./newMotifsSR.sh 11 194 1
+./newMotifsSR.sh 11 195 1
+./newMotifsSR.sh 11 196 1
+./newMotifsSR.sh 11 197 1
+./newMotifsSR.sh 11 198 1
+./newMotifsSR.sh 11 199 1
+./newMotifsSR.sh 11 200 1
+./newMotifsSR.sh 11 201 1
+./newMotifsSR.sh 11 202 1
+./newMotifsSR.sh 11 203 1
+./newMotifsSR.sh 11 204 1
+./newMotifsSR.sh 11 205 1
+./newMotifsSR.sh 11 206 1
+./newMotifsSR.sh 11 207 1
+./newMotifsSR.sh 11 208 1
+./newMotifsSR.sh 12 1 1
+./newMotifsSR.sh 12 2 1
+./newMotifsSR.sh 12 3 1
+./newMotifsSR.sh 12 4 1
+./newMotifsSR.sh 12 5 1
+./newMotifsSR.sh 12 6 1
+./newMotifsSR.sh 12 7 1
+./newMotifsSR.sh 12 8 1
+./newMotifsSR.sh 12 9 1
+./newMotifsSR.sh 12 10 1
+./newMotifsSR.sh 12 11 1
+./newMotifsSR.sh 12 12 1
+./newMotifsSR.sh 12 13 1
+./newMotifsSR.sh 12 14 1
+./newMotifsSR.sh 12 15 1
+./newMotifsSR.sh 12 16 1
+./newMotifsSR.sh 12 17 1
+./newMotifsSR.sh 12 18 1
+./newMotifsSR.sh 12 19 1
+./newMotifsSR.sh 12 20 1
+./newMotifsSR.sh 12 21 1
+./newMotifsSR.sh 12 22 1
+./newMotifsSR.sh 12 23 1
+./newMotifsSR.sh 12 24 1
+./newMotifsSR.sh 12 25 1
+./newMotifsSR.sh 12 26 1
+./newMotifsSR.sh 12 27 1
+./newMotifsSR.sh 12 28 1
+./newMotifsSR.sh 12 29 1
+./newMotifsSR.sh 12 30 1
+./newMotifsSR.sh 12 31 1
+./newMotifsSR.sh 12 32 1
+./newMotifsSR.sh 12 33 1
+./newMotifsSR.sh 12 34 1
+./newMotifsSR.sh 12 35 1
+./newMotifsSR.sh 12 36 1
+./newMotifsSR.sh 12 37 1
+./newMotifsSR.sh 12 38 1
+./newMotifsSR.sh 12 39 1
+./newMotifsSR.sh 12 40 1
+./newMotifsSR.sh 12 41 1
+./newMotifsSR.sh 12 42 1
+./newMotifsSR.sh 12 43 1
+./newMotifsSR.sh 12 44 1
+./newMotifsSR.sh 12 45 1
+./newMotifsSR.sh 12 46 1
+./newMotifsSR.sh 12 47 1
+./newMotifsSR.sh 12 48 1
+./newMotifsSR.sh 12 49 1
+./newMotifsSR.sh 12 50 1
+./newMotifsSR.sh 12 51 1
+./newMotifsSR.sh 12 52 1
+./newMotifsSR.sh 12 53 1
+./newMotifsSR.sh 12 54 1
+./newMotifsSR.sh 12 55 1
+./newMotifsSR.sh 12 56 1
+./newMotifsSR.sh 12 57 1
+./newMotifsSR.sh 12 58 1
+./newMotifsSR.sh 12 59 1
+./newMotifsSR.sh 12 60 1
+./newMotifsSR.sh 12 61 1
+./newMotifsSR.sh 12 62 1
+./newMotifsSR.sh 12 63 1
+./newMotifsSR.sh 12 64 1
+./newMotifsSR.sh 12 65 1
+./newMotifsSR.sh 12 66 1
+./newMotifsSR.sh 12 67 1
+./newMotifsSR.sh 12 68 1
+./newMotifsSR.sh 12 69 1
+./newMotifsSR.sh 12 70 1
+./newMotifsSR.sh 12 71 1
+./newMotifsSR.sh 12 72 1
+./newMotifsSR.sh 12 73 1
+./newMotifsSR.sh 12 74 1
+./newMotifsSR.sh 12 75 1
+./newMotifsSR.sh 12 76 1
+./newMotifsSR.sh 12 77 1
+./newMotifsSR.sh 12 78 1
+./newMotifsSR.sh 12 79 1
+./newMotifsSR.sh 12 80 1
+./newMotifsSR.sh 12 81 1
+./newMotifsSR.sh 12 82 1
+./newMotifsSR.sh 12 83 1
+./newMotifsSR.sh 12 84 1
+./newMotifsSR.sh 12 85 1
+./newMotifsSR.sh 12 86 1
+./newMotifsSR.sh 12 87 1
+./newMotifsSR.sh 12 88 1
+./newMotifsSR.sh 12 89 1
+./newMotifsSR.sh 12 90 1
+./newMotifsSR.sh 12 91 1
+./newMotifsSR.sh 12 92 1
+./newMotifsSR.sh 12 93 1
+./newMotifsSR.sh 12 94 1
+./newMotifsSR.sh 12 95 1
+./newMotifsSR.sh 12 96 1
+./newMotifsSR.sh 12 97 1
+./newMotifsSR.sh 12 98 1
+./newMotifsSR.sh 12 99 1
+./newMotifsSR.sh 12 100 1
+./newMotifsSR.sh 12 101 1
+./newMotifsSR.sh 12 102 1
+./newMotifsSR.sh 12 103 1
+./newMotifsSR.sh 12 104 1
+./newMotifsSR.sh 12 105 1
+./newMotifsSR.sh 12 106 1
+./newMotifsSR.sh 12 107 1
+./newMotifsSR.sh 12 108 1
+./newMotifsSR.sh 12 109 1
+./newMotifsSR.sh 12 110 1
+./newMotifsSR.sh 12 111 1
+./newMotifsSR.sh 12 112 1
+./newMotifsSR.sh 12 113 1
+./newMotifsSR.sh 12 114 1
+./newMotifsSR.sh 12 115 1
+./newMotifsSR.sh 12 116 1
+./newMotifsSR.sh 12 117 1
+./newMotifsSR.sh 12 118 1
+./newMotifsSR.sh 12 119 1
+./newMotifsSR.sh 12 120 1
+./newMotifsSR.sh 12 121 1
+./newMotifsSR.sh 12 122 1
+./newMotifsSR.sh 12 123 1
+./newMotifsSR.sh 12 124 1
+./newMotifsSR.sh 12 125 1
+./newMotifsSR.sh 12 126 1
+./newMotifsSR.sh 12 127 1
+./newMotifsSR.sh 12 128 1
+./newMotifsSR.sh 12 129 1
+./newMotifsSR.sh 12 130 1
+./newMotifsSR.sh 12 131 1
+./newMotifsSR.sh 12 132 1
+./newMotifsSR.sh 12 133 1
+./newMotifsSR.sh 12 134 1
+./newMotifsSR.sh 12 135 1
+./newMotifsSR.sh 12 136 1
+./newMotifsSR.sh 12 137 1
+./newMotifsSR.sh 12 138 1
+./newMotifsSR.sh 12 139 1
+./newMotifsSR.sh 12 140 1
+./newMotifsSR.sh 12 141 1
+./newMotifsSR.sh 12 142 1
+./newMotifsSR.sh 12 143 1
+./newMotifsSR.sh 12 144 1
+./newMotifsSR.sh 12 145 1
+./newMotifsSR.sh 12 146 1
+./newMotifsSR.sh 12 147 1
+./newMotifsSR.sh 12 148 1
+./newMotifsSR.sh 12 149 1
+./newMotifsSR.sh 12 150 1
+./newMotifsSR.sh 12 151 1
+./newMotifsSR.sh 12 152 1
+./newMotifsSR.sh 12 153 1
+./newMotifsSR.sh 12 154 1
+./newMotifsSR.sh 12 155 1
+./newMotifsSR.sh 12 156 1
+./newMotifsSR.sh 12 157 1
+./newMotifsSR.sh 12 158 1
+./newMotifsSR.sh 12 159 1
+./newMotifsSR.sh 12 160 1
+./newMotifsSR.sh 12 161 1
+./newMotifsSR.sh 12 162 1
+./newMotifsSR.sh 12 163 1
+./newMotifsSR.sh 12 164 1
+./newMotifsSR.sh 12 165 1
+./newMotifsSR.sh 12 166 1
+./newMotifsSR.sh 12 167 1
+./newMotifsSR.sh 12 168 1
+./newMotifsSR.sh 12 169 1
+./newMotifsSR.sh 12 170 1
+./newMotifsSR.sh 12 171 1
+./newMotifsSR.sh 12 172 1
+./newMotifsSR.sh 12 173 1
+./newMotifsSR.sh 12 174 1
+./newMotifsSR.sh 12 175 1
+./newMotifsSR.sh 12 176 1
+./newMotifsSR.sh 12 177 1
+./newMotifsSR.sh 12 178 1
+./newMotifsSR.sh 12 179 1
+./newMotifsSR.sh 12 180 1
+./newMotifsSR.sh 12 181 1
+./newMotifsSR.sh 12 182 1
+./newMotifsSR.sh 12 183 1
+./newMotifsSR.sh 12 184 1
+./newMotifsSR.sh 12 185 1
+./newMotifsSR.sh 12 186 1
+./newMotifsSR.sh 12 187 1
+./newMotifsSR.sh 12 188 1
+./newMotifsSR.sh 12 189 1
+./newMotifsSR.sh 12 190 1
+./newMotifsSR.sh 12 191 1
+./newMotifsSR.sh 12 192 1
+./newMotifsSR.sh 12 193 1
+./newMotifsSR.sh 12 194 1
+./newMotifsSR.sh 12 195 1
+./newMotifsSR.sh 12 196 1
+./newMotifsSR.sh 12 197 1
+./newMotifsSR.sh 12 198 1
+./newMotifsSR.sh 12 199 1
+./newMotifsSR.sh 12 200 1
+./newMotifsSR.sh 12 201 1
+./newMotifsSR.sh 12 202 1
+./newMotifsSR.sh 12 203 1
+./newMotifsSR.sh 12 204 1
+./newMotifsSR.sh 12 205 1
+./newMotifsSR.sh 12 206 1
+./newMotifsSR.sh 12 207 1
+./newMotifsSR.sh 12 208 1
+./newMotifsSR.sh 13 1 1
+./newMotifsSR.sh 13 2 1
+./newMotifsSR.sh 13 3 1
+./newMotifsSR.sh 13 4 1
+./newMotifsSR.sh 13 5 1
+./newMotifsSR.sh 13 6 1
+./newMotifsSR.sh 13 7 1
+./newMotifsSR.sh 13 8 1
+./newMotifsSR.sh 13 9 1
+./newMotifsSR.sh 13 10 1
+./newMotifsSR.sh 13 11 1
+./newMotifsSR.sh 13 12 1
+./newMotifsSR.sh 13 13 1
+./newMotifsSR.sh 13 14 1
+./newMotifsSR.sh 13 15 1
+./newMotifsSR.sh 13 16 1
+./newMotifsSR.sh 13 17 1
+./newMotifsSR.sh 13 18 1
+./newMotifsSR.sh 13 19 1
+./newMotifsSR.sh 13 20 1
+./newMotifsSR.sh 13 21 1
+./newMotifsSR.sh 13 22 1
+./newMotifsSR.sh 13 23 1
+./newMotifsSR.sh 13 24 1
+./newMotifsSR.sh 13 25 1
+./newMotifsSR.sh 13 26 1
+./newMotifsSR.sh 13 27 1
+./newMotifsSR.sh 13 28 1
+./newMotifsSR.sh 13 29 1
+./newMotifsSR.sh 13 30 1
+./newMotifsSR.sh 13 31 1
+./newMotifsSR.sh 13 32 1
+./newMotifsSR.sh 13 33 1
+./newMotifsSR.sh 13 34 1
+./newMotifsSR.sh 13 35 1
+./newMotifsSR.sh 13 36 1
+./newMotifsSR.sh 13 37 1
+./newMotifsSR.sh 13 38 1
+./newMotifsSR.sh 13 39 1
+./newMotifsSR.sh 13 40 1
+./newMotifsSR.sh 13 41 1
+./newMotifsSR.sh 13 42 1
+./newMotifsSR.sh 13 43 1
+./newMotifsSR.sh 13 44 1
+./newMotifsSR.sh 13 45 1
+./newMotifsSR.sh 13 46 1
+./newMotifsSR.sh 13 47 1
+./newMotifsSR.sh 13 48 1
+./newMotifsSR.sh 13 49 1
+./newMotifsSR.sh 13 50 1
+./newMotifsSR.sh 13 51 1
+./newMotifsSR.sh 13 52 1
+./newMotifsSR.sh 13 53 1
+./newMotifsSR.sh 13 54 1
+./newMotifsSR.sh 13 55 1
+./newMotifsSR.sh 13 56 1
+./newMotifsSR.sh 13 57 1
+./newMotifsSR.sh 13 58 1
+./newMotifsSR.sh 13 59 1
+./newMotifsSR.sh 13 60 1
+./newMotifsSR.sh 13 61 1
+./newMotifsSR.sh 13 62 1
+./newMotifsSR.sh 13 63 1
+./newMotifsSR.sh 13 64 1
+./newMotifsSR.sh 13 65 1
+./newMotifsSR.sh 13 66 1
+./newMotifsSR.sh 13 67 1
+./newMotifsSR.sh 13 68 1
+./newMotifsSR.sh 13 69 1
+./newMotifsSR.sh 13 70 1
+./newMotifsSR.sh 13 71 1
+./newMotifsSR.sh 13 72 1
+./newMotifsSR.sh 13 73 1
+./newMotifsSR.sh 13 74 1
+./newMotifsSR.sh 13 75 1
+./newMotifsSR.sh 13 76 1
+./newMotifsSR.sh 13 77 1
+./newMotifsSR.sh 13 78 1
+./newMotifsSR.sh 13 79 1
+./newMotifsSR.sh 13 80 1
+./newMotifsSR.sh 13 81 1
+./newMotifsSR.sh 13 82 1
+./newMotifsSR.sh 13 83 1
+./newMotifsSR.sh 13 84 1
+./newMotifsSR.sh 13 85 1
+./newMotifsSR.sh 13 86 1
+./newMotifsSR.sh 13 87 1
+./newMotifsSR.sh 13 88 1
+./newMotifsSR.sh 13 89 1
+./newMotifsSR.sh 13 90 1
+./newMotifsSR.sh 13 91 1
+./newMotifsSR.sh 13 92 1
+./newMotifsSR.sh 13 93 1
+./newMotifsSR.sh 13 94 1
+./newMotifsSR.sh 13 95 1
+./newMotifsSR.sh 13 96 1
+./newMotifsSR.sh 13 97 1
+./newMotifsSR.sh 13 98 1
+./newMotifsSR.sh 13 99 1
+./newMotifsSR.sh 13 100 1
+./newMotifsSR.sh 13 101 1
+./newMotifsSR.sh 13 102 1
+./newMotifsSR.sh 13 103 1
+./newMotifsSR.sh 13 104 1
+./newMotifsSR.sh 13 105 1
+./newMotifsSR.sh 13 106 1
+./newMotifsSR.sh 13 107 1
+./newMotifsSR.sh 13 108 1
+./newMotifsSR.sh 13 109 1
+./newMotifsSR.sh 13 110 1
+./newMotifsSR.sh 13 111 1
+./newMotifsSR.sh 13 112 1
+./newMotifsSR.sh 13 113 1
+./newMotifsSR.sh 13 114 1
+./newMotifsSR.sh 13 115 1
+./newMotifsSR.sh 13 116 1
+./newMotifsSR.sh 13 117 1
+./newMotifsSR.sh 13 118 1
+./newMotifsSR.sh 13 119 1
+./newMotifsSR.sh 13 120 1
+./newMotifsSR.sh 13 121 1
+./newMotifsSR.sh 13 122 1
+./newMotifsSR.sh 13 123 1
+./newMotifsSR.sh 13 124 1
+./newMotifsSR.sh 13 125 1
+./newMotifsSR.sh 13 126 1
+./newMotifsSR.sh 13 127 1
+./newMotifsSR.sh 13 128 1
+./newMotifsSR.sh 13 129 1
+./newMotifsSR.sh 13 130 1
+./newMotifsSR.sh 13 131 1
+./newMotifsSR.sh 13 132 1
+./newMotifsSR.sh 13 133 1
+./newMotifsSR.sh 13 134 1
+./newMotifsSR.sh 13 135 1
+./newMotifsSR.sh 13 136 1
+./newMotifsSR.sh 13 137 1
+./newMotifsSR.sh 13 138 1
+./newMotifsSR.sh 13 139 1
+./newMotifsSR.sh 13 140 1
+./newMotifsSR.sh 13 141 1
+./newMotifsSR.sh 13 142 1
+./newMotifsSR.sh 13 143 1
+./newMotifsSR.sh 13 144 1
+./newMotifsSR.sh 13 145 1
+./newMotifsSR.sh 13 146 1
+./newMotifsSR.sh 13 147 1
+./newMotifsSR.sh 13 148 1
+./newMotifsSR.sh 13 149 1
+./newMotifsSR.sh 13 150 1
+./newMotifsSR.sh 13 151 1
+./newMotifsSR.sh 13 152 1
+./newMotifsSR.sh 13 153 1
+./newMotifsSR.sh 13 154 1
+./newMotifsSR.sh 13 155 1
+./newMotifsSR.sh 13 156 1
+./newMotifsSR.sh 13 157 1
+./newMotifsSR.sh 13 158 1
+./newMotifsSR.sh 13 159 1
+./newMotifsSR.sh 13 160 1
+./newMotifsSR.sh 13 161 1
+./newMotifsSR.sh 13 162 1
+./newMotifsSR.sh 13 163 1
+./newMotifsSR.sh 13 164 1
+./newMotifsSR.sh 13 165 1
+./newMotifsSR.sh 13 166 1
+./newMotifsSR.sh 13 167 1
+./newMotifsSR.sh 13 168 1
+./newMotifsSR.sh 13 169 1
+./newMotifsSR.sh 13 170 1
+./newMotifsSR.sh 13 171 1
+./newMotifsSR.sh 13 172 1
+./newMotifsSR.sh 13 173 1
+./newMotifsSR.sh 13 174 1
+./newMotifsSR.sh 13 175 1
+./newMotifsSR.sh 13 176 1
+./newMotifsSR.sh 13 177 1
+./newMotifsSR.sh 13 178 1
+./newMotifsSR.sh 13 179 1
+./newMotifsSR.sh 13 180 1
+./newMotifsSR.sh 13 181 1
+./newMotifsSR.sh 13 182 1
+./newMotifsSR.sh 13 183 1
+./newMotifsSR.sh 13 184 1
+./newMotifsSR.sh 13 185 1
+./newMotifsSR.sh 13 186 1
+./newMotifsSR.sh 13 187 1
+./newMotifsSR.sh 13 188 1
+./newMotifsSR.sh 13 189 1
+./newMotifsSR.sh 13 190 1
+./newMotifsSR.sh 13 191 1
+./newMotifsSR.sh 13 192 1
+./newMotifsSR.sh 13 193 1
+./newMotifsSR.sh 13 194 1
+./newMotifsSR.sh 13 195 1
+./newMotifsSR.sh 13 196 1
+./newMotifsSR.sh 13 197 1
+./newMotifsSR.sh 13 198 1
+./newMotifsSR.sh 13 199 1
+./newMotifsSR.sh 13 200 1
+./newMotifsSR.sh 13 201 1
+./newMotifsSR.sh 13 202 1
+./newMotifsSR.sh 13 203 1
+./newMotifsSR.sh 13 204 1
+./newMotifsSR.sh 13 205 1
+./newMotifsSR.sh 13 206 1
+./newMotifsSR.sh 13 207 1
+./newMotifsSR.sh 13 208 1
+./newMotifsSR.sh 14 1 1
+./newMotifsSR.sh 14 2 1
+./newMotifsSR.sh 14 3 1
+./newMotifsSR.sh 14 4 1
+./newMotifsSR.sh 14 5 1
+./newMotifsSR.sh 14 6 1
+./newMotifsSR.sh 14 7 1
+./newMotifsSR.sh 14 8 1
+./newMotifsSR.sh 14 9 1
+./newMotifsSR.sh 14 10 1
+./newMotifsSR.sh 14 11 1
+./newMotifsSR.sh 14 12 1
+./newMotifsSR.sh 14 13 1
+./newMotifsSR.sh 14 14 1
+./newMotifsSR.sh 14 15 1
+./newMotifsSR.sh 14 16 1
+./newMotifsSR.sh 14 17 1
+./newMotifsSR.sh 14 18 1
+./newMotifsSR.sh 14 19 1
+./newMotifsSR.sh 14 20 1
+./newMotifsSR.sh 14 21 1
+./newMotifsSR.sh 14 22 1
+./newMotifsSR.sh 14 23 1
+./newMotifsSR.sh 14 24 1
+./newMotifsSR.sh 14 25 1
+./newMotifsSR.sh 14 26 1
+./newMotifsSR.sh 14 27 1
+./newMotifsSR.sh 14 28 1
+./newMotifsSR.sh 14 29 1
+./newMotifsSR.sh 14 30 1
+./newMotifsSR.sh 14 31 1
+./newMotifsSR.sh 14 32 1
+./newMotifsSR.sh 14 33 1
+./newMotifsSR.sh 14 34 1
+./newMotifsSR.sh 14 35 1
+./newMotifsSR.sh 14 36 1
+./newMotifsSR.sh 14 37 1
+./newMotifsSR.sh 14 38 1
+./newMotifsSR.sh 14 39 1
+./newMotifsSR.sh 14 40 1
+./newMotifsSR.sh 14 41 1
+./newMotifsSR.sh 14 42 1
+./newMotifsSR.sh 14 43 1
+./newMotifsSR.sh 14 44 1
+./newMotifsSR.sh 14 45 1
+./newMotifsSR.sh 14 46 1
+./newMotifsSR.sh 14 47 1
+./newMotifsSR.sh 14 48 1
+./newMotifsSR.sh 14 49 1
+./newMotifsSR.sh 14 50 1
+./newMotifsSR.sh 14 51 1
+./newMotifsSR.sh 14 52 1
+./newMotifsSR.sh 14 53 1
+./newMotifsSR.sh 14 54 1
+./newMotifsSR.sh 14 55 1
+./newMotifsSR.sh 14 56 1
+./newMotifsSR.sh 14 57 1
+./newMotifsSR.sh 14 58 1
+./newMotifsSR.sh 14 59 1
+./newMotifsSR.sh 14 60 1
+./newMotifsSR.sh 14 61 1
+./newMotifsSR.sh 14 62 1
+./newMotifsSR.sh 14 63 1
+./newMotifsSR.sh 14 64 1
+./newMotifsSR.sh 14 65 1
+./newMotifsSR.sh 14 66 1
+./newMotifsSR.sh 14 67 1
+./newMotifsSR.sh 14 68 1
+./newMotifsSR.sh 14 69 1
+./newMotifsSR.sh 14 70 1
+./newMotifsSR.sh 14 71 1
+./newMotifsSR.sh 14 72 1
+./newMotifsSR.sh 14 73 1
+./newMotifsSR.sh 14 74 1
+./newMotifsSR.sh 14 75 1
+./newMotifsSR.sh 14 76 1
+./newMotifsSR.sh 14 77 1
+./newMotifsSR.sh 14 78 1
+./newMotifsSR.sh 14 79 1
+./newMotifsSR.sh 14 80 1
+./newMotifsSR.sh 14 81 1
+./newMotifsSR.sh 14 82 1
+./newMotifsSR.sh 14 83 1
+./newMotifsSR.sh 14 84 1
+./newMotifsSR.sh 14 85 1
+./newMotifsSR.sh 14 86 1
+./newMotifsSR.sh 14 87 1
+./newMotifsSR.sh 14 88 1
+./newMotifsSR.sh 14 89 1
+./newMotifsSR.sh 14 90 1
+./newMotifsSR.sh 14 91 1
+./newMotifsSR.sh 14 92 1
+./newMotifsSR.sh 14 93 1
+./newMotifsSR.sh 14 94 1
+./newMotifsSR.sh 14 95 1
+./newMotifsSR.sh 14 96 1
+./newMotifsSR.sh 14 97 1
+./newMotifsSR.sh 14 98 1
+./newMotifsSR.sh 14 99 1
+./newMotifsSR.sh 14 100 1
+./newMotifsSR.sh 14 101 1
+./newMotifsSR.sh 14 102 1
+./newMotifsSR.sh 14 103 1
+./newMotifsSR.sh 14 104 1
+./newMotifsSR.sh 14 105 1
+./newMotifsSR.sh 14 106 1
+./newMotifsSR.sh 14 107 1
+./newMotifsSR.sh 14 108 1
+./newMotifsSR.sh 14 109 1
+./newMotifsSR.sh 14 110 1
+./newMotifsSR.sh 14 111 1
+./newMotifsSR.sh 14 112 1
+./newMotifsSR.sh 14 113 1
+./newMotifsSR.sh 14 114 1
+./newMotifsSR.sh 14 115 1
+./newMotifsSR.sh 14 116 1
+./newMotifsSR.sh 14 117 1
+./newMotifsSR.sh 14 118 1
+./newMotifsSR.sh 14 119 1
+./newMotifsSR.sh 14 120 1
+./newMotifsSR.sh 14 121 1
+./newMotifsSR.sh 14 122 1
+./newMotifsSR.sh 14 123 1
+./newMotifsSR.sh 14 124 1
+./newMotifsSR.sh 14 125 1
+./newMotifsSR.sh 14 126 1
+./newMotifsSR.sh 14 127 1
+./newMotifsSR.sh 14 128 1
+./newMotifsSR.sh 14 129 1
+./newMotifsSR.sh 14 130 1
+./newMotifsSR.sh 14 131 1
+./newMotifsSR.sh 14 132 1
+./newMotifsSR.sh 14 133 1
+./newMotifsSR.sh 14 134 1
+./newMotifsSR.sh 14 135 1
+./newMotifsSR.sh 14 136 1
+./newMotifsSR.sh 14 137 1
+./newMotifsSR.sh 14 138 1
+./newMotifsSR.sh 14 139 1
+./newMotifsSR.sh 14 140 1
+./newMotifsSR.sh 14 141 1
+./newMotifsSR.sh 14 142 1
+./newMotifsSR.sh 14 143 1
+./newMotifsSR.sh 14 144 1
+./newMotifsSR.sh 14 145 1
+./newMotifsSR.sh 14 146 1
+./newMotifsSR.sh 14 147 1
+./newMotifsSR.sh 14 148 1
+./newMotifsSR.sh 14 149 1
+./newMotifsSR.sh 14 150 1
+./newMotifsSR.sh 14 151 1
+./newMotifsSR.sh 14 152 1
+./newMotifsSR.sh 14 153 1
+./newMotifsSR.sh 14 154 1
+./newMotifsSR.sh 14 155 1
+./newMotifsSR.sh 14 156 1
+./newMotifsSR.sh 14 157 1
+./newMotifsSR.sh 14 158 1
+./newMotifsSR.sh 14 159 1
+./newMotifsSR.sh 14 160 1
+./newMotifsSR.sh 14 161 1
+./newMotifsSR.sh 14 162 1
+./newMotifsSR.sh 14 163 1
+./newMotifsSR.sh 14 164 1
+./newMotifsSR.sh 14 165 1
+./newMotifsSR.sh 14 166 1
+./newMotifsSR.sh 14 167 1
+./newMotifsSR.sh 14 168 1
+./newMotifsSR.sh 14 169 1
+./newMotifsSR.sh 14 170 1
+./newMotifsSR.sh 14 171 1
+./newMotifsSR.sh 14 172 1
+./newMotifsSR.sh 14 173 1
+./newMotifsSR.sh 14 174 1
+./newMotifsSR.sh 14 175 1
+./newMotifsSR.sh 14 176 1
+./newMotifsSR.sh 14 177 1
+./newMotifsSR.sh 14 178 1
+./newMotifsSR.sh 14 179 1
+./newMotifsSR.sh 14 180 1
+./newMotifsSR.sh 14 181 1
+./newMotifsSR.sh 14 182 1
+./newMotifsSR.sh 14 183 1
+./newMotifsSR.sh 14 184 1
+./newMotifsSR.sh 14 185 1
+./newMotifsSR.sh 14 186 1
+./newMotifsSR.sh 14 187 1
+./newMotifsSR.sh 14 188 1
+./newMotifsSR.sh 14 189 1
+./newMotifsSR.sh 14 190 1
+./newMotifsSR.sh 14 191 1
+./newMotifsSR.sh 14 192 1
+./newMotifsSR.sh 14 193 1
+./newMotifsSR.sh 14 194 1
+./newMotifsSR.sh 14 195 1
+./newMotifsSR.sh 14 196 1
+./newMotifsSR.sh 14 197 1
+./newMotifsSR.sh 14 198 1
+./newMotifsSR.sh 14 199 1
+./newMotifsSR.sh 14 200 1
+./newMotifsSR.sh 14 201 1
+./newMotifsSR.sh 14 202 1
+./newMotifsSR.sh 14 203 1
+./newMotifsSR.sh 14 204 1
+./newMotifsSR.sh 14 205 1
+./newMotifsSR.sh 14 206 1
+./newMotifsSR.sh 14 207 1
+./newMotifsSR.sh 14 208 1
+./newMotifsSR.sh 15 1 1
+./newMotifsSR.sh 15 2 1
+./newMotifsSR.sh 15 3 1
+./newMotifsSR.sh 15 4 1
+./newMotifsSR.sh 15 5 1
+./newMotifsSR.sh 15 6 1
+./newMotifsSR.sh 15 7 1
+./newMotifsSR.sh 15 8 1
+./newMotifsSR.sh 15 9 1
+./newMotifsSR.sh 15 10 1
+./newMotifsSR.sh 15 11 1
+./newMotifsSR.sh 15 12 1
+./newMotifsSR.sh 15 13 1
+./newMotifsSR.sh 15 14 1
+./newMotifsSR.sh 15 15 1
+./newMotifsSR.sh 15 16 1
+./newMotifsSR.sh 15 17 1
+./newMotifsSR.sh 15 18 1
+./newMotifsSR.sh 15 19 1
+./newMotifsSR.sh 15 20 1
+./newMotifsSR.sh 15 21 1
+./newMotifsSR.sh 15 22 1
+./newMotifsSR.sh 15 23 1
+./newMotifsSR.sh 15 24 1
+./newMotifsSR.sh 15 25 1
+./newMotifsSR.sh 15 26 1
+./newMotifsSR.sh 15 27 1
+./newMotifsSR.sh 15 28 1
+./newMotifsSR.sh 15 29 1
+./newMotifsSR.sh 15 30 1
+./newMotifsSR.sh 15 31 1
+./newMotifsSR.sh 15 32 1
+./newMotifsSR.sh 15 33 1
+./newMotifsSR.sh 15 34 1
+./newMotifsSR.sh 15 35 1
+./newMotifsSR.sh 15 36 1
+./newMotifsSR.sh 15 37 1
+./newMotifsSR.sh 15 38 1
+./newMotifsSR.sh 15 39 1
+./newMotifsSR.sh 15 40 1
+./newMotifsSR.sh 15 41 1
+./newMotifsSR.sh 15 42 1
+./newMotifsSR.sh 15 43 1
+./newMotifsSR.sh 15 44 1
+./newMotifsSR.sh 15 45 1
+./newMotifsSR.sh 15 46 1
+./newMotifsSR.sh 15 47 1
+./newMotifsSR.sh 15 48 1
+./newMotifsSR.sh 15 49 1
+./newMotifsSR.sh 15 50 1
+./newMotifsSR.sh 15 51 1
+./newMotifsSR.sh 15 52 1
+./newMotifsSR.sh 15 53 1
+./newMotifsSR.sh 15 54 1
+./newMotifsSR.sh 15 55 1
+./newMotifsSR.sh 15 56 1
+./newMotifsSR.sh 15 57 1
+./newMotifsSR.sh 15 58 1
+./newMotifsSR.sh 15 59 1
+./newMotifsSR.sh 15 60 1
+./newMotifsSR.sh 15 61 1
+./newMotifsSR.sh 15 62 1
+./newMotifsSR.sh 15 63 1
+./newMotifsSR.sh 15 64 1
+./newMotifsSR.sh 15 65 1
+./newMotifsSR.sh 15 66 1
+./newMotifsSR.sh 15 67 1
+./newMotifsSR.sh 15 68 1
+./newMotifsSR.sh 15 69 1
+./newMotifsSR.sh 15 70 1
+./newMotifsSR.sh 15 71 1
+./newMotifsSR.sh 15 72 1
+./newMotifsSR.sh 15 73 1
+./newMotifsSR.sh 15 74 1
+./newMotifsSR.sh 15 75 1
+./newMotifsSR.sh 15 76 1
+./newMotifsSR.sh 15 77 1
+./newMotifsSR.sh 15 78 1
+./newMotifsSR.sh 15 79 1
+./newMotifsSR.sh 15 80 1
+./newMotifsSR.sh 15 81 1
+./newMotifsSR.sh 15 82 1
+./newMotifsSR.sh 15 83 1
+./newMotifsSR.sh 15 84 1
+./newMotifsSR.sh 15 85 1
+./newMotifsSR.sh 15 86 1
+./newMotifsSR.sh 15 87 1
+./newMotifsSR.sh 15 88 1
+./newMotifsSR.sh 15 89 1
+./newMotifsSR.sh 15 90 1
+./newMotifsSR.sh 15 91 1
+./newMotifsSR.sh 15 92 1
+./newMotifsSR.sh 15 93 1
+./newMotifsSR.sh 15 94 1
+./newMotifsSR.sh 15 95 1
+./newMotifsSR.sh 15 96 1
+./newMotifsSR.sh 15 97 1
+./newMotifsSR.sh 15 98 1
+./newMotifsSR.sh 15 99 1
+./newMotifsSR.sh 15 100 1
+./newMotifsSR.sh 15 101 1
+./newMotifsSR.sh 15 102 1
+./newMotifsSR.sh 15 103 1
+./newMotifsSR.sh 15 104 1
+./newMotifsSR.sh 15 105 1
+./newMotifsSR.sh 15 106 1
+./newMotifsSR.sh 15 107 1
+./newMotifsSR.sh 15 108 1
+./newMotifsSR.sh 15 109 1
+./newMotifsSR.sh 15 110 1
+./newMotifsSR.sh 15 111 1
+./newMotifsSR.sh 15 112 1
+./newMotifsSR.sh 15 113 1
+./newMotifsSR.sh 15 114 1
+./newMotifsSR.sh 15 115 1
+./newMotifsSR.sh 15 116 1
+./newMotifsSR.sh 15 117 1
+./newMotifsSR.sh 15 118 1
+./newMotifsSR.sh 15 119 1
+./newMotifsSR.sh 15 120 1
+./newMotifsSR.sh 15 121 1
+./newMotifsSR.sh 15 122 1
+./newMotifsSR.sh 15 123 1
+./newMotifsSR.sh 15 124 1
+./newMotifsSR.sh 15 125 1
+./newMotifsSR.sh 15 126 1
+./newMotifsSR.sh 15 127 1
+./newMotifsSR.sh 15 128 1
+./newMotifsSR.sh 15 129 1
+./newMotifsSR.sh 15 130 1
+./newMotifsSR.sh 15 131 1
+./newMotifsSR.sh 15 132 1
+./newMotifsSR.sh 15 133 1
+./newMotifsSR.sh 15 134 1
+./newMotifsSR.sh 15 135 1
+./newMotifsSR.sh 15 136 1
+./newMotifsSR.sh 15 137 1
+./newMotifsSR.sh 15 138 1
+./newMotifsSR.sh 15 139 1
+./newMotifsSR.sh 15 140 1
+./newMotifsSR.sh 15 141 1
+./newMotifsSR.sh 15 142 1
+./newMotifsSR.sh 15 143 1
+./newMotifsSR.sh 15 144 1
+./newMotifsSR.sh 15 145 1
+./newMotifsSR.sh 15 146 1
+./newMotifsSR.sh 15 147 1
+./newMotifsSR.sh 15 148 1
+./newMotifsSR.sh 15 149 1
+./newMotifsSR.sh 15 150 1
+./newMotifsSR.sh 15 151 1
+./newMotifsSR.sh 15 152 1
+./newMotifsSR.sh 15 153 1
+./newMotifsSR.sh 15 154 1
+./newMotifsSR.sh 15 155 1
+./newMotifsSR.sh 15 156 1
+./newMotifsSR.sh 15 157 1
+./newMotifsSR.sh 15 158 1
+./newMotifsSR.sh 15 159 1
+./newMotifsSR.sh 15 160 1
+./newMotifsSR.sh 15 161 1
+./newMotifsSR.sh 15 162 1
+./newMotifsSR.sh 15 163 1
+./newMotifsSR.sh 15 164 1
+./newMotifsSR.sh 15 165 1
+./newMotifsSR.sh 15 166 1
+./newMotifsSR.sh 15 167 1
+./newMotifsSR.sh 15 168 1
+./newMotifsSR.sh 15 169 1
+./newMotifsSR.sh 15 170 1
+./newMotifsSR.sh 15 171 1
+./newMotifsSR.sh 15 172 1
+./newMotifsSR.sh 15 173 1
+./newMotifsSR.sh 15 174 1
+./newMotifsSR.sh 15 175 1
+./newMotifsSR.sh 15 176 1
+./newMotifsSR.sh 15 177 1
+./newMotifsSR.sh 15 178 1
+./newMotifsSR.sh 15 179 1
+./newMotifsSR.sh 15 180 1
+./newMotifsSR.sh 15 181 1
+./newMotifsSR.sh 15 182 1
+./newMotifsSR.sh 15 183 1
+./newMotifsSR.sh 15 184 1
+./newMotifsSR.sh 15 185 1
+./newMotifsSR.sh 15 186 1
+./newMotifsSR.sh 15 187 1
+./newMotifsSR.sh 15 188 1
+./newMotifsSR.sh 15 189 1
+./newMotifsSR.sh 15 190 1
+./newMotifsSR.sh 15 191 1
+./newMotifsSR.sh 15 192 1
+./newMotifsSR.sh 15 193 1
+./newMotifsSR.sh 15 194 1
+./newMotifsSR.sh 15 195 1
+./newMotifsSR.sh 15 196 1
+./newMotifsSR.sh 15 197 1
+./newMotifsSR.sh 15 198 1
+./newMotifsSR.sh 15 199 1
+./newMotifsSR.sh 15 200 1
+./newMotifsSR.sh 15 201 1
+./newMotifsSR.sh 15 202 1
+./newMotifsSR.sh 15 203 1
+./newMotifsSR.sh 15 204 1
+./newMotifsSR.sh 15 205 1
+./newMotifsSR.sh 15 206 1
+./newMotifsSR.sh 15 207 1
+./newMotifsSR.sh 15 208 1
