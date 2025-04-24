@@ -266,7 +266,6 @@ mutationEffect(m13) {
 	defineGlobal("traitShiftDir", getRandomTraitShiftDirection(size(startTraits)));
 	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
 		
-	
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
 	// s2: Shift optimum, end the simulation and write/move output files 
@@ -276,7 +275,7 @@ mutationEffect(m13) {
 	// Script blocks for reproduction callbacks: burn-in vs test period
 	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
 	community.rescheduleScriptBlock(s4, start = burnTime+1, end = burnTime + testTime);
-	
+
 	// Diagnostics for this run
 	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
 	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
@@ -433,7 +432,7 @@ s2 late() {
 	}
 
 	// Write LD info
-	if (sim.cycle % sharedMutSampling != 0) {
+	if (sim.cycle % sharedMutSampling == 0) {
 		writeSharedMutFreqs(p1);
 	}
 
