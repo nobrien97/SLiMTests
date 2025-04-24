@@ -1,0 +1,15 @@
+./epistasisDensitySR.sh 1
+./epistasisDensitySR.sh 2
+./epistasisDensitySR.sh 3
+./epistasisDensitySR.sh 4
+./epistasisDensitySR.sh 5
+./epistasisDensitySR.sh 6
+./epistasisDensitySR.sh 7
+./epistasisDensitySR.sh 8
+./epistasisDensitySR.sh 9
+./epistasisDensitySR.sh 10
+./epistasisDensitySR.sh 11
+./epistasisDensitySR.sh 12
+./epistasisDensitySR.sh 13
+./epistasisDensitySR.sh 14
+./epistasisDensitySR.sh 15
