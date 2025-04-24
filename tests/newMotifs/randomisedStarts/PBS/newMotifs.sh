@@ -76,9 +76,9 @@ if [ $CUR_MAX -gt $CUR_TOT ]; then
     CUR_MAX=$CUR_TOT
 fi
 
-sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
+sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH_${NJOB}.txt
 
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH_${NJOB}.txt --timeout 172800
 
 $ECHO "All jobs finished, moving output..."
 
