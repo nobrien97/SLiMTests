@@ -286,7 +286,8 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
                 wb = numeric(output_len),
                 wab = numeric(output_len),
                 wwt = numeric(output_len),
-                ew = numeric(output_len))
+                ew = numeric(output_len),
+                ew_s = numeric(output_len))
   
   # Pivot wider for easier access to fixed effects for the result vector
   fixEffectDat <- fixEffectDat %>% 
@@ -433,7 +434,13 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     result$wb <- d_b$fitness
     result$wab <- d_ab$fitness
     result$wwt <- d_wildtype$fitness
-    
+
+    # Alternative epistasis function
+    sAB <- log(result$wab) - log(result$wwt) 
+    sA <- log(result$wa) - log(result$wwt) 
+    sB <- log(result$wb) - log(result$wwt) 
+    result$ew_s <- sAB - (sA + sB)
+
     result$ew <- log(result$wab) - (log(result$wa) + log(result$wb))
     
     # Fill output: figure out which range of the output vector to fill
@@ -441,7 +448,7 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     
     out[thisIterRange,] <- result %>%
       ungroup() %>%
-      dplyr::select(gen, seed, modelindex, mutType_ab, wa, wb, wab, wwt, ew)
+      dplyr::select(gen, seed, modelindex, mutType_ab, wa, wb, wab, wwt, ew, ew_s)
 
     # pb$tick(1)
     j <- j + 1
