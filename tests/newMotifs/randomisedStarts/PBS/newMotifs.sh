@@ -85,27 +85,27 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$FULLJOBNAME/
 
-cat ./slim_pos*_${NJOB} >> $SAVEDIR/slim_pos_${NJOB}.csv
-cat ./slim_opt*_${NJOB} >> $SAVEDIR/slim_opt_${NJOB}.csv
-cat ./slim_muts*_${NJOB} >> $SAVEDIR/slim_muts_${NJOB}.csv
-cat ./slim_qg*_${NJOB} >> $SAVEDIR/slim_qg_${NJOB}.csv
-cat ./slim_indPheno*_${NJOB} >> $SAVEDIR/slim_indPheno_${NJOB}.csv
-cat ./slim_haplo_fix*_${NJOB} >> $SAVEDIR/slim_haplo_fix_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_pos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_pos_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_opt[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_opt_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_muts[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_muts_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_qg[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_qg_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_indPheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_indPheno_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_fix_${NJOB}.csv
 # Remove haplo fix before we collect regular haplos - otherwise they get stuck to the end of the file
-rm ./slim_haplo_fix*_${NJOB}
-cat ./slim_haplo*_${NJOB} >> $SAVEDIR/slim_haplo_${NJOB}.csv
-cat ./slim_sampled_pheno*_${NJOB} >> $SAVEDIR/slim_sampled_pheno_${NJOB}.csv
-cat ./slim_sampled_moltrait*_${NJOB} >> $SAVEDIR/slim_sampled_moltrait_${NJOB}.csv
-cat ./slim_fx*_${NJOB} >> $SAVEDIR/slim_fx_${NJOB}.csv
-cat ./slim_locusHo*_${NJOB} >> $SAVEDIR/slim_locusHo_${NJOB}.csv
-cat ./slim_PMmat*_${NJOB} >> $SAVEDIR/slim_PMmat_${NJOB}.csv
-cat ./slim_relPos*_${NJOB} >> $SAVEDIR/slim_relPos_${NJOB}.csv
-cat ./slim_relVals*_${NJOB} >> $SAVEDIR/slim_relVals_${NJOB}.csv
-cat ./slim_sharedmutfreqs*_${NJOB} >> $SAVEDIR/slim_sharedmutfreqs_${NJOB}.csv
+rm $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}")
+cat $(ls -1 | grep -E "slim_haplo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sampled_pheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_pheno_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sampled_moltrait[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_moltrait_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_fx[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_fx_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_locusHo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_locusHo_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_PMmat[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_PMmat_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_relPos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relPos_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_relVals[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relVals_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sharedmutfreqs[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sharedmutfreqs_${NJOB}.csv
 
 # Save population state
 mkdir -p $SAVEDIR/popstates
-mv ./slim_popstate*_${NJOB} $SAVEDIR/popstates
+mv $(ls -1 | grep -E "slim_popstate[0-9]+_[0-9]+_${NJOB}") $SAVEDIR/popstates
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]+_[0-9]+_${NJOB}.csv+" -delete
