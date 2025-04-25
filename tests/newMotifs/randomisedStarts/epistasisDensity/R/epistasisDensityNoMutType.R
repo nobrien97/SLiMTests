@@ -31,33 +31,15 @@ if (nrow(d_epistasis) < 1) {
   q(save = "no")
 }
 
-# if additive, we need to rearrange some of the data since it wasn't stored correctly:
-# mutType_ab is not right and everything needs to be shifted
-isAdditive <- ((model - 1) %% 3 == 0)
-
-if (isAdditive) {
-  d_epistasis <- d_epistasis %>%
-    mutate(ep = ew,
-           ew = Pab,
-           Pab = Pb,
-           Pb = Pa,
-           Pa = Pwt,
-           Pwt = wab,
-           wab = wb,
-           wb = wa,
-           wa = as.numeric(mutType_ab),
-           mutType_ab = "3_3")
-}
-
 # Add optPerc labels to use instead of gen
 dpdt <- read.csv(paste0(GDATA_PATH, "d_dpdt.csv"), header = F)
 dpdt <- dpdt %>% filter(V2 == model)
-d_epistasis$optPerc <- rep(dpdt$V1, each = nrow(d_epistasis)/nrow(dpdt))
+d_epistasis$timePoint <- rep(dpdt$V1, each = nrow(d_epistasis)/nrow(dpdt))
 
 # Calculate density for each optPerc across Pa - Pwt, Pb - Pwt, Pab - Pwt, ew, ep
 # and across log fitness
 d_epistasis %>% 
-  nest_by(optPerc, modelindex) %>%
+  nest_by(timePoint, modelindex) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
@@ -83,25 +65,10 @@ d_epistasis_freq <- tbl(con, "tab_epistasis_freq") %>%
   filter(modelindex == model) %>%
   collect()
 
-# Same problem with mutType_ab being wrong
-if (isAdditive) {
-  d_epistasis_freq <- d_epistasis_freq %>%
-    mutate(ep = ew,
-           ew = Pab,
-           Pab = Pb,
-           Pb = Pa,
-           Pa = Pwt,
-           Pwt = wab,
-           wab = wb,
-           wb = wa,
-           wa = as.numeric(mutType_ab),
-           mutType_ab = "3_3")
-}
-
-d_epistasis_freq$optPerc <- rep(dpdt$V1, each = nrow(d_epistasis_freq)/nrow(dpdt))
+d_epistasis_freq$timePoint <- rep(dpdt$V1, each = nrow(d_epistasis_freq)/nrow(dpdt))
 
 d_epistasis_freq %>% 
-  nest_by(optPerc, modelindex) %>%
+  nest_by(timePoint, modelindex) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
