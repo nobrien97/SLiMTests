@@ -12,6 +12,7 @@ CREATE TABLE tab_epistasis(
     wab             REAL,
     wwt             REAL,
     ew              REAL,
+    ew_s            REAL
 );
 
 .mode csv
@@ -27,6 +28,7 @@ CREATE TABLE tab_epistasis_freq(
     wab             REAL,
     wwt             REAL,
     ew              REAL,
+    ew_s            REAL
 );
 
 .mode csv
