@@ -87,7 +87,7 @@ $ECHO "All jobs finished, moving output..."
 cd /scratch/ht96/nb9894/$TOTALJOBNAME
 
 cat ./d_epistasis_s_* >> $SAVEDIR/d_epistasis_s.csv
-cat ./d_freqweight_s_* >> $SAVEDIR/d_epistasis_s_freqweight.csv
+cat ./d_freqweight_epistasis_s_* >> $SAVEDIR/d_epistasis_s_freqweight.csv
 
 # 
 # Check the exit status
