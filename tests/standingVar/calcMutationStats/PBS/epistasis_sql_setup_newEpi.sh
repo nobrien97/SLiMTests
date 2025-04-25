@@ -17,7 +17,7 @@ RUNDIR=/iointensive
 cd $PBS_O_WORKDIR
 
 # Loads data into data frame and attaches indices
-cat ./load_data_newEpi.sql | $SQLITE3 $RUNDIR/epistasis.db 2>/dev/null
-cat ./add_indices_newEpi.sql | $SQLITE3 $RUNDIR/epistasis.db 2>/dev/null
+cat ./load_data_newEpi.sql | $SQLITE3 $RUNDIR/epistasis_newEpi.db 2>/dev/null
+cat ./add_indices_newEpi.sql | $SQLITE3 $RUNDIR/epistasis_newEpi.db 2>/dev/null
 
-mv $RUNDIR/epistasis.db* $SAVEDIR
+mv $RUNDIR/epistasis_newEpi.db* $SAVEDIR
