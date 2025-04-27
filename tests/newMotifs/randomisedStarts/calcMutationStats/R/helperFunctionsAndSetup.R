@@ -405,9 +405,9 @@ PairwiseEpistasisNetwork <- function(dat_fixed, muts, dat_opt, n = 1000, m = 10,
     
     # Run landscaper
     data.table::fwrite(d_landscaper, 
-                paste0("d_grid", model_num, ".csv"), sep = ",", col.names = F, row.names = F)
-    d_phenos <- runLandscaper(paste0("d_grid", model_num, ".csv"), paste0("data_popfx", model_num, ".csv"), 
-                  paste0("d_grid_opt", model_num, ".csv"), model_string, 12, TRUE)
+                paste0("d_grid", model_comp, ".csv"), sep = ",", col.names = F, row.names = F)
+    d_phenos <- runLandscaper(paste0("d_grid", model_comp, ".csv"), paste0("data_popfx", model_comp, ".csv"), 
+                  paste0("d_grid_opt", model_comp, ".csv"), model_string, 12, TRUE)
     
   
     # Ensure that the tables are aligned by id before we join them
