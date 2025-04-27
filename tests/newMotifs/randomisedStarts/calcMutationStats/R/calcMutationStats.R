@@ -43,11 +43,10 @@ d_qg <- tbl(con, "slim_qg") %>%
   ungroup()
 d_qg <- d_qg %>% collect()
 
-# Measure at start and end of adaptive walk
+# Measure every thousand generations
 d_qg <- d_qg %>%
-filter(gen == 50000 | gen == 60000) %>%
-  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
-         timePoint = factor(timePoint, levels = c("Start", "End")))
+filter(gen >= 50000 & gen %% 1000 == 0) %>%
+  mutate(timePoint = factor(gen))
 
 # Mutation data
 d_muts <- tbl(con, "slim_muts") %>% 
