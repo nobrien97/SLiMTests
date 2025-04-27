@@ -50,7 +50,7 @@ filter(gen >= 50000 & gen %% 1000 == 0) %>%
 
 # Mutation data
 d_muts <- tbl(con, "slim_muts") %>% 
-  filter(modelindex == model, gen >= 49500) %>%
+  filter(modelindex == model, gen >= 49500 & gen %% 1000 == 0) %>%
   select(!c(pos))
 d_muts <- d_muts %>% collect()
 
@@ -69,6 +69,7 @@ d_qg$modelindex <- as.factor(d_qg$modelindex)
 # dP/dt
 sampleRate <- 50 # sample every 50 generations, so divide deltaP by 50
 d_qg %>%
+  distinct() %>%
   mutate(dPdT = deltaPheno / sampleRate) -> d_dpdt
 
 # Mean change within each of these groups
@@ -134,8 +135,9 @@ d_opt <- data.table::fread(paste0(GDATA_PATH, "slim_opt.csv"), header = F,
 # We are running this on multiple seeds which have their own optima
 d_opt <- d_opt %>% filter(modelindex == model)
 
-d_phenofx <- CalcPhenotypeEffects(d_com %>% filter(is.na(fixGen)),
-                                  d_fixed, d_opt)
+d_phenofx <- CalcPhenotypeEffects(d_com %>% filter(is.na(fixGen)) %>% distinct(),
+                                  d_fixed %>% distinct(), 
+                                  d_opt %>% distinct())
 
 d_phenofx <- d_phenofx %>%
   select(gen, seed, modelindex, mutType, mutID, s)

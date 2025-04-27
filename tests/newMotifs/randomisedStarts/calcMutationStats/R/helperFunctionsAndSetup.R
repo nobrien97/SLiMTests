@@ -97,7 +97,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   dat <- dat %>%
     mutate(mutType2 = mutType) %>%
     pivot_wider(names_from = mutType2, values_from = value,
-                names_glue = "{.value}_{mutType2}", values_fill = 0)    
+                names_glue = "{.value}_{mutType2}", values_fill = 0)
   
   # Reorder columns
   ordered_value_cols <- dat %>%
@@ -216,12 +216,12 @@ WriteOptimumInputTable <- function(dat_opt, dat) {
   model_num <- as.character(dat$modelindex[1])
   dat_opt <- dat_opt %>% filter(as.character(modelindex) == model_num) 
   
-
-  exclude_indices <- GetModelInvalidTraitIndices(dat$model[1])
-  exclude_indices <- paste0("trait", exclude_indices)
-
-  # Filter out the unneeded traits for non-FFBH models
-  dat_opt <- dat_opt %>% select(!starts_with(exclude_indices))
+  if (dat$model[1] != "FFBH") {
+    exclude_indices <- GetModelInvalidTraitIndices(dat$model[1])
+    exclude_indices <- paste0("trait", exclude_indices)
+    # Filter out the unneeded traits for non-FFBH models
+    dat_opt <- dat_opt %>% select(!starts_with(exclude_indices))
+  }
 
   # Attach opt and sigma to the dataframe, match by seed and modelindex
   dat <- dat %>% inner_join(dat_opt, by = c("seed", "modelindex", "model", "r"))
