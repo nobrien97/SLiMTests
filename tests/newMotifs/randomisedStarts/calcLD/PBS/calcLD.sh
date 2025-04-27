@@ -16,7 +16,7 @@ JOBNAME=newMotifs/randomisedStarts/calcLD
 #   NJOB is the number of the current job in the sequence (defaults to 0)
 #   Each cmds.txt row is a row in slim_sharedmutfreqs.csv
 #   wc -l slim_sharedmutfreqs.csv = 37956
-#   split into 4 for 9789 per run (i.e. NJOBS=3)
+#   split into 12 for 3163 per run (i.e. NJOBS=11)
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
