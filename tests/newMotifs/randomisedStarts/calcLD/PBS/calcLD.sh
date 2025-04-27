@@ -14,7 +14,9 @@ JOBNAME=newMotifs/randomisedStarts/calcLD
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
-#   For this job, NJOBS should = 3
+#   Each cmds.txt row is a row in slim_sharedmutfreqs.csv
+#   wc -l slim_sharedmutfreqs.csv = 37956
+#   split into 4 for 9789 per run (i.e. NJOBS=3)
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -65,11 +67,14 @@ export ncores_per_task=1
 export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
-# CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
+# Split into NJOBS instead of number of cores
+
+
 CMDS_PATH=$HOME/tests/$JOBNAME/PBS/cmds.txt
 CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+CUR_PER=$(($CUR_TOT / $NJOBS))
+CUR_MIN=$(($NJOB*$CUR_PER+1))
+CUR_MAX=$((($NJOB+1)*$CUR_PER))
 
 if [ $CUR_MAX -gt $CUR_TOT ]; then
     CUR_MAX=$CUR_TOT
