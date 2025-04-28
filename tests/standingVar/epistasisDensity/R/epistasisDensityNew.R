@@ -23,7 +23,7 @@ EPISTASIS_WEIGHTED_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_mean_newEpi
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       dbname = paste0(GDATA_PATH, "epistasis_newEpi.db"))
 
-d_epistasis <- tbl(con, "tab_epistasis") %>% 
+d_epistasis <- tbl(con, "tab_epistasis_new_epi") %>% 
   filter(modelindex == model) %>%
   collect()
 
@@ -93,7 +93,7 @@ data.table::fwrite(d_epistasis_mean,
 rm(d_epistasis)
 
 # Repeat for frequency-weighted data
-d_epistasis_freq <- tbl(con, "tab_epistasis_freq") %>% 
+d_epistasis_freq <- tbl(con, "tab_epistasis_freq_new_epi") %>% 
   filter(modelindex == model) %>%
   collect()
 
