@@ -16,8 +16,12 @@ GDATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/calcMutationStats/
 WRITE_PATH <- "/scratch/ht96/nb9894/newMotifs/randomisedStarts/epistasisDensity/"
 EPISTASIS_DENSITY_FILE <- paste0(WRITE_PATH, "d_epi_density", model, ".csv")
 EPISTASIS_WEIGHTED_DENSITY_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_density", model, ".csv")
+EPISTASIS_NOMOLCOMP_DENSITY_FILE <- paste0(WRITE_PATH, "d_epi_nomolcomp_density", model, ".csv")
+EPISTASIS_WEIGHTED_NOMOLCOMP_DENSITY_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_nomolcomp_density", model, ".csv")
 EPISTASIS_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_mean", model, ".csv")
 EPISTASIS_WEIGHTED_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_mean", model, ".csv")
+EPISTASIS_NOMOLCOMP_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_nomolcomp_mean", model, ".csv")
+EPISTASIS_WEIGHTED_NOMOLCOMP_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_nomolcomp_mean", model, ".csv")
 
 # extract the model from the database
 con <- DBI::dbConnect(RSQLite::SQLite(), 
@@ -45,31 +49,61 @@ d_epistasis %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
-         Pa = list(data.frame(density(data$Pa - data$Pwt)[c("x", "y")])),
-         Pb = list(data.frame(density(data$Pb - data$Pwt)[c("x", "y")])),
-         Pab = list(data.frame(density(data$Pab - data$Pwt)[c("x", "y")])),
+         wwt = list(data.frame(density(log(data$wwt))[c("x", "y")])),
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
-         ep = list(data.frame(density(data$ep)[c("x", "y")]))) %>%
+         ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
   unnest(cols = c(wa, wb, wab, 
                   Pa, Pb, Pab,
                   ew, ep), names_sep = "_") -> d_epistasis_density
 
+# No molcomp
+d_epistasis %>% 
+  nest_by(timePoint, modelindex) %>%
+  mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
+         wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
+         wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
+         wwt = list(data.frame(density(log(data$wwt))[c("x", "y")])),
+         ew = list(data.frame(density(data$ew)[c("x", "y")])),
+         ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
+  select(-data) %>% 
+  unnest(cols = c(wa, wb, wab, 
+                  Pa, Pb, Pab,
+                  ew, ep), names_sep = "_") -> d_epistasis_density_nomolcomp
+
+
 # Mean: compare the mean epistasis between models to pick the models to compare
 # in density curves
+
+d_epistasis %>%
+  group_by(timePoint, modelindex, mutType_ab) %>%
+  summarise(meanEP = mean(ep),
+            sdEP = sd(ep),
+            meanEW = mean(ew),
+            sdEW = sd(ew),
+            meanEW_s = mean(ew_s),
+            sdEW_s = sd(ew_s),
+            n = n()) -> d_epistasis_mean
+
 d_epistasis %>%
   group_by(timePoint, modelindex) %>%
   summarise(meanEP = mean(ep),
             sdEP = sd(ep),
             meanEW = mean(ew),
             sdEW = sd(ew),
-            n = n()) -> d_epistasis_mean
+            meanEW_s = mean(ew_s),
+            sdEW_s = sd(ew_s),
+            n = n()) -> d_epistasis_mean_nomolcomp
 
 # write
 data.table::fwrite(d_epistasis_density,
                    EPISTASIS_DENSITY_FILE, sep = ",", col.names = F, row.names = F)
 data.table::fwrite(d_epistasis_mean,
                    EPISTASIS_MEAN_FILE, sep = ",", col.names = F, row.names = F)
+data.table::fwrite(d_epistasis_density_nomolcomp,
+                   EPISTASIS_NOMOLCOMP_DENSITY_FILE, sep = ",", col.names = F, row.names = F)
+data.table::fwrite(d_epistasis_mean_nomolcomp,
+                   EPISTASIS_NOMOLCOMP_MEAN_FILE, sep = ",", col.names = F, row.names = F)
 
 
 rm(d_epistasis)
@@ -86,15 +120,38 @@ d_epistasis_freq %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
-         Pa = list(data.frame(density(data$Pa - data$Pwt)[c("x", "y")])),
-         Pb = list(data.frame(density(data$Pb - data$Pwt)[c("x", "y")])),
-         Pab = list(data.frame(density(data$Pab - data$Pwt)[c("x", "y")])),
+         wwt = list(data.frame(density(log(data$wwt))[c("x", "y")])),
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
-         ep = list(data.frame(density(data$ep)[c("x", "y")]))) %>%
+         ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
   unnest(cols = c(wa, wb, wab, 
                   Pa, Pb, Pab,
                   ew, ep), names_sep = "_") -> d_epistasis_density
+
+# No molcomp
+d_epistasis_freq %>% 
+  nest_by(timePoint, modelindex) %>%
+  mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
+         wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
+         wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
+         wwt = list(data.frame(density(log(data$wwt))[c("x", "y")])),
+         ew = list(data.frame(density(data$ew)[c("x", "y")])),
+         ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
+  select(-data) %>% 
+  unnest(cols = c(wa, wb, wab, 
+                  Pa, Pb, Pab,
+                  ew, ep), names_sep = "_") -> d_epistasis_density_nomolcomp
+
+
+d_epistasis_freq %>%
+  group_by(timePoint, modelindex- mutType_ab) %>%
+  summarise(meanEP = mean(ep),
+            sdEP = sd(ep),
+            meanEW = mean(ew),
+            sdEW = sd(ew),
+            meanEW_s = mean(ew_s),
+            sdEW_s = sd(ew_s),
+            n = n()) -> d_epistasis_mean_nomolcomp
 
 d_epistasis_freq %>%
   group_by(timePoint, modelindex) %>%
@@ -102,6 +159,8 @@ d_epistasis_freq %>%
             sdEP = sd(ep),
             meanEW = mean(ew),
             sdEW = sd(ew),
+            meanEW_s = mean(ew_s),
+            sdEW_s = sd(ew_s),
             n = n()) -> d_epistasis_mean
 
 # write
@@ -112,3 +171,9 @@ data.table::fwrite(d_epistasis_density,
 data.table::fwrite(d_epistasis_mean,
                    EPISTASIS_WEIGHTED_MEAN_FILE, sep = ",", 
                    col.names = F, row.names = F)
+
+data.table::fwrite(d_epistasis_density_nomolcomp,
+                   EPISTASIS_WEIGHTED_NOMOLCOMP_DENSITY_FILE, sep = ",", col.names = F, row.names = F)
+
+data.table::fwrite(d_epistasis_mean_nomolcomp,
+                   EPISTASIS_WEIGHTED_NOMOLCOMP_MEAN_FILE, sep = ",", col.names = F, row.names = F)

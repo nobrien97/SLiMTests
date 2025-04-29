@@ -91,6 +91,12 @@ cat ./d_epi_freqweight_density* >> $SAVEDIR/d_epi_freqweight_density.csv
 cat ./d_epi_mean* >> $SAVEDIR/d_epi_mean.csv
 cat ./d_epi_freqweight_mean* >> $SAVEDIR/d_epi_freqweight_mean.csv
 
+# Without molecular components
+cat ./d_epi_nomolcomp_density* >> $SAVEDIR/d_epi_nomolcomp_density.csv
+cat ./d_epi_freqweight_nomolcomp_density* >> $SAVEDIR/d_epi_freqweight_nomolcomp_density.csv
+cat ./d_epi_nomolcomp_mean* >> $SAVEDIR/d_epi_nomolcomp_mean.csv
+cat ./d_epi_freqweight_nomolcomp_mean* >> $SAVEDIR/d_epi_freqweight_nomolcomp_mean.csv
+
 # 
 # Check the exit status
 #
