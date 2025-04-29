@@ -75,9 +75,7 @@ d_epistasis %>%
 
 d_epistasis %>%
   group_by(timePoint, modelindex, mutType_ab) %>%
-  summarise(meanEP = mean(ep),
-            sdEP = sd(ep),
-            meanEW = mean(ew),
+  summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
             sdEW_s = sd(ew_s),
@@ -85,9 +83,7 @@ d_epistasis %>%
 
 d_epistasis %>%
   group_by(timePoint, modelindex) %>%
-  summarise(meanEP = mean(ep),
-            sdEP = sd(ep),
-            meanEW = mean(ew),
+  summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
             sdEW_s = sd(ew_s),
@@ -141,9 +137,7 @@ d_epistasis_freq %>%
 
 d_epistasis_freq %>%
   group_by(timePoint, modelindex- mutType_ab) %>%
-  summarise(meanEP = mean(ep),
-            sdEP = sd(ep),
-            meanEW = mean(ew),
+  summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
             sdEW_s = sd(ew_s),
@@ -151,9 +145,7 @@ d_epistasis_freq %>%
 
 d_epistasis_freq %>%
   group_by(timePoint, modelindex) %>%
-  summarise(meanEP = mean(ep),
-            sdEP = sd(ep),
-            meanEW = mean(ew),
+  summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
             sdEW_s = sd(ew_s),
