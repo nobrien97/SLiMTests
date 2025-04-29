@@ -33,19 +33,14 @@ d_epistasis <- tbl(con, "tab_epistasis") %>%
 
 # Make sure it has all worked properly
 if (nrow(d_epistasis) < 1) {
-  print(paste("Model ", run, " couldn't get epistasis data (likely no adapted pops)."))
+  print(paste("Model ", model, " couldn't get epistasis data (likely no adapted pops)."))
   q(save = "no")
 }
-
-# Add optPerc labels to use instead of gen
-dpdt <- read.csv(paste0(GDATA_PATH, "d_dpdt.csv"), header = F)
-dpdt <- dpdt %>% filter(V2 == model)
-d_epistasis$timePoint <- rep(dpdt$V1, each = nrow(d_epistasis)/nrow(dpdt))
 
 # Calculate density for each optPerc across Pa - Pwt, Pb - Pwt, Pab - Pwt, ew, ep
 # and across log fitness
 d_epistasis %>% 
-  nest_by(timePoint, modelindex, mutType_ab) %>%
+  nest_by(gen, modelindex, mutType_ab) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
@@ -58,7 +53,7 @@ d_epistasis %>%
 
 # No molcomp
 d_epistasis %>% 
-  nest_by(timePoint, modelindex) %>%
+  nest_by(gen, modelindex) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
@@ -74,7 +69,7 @@ d_epistasis %>%
 # in density curves
 
 d_epistasis %>%
-  group_by(timePoint, modelindex, mutType_ab) %>%
+  group_by(gen, modelindex, mutType_ab) %>%
   summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
@@ -82,7 +77,7 @@ d_epistasis %>%
             n = n()) -> d_epistasis_mean
 
 d_epistasis %>%
-  group_by(timePoint, modelindex) %>%
+  group_by(gen, modelindex) %>%
   summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
@@ -107,10 +102,8 @@ d_epistasis_freq <- tbl(con, "tab_epistasis_freq") %>%
   filter(modelindex == model) %>%
   collect()
 
-d_epistasis_freq$timePoint <- rep(dpdt$V1, each = nrow(d_epistasis_freq)/nrow(dpdt))
-
 d_epistasis_freq %>% 
-  nest_by(timePoint, modelindex, mutType_ab) %>%
+  nest_by(gen, modelindex, mutType_ab) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
@@ -123,7 +116,7 @@ d_epistasis_freq %>%
 
 # No molcomp
 d_epistasis_freq %>% 
-  nest_by(timePoint, modelindex) %>%
+  nest_by(gen, modelindex) %>%
   mutate(wa = list(data.frame(density(log(data$wa))[c("x", "y")])),
          wb = list(data.frame(density(log(data$wb))[c("x", "y")])),
          wab = list(data.frame(density(log(data$wab))[c("x", "y")])),
@@ -136,7 +129,7 @@ d_epistasis_freq %>%
 
 
 d_epistasis_freq %>%
-  group_by(timePoint, modelindex- mutType_ab) %>%
+  group_by(gen, modelindex- mutType_ab) %>%
   summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
@@ -144,7 +137,7 @@ d_epistasis_freq %>%
             n = n()) -> d_epistasis_mean_nomolcomp
 
 d_epistasis_freq %>%
-  group_by(timePoint, modelindex) %>%
+  group_by(gen, modelindex) %>%
   summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
