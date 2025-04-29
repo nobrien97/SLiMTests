@@ -53,9 +53,8 @@ d_epistasis %>%
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
          ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
-  unnest(cols = c(wa, wb, wab, 
-                  Pa, Pb, Pab,
-                  ew, ep), names_sep = "_") -> d_epistasis_density
+  unnest(cols = c(wa, wb, wab, wwt,
+                  ew, ew_s), names_sep = "_") -> d_epistasis_density
 
 # No molcomp
 d_epistasis %>% 
@@ -67,9 +66,8 @@ d_epistasis %>%
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
          ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
-  unnest(cols = c(wa, wb, wab, 
-                  Pa, Pb, Pab,
-                  ew, ep), names_sep = "_") -> d_epistasis_density_nomolcomp
+  unnest(cols = c(wa, wb, wab, wwt,
+                  ew, ew_s), names_sep = "_") -> d_epistasis_density_nomolcomp
 
 
 # Mean: compare the mean epistasis between models to pick the models to compare
@@ -124,9 +122,8 @@ d_epistasis_freq %>%
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
          ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
-  unnest(cols = c(wa, wb, wab, 
-                  Pa, Pb, Pab,
-                  ew, ep), names_sep = "_") -> d_epistasis_density
+  unnest(cols = c(wa, wb, wab, wwt,
+                  ew, ew_s), names_sep = "_") -> d_epistasis_density
 
 # No molcomp
 d_epistasis_freq %>% 
@@ -138,9 +135,8 @@ d_epistasis_freq %>%
          ew = list(data.frame(density(data$ew)[c("x", "y")])),
          ew_s = list(data.frame(density(data$ew_s)[c("x", "y")]))) %>%
   select(-data) %>% 
-  unnest(cols = c(wa, wb, wab, 
-                  Pa, Pb, Pab,
-                  ew, ep), names_sep = "_") -> d_epistasis_density_nomolcomp
+  unnest(cols = c(wa, wb, wab, wwt,
+                  ew, ew_s), names_sep = "_") -> d_epistasis_density_nomolcomp
 
 
 d_epistasis_freq %>%
