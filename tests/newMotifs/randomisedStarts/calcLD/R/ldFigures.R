@@ -7,6 +7,7 @@ library(ggridges)
 library(ggh4x)
 library(ggbeeswarm)
 library(cowplot)
+library(gganimate)
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcLD/R")
 
 source("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/helperFunctionsAndSetup.R")
@@ -69,44 +70,80 @@ d_ld <- left_join(d_ld, d_qg, by = c("gen", "seed", "modelindex"))
 
 # Proportion of estimates with positive/negative D
 d_ld <- d_ld %>%
-  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
-         timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
-  group_by(timePoint, isAdapted, model, r) %>%
+  group_by(gen, isAdapted, model, r) %>%
   mutate(propDP = nDP / nD,
          propDN = nDN / nD)
 
+# Clean data
+d_ld <- d_ld %>% filter(between(meanD, -0.25, 0.25))
+
 # average across replicates
 d_ld_sum <- d_ld %>%
-  group_by(timePoint, isAdapted, model, r) %>%
-  summarise_at(vars(-seed,-gen,-modelindex), list(mean = mean, se = se), na.rm = T)
+  group_by(gen, isAdapted, model, r) %>%
+  summarise_at(vars(-seed,-modelindex), list(mean = mean, se = se), na.rm = T)
 
 # plot average
-ggplot(d_ld_sum %>%
-         filter(timePoint == "Start"), 
-       aes(x = model, y = meanD_mean, colour = model)) +
+ggplot(d_ld_sum %>% mutate(gen = (gen - 50000) / 1000), 
+       aes(x = interaction(gen, model), y = meanD_mean, colour = model)) +
   facet_nested("Recombination rate (log10)" + log10(r) ~ 
                  "Did the population adapt?" + isAdapted) +
   geom_point() +
+  scale_x_discrete(guide = "axis_nested") +
   geom_errorbar(aes(ymin = meanD_mean - meanD_se, ymax = meanD_mean + meanD_se)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
                       guide = "none") +
-  labs(x = "Model", y = "D") +
+  labs(x = TeX("Generations post-optimum shift ($x 10^3$) / Model"), y = "Mean LD (D)") +
   theme_bw() +
-  theme(text = element_text(size = 14), legend.position = "bottom")
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_avg_ld
+plt_avg_ld
+ggsave("plt_ld_avg.png", device = png, width = 12, height = 6, bg = "white")
+
+# plot sd as well
+ggplot(d_ld_sum %>% mutate(gen = (gen - 50000) / 1000), 
+       aes(x = interaction(gen, model), y = sdD_mean, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r) ~ 
+                 "Did the population adapt?" + isAdapted) +
+  geom_point() +
+  scale_x_discrete(guide = "axis_nested") +
+  geom_errorbar(aes(ymin = sdD_mean - sdD_se, ymax = sdD_mean + sdD_se)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  labs(x = TeX("Generations post-optimum shift ($x 10^3$) / Model"), y = "Standard deviation of LD (D)") +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_sd_ld
+plt_sd_ld
+ggsave("plt_ld_sd.png", device = png, width = 12, height = 6, bg = "white")
+
+# Plot together
+leg <- get_legend(plt_sd_ld)
+
+plt_ld_sum <- plot_grid(plt_avg_ld + theme(legend.position = "none"), 
+                       plt_sd_ld + theme(legend.position = "none"),
+                       nrow = 2, labels = "AUTO", label_size = 12)
+
+plt_ld_sum <- plot_grid(plt_ld_sum,
+                       leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_ld_sum
+ggsave("plt_ld_sum.png", device = png, bg = "white",
+       width = 16, height = 10)
 
   
-
 # plot average distributions
 
 bins <- seq(-0.25, 0.25, length.out = 21)
-d_ld_dist <- d_ld_sum %>% dplyr::select(timePoint, model, r, 12:31) %>%
+d_ld_dist <- d_ld_sum %>% dplyr::select(gen, model, r, 12:31) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count")
 d_ld_dist$col <- bins[as.numeric(str_extract(d_ld_dist$col, "[[0-9]]*(?=_)"))]
 
 # Outliers: histogram of all estimates
-d_ld_dist_hist <- d_ld %>% dplyr::select(gen, seed, timePoint, model, r, 10:29) %>%
+d_ld_dist_hist <- d_ld %>% dplyr::select(gen, seed, model, r, 10:29) %>%
   pivot_longer(cols = matches("n[0-9]"), names_to = "col", values_to = "count") %>%
-  group_by(gen, seed, timePoint, model, r) %>%
+  ungroup() %>%
+  mutate(time_level = as.numeric(factor(gen)), # convert to 1, 2, 3 etc.
+         y_offset = time_level * 2) %>% 
+  group_by(gen, seed, model, r) %>%
   mutate(prop = count / sum(count)) %>%
   ungroup()
 
@@ -114,8 +151,39 @@ d_ld_dist_hist <- d_ld %>% dplyr::select(gen, seed, timePoint, model, r, 10:29) 
 # Offset x axis since we group leftwise [x, y), offset is half the bin size, 0.025/2
 ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
                                  col_num = as.numeric(col) + 0.025/2,
-                                 r_title = "Recombination rate (log10)"), 
-       aes(x = col_num, y = prop, colour = model, group = interaction(col, model))) +
+                                 r_title = "Recombination rate (log10)") %>%
+         filter(!isAdapted), 
+       aes(x = col_num, y = prop + y_offset, colour = model, 
+           group = interaction(gen, col, model))) +
+  facet_nested(r_title + log10(r) ~ model) +
+  geom_boxplot(position = position_identity(), outlier.shape = 1,
+               outlier.alpha = 0.5) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = interaction(gen, model), colour = model)
+  ) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  scale_x_continuous(breaks = c(-0.2, -0.1, 0, 0.1, 0.2), 
+                     labels = c(-0.2, -0.1, 0, 0.1, 0.2)) +
+  scale_y_continuous(
+    name = "Proportion (ridgeline-stacked)",
+    breaks = unique(d_ld_dist_hist$y_offset),
+    labels = scales::comma(unique(d_ld_dist_hist$gen) - 50000)) +
+  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld
+plt_ld
+ggsave("plt_ld.png", device = png, width = 9, height = 6)
+
+# Animation
+ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 col_num = as.numeric(col) + 0.025/2,
+                                 r_title = "Recombination rate (log10)") %>%
+         filter(!isAdapted), 
+       aes(x = col_num, y = prop, colour = model, 
+           group = interaction(col, model))) +
   facet_nested(r_title + log10(r) ~ model) +
   geom_boxplot(position = position_identity(), outlier.shape = 1,
                outlier.alpha = 0.5) +
@@ -124,15 +192,49 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
     geom = "line",
     aes(group = model, colour = model)
   ) +
+  transition_states(gen, wrap = F) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
                       guide = "none") +
   scale_x_continuous(breaks = c(-0.2, -0.1, 0, 0.1, 0.2), 
                      labels = c(-0.2, -0.1, 0, 0.1, 0.2)) +
-  labs(x = "D", y = "Proportion of estimates", colour = "Model") +
+  labs(title = "Generations post-optimum shift: {closest_state}", 
+       x = "D", y = "Proportion of estimates", colour = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld
-plt_ld
-ggsave("plt_ld.png", device = png, width = 9, height = 6)
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld_anim_maladapt
+anim_maladapted <- animate(plt_ld_anim_maladapt, nframes = 10, duration = 10,
+                        width = 720, height = 360,
+                        renderer = ffmpeg_renderer())
+anim_save("plt_ld_maladapted_anim.mp4", anim_maladapted)
+
+ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"))],
+                                 col_num = as.numeric(col) + 0.025/2,
+                                 r_title = "Recombination rate (log10)") %>%
+         filter(isAdapted), 
+       aes(x = col_num, y = prop, colour = model, 
+           group = interaction(col, model))) +
+  facet_nested(r_title + log10(r) ~ model) +
+  geom_boxplot(position = position_identity(), outlier.shape = 1,
+               outlier.alpha = 0.5) +
+  stat_summary(
+    fun = median,
+    geom = "line",
+    aes(group = model, colour = model)
+  ) +
+  transition_states(gen, wrap = FALSE) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  scale_x_continuous(breaks = c(-0.2, -0.1, 0, 0.1, 0.2), 
+                     labels = c(-0.2, -0.1, 0, 0.1, 0.2)) +
+  labs(title = "Generations post-optimum shift: {closest_state}", 
+       x = "D", y = "Proportion of estimates", colour = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld_anim_adapt
+
+anim_adapted <- animate(plt_ld_anim_adapt, nframes = 10, duration = 10,
+                        width = 720, height = 360,
+                renderer = ffmpeg_renderer())
+anim_save("plt_ld_adapted_anim.mp4", anim_adapted)
+
 
 #################################
 # Frequency adjusted
