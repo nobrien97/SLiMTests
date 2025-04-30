@@ -129,7 +129,7 @@ d_epistasis_freq %>%
 
 
 d_epistasis_freq %>%
-  group_by(gen, modelindex- mutType_ab) %>%
+  group_by(gen, modelindex, mutType_ab) %>%
   summarise(meanEW = mean(ew),
             sdEW = sd(ew),
             meanEW_s = mean(ew_s),
