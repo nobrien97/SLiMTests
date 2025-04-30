@@ -691,9 +691,9 @@ PairwiseFitnessRankNetwork <- function(dat_fixed, muts, dat_opt, A_ids, B_ids) {
 
 # Calculates the site frequency spectra for mutations
 CalcSFS <- function(dat) {
-  dat$freqBin <- cut(dat$freq, breaks = 10)
+  dat$freqBin <- cut(dat$freq, seq(from = 0.1, to = 1, by = 0.1))
   
   dat %>% 
-    select(timePoint, seed, modelindex, isAdapted,
+    dplyr::select(timePoint, seed, modelindex, isAdapted,
            mutID, mutType, value, freqBin)
 }

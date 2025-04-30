@@ -84,14 +84,19 @@ data.table::fwrite(d_dpdt_sum,
                    DPDT_FILE, sep = ",", 
                    col.names = F, row.names = F)
 
-# filter by optPerc to select timepoints where populations 
-# first reached 50% adapted etc.
 
-# Filter mutations by optPerc generations
 # inner join the mutation w/ quantitative data + add model info
 d_com <- inner_join(d_dpdt, d_muts, 
                             by = c("gen", "seed", "modelindex"))
 d_com <- AddCombosToDF(d_com)
+
+# Clean mutation data - remove invalid rows
+activeMutTypes <- as.character(3:13)[1:GetNMutTypes(d_com$model[1])]
+
+d_com <- d_com %>% 
+  filter(mutType %in% activeMutTypes)
+
+d_com$mutType <- droplevels(d_com$mutType)
 
 d_fixed <- d_com %>% filter(!is.na(fixGen))
 
