@@ -45,6 +45,10 @@ get_legend <- function(plot, legend = NULL) {
 d_combos <- read.table("../R/combos.csv", header = F,
                        col.names = c("model", "r"))
 
+model_levels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+
+
 # load trait evolution data
 d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -63,15 +67,12 @@ d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F,
 # Add predictors
 d_qg <- AddCombosToDF(d_qg) 
 
-# Initial optimum distance
-INIT_DIST <- sqrt(-2 * log(0.90))
-
 # Optimum: fitness > 95%
-
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & w > 0.95)) %>%
+  mutate(isAdapted = any(gen >= 59800 & w > 0.95),
+         model = factor(model, levels = model_names)) %>%
   ungroup() -> d_qg
 
 # Proportion of each model that adapted
@@ -83,7 +84,8 @@ d_prop_adapted <- d_qg %>% group_by(model, r) %>%
   )
 
 # Output to table
-stargazer(d_prop_adapted %>% mutate(r = as.character(r)) %>% as.data.frame(.), type = "html", summary = F)
+stargazer(d_prop_adapted %>% mutate(r = as.character(r)) %>% as.data.frame(.), 
+          type = "latex", summary = F)
 
 # Summarise phenotype trajectories
 d_qg_sum <- d_qg %>% 
@@ -95,7 +97,8 @@ d_qg_sum <- d_qg %>%
             meanFitness = mean(w),
             SEFitness = se(w),
             meanFitnessVar = mean(var_w),
-            SEFitnessVar = se(var_w))
+            SEFitnessVar = se(var_w)) %>%
+  mutate(model = factor(model, levels = model_names))
 
 # plot
 ggplot(d_qg_sum,
@@ -122,31 +125,40 @@ ggplot(d_qg_sum,
 ggsave("plt_adapt_mdist.png", width = 12, height = 5, device = png)
 
 # Mean fitness
-ggplot(d_qg_sum,
+ggplot(d_qg_sum %>% filter(gen > -11000),
        aes(x = gen, y = meanFitness, colour = model)) +
   facet_grid(log10(r)~.) +
   geom_line() +
-  #geom_hline(yintercept = 2, linetype = "dashed") +
   geom_ribbon(aes(ymin = meanFitness - SEFitness, 
                   ymax = meanFitness + SEFitness, fill = model), colour = NA,
               alpha = 0.2) +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
-                                         breaks = NULL, labels = NULL)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR"), guide = "none") +
-  labs(x = "Generations post-optimum shift", y = "Mean Fitness", 
+  # scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate (log10)", 
+  #                                        breaks = NULL, labels = NULL)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
+                                           direction = 1),
+                      labels = model_labels) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
+                                         direction = 1),
+                    labels = model_labels, guide = "none") +
+  labs(x = "Generations post-optimum shift", y = "Mean population fitness", 
        colour = "Model") +
+  scale_x_continuous(labels = scales::comma) +
   theme_bw() +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
   theme(text = element_text(size = 12),
-        panel.spacing = unit(0.75, "lines")) 
+        panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg
+plt_adapt_avg
 ggsave("plt_randomisedStarts_adapt_w.png", width = 12, height = 5, device = png)
 
 # Separate runs
 d_qg$simID <- interaction(d_qg$seed, d_qg$modelindex)
+
+#seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 1583384373
+
+set.seed(1583384373)
 
 sampled_examples <- d_qg %>%
   group_by(model, r, isAdapted) %>%
@@ -160,15 +172,32 @@ ggplot(d_qg %>% filter(simID %in% sampled_examples) %>%
        aes(x = gen, y = w, colour = model, group = simID)) +
   facet_nested("Recombination rate (log10)" + log10(r)~ "Did the population adapt?" + isAdapted) +
   geom_line() +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("FFBH", "FFL-C1", "FFL-I1", "NAR", "PAR")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
+                                           direction = 1),
+                      labels = model_labels) +
   labs(x = "Generations post-optimum shift", y = "Mean population fitness",
        colour = "Model") +
+  scale_x_continuous(labels = scales::comma) +
   theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
   theme(text = element_text(size = 12),
-        panel.spacing = unit(0.75, "lines"),
-        legend.position = "bottom") 
+        panel.spacing = unit(1.5, "lines"),
+        legend.position = "bottom") -> plt_adapt_eg
+plt_adapt_eg
 ggsave("plt_randomisedStarts_adapt_w_eg.png", width = 12, height = 5, device = png)
+
+leg <- get_legend(plt_adapt_eg)
+
+plt_adapt <- plot_grid(plt_adapt_avg + theme(legend.position = "none"), 
+          plt_adapt_eg + theme(legend.position = "none"),
+          ncol = 2, labels = "AUTO", label_size = 12, rel_widths = c(0.6, 1))
+
+plt_adapt <- plot_grid(plt_adapt,
+                      leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_adapt
+ggsave("plt_adapt.png", device = png, bg = "white",
+       width = 12, height = 5)
 
 
 # Variance in fitness
