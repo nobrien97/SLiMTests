@@ -17,6 +17,8 @@ d_combos <- read.table("../../../R/combos.csv", header = F,
 
 model_names <- c("NAR", "PAR", "FFLC1", 
                  "FFLI1", "FFBH")
+model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 
@@ -202,7 +204,7 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   theme_bw() +
   theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld_anim_maladapt
 anim_maladapted <- animate(plt_ld_anim_maladapt, nframes = 10, duration = 10,
-                        width = 720, height = 360,
+                        width = 1080, height = 720,
                         renderer = ffmpeg_renderer())
 anim_save("plt_ld_maladapted_anim.mp4", anim_maladapted)
 
@@ -231,7 +233,7 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   theme(text = element_text(size = 14), legend.position = "bottom") -> plt_ld_anim_adapt
 
 anim_adapted <- animate(plt_ld_anim_adapt, nframes = 10, duration = 10,
-                        width = 720, height = 360,
+                        width = 1080, height = 720,
                 renderer = ffmpeg_renderer())
 anim_save("plt_ld_adapted_anim.mp4", anim_adapted)
 
