@@ -97,6 +97,8 @@ cat ./d_epi_freqweight_nomolcomp_density* >> $SAVEDIR/d_epi_freqweight_nomolcomp
 cat ./d_epi_nomolcomp_mean* >> $SAVEDIR/d_epi_nomolcomp_mean.csv
 cat ./d_epi_freqweight_nomolcomp_mean* >> $SAVEDIR/d_epi_freqweight_nomolcomp_mean.csv
 
+cat ./d_epi_sign_nomolcomp* >> $SAVEDIR/d_epi_sign_nomolcomp.csv
+
 # 
 # Check the exit status
 #

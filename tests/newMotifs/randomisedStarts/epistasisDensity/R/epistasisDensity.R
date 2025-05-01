@@ -24,6 +24,8 @@ EPISTASIS_WEIGHTED_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_mean", mode
 EPISTASIS_NOMOLCOMP_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_nomolcomp_mean", model, ".csv")
 EPISTASIS_WEIGHTED_NOMOLCOMP_MEAN_FILE <- paste0(WRITE_PATH, "d_epi_freqweight_nomolcomp_mean", model, ".csv")
 
+EPISTASIS_SIGN_CHANGES_NOMOLCOMP_FILE <- paste0(WRITE_PATH, "d_epi_sign_nomolcomp", model, ".csv")
+
 # extract the model from the database
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       dbname = paste0(CALCMUTATIONSTATS_PATH, "epistasis.db"))
@@ -110,6 +112,34 @@ d_epistasis %>%
             sdEW_s = sd(ew_s),
             n = n()) -> d_epistasis_mean_nomolcomp
 
+# Get sign changes: change in average epistasis across mutations in a run
+eps <- 1e-6
+
+d_epistasis %>%
+  group_by(gen, seed, modelindex) %>%
+  summarise(ew = mean(ew), ew_s = mean(ew_s)) %>%
+  ungroup() %>%
+  arrange(gen) %>%
+  group_by(seed, modelindex) %>%
+  mutate(
+    sign_EW = case_when(
+      ew > eps ~ 1,
+      ew < -eps ~ -1,
+      TRUE ~ 0
+    ),
+    sign_EW_s = case_when(
+      ew_s > eps ~ 1,
+      ew_s < -eps ~ -1,
+      TRUE ~ 0
+    ),
+    # Compare with previous non-zero sign
+    prev_sign_EW = lag(sign_EW),
+    prev_sign_EW_s = lag(sign_EW_s),
+    sign_EW_change = sign_EW != prev_sign_EW & !is.na(prev_sign_EW),
+    sign_EW_s_change = sign_EW_s != prev_sign_EW_s & !is.na(prev_sign_EW_s)) %>%
+  summarise(n= n(), n_sign_EW_changes = sum(sign_EW_change, na.rm = TRUE),
+            n_sign_EW_s_changes = sum(sign_EW_s_change, na.rm = TRUE)) -> d_signchanges
+
 # write
 data.table::fwrite(d_epistasis_density,
                    EPISTASIS_DENSITY_FILE, sep = ",", col.names = F, row.names = F)
@@ -119,6 +149,8 @@ data.table::fwrite(d_epistasis_density_nomolcomp,
                    EPISTASIS_NOMOLCOMP_DENSITY_FILE, sep = ",", col.names = F, row.names = F)
 data.table::fwrite(d_epistasis_mean_nomolcomp,
                    EPISTASIS_NOMOLCOMP_MEAN_FILE, sep = ",", col.names = F, row.names = F)
+data.table::fwrite(d_signchanges,
+                   EPISTASIS_SIGN_CHANGES_NOMOLCOMP_FILE, sep = ",", col.names = F, row.names = F)
 
 
 rm(d_epistasis)
