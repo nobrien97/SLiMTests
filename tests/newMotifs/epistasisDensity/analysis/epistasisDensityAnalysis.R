@@ -8,6 +8,7 @@ library(ggridges)
 library(ggh4x)
 library(cowplot)
 library(ggbeeswarm)
+library(legendry)
 
 # functions
 source("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/helperFunctionsAndSetup.R")
@@ -16,86 +17,192 @@ source("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationSta
 d_combos <- read.table("../../R/combos.csv", header = F,
                             col.names = c("nloci", "tau", "r", "model"))
 
+model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/epistasisDensity/"
 # data
 d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_mean.csv"), header = F, sep = ",",
-                       col.names = c("timePoint", "modelindex", "mutType_ab", 
-                                     "meanEW", "sdEW", 
+                       col.names = c("timePoint", "modelindex", "isAdapted", 
+                                     "mutType_ab", "meanEW", "sdEW", 
                                      "meanEW_s", "sdEW_s", "count"))
 
 d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_nomolcomp_mean.csv"), header = F, sep = ",",
-                          col.names = c("timePoint", "modelindex", 
+                          col.names = c("timePoint", "modelindex", "isAdapted",
                                         "meanEW", "sdEW", 
                                         "meanEW_s", "sdEW_s", "count"))
 
+d_epi_means <- d_epi_means %>%
+  mutate(isAdapted = as.logical(isAdapted)) 
 
 d_epi_means_plt <- AddCombosToDF(d_epi_means %>% 
-                                   mutate(modelindex = as.factor(modelindex)))
+                                   mutate(modelindex = as.factor(modelindex))) %>%
+  mutate(model = factor(model, levels = model_names))
 
-d_epi_means_plt_sum <- d_epi_means_plt %>%
-  group_by(timePoint, model, r) %>%
-  summarise(meanEWBar = mean(meanEW),
-            CIEWBar = CI(meanEW),
-            varEWBar = var(meanEW),
-            meanEWsBar = mean(meanEW_s),
-            CIEWsBar = CI(meanEW_s),
-            varEWsBar = var(meanEW_s),
-            n = n())
-
-ggplot(d_epi_means_plt %>%
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = model, y = meanEW, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~.) +
+       aes(x = interaction(timePoint, model), y = meanEW, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
   geom_point() +
-  geom_errorbar(aes(ymin = meanEW - sdEW/count,
-                    ymax = meanEW + sdEW/count), 
+  geom_errorbar(aes(ymin = meanEW - ( (sdEW / sqrt(count)) * qnorm(0.975) ),
+                    ymax = meanEW + ( (sdEW / sqrt(count)) * qnorm(0.975) )), 
                 position = position_dodge(0.9)) +
   scale_x_discrete(guide = "axis_nested") + 
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
-                                           5, direction = 1))+
-                      #labels = model_labels) +  
+                                           5, direction = 1),
+                      labels = model_labels) +
   labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
        y = "Average fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
   theme_bw() +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 12)) -> plt_ew
+plt_ew
+ggsave("plt_ew.png", device = png,
+       width = 12, height = 6)
 
-ggsave("plt_ew_sml.png", width = 4, height = 7, device = png)
-
-# For preso
-d_epi_means_plt <- d_epi_means_plt %>%
-  filter(modelindex != 396, tau == 0.0125, r %in% c(1e-10, 0.1))
-
-d_epi_means_plt_sum <- d_epi_means_plt %>%
-  group_by(model, r) %>%
-  summarise(meanEWBar = mean(meanEW),
-            CIEWBar = CI(meanEW),
-            n = n())
-
-ggplot(d_epi_means_plt %>% 
-         mutate(r_title = "Recombination rate",
-                nloci_title = "Number of loci",
-                tau_title = "Mutational effect size variance"), 
-       aes(x = model, y = meanEW, colour = model)) +
-  facet_nested(r_title + r ~ .,
-               labeller = labeller(r = as_labeller(c(`1e-10` = "Low",
-                                                     `0.1` = "High")))) +
-  geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_epi_means_plt_sum %>% 
-               mutate(r_title = "Recombination rate",
-                      nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance"),
-             aes(x = model, y = meanEWBar, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
-                      guide = "none") +
-  labs(x = "Model", y = "Average fitness epistasis", colour = "Model") +
-  scale_x_discrete(labels = c("Additive", "K+", "K-")) +
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = interaction(timePoint, model), y = meanEW_s, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEW_s - ( (sdEW_s / sqrt(count)) * qnorm(0.975) ),
+                    ymax = meanEW_s + ( (sdEW_s / sqrt(count)) * qnorm(0.975) )), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
+       y = "Average fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
   theme_bw() +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 12)) -> plt_ew_s
+plt_ew_s
+ggsave("plt_ew_s.png", device = png,
+       width = 12, height = 6)
 
-ggsave("plt_ew_talk.png", width = 4, height = 4, device = png)
+# How about variance?
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = interaction(timePoint, model), y = sdEW_s^2, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
+       y = "Variance in fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_s_var
+plt_ew_s_var
+ggsave("plt_ew_var_s.png", device = png,
+       width = 12, height = 6)
 
 
+# How many times does epistasis change sign?
+d_epi_sign <- read.table(paste0(DATA_PATH, "d_epi_sign_nomolcomp.csv"), header = F, sep = ",",
+                          col.names = c("seed", "modelindex",
+                                        "n", "nChangesEW", 
+                                        "nChangesEW_s"),
+                         colClasses = c("factor", "factor", 
+                                        rep("integer", times = 3)))
+
+# Is it adapted? Attach info from qg
+d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
+                          sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                    rep("numeric", times = 29)), 
+                          col.names = c("gen", "seed", "modelindex", "meanH",
+                                        "trait1_mean", "trait2_mean", "trait3_mean",
+                                        "trait4_mean", "trait1_var", "trait2_var", 
+                                        "trait3_var", "trait4_var", "dist", 
+                                        "dist1", "dist2", "dist3", "dist4", "mean_w",
+                                        "var_w", "deltaPheno", "deltaW", 
+                                        "meanMC1", "meanMC2", "meanMC3", "meanMC4", 
+                                        "meanMC5", "meanMC6", "meanMC7", "meanMC8", 
+                                        "meanMC9", "meanMC10", "meanMC11"), 
+                          fill = T)
+d_qg <- AddCombosToDF(d_qg) 
+
+d_qg %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.95)) %>%
+  mutate(model = factor(model, levels = model_names)) %>%
+  ungroup() -> d_qg
+
+d_qg <- d_qg %>% filter(gen >= 49500)
+
+d_epi_sign <- left_join(d_epi_sign, 
+                        d_qg %>% filter(gen == 60000), 
+                         by = c("seed", "modelindex"))
+
+
+d_epi_sign_mean <- d_epi_sign %>%
+  group_by(model, r, isAdapted) %>%
+  summarise(meanEWChanges = mean(nChangesEW),
+            CIEWChanges = CI(nChangesEW),
+            meanEWsChanges = mean(nChangesEW_s),
+            CIEWsChanges = CI(nChangesEW_s))
+
+ggplot(d_epi_sign_mean %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = meanEWsChanges, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEWsChanges - CIEWsChanges,
+                    ymax = meanEWsChanges + CIEWsChanges), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = "Model", 
+       y = "Mean number of sign changes in fitness epistasis\n(s-based epistasis)", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_s_sign  
+plt_ew_s_sign
+ggsave("plt_ew_s_sign.png", width = 6, height = 6, device = png)
+
+ggplot(d_epi_sign_mean %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = meanEWChanges, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEWChanges - CIEWChanges,
+                    ymax = meanEWChanges + CIEWChanges), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = "Model", 
+       y = "Mean number of sign changes in fitness epistasis\n(w-based epistasis)", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_sign  
+plt_ew_sign
+ggsave("plt_ew_sign.png", device = png,
+       width = 6, height = 6)
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 # Box plots
 ggplot(d_epi_means_plt, aes(x = model, y = meanEP)) +
   facet_grid(.~optPerc) +
