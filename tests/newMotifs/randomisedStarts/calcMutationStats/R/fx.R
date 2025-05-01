@@ -265,6 +265,7 @@ ggplot(d_fx_ben %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
+# TODO:
 # Proportion of mutations that are beneficial in each model
 d_fx_propBen <- d_fx %>%
   group_by(optPerc, seed, model, mutType, nloci, tau, r) %>%
