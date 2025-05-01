@@ -158,11 +158,12 @@ d_epistasis <- PairwiseEpistasis(d_fixed %>% distinct(),
                                  d_opt %>% distinct(),
                                  m = mValue, n = 100, F, F)
 
-d_epistasis_freqweight <- PairwiseEpistasis(d_fixed,
+d_epistasis_freqweight <- PairwiseEpistasis(d_fixed %>% distinct(),
                                                   d_com %>% 
                                                     filter(is.na(fixGen)) %>%
+                                                    distinct() %>%
                                                     dplyr::select(gen, seed, modelindex, mutType, freq, value),
-                                            d_opt,
+                                            d_opt %>% distinct(),
                                             m = mValue, n = 100, F, T)
 
 # write to file
