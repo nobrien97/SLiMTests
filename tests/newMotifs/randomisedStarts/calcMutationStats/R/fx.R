@@ -15,6 +15,7 @@ library(xtable)
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 # Cowplot 1.1.3 bug: won't get legend, this fixes
@@ -72,7 +73,7 @@ d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
   mutate(isAdapted = any(gen >= 59800 & mean_w > 0.95)) %>%
-  mutate(model = factor(model, levels = model_names)) %>%
+  mutate(model = factor(model, levels = model_levels)) %>%
   ungroup() -> d_qg
 
 d_qg <- d_qg %>% filter(gen >= 49500)
@@ -151,75 +152,80 @@ driftBarrier <- 1 / (2 * 5000)
 # More extreme ruggedness = more neutral mutations, more canalisation
 # Also fewer deleterious mutations
 # So look at proportion of deleterious mutations and those above barrier
-d_fx_sum <- d_fx %>%
-  group_by(gen, seed, model, r, isAdapted) %>%
-  mutate(nMuts = n(),
-         propNeutral = sum((abs(s) < driftBarrier)) / nMuts,
-         propDel = sum(s < -driftBarrier) / nMuts) %>%
+# Run on HPC - memory usage
+# d_fx_sum <- d_fx %>%
+#   group_by(gen, seed, model, r, isAdapted) %>%
+#   mutate(nMuts = n(),
+#          propNeutral = sum((abs(s) < driftBarrier)) / nMuts,
+#          propDel = sum(s < -driftBarrier) / nMuts,
+#          propBen = 1 - (propNeutral + propDel)) %>%
+#   ungroup() %>%
+#   pivot_longer(cols = starts_with("prop"), 
+#                names_to = "mutClass", values_to = "prop") %>%
+#   group_by(gen, model, r, isAdapted, mutClass) %>%
+#   summarise(meanProp = mean(prop),
+#             CIProp = CI(prop))
+# saveRDS(d_fx_sum, "d_fx_sum.RDS")
+d_fx_sum <- readRDS(paste0(DATA_PATH, "calcMutationStats/d_fx_sum.RDS"))
+
+# Create secondary axis
+d_fx_sum <- d_fx_sum %>%
+  mutate(gen_k = (gen - 50000) / 1000)  # Convert to "k" units
+
+# Assign numeric x-axis positions
+gen_levels <- sort(unique(d_fx_sum$gen_k))
+gap <- 1  # space between model blocks
+
+d_fx_sum <- d_fx_sum %>%
+  group_by(model) %>%
+  mutate(gen_index = as.integer(factor(gen_k, levels = gen_levels))) %>%
   ungroup() %>%
-  group_by(gen, model, r, isAdapted) %>%
-  summarise(meanNMuts = mean(nMuts),
-            CINMuts = CI(nMuts),
-            meanPropNeutral = mean(propNeutral),
-            CIPropNeutral = CI(propNeutral),
-            meanPropDel = mean(propDel),
-            CIPropDel = CI(propDel))
+  mutate(model_index = as.integer(factor(model, levels = model_levels)),
+         x_numeric = (model_index - 1) * (length(gen_levels) + gap) + gen_index)
 
+gen_labels <- d_fx_sum %>%
+  group_by(model, gen_k) %>%
+  summarise(x = mean(x_numeric), .groups = "drop")
 
-ggplot(d_fx_sum %>% mutate(gen = (gen - 50000) / 1000), 
-       aes(x = interaction(gen, model), y = meanPropNeutral, colour = model)) +
+fx_model_labels <- d_fx_sum %>%
+  group_by(model, r, isAdapted) %>%
+  summarise(x = mean(x_numeric), .groups = "drop")
+
+ggplot(d_fx_sum, 
+       aes(x = x_numeric, y = meanProp, fill = mutClass)) +
   facet_nested("Recombination rate (log10)" + log10(r)~
                  "Did the population adapt?" + isAdapted) +
-  geom_point() +
-  geom_errorbar(aes(ymin = meanPropNeutral - CIPropNeutral,
-                    ymax = meanPropNeutral + CIPropNeutral), 
-                position = position_dodge(0.9)) +
-  scale_x_discrete(guide = "axis_nested") +
-  scale_y_continuous(limits = c(0, 1)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
-                                           5, direction = 1),
-                      labels = model_labels) +
+  geom_bar(stat = "identity", width = 1) +
+  # geom_errorbar(aes(ymin = meanProp - CIProp,
+  #                   ymax = meanProp + CIProp), 
+  #               position = position_dodge(0.9)) +
+  #scale_x_discrete(guide = "axis_nested") +
+  #scale_y_continuous(limits = c(0, 1)) +
+  coord_cartesian(ylim = c(0, 1), expand = F, clip = "off") +
+  scale_fill_manual(values = paletteer_d("ggprism::viridis", 
+                                           5, direction = 1)[c(5, 1, 3)],
+                    labels = c("Beneficial", "Deleterious", "Neutral")) +
   labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
-       y = "Mean proportion of neutral mutations",
-       colour = "Model") +
+       y = "Mean proportion of mutations",
+       fill = "Mutation class") +
+  scale_x_continuous(breaks = gen_labels$x, labels = gen_labels$gen_k) +
   theme_bw() +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
+  geom_text(data = fx_model_labels %>% filter(r == 0.1), aes(x = x, y = -0.15, 
+           label = model), inherit.aes = F) +
+  geom_segment(data = fx_model_labels %>% filter(r == 0.1),
+               aes(x = x - 5,
+                   xend = x + 5,
+                   y = -0.085, yend = -0.085),
+               inherit.aes = FALSE,
+               color = "black", size = 0.4) +
   theme(text = element_text(size = 12),
-        panel.spacing = unit(0.75, "lines")) -> plt_propNeutral 
+        panel.spacing = unit(0.75, "lines"),
+        legend.position = "bottom",
+        axis.title.x = element_text(margin = margin(t = 28))) -> plt_prop
+plt_prop
 
-ggplot(d_fx_sum %>% mutate(gen = (gen - 50000) / 1000), 
-       aes(x = interaction(gen, model), y = meanPropDel, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~
-                 "Did the population adapt?" + isAdapted) +
-  geom_point() +
-  geom_errorbar(aes(ymin = meanPropDel - CIPropDel,
-                    ymax = meanPropDel + CIPropDel), 
-                position = position_dodge(0.9)) +
-  scale_x_discrete(guide = "axis_nested") +
-  scale_y_continuous(limits = c(0, 1)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
-                                           5, direction = 1),
-                      labels = model_labels) +
-  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
-       y = "Mean proportion of deleterious mutations",
-       colour = "Model") +
-  theme_bw() +
-  guides(colour = guide_legend(position = "bottom",
-                               override.aes=list(linewidth = 5))) +
-  theme(text = element_text(size = 12),
-        panel.spacing = unit(0.75, "lines")) -> plt_propDel 
-plt_propDel
-
-leg <- get_legend(plt_propNeutral)
-
-plt_propFX <- plot_grid(plt_propNeutral + theme(legend.position = "none"), 
-                       plt_propDel + theme(legend.position = "none"),
-                       nrow = 2, labels = "AUTO", label_size = 12)
-
-plt_propFX <- plot_grid(plt_propFX,
-                       leg, nrow = 2, rel_heights = c(1, 0.05))
-plt_propFX
 ggsave("plt_propFX.png", device = png, bg = "white",
        width = 16, height = 10)
 
