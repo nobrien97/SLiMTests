@@ -29,10 +29,6 @@ source("~/tests/newMotifs/randomisedStarts/calcLD/R/LDHelpFns.R")
 d_freqs <- scan(paste0(GDATA_PATH, "slim_sharedmutfreqs.csv"), skip = run, 
                     nlines = 1, sep = ",")
 
-# d_freqs <- scan(paste0(GDATA_PATH, "frequencies_test/slim_sharedmutfreqs.csv"), skip = run, 
-#                 nlines = 1, sep = ",")
-
-# e.g. failed run: 2268
 
 model_info <- d_freqs[1:3]
 d_freqs <- d_freqs[-(1:3)]

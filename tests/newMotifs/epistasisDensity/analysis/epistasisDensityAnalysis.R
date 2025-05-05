@@ -8,288 +8,201 @@ library(ggridges)
 library(ggh4x)
 library(cowplot)
 library(ggbeeswarm)
+library(legendry)
 
 # functions
-source("/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/helperFunctionsAndSetup.R")
+source("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/helperFunctionsAndSetup.R")
 
 # combos
 d_combos <- read.table("../../R/combos.csv", header = F,
                             col.names = c("nloci", "tau", "r", "model"))
 
-DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/epistasisDensity/"
+model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/epistasisDensity/"
 # data
 d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_mean.csv"), header = F, sep = ",",
-                       col.names = c("optPerc", "modelindex", "meanEP", "sdEP",
-                                     "meanEW", "sdEW", "count"))
+                       col.names = c("timePoint", "modelindex", "isAdapted", 
+                                     "mutType_ab", "meanEW", "sdEW", 
+                                     "meanEW_s", "sdEW_s", "count"))
 
+d_epi_means <- read.table(paste0(DATA_PATH, "d_epi_nomolcomp_mean.csv"), header = F, sep = ",",
+                          col.names = c("timePoint", "modelindex", "isAdapted",
+                                        "meanEW", "sdEW", 
+                                        "meanEW_s", "sdEW_s", "count"))
 
-# Get pairwise differences between in mean epistasis between models 
-d_epi_means_sbst <- d_epi_means %>% 
-  filter(optPerc == "[0.9, Inf)" | optPerc == "[-Inf,0.25)") %>% 
-  distinct()
-
-r_subsample <- c(1e-10, 1e-5, 1e-1)
-
-d_epi_diff <- crossing(optPerc = d_epi_means_sbst$optPerc,
-                       modelindex1 = d_epi_means_sbst$modelindex, 
-                       modelindex2 = d_epi_means_sbst$modelindex)
-
-d_epi_diff <- d_epi_diff %>%
-  group_by(modelindex1, modelindex2) %>%
-  mutate(meanEP_1 = d_epi_means_sbst$meanEP[d_epi_means_sbst$modelindex == modelindex1],
-         meanEP_2 = d_epi_means_sbst$meanEP[d_epi_means_sbst$modelindex == modelindex2],
-         meanEW_1 = d_epi_means_sbst$meanEW[d_epi_means_sbst$modelindex == modelindex1],
-         meanEW_2 = d_epi_means_sbst$meanEW[d_epi_means_sbst$modelindex == modelindex2],
-         diffEP = meanEP_2 - meanEP_1,
-         diffEW = meanEW_2 - meanEW_1)
-
-# Outliers: model 396 generated some huge phenotypes...
-boxplot(d_epi_diff$diffEP)
-
-d_epi_diff %>% 
-  filter(modelindex1 != 396 & modelindex2 != 396) -> d_epi_diff
-
-boxplot(d_epi_diff$diffEP)
-hist(d_epi_diff$diffEP, breaks = 100)
-
-# Identify combos which are the same but inverted and remove the inverted one
-d_epi_diff %>%
-  filter(modelindex1 != modelindex2) %>%
-  mutate(absDiffEP = abs(diffEP)) %>%
-  arrange(absDiffEP) %>%
-  ungroup() %>%
-  mutate(absGroup = row_number() - (row_number() %% 2 != 1)) %>%
-  group_by(absGroup) %>%
-  filter(diffEP == absDiffEP) -> d_epi_diff
-
-
-# Attach combos
-# Adds the parameter combination to a dataframe
-AddCombosToDiffDF <- function(df) {
-  df %>% ungroup() %>%
-    mutate(model_1 = d_combos$model[modelindex1],
-           nloci_1 = d_combos$nloci[modelindex1],
-           tau_1 = d_combos$tau[modelindex1],
-           r_1 = d_combos$r[modelindex1],
-           model_2 = d_combos$model[modelindex2],
-           nloci_2 = d_combos$nloci[modelindex2],
-           tau_2 = d_combos$tau[modelindex2],
-           r_2 = d_combos$r[modelindex2],)
-}
-
-d_epi_diff <- AddCombosToDiffDF(d_epi_diff)
-
-# Plot distributions of differences between models
-# heatmap: model1 vs model2, EP?
-
-ggplot(d_epi_diff,
-       aes(x = modelindex1, y = modelindex2, fill = diffEP)) +
-  facet_grid(.~optPerc) + 
-  geom_tile() +
-  scale_fill_viridis_c() +
-  theme_bw() +
-  labs(x = "Model 1", y = "Model 2", 
-       fill = "Difference in trait epistasis\nbetween models") +
-  theme(legend.position = "bottom", text = element_text(size = 16))
-
-# Difference in variables
-d_epi_diff <- d_epi_diff %>%
-  mutate(r_diff = r_2 - r_1,
-         tau_diff = tau_2 - tau_1,
-         nloci_diff = nloci_2 - nloci_1,
-         model_diff = paste(model_1, model_2, sep = "_"))
-
-d_epi_diff_plt <- d_epi_diff %>%
-  filter(r_diff >= 0, tau_diff >= 0, nloci_diff >= 0) %>%
-  mutate(model_diff = ordered(model_diff, levels = c("K-_K-", "K+_K+", "Add_Add", 
-                                                    "K-_K+", "K-_Add", "K+_Add",
-                                                    "K+_K-", "Add_K-", "Add_K+")))
-
-ggplot(d_epi_diff_plt  %>%
-         group_by(optPerc, r_diff, model_diff) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = r_diff, y = diffEP, colour = model_diff)) +
-  facet_grid(.~optPerc) +
-  geom_point() +
-  #geom_jitter(size = 2, width = 0.005) +
-  scale_colour_paletteer_d("tvthemes::simpsons") +
-  labs(x = "Difference in recombination rate", y = "Difference in trait epistasis",
-       colour = "Model difference") +
-  theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 14)) +
-  guides(colour = guide_legend(nrow = 2, byrow = T))
-
-# The above plot shows that the difference in recombination rate doesn't
-# particularly matter for the change in trait epistasis between models:
-# small changes in rate can still lead to big differences in trait epistasis
-
-ggplot(d_epi_diff_plt %>% 
-         group_by(optPerc, tau_diff, model_diff) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = tau_diff, y = diffEP, colour = model_diff)) +
-  facet_grid(.~optPerc) +
-  geom_point(size = 2) +
-  scale_colour_paletteer_d("tvthemes::simpsons") +
-  labs(x = "Difference in mutational effect variance", y = "Difference in trait epistasis",
-       colour = "Model difference") +
-  theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 14)) +
-  guides(colour = guide_legend(nrow = 2, byrow = T))
-
-# Mutational effect size variance is important: big differences between models
-# in mutational variance leads to big differences in epistasis
-
-ggplot(d_epi_diff_plt %>% 
-         group_by(optPerc, nloci_diff, model_diff) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = nloci_diff, y = diffEP, colour = model_diff)) +
-  facet_grid(.~optPerc) +
-  geom_point(size = 2) +
-  scale_colour_paletteer_d("awtools::a_palette") +
-  labs(x = "Difference in number of loci", y = "Difference in trait epistasis",
-       colour = "Model difference") +
-  theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 14)) +
-  guides(colour = guide_legend(nrow = 2, byrow = T))
-
-# Differences between models in number of loci doesn't have any effect on epistasis
-# probably because of the standardised mutation rate
-
-ggplot(d_epi_diff_plt %>% 
-         group_by(optPerc, r_1, r_2, nloci_diff, model_diff) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = nloci_diff, y = diffEP, colour = model_diff)) +
-  facet_nested(log10(r_1)~optPerc+log10(r_2)) +
-  geom_point(shape = 5) +
-  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate 2", 
-                                         breaks = NULL, labels = NULL)) +
-  scale_x_continuous(sec.axis = sec_axis(~ ., name = "Recombination rate 1", 
-                                         breaks = NULL, labels = NULL)) +
-  scale_colour_paletteer_d("awtools::a_palette") +
-  labs(x = "Difference in number of loci", y = "Difference in trait epistasis",
-       colour = "Model difference") +
-  theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 14)) +
-  guides(colour = guide_legend(nrow = 2, byrow = T))
-
-# There is elevated average trait epistasis comparing models with high recombination
-# with any other level of recombination: recombination has an effect, difference
-# doesn't matter, but the magnitude. Pattern flips with 0.01 and 0.1 according to
-# number of loci
-# With a big difference in nloci (one model has high, the other has low), 
-# 0.1 recombination rate produces the highest trait epistasis
-# with 0.01 recombination rate, smaller differences in nloci produce the greatest
-# difference in epistasis
-
-ggplot(d_epi_diff_plt %>%
-         group_by(optPerc, r_1, r_2, nloci_1, nloci_2) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = as.factor(log10(r_1)), y = as.factor(log10(r_2)), fill = diffEP)) +
-  facet_nested(nloci_1~optPerc+nloci_2) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  theme_bw() +
-  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
-       fill = "Difference in trait epistasis\nbetween models") +
-  theme(legend.position = "bottom", text = element_text(size = 16)) +
-  guides(fill = guide_colourbar(barwidth = 20))
-
-# Differences in trait epistasis between models correlate with very 
-# high recombination rates but only in cases where at least one model has
-# many loci
-
-ggplot(d_epi_diff_plt %>%
-         group_by(optPerc, r_1, r_2, tau_1, tau_2) %>%
-         summarise(diffEP = mean(diffEP)),
-       aes(x = as.factor(log10(r_1)), y = as.factor(log10(r_2)), fill = diffEP)) +
-  facet_nested(tau_1~optPerc+tau_2) +
-  geom_tile() +
-  scale_fill_viridis_c() +
-  theme_bw() +
-  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
-       fill = "Difference in trait epistasis\nbetween models") +
-  theme(legend.position = "bottom", text = element_text(size = 16)) +
-  guides(fill = guide_colourbar(barwidth = 20))
-
-
-# So the trait epistasis difference requires one of the models to have high
-# mutational variance and high recombination
+d_epi_means <- d_epi_means %>%
+  mutate(isAdapted = as.logical(isAdapted)) 
 
 d_epi_means_plt <- AddCombosToDF(d_epi_means %>% 
-                                   mutate(modelindex = as.factor(modelindex)))
+                                   mutate(modelindex = as.factor(modelindex))) %>%
+  mutate(model = factor(model, levels = model_names))
 
-# Remove outlier
-d_epi_means_plt <- d_epi_means_plt %>%
-  filter(modelindex != 396)
-
-
-d_epi_means_plt <- d_epi_means_plt %>%
-  filter(modelindex != 396, tau == 0.0125, r %in% r_subsample)
-
-d_epi_means_plt_sum <- d_epi_means_plt %>%
-  group_by(model, r) %>%
-  summarise(meanEWBar = mean(meanEW),
-            CIEWBar = CI(meanEW),
-            varEWBar = var(meanEW),
-            n = n())
-
-ggplot(d_epi_means_plt %>%
-         mutate(r_title = "Recombination rate (log10)",
-                nloci_title = "Number of loci",
-                tau_title = "Mutational effect size variance"), 
-       aes(x = model, y = meanEW, colour = model)) +
-  facet_nested(r_title + log10(r) ~ .) +
-  geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_epi_means_plt_sum %>% 
-               mutate(r_title = "Recombination rate (log10)",
-                      nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance"),
-             aes(x = model, y = meanEWBar, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
-                      guide = "none") +
-  labs(x = "Model", y = "Average fitness epistasis", colour = "Model") +
-  scale_x_discrete(labels = c("Additive", "K+", "K-")) +
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = interaction(timePoint, model), y = meanEW, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEW - ( (sdEW / sqrt(count)) * qnorm(0.975) ),
+                    ymax = meanEW + ( (sdEW / sqrt(count)) * qnorm(0.975) )), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
+       y = "Average fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
   theme_bw() +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 12)) -> plt_ew
+plt_ew
+ggsave("plt_ew.png", device = png,
+       width = 12, height = 6)
 
-ggsave("plt_ew_sml.png", width = 4, height = 7, device = png)
-
-# For preso
-d_epi_means_plt <- d_epi_means_plt %>%
-  filter(modelindex != 396, tau == 0.0125, r %in% c(1e-10, 0.1))
-
-d_epi_means_plt_sum <- d_epi_means_plt %>%
-  group_by(model, r) %>%
-  summarise(meanEWBar = mean(meanEW),
-            CIEWBar = CI(meanEW),
-            n = n())
-
-ggplot(d_epi_means_plt %>% 
-         mutate(r_title = "Recombination rate",
-                nloci_title = "Number of loci",
-                tau_title = "Mutational effect size variance"), 
-       aes(x = model, y = meanEW, colour = model)) +
-  facet_nested(r_title + r ~ .,
-               labeller = labeller(r = as_labeller(c(`1e-10` = "Low",
-                                                     `0.1` = "High")))) +
-  geom_quasirandom(dodge.width = 0.9) +
-  geom_point(data = d_epi_means_plt_sum %>% 
-               mutate(r_title = "Recombination rate",
-                      nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance"),
-             aes(x = model, y = meanEWBar, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
-                      guide = "none") +
-  labs(x = "Model", y = "Average fitness epistasis", colour = "Model") +
-  scale_x_discrete(labels = c("Additive", "K+", "K-")) +
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = interaction(timePoint, model), y = meanEW_s, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEW_s - ( (sdEW_s / sqrt(count)) * qnorm(0.975) ),
+                    ymax = meanEW_s + ( (sdEW_s / sqrt(count)) * qnorm(0.975) )), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
+       y = "Average fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
   theme_bw() +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 12)) -> plt_ew_s
+plt_ew_s
+ggsave("plt_ew_s.png", device = png,
+       width = 12, height = 6)
 
-ggsave("plt_ew_talk.png", width = 4, height = 4, device = png)
+# How about variance?
+ggplot(d_epi_means_plt %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = interaction(timePoint, model), y = sdEW_s^2, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = TeX("Generations post-optimum shift ($x10^3$) / Model"), 
+       y = "Variance in fitness epistasis", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_s_var
+plt_ew_s_var
+ggsave("plt_ew_var_s.png", device = png,
+       width = 12, height = 6)
 
 
+# How many times does epistasis change sign?
+d_epi_sign <- read.table(paste0(DATA_PATH, "d_epi_sign_nomolcomp.csv"), header = F, sep = ",",
+                          col.names = c("seed", "modelindex",
+                                        "n", "nChangesEW", 
+                                        "nChangesEW_s"),
+                         colClasses = c("factor", "factor", 
+                                        rep("integer", times = 3)))
+
+# Is it adapted? Attach info from qg
+d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
+                          sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                    rep("numeric", times = 29)), 
+                          col.names = c("gen", "seed", "modelindex", "meanH",
+                                        "trait1_mean", "trait2_mean", "trait3_mean",
+                                        "trait4_mean", "trait1_var", "trait2_var", 
+                                        "trait3_var", "trait4_var", "dist", 
+                                        "dist1", "dist2", "dist3", "dist4", "mean_w",
+                                        "var_w", "deltaPheno", "deltaW", 
+                                        "meanMC1", "meanMC2", "meanMC3", "meanMC4", 
+                                        "meanMC5", "meanMC6", "meanMC7", "meanMC8", 
+                                        "meanMC9", "meanMC10", "meanMC11"), 
+                          fill = T)
+d_qg <- AddCombosToDF(d_qg) 
+
+d_qg %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.95)) %>%
+  mutate(model = factor(model, levels = model_names)) %>%
+  ungroup() -> d_qg
+
+d_qg <- d_qg %>% filter(gen >= 49500)
+
+d_epi_sign <- left_join(d_epi_sign, 
+                        d_qg %>% filter(gen == 60000), 
+                         by = c("seed", "modelindex"))
+
+
+d_epi_sign_mean <- d_epi_sign %>%
+  group_by(model, r, isAdapted) %>%
+  summarise(meanEWChanges = mean(nChangesEW),
+            CIEWChanges = CI(nChangesEW),
+            meanEWsChanges = mean(nChangesEW_s),
+            CIEWsChanges = CI(nChangesEW_s))
+
+ggplot(d_epi_sign_mean %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = meanEWsChanges, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEWsChanges - CIEWsChanges,
+                    ymax = meanEWsChanges + CIEWsChanges), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = "Model", 
+       y = "Mean number of sign changes in fitness epistasis\n(s-based epistasis)", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_s_sign  
+plt_ew_s_sign
+ggsave("plt_ew_s_sign.png", width = 6, height = 6, device = png)
+
+ggplot(d_epi_sign_mean %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = meanEWChanges, colour = model)) +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanEWChanges - CIEWChanges,
+                    ymax = meanEWChanges + CIEWChanges), 
+                position = position_dodge(0.9)) +
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = 1),
+                      labels = model_labels) +
+  labs(x = "Model", 
+       y = "Mean number of sign changes in fitness epistasis\n(w-based epistasis)", colour = "Model") +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_ew_sign  
+plt_ew_sign
+ggsave("plt_ew_sign.png", device = png,
+       width = 6, height = 6)
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 # Box plots
 ggplot(d_epi_means_plt, aes(x = model, y = meanEP)) +
   facet_grid(.~optPerc) +

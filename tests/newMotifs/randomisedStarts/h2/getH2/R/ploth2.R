@@ -27,7 +27,7 @@ library(stargazer)
 library(Rcpp)
 library(dendextend)
 
-DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
@@ -63,34 +63,34 @@ get_legend <- function(plot, legend = NULL) {
   return(NULL)
 }
 
-h2_colnames <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_aX", "VA_KZX", 
-                 "VA_aY", "VA_bY", "VA_KY", "VA_aZ", "VA_bZ", "VA_KZ", "VA_KXZ", 
-                 "VA_base", "VA_n", "VA_XMult", "CVA_aX_KZX", "CVA_aX_aY", 
-                 "CVA_aX_bY", "CVA_aX_KY", "CVA_aX_aZ", "CVA_aX_bZ", "CVA_aX_KZ", 
-                 "CVA_aX_KXZ", "CVA_aX_base", "CVA_aX_n", "CVA_aX_XMult", 
-                 "CVA_KZX_aY", "CVA_KZX_bY", "CVA_KZX_KY", "CVA_KZX_aZ", 
-                 "CVA_KZX_bZ", "CVA_KZX_KZ", "CVA_KZX_KXZ", "CVA_KZX_base", 
-                 "CVA_KZX_n", "CVA_KZX_XMult", "CVA_aY_bY", "CVA_aY_KY", 
-                 "CVA_aY_aZ", "CVA_aY_bZ", "CVA_aY_KZ", "CVA_aY_KXZ", 
-                 "CVA_aY_base", "CVA_aY_n", "CVA_aY_XMult", "CVA_bY_KY", 
-                 "CVA_bY_aZ", "CVA_bY_bZ", "CVA_bY_KZ", "CVA_bY_KXZ", 
-                 "CVA_bY_base", "CVA_bY_n", "CVA_bY_XMult", "CVA_KY_aZ", 
-                 "CVA_KY_bZ", "CVA_KY_KZ", "CVA_KY_KXZ", "CVA_KY_base", 
-                 "CVA_KY_n", "CVA_KY_XMult", "CVA_aZ_bZ", "CVA_aZ_KZ", 
-                 "CVA_aZ_KXZ", "CVA_aZ_base", "CVA_aZ_n", "CVA_aZ_XMult", 
-                 "CVA_bZ_KZ", "CVA_bZ_KXZ", "CVA_bZ_base", "CVA_bZ_n", 
-                 "CVA_bZ_XMult", "CVA_KZ_KXZ", "CVA_KZ_base", "CVA_KZ_n", 
-                 "CVA_KZ_XMult", "CVA_KXZ_base", "CVA_KXZ_n", "CVA_KXZ_XMult", 
-                 "CVA_base_n", "CVA_base_XMult", "CVA_n_XMult", "h2_aX", "h2_KZX", "h2_aY", "h2_bY", 
-                 "h2_KY", "h2_aZ", "h2_bZ", "h2_KZ", "h2_KXZ", "h2_base", "h2_n", 
-                 "h2_XMult")
+d_h2_mrr <- read_csv(paste0(DATA_PATH, "out_h2_mrr_c.csv"), col_names = F)
+d_h2_mkr <- read_csv(paste0(DATA_PATH, "out_h2_mkr_c.csv"), col_names = F)
 
-d_h2_mrr <- data.table::fread(paste0(DATA_PATH, "out_h2_mrr.csv"), header = F, 
-                              sep = ",",
-                              col.names = h2_colnames, fill = T)
-d_h2_mkr <- data.table::fread(paste0(DATA_PATH, "out_h2_mkr.csv"), header = F, 
-                              sep = ",",
-                              col.names = h2_colnames, fill = T)
+
+colnames(d_h2_mrr) <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_aX", "VA_KZX", 
+                        "VA_aY", "VA_bY", "VA_KY", "VA_aZ", "VA_bZ", "VA_KZ", "VA_KXZ", 
+                        "VA_base", "VA_n", "VA_XMult", "CVA_aX_KZX", "CVA_aX_aY", 
+                        "CVA_aX_bY", "CVA_aX_KY", "CVA_aX_aZ", "CVA_aX_bZ", "CVA_aX_KZ", 
+                        "CVA_aX_KXZ", "CVA_aX_base", "CVA_aX_n", "CVA_aX_XMult", 
+                        "CVA_KZX_aY", "CVA_KZX_bY", "CVA_KZX_KY", "CVA_KZX_aZ", 
+                        "CVA_KZX_bZ", "CVA_KZX_KZ", "CVA_KZX_KXZ", "CVA_KZX_base", 
+                        "CVA_KZX_n", "CVA_KZX_XMult", "CVA_aY_bY", "CVA_aY_KY", 
+                        "CVA_aY_aZ", "CVA_aY_bZ", "CVA_aY_KZ", "CVA_aY_KXZ", 
+                        "CVA_aY_base", "CVA_aY_n", "CVA_aY_XMult", "CVA_bY_KY", 
+                        "CVA_bY_aZ", "CVA_bY_bZ", "CVA_bY_KZ", "CVA_bY_KXZ", 
+                        "CVA_bY_base", "CVA_bY_n", "CVA_bY_XMult", "CVA_KY_aZ", 
+                        "CVA_KY_bZ", "CVA_KY_KZ", "CVA_KY_KXZ", "CVA_KY_base", 
+                        "CVA_KY_n", "CVA_KY_XMult", "CVA_aZ_bZ", "CVA_aZ_KZ", 
+                        "CVA_aZ_KXZ", "CVA_aZ_base", "CVA_aZ_n", "CVA_aZ_XMult", 
+                        "CVA_bZ_KZ", "CVA_bZ_KXZ", "CVA_bZ_base", "CVA_bZ_n", 
+                        "CVA_bZ_XMult", "CVA_KZ_KXZ", "CVA_KZ_base", "CVA_KZ_n", 
+                        "CVA_KZ_XMult", "CVA_KXZ_base", "CVA_KXZ_n", "CVA_KXZ_XMult", 
+                        "CVA_base_n", "CVA_base_XMult", "CVA_n_XMult", "h2_aX", "h2_KZX", "h2_aY", "h2_bY", 
+                        "h2_KY", "h2_aZ", "h2_bZ", "h2_KZ", "h2_KXZ", "h2_base", "h2_n", 
+                        "h2_XMult")
+
+
+colnames(d_h2_mkr) <- colnames(d_h2_mrr)
 
 # join
 d_h2_mkr$calcMode <- "mkr"
@@ -100,11 +100,6 @@ d_h2 <- rbind(d_h2_mkr, d_h2_mrr)
 
 # Remove duplicates
 d_h2 %>% distinct() -> d_h2
-
-# Remove rows with invalid estimates
-d_h2 <- d_h2 %>%
-  filter(VA_w >= 0)
-
 
 # Add our variables
 d_combos <- read_delim('/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
@@ -160,10 +155,10 @@ ggplot(d_h2 %>% distinct(gen, seed, modelindex, calcMode, .keep_all = T) %>%
 
 d_h2 <- d_h2 %>% filter(calcMode == "mkr")
 
-boxplot(d_h2$VA_w)
+boxplot(d_h2$h2_w)
 
 # Attach quant gen data
-d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F, 
+d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg_c.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
                                                     rep("numeric", times = 29)), 
                           col.names = c("gen", "seed", "modelindex", "meanH",
@@ -179,6 +174,9 @@ d_qg <- data.table::fread(paste0(DATA_PATH, "slim_qg.csv"), header = F,
 
 # Add predictors
 d_qg <- AddCombosToDF(d_qg) 
+
+# Initial optimum distance
+INIT_DIST <- sqrt(-2 * log(0.90))
 
 # Optimum: fitness > 95%
 d_qg %>%
@@ -199,7 +197,6 @@ d_h2 <- d_h2 %>%
 
 # inner join optPerc
 d_h2 <- left_join(d_h2, d_qg_optPerc, by = c("gen", "seed", "modelindex"))
-
 
 # Counts for each model type:
 table(d_h2$model, d_h2$isAdapted)
@@ -243,33 +240,31 @@ ggplot(d_h2 %>%
 
 # Additive variance
 # Small effects as separate figure
-ggplot(d_h2 %>% 
+ggplot(d_h2 %>%
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = timePoint, y = log10(VA_w), colour = model)) +
+       aes(x = timePoint, y = VA_w, colour = model)) +
   facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
-  geom_point(data = d_h2_sum %>% ungroup() %>% 
+  geom_point(data = d_h2_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
-             aes(x = timePoint, y = log10(meanVAw), group = model), colour = "black",
+             aes(x = timePoint, y = meanVAw, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Time point", 
-       y = TeX("Log additive variance in fitness ($log_{10}(VA)$)"),
+       y = TeX("Additive variance in fitness $(VA)$"),
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_names,
                       guide = guide_legend(override.aes = list(shape = 16,
                                                                size = 3))) +
-  #coord_cartesian(ylim = c(0, 1)) +
+  coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom") -> plt_va_together
-plt_va_together
-
+        legend.position = "bottom")
 ggsave("plt_va.png", device = png, bg = "white",
-       width = 12, height = 6)
+       width = 560*4, height = (980*4)/3, units = "px")
 
 # VA per molecular component
 d_h2_molcomp <- d_h2 %>%
