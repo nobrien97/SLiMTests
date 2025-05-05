@@ -187,7 +187,7 @@ survival() {
 }
 
 function (void) WriteMutVarOutput(f$ variance) {
-	Mfile = paste(sim.cycle, asString(seed), modelindex, variance, sep=",");
+	Mfile = paste(cur_index, asString(seed), modelindex, variance, sep=",");
 	writeFile(outMutVar, Mfile, append = T);
 }
 
