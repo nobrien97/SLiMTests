@@ -41,28 +41,13 @@ initialize() {
 	
 	setCfgParam("width", 0.05);	// Set so 1 phenotypic unit deviation is a 20% drop in fitness
 	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
-	setCfgParam("optBurn", 1); // Optimum during burn-in	
-	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
-		// Matrix of phenotype checkpoints where we measure LD. 
-	// First column is a lower bound for check if mean phenotype is at least this value
-	// Second column keeps track of if this checkpoint has been written already (0 = not written, 1 = written)
-	setCfgParam("checkpoints", matrix(c(optBurn+optShift*0.25, 0,  
-										optBurn+optShift*0.5, 0,
-										optBurn+optShift*0.75, 0,
-										optBurn+optShift*0.95, 0), ncol = 2, byrow = T));
-
-	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
 	setCfgParam("molTraitFix", c(2,3)); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
-	setCfgParam("testSampling", 50); // Sample rate during test period
 	
 	setCfgParam("modelindex", 1); // Identifier for the combination of predictors used in latin hypercube: this is the row number 
 	// in the lscombos.csv file
 	setCfgParam("identifier", paste(asString(seed), modelindex, sep = "_")); // Unique identifier for the run - seed_modelindex
 	
 	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
-	//	We write to /$PBS_JOBFS and copy all files of the same type after the full job is complete to a combined file
-	// IMPORTANT: in the PBS script remember to cd $PBS_JOBFS
-	
 	setCfgParam("outMutVar", c(paste0('slim_mutvar', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
 	setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
 				
@@ -143,6 +128,11 @@ mutationEffect(m6) {
 1 early() {
 	LoadPopulation();
 	
+	// Remove p2
+	if (exists("p2")) {
+		p2.removeSubpopulation();
+	}
+
     // Sample N_replicates genotypes to calculate mutations from
     defineConstant("sampled_inds", p1.sampleIndividuals(N_replicates));		
 	community.rescheduleScriptBlock(s1, start = 1, end = N_replicates);
