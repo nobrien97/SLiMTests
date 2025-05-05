@@ -16,8 +16,8 @@ initialize() {
 	
 	setCfgParam("debug", F);
 	setCfgParam("inputPath", "/g/data/ht96/nb9894/standingVar/popstates/"); // "~/Desktop/"); // input population file to load
-	setCfgParam("inputSeed", 2500742990);
-	setCfgParam("inputModel", 33);
+	setCfgParam("inputSeed", 800260023);
+	setCfgParam("inputModel", 418);
 	setCfgParam("inputID", paste0(inputSeed, "_", inputModel));
 	setCfgParam("modelType", "ODE"); // The model type
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
@@ -150,8 +150,7 @@ mutationEffect(m6) {
 
 	
 	// Diagnostics for this run
-	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
-	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed)));
 
 }
 
