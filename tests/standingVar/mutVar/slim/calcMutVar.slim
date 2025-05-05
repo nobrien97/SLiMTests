@@ -1,0 +1,292 @@
+// set up a simple neutral simulation
+initialize() {
+	if (!exists("slimgui")) {
+		defineConstant("seed", getSeed());
+	}
+	else {
+		setSeed(asInteger(round(runif(1, 1, 2^62 - 1))));
+		defineConstant("seed", getSeed());
+		catn("Actual seed: " + asInteger(seed));
+	}
+	
+	
+	defineConstant("wd", "/home/564/nb9894/tests/standingVar/mutVar/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/mutVar/calcLD/slim/"); // 
+	// Load functions from file
+	source(paste0(wd, "baseFns.slim"));
+	
+	setCfgParam("debug", F);
+	setCfgParam("inputPath", "/g/data/ht96/nb9894/standingVar/popstates/"); // "~/Desktop/"); // input population file to load
+	setCfgParam("inputSeed", 2500742990);
+	setCfgParam("inputModel", 33);
+	setCfgParam("inputID", paste0(inputSeed, "_", inputModel));
+	setCfgParam("modelType", "ODE"); // The model type
+	setCfgParam("mu", 1e-5); // Per locus mutation rate
+	setCfgParam("N", 5000); // Population size
+	setCfgParam("N_replicates", 3); // Number of replicate sampled genotypes to measure Vm from
+	setCfgParam("N_p2", 25000); // Population size for the cloned population
+	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
+	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
+	setCfgParam("rwide", 0.0); // Whole genome recombination rate - set to zero
+	setCfgParam("nloci", 256); // Number of U and E sites along the chromosome
+	setCfgParam("molMutProp", c(1/4, 1/4, 1/4, 1/4)); // proportion of molecular trait loci
+	setCfgParam("genomelength", 1024); // Loci across the genome - some are deleterious, others QTL, others neutral
+	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
+	setCfgParam("locisigma", 1.25); // Variance used for QTL effect pulls - the effect size distribution
+	//setCfgParam("locidist", paste0("exp(rnorm(1,", locimu, ",", locisigma, "));"));
+	setCfgParam("con_props", c(1.0, 0.0, 0.0)); // Proportion of genes that have low/medium/high substitution rate
+	setCfgParam("constraints", matrix(c(1.0, 0.0, 1.0, 1.0, 1.0, 1.0,
+		5.0, 10.0, 1.0, 1.0, 1.0, 1.0,
+		50.0, 100.0, 1.0, 1.0, 1.0, 1.0),
+		ncol = 6, byrow = T)); // Matrix of lambdas: m1/m2/m3/m4/m5/m6 weights in columns, rows are low/medium/high sub rate
+	
+	setCfgParam("width", 0.05);	// Set so 1 phenotypic unit deviation is a 20% drop in fitness
+	// TODO: Set this to a large value, adjust width also to have a longer adaptation period: measure the distribution of effects for adaptation!!!!	
+	setCfgParam("optBurn", 1); // Optimum during burn-in	
+	setCfgParam("optShift", 1); // How far away optimum phenotype should be from mean phenotype post-burnin: Kingsolver et al. 2001 suggests .01 to 10 phenotypic units
+		// Matrix of phenotype checkpoints where we measure LD. 
+	// First column is a lower bound for check if mean phenotype is at least this value
+	// Second column keeps track of if this checkpoint has been written already (0 = not written, 1 = written)
+	setCfgParam("checkpoints", matrix(c(optBurn+optShift*0.25, 0,  
+										optBurn+optShift*0.5, 0,
+										optBurn+optShift*0.75, 0,
+										optBurn+optShift*0.95, 0), ncol = 2, byrow = T));
+
+	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("molTraitFix", c(2,3)); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
+	setCfgParam("testSampling", 50); // Sample rate during test period
+	
+	setCfgParam("modelindex", 1); // Identifier for the combination of predictors used in latin hypercube: this is the row number 
+	// in the lscombos.csv file
+	setCfgParam("identifier", paste(asString(seed), modelindex, sep = "_")); // Unique identifier for the run - seed_modelindex
+	
+	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
+	//	We write to /$PBS_JOBFS and copy all files of the same type after the full job is complete to a combined file
+	// IMPORTANT: in the PBS script remember to cd $PBS_JOBFS
+	
+	setCfgParam("outMutVar", c(paste0('slim_mutvar', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
+				
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(keepPedigrees=T);
+	initializeMutationRate(mu);
+	
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	
+	// m2 mutation type: background
+	initializeMutationType("m2", 0.5, "n", 0.0, 1.0);
+	m2.color = "red";
+	m1.convertToSubstitution = T;
+	
+	//m3 mutation type: aZ mutation
+	initializeMutationType("m3", 0.5, "n", locimu, locisigma);
+	m3.color = "green";
+	m3.convertToSubstitution = T;
+	
+	//m4 mutation type: bZ mutation
+	initializeMutationType("m4", 0.5, "n", locimu, locisigma);
+	m4.color = "blue";
+	m4.convertToSubstitution = T;
+	
+	//m5 mutation type: KZ mutation
+	initializeMutationType("m5", 0.5, "n", locimu, locisigma);
+	m5.color = "cyan";
+	m5.convertToSubstitution = T;
+	
+	//m6 mutation type: KXZ mutation
+	initializeMutationType("m6", 0.5, "n", locimu, locisigma);
+	m6.color = "purple";
+	m6.convertToSubstitution = T;
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 100 kb with uniform recombination
+	initializeGenomicElement(g1, 0, genomelength-1);
+	initializeRecombinationRate(rwide);
+}
+
+mutation(m1) {
+	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
+	mut.setMutationType(sampleMutTypeFromSite(mut.position));
+	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
+	
+	if (all(molTraitFix == -1))
+		return T;
+	
+	// Check if the mutation type is meant to be locked: if it is, don't mutate	
+	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2]))
+		return F;
+	
+	return T;
+}
+
+mutationEffect(m2) {
+	return 1.0;
+}
+
+mutationEffect(m3) {
+	return 1.0;
+}
+mutationEffect(m4) {
+	return 1.0;
+}
+mutationEffect(m5) {
+	return 1.0;
+}
+mutationEffect(m6) {
+	return 1.0;
+}
+
+// create a population of 500 individuals
+1 early() {
+	LoadPopulation();
+	
+    // Sample N_replicates genotypes to calculate mutations from
+    defineConstant("sampled_inds", p1.sampleIndividuals(N_replicates));		
+	community.rescheduleScriptBlock(s1, start = 1, end = N_replicates);
+	defineGlobal("cur_index", 0);
+
+	
+	// Diagnostics for this run
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
+	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
+
+}
+
+// handle cloning the population
+s1 early() {
+	if (exists("p2")) {
+		// Measure variance
+		calcPhenotype(p2.individuals, modelType);
+		phenotypes = inds.phenotype;
+		phenovar = var(phenotypes);
+
+		// Write output
+		WriteMutVarOutput(phenovar);
+
+		// Remove p2
+		p2.removeSubpopulation();
+	}
+
+	sim.addSubpop("p2", 0);
+	p2.addCloned(sampled_inds[cur_index], N_p2);
+	cur_index = cur_index + 1;
+}
+
+
+// full-sib half-sib mating design: we want to keep variability around though,
+// so we still sample the rest of the population according to the regular rules
+s4 reproduction() {	
+
+}
+
+survival() {
+	return T;
+}
+
+function (void) WriteMutVarOutput(f$ variance) {
+	Mfile = paste(sim.cycle, asString(seed), modelindex, variance, sep=",");
+	writeFile(outMutVar, Mfile, append = T);
+}
+
+
+function (void) LoadPopulation(void) {
+	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, ".bin"));
+	
+	// QTL positions
+	pos = readCSV(paste0("./slim_pos", inputID, ".csv"), colNames = F);
+	pos_QTL = c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix());
+	sim.setValue("pos_QTL", pos_QTL);
+	
+	// Constraint dictionary
+	dict = readCSV(paste0("./slim_dict", inputID, ".csv"), colNames = F);
+	dict_genes = c(dict.subsetColumns(2:(genomelength+1)).asMatrix());
+	dict_constraint = c(dict.subsetColumns((genomelength+3):(dict.ncol-1)).asMatrix());
+	con_dict = matrix(c(dict_genes, dict_constraint), ncol = genomelength, byrow = T);	
+	sim.setValue("con_dict", con_dict);
+	
+	// Optimum
+	opt = readCSV(paste0("./slim_opt", inputID, ".csv"), colNames = F);
+	opt = opt.subset(0, 2);
+	
+	sim.setValue("optimum", opt);
+	
+	// Misc initial values
+
+	// Set delta difference value
+	sim.setValue("lastDist", 0.0);
+	sim.setValue("lastw", 0.0);
+		
+	// Set mutation rate
+	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
+	u_g = genomelength * mu;
+	u_q = u_g / nloci;
+	u_n = u_g / (genomelength - nloci);
+	
+	// return early if we have no QTLs: mutation rate is always mu
+	if (length(pos_QTL) == 0) {
+		return;
+	}
+	
+	// Set molMutCutoffs
+	// mol traits are in order: first molMutProp[0]% are alpha, next molMutProp[1]% are beta, then KZ, then KXZ
+	// figure out the actual cutoffs 
+	molMutres = integer(size(molMutProp));
+
+	for (i in seqLen(size(molMutProp)))
+	{
+		if (i == 0) 
+		{ 
+			molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)); 
+			next;
+		}
+
+		if (i == size(molMutProp)-1) 
+		{ 
+			molMutres[i] = nloci; 
+			next;
+		}
+
+		molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)) + molMutres[i-1];
+	}
+	
+	// if the first element has 0 loci, remove it
+	if (molMutres[0] == 0) {
+		molMutres = molMutres[1:(length(molMutres)-1)];
+	}
+		
+	// Ensure we don't go over nloci
+	molMutres[molMutres > nloci] = nloci; 
+		
+	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
+	molMutres = unique(molMutres);
+
+	defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
+	
+	ends = unique(findMutBreakpoints(pos_QTL));
+	
+	
+
+	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
+	if (sort(pos_QTL)[0] == 0) {
+		rates = rep(c(u_q, u_n), length(ends));
+	} else {
+		rates = rep(c(u_n, u_q), length(ends));
+	}
+	
+	// shorten to match ends length
+	rates = rates[0:(length(ends)-1)];	
+		
+	// get a vector of values
+	sim.chromosome.setMutationRate(rates, ends);	
+	
+	// Calculate p2 phenotypes first so we don't overwrite p1 sim.setvalue("fitness")
+	calcPhenotype(p2.individuals, modelType);
+	calcPhenotype(p1.individuals, modelType);
+	calcFitnessGaussian(p1.individuals, opt);
+	
+	setSeed(inputSeed);
+	return;
+}
