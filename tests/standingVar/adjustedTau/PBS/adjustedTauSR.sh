@@ -7,8 +7,11 @@ SECONDS=0
 MODELINDEX=$1
 SEED=$2
 FILENAME=${MODELINDEX}_${SEED}
-JOBNAME=standingVar
-TESTDIR=$HOME/tests/$JOBNAME
+BASEJOBNAME=standingVar
+JOBNAME=adjustedTau
+TOTALJOBNAME=$BASEJOBNAME/$JOBNAME
+TESTDIR=$HOME/tests/$TOTALJOBNAME
+BASEDIR=$HOME/tests/$BASEJOBNAME
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."
@@ -16,9 +19,9 @@ if [ -f $TESTDIR/done/${FILENAME} ]; then
 fi
 
 # Get the correct modelindex from the file: put into array
-MODEL_FILE=$TESTDIR/R/combos.csv
+MODEL_FILE=$BASEDIR/R/combos.csv
 MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
-SEED_FILE=$TESTDIR/R/${JOBNAME}_seeds.csv
+SEED_FILE=$BASEDIR/R/${BASEJOBNAME}_seeds.csv
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Run the model
@@ -26,9 +29,9 @@ echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 # If we have a K model, we need to disable molTraitFix by setting it to -1
 if [[ "${MODEL_NUM[3]}" == "'K'" ]]
 then
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/baseScript.slim
+    $HOME/SLiM/chp2/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix=-1 -d molTraitProps="c(0.25, 0.25, 0.25, 0.25)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="'ODE'" $TESTDIR/slim/baseScript.slim
 else
-    $HOME/SLiM/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/baseScript.slim
+    $HOME/SLiM/chp2/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d molTraitFix="c(2,3)" -d molTraitProps="c(0.5, 0.5, 0.0, 0.0)" -d nloci=${MODEL_NUM[0]} -d locisigma=${MODEL_NUM[1]} -d rwide=${MODEL_NUM[2]} -d modelType="${MODEL_NUM[3]}" $TESTDIR/slim/baseScript.slim
 fi
 
 DURATION=$SECONDS

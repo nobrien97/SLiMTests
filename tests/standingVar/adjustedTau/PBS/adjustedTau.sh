@@ -1,19 +1,21 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=1440
-#PBS -l mem=2000GB
-#PBS -l jobfs=1000GB
+#PBS -l ncpus=288
+#PBS -l mem=1140GB
+#PBS -l jobfs=2400GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
   
 ECHO=/bin/echo
-JOBNAME=standingVar
+BASEJOBNAME=standingVar
+JOBNAME=adjustedTau
+TOTALJOBNAME=$BASEJOBNAME/$JOBNAME
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
-#   For this job, NJOBS should = 4
+#   For this job, NJOBS should = 0
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -28,9 +30,9 @@ if [ X$NJOB == X ]; then
     cd $PBS_O_WORKDIR
 
     # Make output folder
-    mkdir -p /scratch/ht96/nb9894/$JOBNAME
-    mkdir -p /g/data/ht96/nb9894/$JOBNAME
-    mkdir -p $HOME/tests/$JOBNAME/done
+    mkdir -p /scratch/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p /g/data/ht96/nb9894/$TOTALJOBNAME
+    mkdir -p $HOME/tests/$TOTALJOBNAME/done
 
 fi
 
@@ -48,7 +50,7 @@ $ECHO "Starting job $NJOB of $NJOBS"
 # 
 # INSERT CODE
 cd $PBS_O_WORKDIR
-SAVEDIR=/g/data/ht96/nb9894/$JOBNAME
+SAVEDIR=/g/data/ht96/nb9894/$TOTALJOBNAME
 
 
 # ========================================================================
@@ -65,23 +67,14 @@ export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
-CMDS_PATH=$HOME/tests/$JOBNAME/PBS/cmds.txt
-CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
 
-if [ $CUR_MAX -gt $CUR_TOT ]; then
-    CUR_MAX=$CUR_TOT
-fi
-
-sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
-
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 172800
 
 $ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
-cd /scratch/ht96/nb9894/$JOBNAME/
+cd /scratch/ht96/nb9894/$TOTALJOBNAME/
 
 cat ./slim_pos* >> $SAVEDIR/slim_pos.csv
 cat ./slim_opt* >> $SAVEDIR/slim_opt.csv
