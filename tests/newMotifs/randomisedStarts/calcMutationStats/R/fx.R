@@ -722,27 +722,23 @@ ggsave("plt_propdel_muts_wholewalk.png", plt_propdel_muts_wholewalk,
 # allele frequency spectrum
 d_SFS <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_SFS.csv"), header = F, 
                            sep = ",", colClasses = c("integer", "factor", 
-                                                     "factor", "factor", "factor",
-                                                     rep("numeric", times = 2)), 
-                           col.names = c("timePoint", "seed", "modelindex",
-                                         "mutID", "mutType", "value", "freqBin"), 
+                                                     "factor", "factor", 
+                                                     rep("numeric", times = 3)), 
+                           col.names = c("timePoint", "modelindex", "mutType", "freqBin",
+                                         "countFreqBin", "meanValue", "sdValue"), 
                            fill = T)
 
 d_SFS <- AddCombosToDF(d_SFS)
 
 freqBins <- seq(from = 0.1, to = 1, by = 0.1)
 d_SFS <- d_SFS %>%
-  mutate(freqBin = freqBins[as.numeric(freqBin)])
+  mutate(freqBin = freqBins[as.numeric(freqBin)]) %>%
+  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")))
 
-r_subsample <- c(1e-10, 1e-5, 1e-1)
-
-# Filter to groups we're looking at
-d_SFS <- d_SFS %>%
-  filter(tau == 0.0125, r %in% r_subsample)
 
 # change in SFS over the walk
 d_deltaSFS <- d_SFS %>%
-  group_by(mutType, freqBin, model, nloci, r) %>%
+  group_by(mutType, freqBin, model, r) %>%
   summarise(deltaCount = sum(diff(countFreqBin))) %>%
   ungroup()
 
@@ -753,21 +749,13 @@ d_deltaSFS_mean <- d_deltaSFS %>%
   ungroup()
 
 ggplot(d_deltaSFS_mean %>% 
-         mutate(freqBin = freqBin - 0.1) %>%
-         mutate(model = fct_recode(model, "Additive" = "Add", 
-                                   "K+" = "K",
-                                   "K-" = "ODE"),
-                mutType = as.factor(mutType),
-                mutType = fct_recode(mutType, "$\\alpha_Z$" = "3",
-                                     "$\\beta_Z$" = "4",
-                                     "K_Z" = "5",
-                                     "K_{XZ}" = "6")),
+         mutate(freqBin = freqBin - 0.1),
        aes(x = freqBin, y = meanDeltaCount, fill = model)) +
   facet_nested(log10(r) ~ model + mutType) +
   geom_col(position = position_nudge(x = 0.05)) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, 
-                                         direction = -1),
-                    labels = c("Additive", "K+", "K-")) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
+                                         direction = 1),
+                    labels = model_labels) +
   labs(x = "Allele frequency", y = "Mean change in number\nof mutations over walk", 
        fill = "Model") +
   #coord_cartesian(xlim = c(0, 1)) +
