@@ -1,21 +1,21 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=1440
-#PBS -l mem=2000GB
+#PBS -l ncpus=432
+#PBS -l mem=1710GB
 #PBS -l jobfs=1000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
   
 ECHO=/bin/echo
 BASEJOBNAME=standingVar
-JOBNAME=calcMutVar
+JOBNAME=mutVar
 TOTALJOBNAME=$BASEJOBNAME/$JOBNAME
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
 #   NJOB is the number of the current job in the sequence (defaults to 0)
-#   For this job, NJOBS should = 4
+#   For this job, NJOBS should = 0
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
@@ -68,17 +68,8 @@ export ncores_per_numanode=12
 # Calculate the range of parameter combinations we are exploring this job
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
 CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
-CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
 
-if [ $CUR_MAX -gt $CUR_TOT ]; then
-    CUR_MAX=$CUR_TOT
-fi
-
-sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH.txt
-
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH.txt --timeout 172800
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 172800
 
 $ECHO "All jobs finished, moving output..."
 
