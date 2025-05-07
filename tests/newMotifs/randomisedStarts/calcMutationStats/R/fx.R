@@ -230,7 +230,8 @@ ggsave("plt_propFX.png", device = png, bg = "white",
        width = 16, height = 10)
 
 # Plot the number of beneficial mutations per molecular component
-d_fx_ben <- d_fx %>% filter(s > 0)
+d_fx_ben <- d_fx %>% filter(s > driftBarrier)
+d_fx_del <- d_fx %>% filter(s < driftBarrier)
 
 mutTypes_vec <- c(TeX("Additive", output = "character"),
                   TeX("$\\alpha_Z$", output = "character"),
@@ -238,15 +239,20 @@ mutTypes_vec <- c(TeX("Additive", output = "character"),
                   TeX("$K_Z$", output = "character"),
                   TeX("$K_{XZ}$", output = "character"))
 
+d_fx_ben <- AddCombosToDF(d_fx_ben) 
+d_fx_del <- AddCombosToDF(d_fx_del)
+
 # nloci doesn't matter
 d_fx_ben <- d_fx_ben %>%
-  group_by(timePoint, seed, model, mutType, r) %>%
+  group_by(gen, seed, model, r) %>%
   mutate(countBen = n()) %>%
          #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
   ungroup()
 
+
+
 d_fx_ben_sum <- d_fx_ben %>%
-  group_by(model, mutType) %>%
+  group_by(model, r) %>%
   summarise(meanCountBen = mean(countBen),
             CICountBen = CI(countBen),
             meanBen = mean(s),
@@ -255,13 +261,14 @@ d_fx_ben_sum <- d_fx_ben %>%
 ggplot(d_fx_ben %>% 
          ungroup() %>%
          mutate(r_title = "Recombination rate (log10)"),
-       aes(x = mutType, y = countBen, colour = model)) +
+       aes(x = model, y = countBen, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
   geom_point(data = d_fx_ben_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = mutType, y = meanCountBen, group = model), colour = "black",
+             aes(x = model, y = meanCountBen, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_x_discrete(labels = parse(text = mutTypes_vec)) +
+  #scale_x_discrete(labels = parse(text = mutTypes_vec)) +
   labs(x = "Molecular component", 
        y = "Number of beneficial mutations",
        colour = "Model") +
@@ -434,56 +441,133 @@ emmip(em.benmut,  ~ modelMutType)
 
 # What about effect size: if K_Z has very large effects, generating that variation
 # could be important
-d_fx_ben$mutType <- as.character(d_fx_ben$mutType)
-d_fx_ben[d_fx_ben$model == "Add", "mutType"] <- "2"
-d_fx_ben$mutType <- factor(d_fx_ben$mutType)
+d_fx_ben <- d_fx_ben %>%
+  group_by(gen, seed, model, r) %>%
+  mutate(countBen = n()) %>%
+  #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
+  ungroup()
 
 d_fx_ben_sum <- d_fx_ben %>%
-  group_by(model, mutType) %>%
+  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
+  group_by(model, r) %>%
   summarise(meanCountBen = mean(countBen),
             CICountBen = CI(countBen),
             meanBen = mean(s),
             CIBen = CI(s))
 
-levels(d_fx_ben$optPerc) <- c(
-  TeX("$\\leq 25\\%$"),
-  TeX("$\\leq 50\\%$"),
-  TeX("$\\leq 75\\%$"),
-  TeX("$\\leq 100\\%$")
-)
 
-levels(d_fx_ben_sum$optPerc) <- c(
-  TeX("$\\leq 25\\%$"),
-  TeX("$\\leq 50\\%$"),
-  TeX("$\\leq 75\\%$"),
-  TeX("$\\leq 100\\%$")
-)
-
-
-ggplot(d_fx_ben %>% 
+ggplot(d_fx_ben_sum %>% 
          ungroup() %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance"),
-       aes(x = mutType, y = s, colour = model)) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
+       aes(x = model, y = meanBen, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  #geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
   geom_point(data = d_fx_ben_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       nloci_title = "Number of loci",
                       tau_title = "Mutational effect size variance"),
-             aes(x = mutType, y = meanBen, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_x_discrete(labels = parse(text = mutTypes_vec)) +
-  labs(x = "Molecular component", 
+             aes(x = model, y = meanBen, group = model),
+             size = 1, position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = meanBen - CIBen, 
+                    ymax = meanBen + CIBen), width = 0.1,
+                position = position_dodge(0.9)) +
+  #scale_x_discrete(labels = model_labels) +
+  labs(x = "Model", 
        y = "Average fitness effect\nof beneficial mutations",
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, direction = -1),
-                      labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_ben_muts_s
 plt_ben_muts_s
-ggsave("plt_ben_muts_s_pres.png", plt_ben_muts_s, width = 6, height = 4, device = png)
+ggsave("plt_ben_muts_s.png", plt_ben_muts_s, width = 6, height = 4, device = png)
+
+# Deleterious mutations
+d_fx_del <- d_fx_del %>%
+  group_by(gen, seed, model, r) %>%
+  mutate(countDel = n()) %>%
+  #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
+  ungroup()
+
+d_fx_del_sum <- d_fx_del %>%
+  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
+  group_by(model, r) %>%
+  summarise(meanCountDel = mean(countDel),
+            CICountDel = CI(countDel),
+            meanDel = mean(s),
+            CIDel = CI(s))
+
+ggplot(d_fx_del_sum %>% 
+         ungroup() %>%
+         mutate(r_title = "Recombination rate (log10)",
+                nloci_title = "Number of loci",
+                tau_title = "Mutational effect size variance"),
+       aes(x = model, y = meanDel, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  #geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
+  geom_point(data = d_fx_del_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      nloci_title = "Number of loci",
+                      tau_title = "Mutational effect size variance"),
+             aes(x = model, y = meanDel, group = model),
+             size = 1, position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = meanDel - CIDel, 
+                    ymax = meanDel + CIDel), width = 0.1,
+                position = position_dodge(0.9)) +
+  #scale_x_discrete(labels = model_labels) +
+  labs(x = "Model", 
+       y = "Average fitness effect\nof deleterious mutations",
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom") -> plt_del_muts_s
+plt_del_muts_s
+ggsave("plt_del_muts_s.png", plt_ben_muts_s, width = 6, height = 4, device = png)
+
+# Both
+d_fx_notNeutral <- d_fx %>% filter(s < driftBarrier | s > driftBarrier)
+d_fx_notNeutral <- AddCombosToDF(d_fx_notNeutral) 
+d_fx_notNeutral <- d_fx_notNeutral %>%
+  group_by(gen, seed, model, r) %>%
+  mutate(countMuts = n()) %>%
+  #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
+  ungroup()
+d_fx_notNeutral_sum <- d_fx_notNeutral %>%
+  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
+  mutate(mutationClass = if_else(s > driftBarrier, "Beneficial", "Deleterious")) %>%
+  group_by(model, r, mutationClass) %>%
+  summarise(meanCount = mean(countMuts),
+            CICount = CI(countMuts),
+            meanS = mean(s),
+            CIS = CI(s))
+
+ggplot(d_fx_notNeutral_sum %>% 
+         ungroup() %>%
+         mutate(r_title = "Recombination rate (log10)"),
+       aes(x = interaction(mutationClass, model), y = meanS, colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
+  scale_x_discrete(guide = "axis_nested") + 
+  
+  geom_point(size = 1, position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = meanS - CIS, 
+                    ymax = meanS + CIS), width = 0.1,
+                position = position_dodge(0.9)) +
+  labs(x = "Model / mutation type", 
+       y = "Average fitness effect",
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
+                      guide = "none") +
+  theme_bw() +
+  theme(text = element_text(size = 10),
+        legend.position = "bottom") -> plt_muts_s
+plt_muts_s
+ggsave("plt_muts_s.png", plt_muts_s, width = 8, height = 6, device = png)
+
 
 
 ggplot(d_fx_ben %>%
@@ -636,12 +720,12 @@ ggsave("plt_propdel_muts_wholewalk.png", plt_propdel_muts_wholewalk,
 # SFS: maybe KZ should be rare?
 
 # allele frequency spectrum
-d_SFS <- data.table::fread(paste0(DATA_PATH, "mutationStats/d_SFS.csv"), header = F, 
-                           sep = ",", colClasses = c("factor", "factor", "numeric", 
-                                                     "factor",
-                                                     rep("numeric", times = 3)), 
-                           col.names = c("optPerc", "modelindex", "mutType", "freqBin",
-                                         "countFreqBin", "meanValue", "sdValue"), 
+d_SFS <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_SFS.csv"), header = F, 
+                           sep = ",", colClasses = c("integer", "factor", 
+                                                     "factor", "factor", "factor",
+                                                     rep("numeric", times = 2)), 
+                           col.names = c("timePoint", "seed", "modelindex",
+                                         "mutID", "mutType", "value", "freqBin"), 
                            fill = T)
 
 d_SFS <- AddCombosToDF(d_SFS)
