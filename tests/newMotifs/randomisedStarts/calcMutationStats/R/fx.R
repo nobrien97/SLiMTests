@@ -809,22 +809,19 @@ d_SFS <- d_SFS %>%
                            labels = c("Rare", "Intermediate", "Common")))
 
 d_SFS_freqClpse <- d_SFS %>%
-  group_by(optPerc, mutType, model, nloci, tau, r, freqBin_sml) %>%
+  group_by(timePoint, mutType, model, r, freqBin_sml) %>%
   summarise(countFreqBin = sum(countFreqBin)) %>%
   ungroup()
 
-ggplot(d_SFS_freqClpse %>%
-         mutate(model = fct_recode(model, "Additive" = "Add", 
-                                   "K+" = "K",
-                                   "K-" = "ODE")), 
-       aes(x = freqBin_sml, y = countFreqBin, colour = model,
-           shape = optPerc)) +
+ggplot(d_SFS_freqClpse, 
+       aes(x = interaction(timePoint, as.factor(freqBin_sml)), y = countFreqBin, colour = model)) +
   facet_nested("Recombination rate (log10)" + log10(r) ~ model + mutType, 
                labeller = labeller(mutType = label_parsed)) +
+  scale_x_discrete(guide = "axis_nested") +
   geom_quasirandom() +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, 
-                                         direction = -1),
-                    labels = c("Additive", "K+", "K-")) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
+                                         direction = -1)) + #,
+                    #labels = c("Additive", "K+", "K-")) +
   labs(x = "Allele frequency", y = "Count of mutations", 
        colour = "Model") +
   theme_bw() +
