@@ -67,7 +67,7 @@ export ncores_per_numanode=12
 
 # Calculate the range of parameter combinations we are exploring this job
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
-CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
+CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds_adjTau.txt
 
 mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 172800
 
