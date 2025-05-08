@@ -305,7 +305,7 @@ ggplot(d_h2_molcomp %>%
        colour = "Recombination rate (log10)") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3),
                       labels = c("-10", "-5", "-1")) +
-  #coord_cartesian(ylim = c(0, 1)) +
+  coord_cartesian(ylim = c(0, 10)) +
   theme_bw() +
   theme(text = element_text(size = 10),
         legend.position = "bottom")
@@ -392,7 +392,7 @@ ggsave("plt_example_sims.png", device = png, bg = "white",
 
 # Are these models adapting because of relaxed constraints? Which traits are optimised?
 # load in optima
-d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt_c.csv"), header = F, 
+d_opt <- data.table::fread(paste0(DATA_PATH, "slim_opt.csv"), header = F, 
                           sep = ",", colClasses = c("factor", "factor", 
                                                     rep("numeric", times = 12)), 
                           fill = T)
@@ -566,7 +566,7 @@ rownames(dist_matrix) <- colnames(dist_matrix)
 hc <- hclust(as.dist(dist_matrix), method="average")
 plot(as.phylo(hc), type="phylogram", main="Phylogenetic Tree of G Matrices")
 
-# number of clusters: 4 seems to be the best
+# number of clusters: 5 seems to be the best
 # elbow plot
 fviz_nbclust(dist_matrix, kmeans, method = "wss", k.max = 24) + theme_minimal() + ggtitle("the Elbow Method")
 
@@ -576,12 +576,12 @@ png(file = "dendrogram_totaldist.png",
 par(lwd=2, mar=c(8,8,8,8))
 plot(hc, main = "Power Euclidean distances between molecular G matrices", labels = F,
      cex.main = 2, cex.lab = 2, xlab = "", sub = "", axes = F)
-rect.hclust(hc, 4, border = 2)
+rect.hclust(hc, 5, border = 2)
 axis(2, lwd = 2, cex.axis = 2)
 dev.off()
 
 
-clus <- cutree(hc, 4)
+clus <- cutree(hc, 5)
 g <- split(names(clus), clus)
 g <- lapply(g, function(x) as.numeric(substring(x, 8)))
 
@@ -661,86 +661,86 @@ d_ecr <- d_ecr %>%
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
 d_ecr_sum <- d_ecr %>%
-  group_by(timePoint, model, r) %>%
+  group_by(model, r) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = cev, colour = model)) +
+       aes(x = model, y = log10(cev), colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = cev_mean, group = model), colour = "black",
+             aes(x = model, y = log10(cev_mean), group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_names) +
-  labs(x = "Time point", y = "Mean conditional evolvability",
+  labs(x = "Model", y = "Mean conditional\nevolvability (log10)",
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", 
+  theme(legend.position = "none", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_cev
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = res, colour = model)) +
+       aes(x = model, y = log10(res), colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = res_mean, group = model), colour = "black",
+             aes(x = model, y = log10(res_mean), group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_names) +
-  labs(x = "Time point", y = "Mean respondability",
+  labs(x = "Model", y = "Mean respondability (log10)",
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", 
+  theme(legend.position = "none", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_res
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = aut, colour = model)) +
+       aes(x = model, y = aut, colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = aut_mean, group = model), colour = "black",
+             aes(x = model, y = aut_mean, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_names) +
-  labs(x = "Time point", y = "Mean autonomy",
+  labs(x = "Model", y = "Mean autonomy",
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", 
+  theme(legend.position = "none", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_aut
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = ev, colour = model)) +
+       aes(x = model, y = log10(ev), colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = ev_mean, group = model), colour = "black",
+             aes(x = model, y = log10(ev_mean), group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_names) +
-  labs(x = "Time point", y = "Mean evolvability",
+  labs(x = "Model", y = "Mean evolvability (log10)",
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", 
+  theme(legend.position = "none", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_ev
@@ -940,7 +940,7 @@ GetModelComparison <- function(model1, model2, model_names) {
 }
 
 bootPCASim <- bootPCASim %>%
-  mutate(tpCombo = GetModelComparison(timePoint1, timePoint2, tpLevels),
+  mutate(#tpCombo = GetModelComparison(timePoint1, timePoint2, tpLevels),
          rCombo = ifelse(r1 != r2, 
                          paste(as.character(r1), 
                                as.character(r2), sep = "_"), 
@@ -948,7 +948,7 @@ bootPCASim <- bootPCASim %>%
 
 # recomb by modelCombo
 bootPCASim_sum <- bootPCASim %>%
-  group_by(r1, r2, model, tpCombo) %>%
+  group_by(r1, r2, model) %>%
   summarise(meanPCASim = mean(PCASim),
             ciPCASim = CI(PCASim))
 
@@ -956,7 +956,7 @@ bootPCASim_sum <- bootPCASim %>%
 ggplot(bootPCASim_sum, aes(
   x = as.factor(r1), y = as.factor(r2)
 )) +
-  facet_nested("Model" + model ~ "Time point comparison" + tpCombo) + 
+  facet_nested("Model" + model ~ .) + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
   geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
@@ -966,7 +966,7 @@ ggplot(bootPCASim_sum, aes(
        fill = "PCA Similarity") +
   theme(text = element_text(size = 10), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_r_tpCombo.png", device = png, width = 15, height = 4)
+ggsave("PCASim_r.png", device = png, width = 15, height = 4)
 
 # beta regression
 # Distributions
