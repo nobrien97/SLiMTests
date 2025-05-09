@@ -3626,6 +3626,10 @@ bootKrzCor <- bootKrzCor2 %>%
          model1 = factor(model1, levels = c("ODE", "K")),
          model2 = factor(model2, levels = c("ODE", "K")))
 
+# Save output
+saveRDS(bootKrzCor, "d_bootKrzCor.RDS")
+bootKrzCor <- readRDS("./d_bootKrzCor.RDS")
+
 bootKrzCor_sum <- bootKrzCor %>%
   group_by(model1, r1, model2, r2) %>%
   dplyr::summarise(meanKrzCor = mean(krzCor),
@@ -3809,9 +3813,9 @@ for (i in seq_along(newseed)) {
 bootPCASim2 <- bind_rows(bootPCASim)
 
 # Null distribution
-bootPCASim_null <- mcreplicate::mc_replicate(10000, bootKrzCor(krz_in, PCASim = T))
+#bootPCASim_null <- mcreplicate::mc_replicate(10000, bootKrzCor(krz_in, PCASim = T))
 
-hist(bootPCASim_null)
+#hist(bootPCASim_null)
 
 bootPCASim <- bootPCASim2 %>%
   separate(group1, c("model1", "r1"), "\\.",
@@ -3823,6 +3827,10 @@ bootPCASim <- bootPCASim2 %>%
          model1 = factor(model1, levels = c("ODE", "K")),
          model2 = factor(model2, levels = c("ODE", "K"))) %>%
   dplyr::rename(PCASim = krzCor)
+
+saveRDS(bootPCASim, "d_bootPCASim.RDS")
+bootPCASim <- readRDS("./d_bootPCASim.RDS")
+
 
 bootPCASim_sum <- bootPCASim %>%
   group_by(model1, r1, model2, r2) %>%
@@ -3909,7 +3917,8 @@ ggsave("PCASim_r_modelCombo_noZ.png", device = png, width = 7, height = 5)
 
 
 ggplot(bootPCASim_sum %>% filter(r1 != -5,
-                                 r2 != -5), 
+                                 r2 != -5,
+                                 modelCombo != "Mix"), 
        aes(x = as.factor(r1), y = as.factor(r2)
 )) +
   facet_nested(. ~ "Model comparison" + modelCombo,
@@ -3919,17 +3928,100 @@ ggplot(bootPCASim_sum %>% filter(r1 != -5,
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
   geom_jitter(data = bootPCASim %>% filter(r1 != -5,
-                                           r2 != -5), 
+                                           r2 != -5,
+                                           modelCombo != "Mix"), 
               mapping = aes(fill = PCASim),
               shape = 21, size = 1) +
-  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1), limits = c(0, 1)) +
   scale_x_discrete(labels = c("Low", "High")) +
   scale_y_discrete(labels = c("Low", "High")) +
   labs(x = "Recombination rate 1", y = "Recombination rate 2", 
        fill = "PCA Similarity") +
-  theme(text = element_text(size = 12), legend.position = "bottom") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_r_modelCombo_noZ_pres.png", device = png, width = 10, height = 4)
+ggsave("PCASim_r_modelCombo_noZ_pres.png", device = png, width = 6, height = 4)
+
+# Single point
+ggplot(bootPCASim_sum %>% filter(r1 == -10,
+                                 r2 == -10,
+                                 modelCombo == "K") %>%
+         slice_sample(n = 1),
+       aes(x = as.factor(r1), y = as.factor(r2)
+       )) +
+  facet_nested(. ~ "Model comparison" + modelCombo,
+               labeller = labeller(modelCombo = as_labeller(c("K" = "K+ vs K+",
+                                                              "ODE" = "K- vs K-",
+                                                              "Mix" = "K+ vs K-")))) + 
+  geom_tile(fill = "white", alpha = 0) +
+  theme_bw() +
+  geom_point(data = bootPCASim %>% filter(r1 == -10,
+                                           r2 == -10,
+                                           modelCombo == "K") %>%
+                slice_max(PCASim), 
+              mapping = aes(fill = PCASim),
+              shape = 21, size = 3, position = position_nudge(x = 0.1, y = 0.1)) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1), limits = c(0, 1.01)) +
+  scale_x_discrete(labels = c("Low", "High")) +
+  scale_y_discrete(labels = c("Low", "High")) +
+  labs(x = "Recombination rate 1", y = "Recombination rate 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_pres_hi_point.png", device = png, width = 4, height = 4)
+
+ggplot(bootPCASim_sum %>% filter(r1 == -10,
+                                 r2 == -10,
+                                 modelCombo == "K") %>%
+         slice_sample(n = 1),
+       aes(x = as.factor(r1), y = as.factor(r2)
+       )) +
+  facet_nested(. ~ "Model comparison" + modelCombo,
+               labeller = labeller(modelCombo = as_labeller(c("K" = "K+ vs K+",
+                                                              "ODE" = "K- vs K-",
+                                                              "Mix" = "K+ vs K-")))) + 
+  geom_tile(fill = "white", alpha = 0) +
+  theme_bw() +
+  geom_point(data = bootPCASim %>% filter(r1 == -10,
+                                          r2 == -10,
+                                          modelCombo == "K") %>%
+               slice_min(PCASim), 
+             mapping = aes(fill = PCASim),
+             shape = 21, size = 3, position = position_nudge(x = -0.1, y = 0.1)) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1), limits = c(0, 1.01)) +
+  scale_x_discrete(labels = c("Low", "High")) +
+  scale_y_discrete(labels = c("Low", "High")) +
+  labs(x = "Recombination rate 1", y = "Recombination rate 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_pres_low_point.png", device = png, width = 4, height = 4)
+
+# Single panel
+ggplot(bootPCASim_sum %>% filter(r1 == -10,
+                                 r2 == -10,
+                                 modelCombo == "K"), 
+       aes(x = as.factor(r1), y = as.factor(r2)
+       )) +
+  facet_nested(. ~ "Model comparison" + modelCombo,
+               labeller = labeller(modelCombo = as_labeller(c("K" = "K+ vs K+",
+                                                              "ODE" = "K- vs K-",
+                                                              "Mix" = "K+ vs K-")))) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim %>% filter(r1 == -10,
+                                           r2 == -10,
+                                           modelCombo == "K"), 
+              mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1), limits = c(0, 1)) +
+  scale_x_discrete(labels = c("Low", "High")) +
+  scale_y_discrete(labels = c("Low", "High")) +
+  labs(x = "Recombination rate 1", y = "Recombination rate 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 14), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_pres_KvsK.png", device = png, width = 4, height = 4)
+
 
 # Not the case: K+ most affected, but I guess it has the most to change
 # K- pretty similar across all recombination rates, does get slightly
