@@ -56,6 +56,7 @@ CalcLD <- function(l_freqs, metric = "D") {
                 scalerDGT0 = min(pA * (1-pB), (1-pA) * (pB)),
                 result = if_else(D > 0, D / scalerDGT0, D / scalerDLT0)) %>%
           select(result) %>% unlist()
+        scaler[is.nan(scaler)] <- 0 # nan entries are where D = 0 because either pA or pB is 0
         return(scaler)
       }
   )

@@ -129,7 +129,7 @@ d_rank <- PairwiseFitnessRank(d_muts %>% filter(!is.na(fixGen)),
 relabeled_freqs <- RelabelGenotypeFrequencies(d_rank, mut_freqs)
 
 # With the relabelled frequencies, calculate D'
-D <- CalcLD(relabeled_freqs, "D'")
+D <- CalcLD(as.data.frame(relabeled_freqs), "D'")
 
 # Check if the comparison is valid
 mutA_valid <- match(mutAID, d_rank$mutIDA, nomatch = 0) > 0
