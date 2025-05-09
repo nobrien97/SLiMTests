@@ -81,7 +81,7 @@ CalcAddEffects <- function(dat, dat_fixed) {
   dat$wAA <- AA
   dat$wAa <- Aa
   dat$waa <- aa
-  dat$s <- AA - aa
+  dat$s <- log(AA) - log(aa)
   
   return(as_tibble(dat))
 }
@@ -201,7 +201,7 @@ CalcNARPhenotypeEffects <- function(dat, dat_fixed) {
   dat$wAA <- AA$fitness
   dat$wAa <- Aa$fitness
   dat$waa <- d_popfx$fitness
-  dat$s <- dat$wAA - dat$waa
+  dat$s <- log(dat$wAA) - log(dat$waa)
   return(dat)
 }
 
