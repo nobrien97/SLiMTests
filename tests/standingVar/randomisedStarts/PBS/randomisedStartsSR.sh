@@ -6,6 +6,7 @@ SECONDS=0
 # Rename the first and second arguments passed to this single shot script for clarity 
 MODELINDEX=$1
 SEED=$2
+FILENAME=${MODELINDEX}_${SEED}
 BASENAME=standingVar
 JOBNAME=randomisedStarts
 BASEDIR=$HOME/tests/$BASENAME
