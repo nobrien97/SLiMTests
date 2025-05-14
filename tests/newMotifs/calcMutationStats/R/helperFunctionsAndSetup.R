@@ -179,7 +179,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   dat$wAA <- AA$fitness
   dat$wAa <- Aa$fitness
   dat$waa <- d_popfx$fitness
-  dat$s <- dat$wAA - dat$waa
+  dat$s <- log(dat$wAA) - log(dat$waa)
   return(dat)
 }
 
@@ -263,6 +263,7 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     result <- inner_join(result, dat, by = c("gen", "seed", "modelindex"))
 
     # Calculate phenotype and fitness effects
+    wwt <- calcAddFitness(result$Pwt, 2, 0.05)
     result$Pwt <- result$fixEffectSum
     result$Pa <- result$fixEffectSum + result$a
     result$Pb <- result$fixEffectSum + result$b
@@ -272,7 +273,11 @@ PairwiseEpistasisAdditive <- function(dat_fixed, muts, n = 1000, m = 10,
     result$wab <- calcAddFitness(result$Pab, 2, 0.05)
     
     # Epistasis (fitness and trait)
-    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
+    sAB <- log(result$wab) - log(wwt) 
+    sA <- log(result$wa) - log(wwt) 
+    sB <- log(result$wb) - log(wwt) 
+    
+    result$ew <- sAB - (sA + sB)
     result$ep <- ( result$Pab - result$Pwt ) - 
       ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) # should always be zero for additive
         
@@ -483,6 +488,7 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     
     
     # Epistasis (fitness and trait)
+    wwt <- d_wildtype$fitness
     result$wa <- d_a$fitness
     result$wb <- d_b$fitness
     result$wab <- d_ab$fitness
@@ -491,7 +497,11 @@ PairwiseEpistasisNAR <- function(dat_fixed, muts, n = 1000, m = 10,
     result$Pb <- d_b$pheno
     result$Pab <- d_ab$pheno
     
-    result$ew <- log(result$wab) - log(result$wa) - log(result$wb)
+    sAB <- log(result$wab) - log(wwt) 
+    sA <- log(result$wa) - log(wwt) 
+    sB <- log(result$wb) - log(wwt) 
+    
+    result$ew <- sAB - (sA + sB)
     result$ep <- ( result$Pab - result$Pwt ) - 
       ( ( result$Pa - result$Pwt ) + ( result$Pb - result$Pwt ) ) 
     
