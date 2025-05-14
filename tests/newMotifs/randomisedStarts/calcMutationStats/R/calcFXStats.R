@@ -22,13 +22,11 @@ EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_new_", model, ".csv")
 
 # Load combo information
 d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
-                       col.names = c("nloci", "tau", "r", "model"))
+                       col.names = c("model", "r"))
 
 # Load mutation data from database
 con <- DBI::dbConnect(RSQLite::SQLite(), 
                       dbname = paste0(GDATA_PATH, "newMotifsMuts.db"))
-# con <- DBI::dbConnect(RSQLite::SQLite(), 
-#                       dbname = paste0(dataPath, "standingVarMuts.db"))
 
 # Quantitative data
 d_qg <- tbl(con, "slim_qg") %>%
