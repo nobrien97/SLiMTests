@@ -15,12 +15,13 @@ model <- as.numeric(args[1])
 R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 GDATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
+COMBO_PATH <- "~/tests/newMotifs/R/"
 
 WRITE_PATH <- "/scratch/ht96/nb9894/newMotifs/randomisedStarts/calcMutationStats/"
 EFFECTS_FILE <- paste0(WRITE_PATH, "d_fx_new_", model, ".csv")
 
 # Load combo information
-d_combos <- read.table(paste0(R_PATH, "combos.csv"), header = F,
+d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
                        col.names = c("nloci", "tau", "r", "model"))
 
 # Load mutation data from database
