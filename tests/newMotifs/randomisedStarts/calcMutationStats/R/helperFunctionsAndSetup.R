@@ -177,7 +177,7 @@ CalcNetworkPhenotypeEffects <- function(dat, dat_fixed, dat_opt) {
   dat$wAA <- AA$fitness
   dat$wAa <- Aa$fitness
   dat$waa <- d_popfx$fitness
-  dat$s <- dat$wAa - dat$waa
+  dat$s <- log(dat$wAa) - log(dat$waa)
   return(dat)
 }
 

@@ -1,0 +1,15 @@
+./calcNewFXSR.sh 1
+./calcNewFXSR.sh 2
+./calcNewFXSR.sh 3
+./calcNewFXSR.sh 4
+./calcNewFXSR.sh 5
+./calcNewFXSR.sh 6
+./calcNewFXSR.sh 7
+./calcNewFXSR.sh 8
+./calcNewFXSR.sh 9
+./calcNewFXSR.sh 10
+./calcNewFXSR.sh 11
+./calcNewFXSR.sh 12
+./calcNewFXSR.sh 13
+./calcNewFXSR.sh 14
+./calcNewFXSR.sh 15

@@ -9,3 +9,14 @@ cmds <- data.frame(sr = singleRunBashName,
 
 write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/PBS/cmds.txt", 
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+# For new FX
+singleRunBashName <- "./calcNewFXSR.sh"
+
+cmds <- data.frame(sr = singleRunBashName,
+                   model = 1:15)
+
+write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/PBS/cmds_new_fx.txt", 
+            sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
