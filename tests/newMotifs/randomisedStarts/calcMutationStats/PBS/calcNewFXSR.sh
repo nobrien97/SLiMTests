@@ -11,7 +11,7 @@ FILENAME=${MODELINDEX}
 JOBNAME=newMotifs/randomisedStarts/calcMutationStats
 TESTDIR=$HOME/tests/$JOBNAME
 
-RSCRIPTNAME=$HOME/tests/$JOBNAME/calcMutationStats/R/calcFXStats.R
+RSCRIPTNAME=$HOME/tests/$JOBNAME/R/calcFXStats.R
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."

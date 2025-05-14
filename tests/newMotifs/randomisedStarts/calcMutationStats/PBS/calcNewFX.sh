@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=912
-#PBS -l mem=3610GB
-#PBS -l jobfs=1000GB
+#PBS -l ncpus=96
+#PBS -l mem=380GB
+#PBS -l jobfs=800GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
 # Run with -v NJOBS=1 -W depend=beforeok:sqlsetup
