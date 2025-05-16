@@ -42,8 +42,22 @@ CalcLD <- function(l_freqs, metric = "D") {
   names(l_freqs$paB) <- NULL
   names(l_freqs$pab) <- NULL
   
+  D <- ( l_freqs$pAB * l_freqs$pab ) - ( l_freqs$pAb * l_freqs$paB )
   switch (metric,
-    "D" = return( ( l_freqs$pAB * l_freqs$pab ) - ( l_freqs$pAb * l_freqs$paB ))
+    "D" = return(D),
+    "D'" = { 
+        # Need to normalise by the maximum possible allele frequency
+        scaler <- l_freqs %>%
+          mutate(pA = pAB + pAb,
+                pB = pAB + paB,
+                D = D) %>%
+          rowwise() %>%
+          mutate(scalerDLT0 = min(pA * pB, (1-pA) * (1-pB)),
+                scalerDGT0 = min(pA * (1-pB), (1-pA) * (pB)),
+                result = if_else(D > 0, D / scalerDGT0, D / scalerDLT0)) %>%
+          select(result) %>% unlist()
+        return(scaler)
+      }
   )
-  
 }
+  

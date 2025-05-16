@@ -14,3 +14,10 @@ cmds <- data.frame(sr = singleRunBashName,
 write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/PBS/cmdsR.txt", 
             sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
+singleRunBashName <- "./calcLD_PRSR.sh"
+
+cmds <- data.frame(sr = singleRunBashName,
+                   model = 0:36180)
+
+write.table(cmds, "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcLD/PBS/cmdsR.txt", 
+            sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)

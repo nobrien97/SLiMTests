@@ -139,12 +139,12 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
          mutate(model = fct_recode(model, "Additive" = "Add", 
                                    "K+" = "K",
                                    "K-" = "ODE")) %>%
-         filter(log10(r) == -10 | log10(r) == -5 | log10(r) == -1,
+         filter(log10(r) == -10 | log10(r) == -1,
                 tau == 0.0125), 
        aes(x = col, y = prop, colour = model, group = interaction(col, model))) +
   facet_nested(r_title + log10(r) ~ model) +
   geom_boxplot(position = position_identity(), outlier.shape = 1,
-               outlier.alpha = 0.2) +
+               outlier.alpha = 0.5) +
   stat_summary(
     fun = median,
     geom = "line",
@@ -156,11 +156,19 @@ ggplot(d_ld_dist_hist %>% mutate(col = bins[as.numeric(str_extract(col, "[0-9]+"
   labs(x = "D", y = "Proportion of estimates", colour = "Model") +
   #scale_x_continuous(labels = bins[7:15]) +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_ld_sml
+  theme(text = element_text(size = 16), legend.position = "bottom") -> plt_ld_sml
 plt_ld_sml
-ggsave("plt_ld_sml.png", device = png, width = 9, height = 4)
+ggsave("plt_ld_sml_pres.png", device = png, width = 9, height = 6)
 
 # what about averages?
+View(d_ld %>%
+  filter(tau == 0.0125, r %in% r_subsample) %>%
+  group_by(model, r) %>%
+  summarise(meanD_mean = mean(meanD, na.rm = T),
+            meanD_ci = CI(meanD, na.rm = T),
+            meanVarD = mean(sdD^2, na.rm = T),
+            CIVarD = CI(sdD^2, na.rm = T)))
+
 
 ggplot(d_ld %>%
          filter(tau == 0.0125) %>%
