@@ -88,7 +88,8 @@ d_epistasis %>%
             q50EW = quantile(ew, probs = 0.5, na.rm = T, names = F),
             q75EW = quantile(ew, probs = 0.75, na.rm = T, names = F),
             q975EW = quantile(ew, probs = 0.975, na.rm = T, names = F),
-            n = n()) -> d_epistasis_mean
+            n = n(),  
+            fracOverDriftBarrier = sum(abs(ew) > 1e-4) / n) -> d_epistasis_mean
 
 # write
 data.table::fwrite(d_epistasis_density,
@@ -149,7 +150,8 @@ d_epistasis_freq %>%
             q50EW = quantile(ew, probs = 0.5, na.rm = T, names = F),
             q75EW = quantile(ew, probs = 0.75, na.rm = T, names = F),
             q975EW = quantile(ew, probs = 0.975, na.rm = T, names = F),
-            n = n()) -> d_epistasis_mean
+            n = n(),  
+            fracOverDriftBarrier = sum(abs(ew) > 1e-4) / n) -> d_epistasis_mean
 
 # write
 data.table::fwrite(d_epistasis_density,
