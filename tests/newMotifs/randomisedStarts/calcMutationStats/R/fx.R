@@ -12,10 +12,16 @@ library(emmeans)
 library(nlme)
 library(MASS)
 library(xtable)
+library(DMwR2)
+
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+COMBO_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/"
 
+DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
+ R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+ COMBO_PATH <- "~/tests/newMotifs/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 # Cowplot 1.1.3 bug: won't get legend, this fixes
@@ -48,7 +54,7 @@ mutate <- dplyr::mutate
 summarise <- dplyr::summarise
 select <- dplyr::select
 
-d_combos <- read.table("../../../R/combos.csv", header = F,
+d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
                        col.names = c("model", "r"))
 
 model_levels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
@@ -121,6 +127,81 @@ plt_fixations
 ggsave("plt_fixations.png", plt_fixations, device = png, 
        width = 12, height = 6)
 
+# Fixations at end of sim
+ggplot(d_fixations_sum %>% filter(gen == 59000), 
+       aes(x = model, y = meanFixations)) +
+  facet_nested("Recombination rate (log10)" + log10(r) ~
+                 "Did the population adapt?" + isAdapted) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanFixations - CIFixations,
+                    ymax = meanFixations + CIFixations), position = position_dodge(0.9),
+                width = 0.5) +
+  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+  #                                          5, direction = 1),
+  #                     labels = model_labels) +
+  labs(x = "Model", 
+       y = "Mean number of cumulative fixations at end of simulation") +
+  theme_bw() +
+  guides(colour = guide_legend(position = "bottom",
+                               override.aes=list(linewidth = 5))) +
+  theme(text = element_text(size = 12),
+        panel.spacing = unit(0.75, "lines")) -> plt_fixations_end
+plt_fixations_end
+ggsave("plt_fixations_end.png", plt_fixations_end, device = png, 
+       width = 12, height = 6)
+
+# Is there any difference between the models in the number of fixations?
+d_fixations_sbst <- d_fixations %>% filter(gen == 59000) %>%
+  mutate(r = as.factor(r))
+
+d_fixations_sbst %>%
+  group_by(model, r, isAdapted) %>%
+  summarise(n = n()) %>%
+  spread(model, n, fill = 0)
+
+lm_numFix <- glm(nFixed ~ model * r * isAdapted, family = "poisson",
+                 data = d_fixations_sbst)
+
+# Check dispersion (we dispersed)
+AER::dispersiontest(lm_numFix)
+
+# Do glm instead, remove outliers for model fitting
+# Detect outliers: Hampel filter
+lofscores <- lofactor(scale(d_fixations_sbst$nFixed), 80)
+threshold <- 1.01
+outliers <- lofscores > threshold
+plot(density(lofscores[lofscores < 1.01]))
+
+plot(lofscores, pch = 1, col = ifelse(outliers, "red", "blue"),
+     main = "LOF Outlier Detection (k = 15)", xlab = "Data Point", 
+     ylab = "LOF Score")
+legend("topright", legend = c("Outlier", "Inlier"), col = c("red", "blue"), 
+       pch = 1)
+boxplot(d_fixations_sbst[!outliers,]$nFixed)
+
+d_fixations_glm <- d_fixations_sbst[!outliers,]
+
+# Model not significant, removed 
+glm_numFix <- glm.nb(nFixed ~ r * isAdapted, 
+                 data = d_fixations_glm)
+
+summary(glm_numFix)
+gratia::appraise(glm_numFix)
+plot(glm_numFix)
+
+report::report(glm_numFix)
+
+anova(glm_numFix)
+
+# Marginal means
+em_numFix <- emmeans(glm_numFix, ~ r * isAdapted)
+logemm.src <- regrid(emmeans(glm_numFix, ~ r * isAdapted), transform = "log")
+confint(logemm.src, type = "response")
+pairs(logemm.src, simple = "r", type = "response")
+plot(em_numFix, comparisons = T)
+
+xtable(em_numFix)
+
 
 
 d_fx <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_fx.csv"), header = F, 
@@ -133,6 +214,10 @@ d_fx <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_fx.csv"), heade
 # Join with phenotypic data
 d_fx <- d_fx %>% distinct()
 d_fx <- left_join(d_fx, d_qg, by = c("gen", "seed", "modelindex"))
+
+# Drop any NAs and Infs
+d_fx <- d_fx %>% drop_na(s) %>%
+  filter(s <= 1)
 
 # plot distribution of fitness effects
 
@@ -154,17 +239,19 @@ driftBarrier <- 1 / (2 * 5000)
 # So look at proportion of deleterious mutations and those above barrier
 # Run on HPC - memory usage
 # d_fx_sum <- d_fx %>%
+#   drop_na(s) %>%
 #   group_by(gen, seed, model, r, isAdapted) %>%
 #   mutate(nMuts = n(),
 #          propNeutral = sum((abs(s) < driftBarrier)) / nMuts,
 #          propDel = sum(s < -driftBarrier) / nMuts,
 #          propBen = 1 - (propNeutral + propDel)) %>%
 #   ungroup() %>%
-#   pivot_longer(cols = starts_with("prop"), 
+#   pivot_longer(cols = starts_with("prop"),
 #                names_to = "mutClass", values_to = "prop") %>%
 #   group_by(gen, model, r, isAdapted, mutClass) %>%
 #   summarise(meanProp = mean(prop),
 #             CIProp = CI(prop))
+# 
 # saveRDS(d_fx_sum, "d_fx_sum.RDS")
 d_fx_sum <- readRDS(paste0(DATA_PATH, "calcMutationStats/d_fx_sum.RDS"))
 
@@ -442,39 +529,34 @@ emmip(em.benmut,  ~ modelMutType)
 # What about effect size: if K_Z has very large effects, generating that variation
 # could be important
 d_fx_ben <- d_fx_ben %>%
-  group_by(gen, seed, model, r) %>%
+  group_by(gen, seed, model, r, isAdapted) %>%
   mutate(countBen = n()) %>%
   #mutType = mutTypes_vec[as.numeric(mutType)]) %>%
   ungroup()
 
 d_fx_ben_sum <- d_fx_ben %>%
   mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
-  group_by(model, r) %>%
+  group_by(gen, model, r, isAdapted) %>%
   summarise(meanCountBen = mean(countBen),
             CICountBen = CI(countBen),
             meanBen = mean(s),
             CIBen = CI(s))
 
 
-ggplot(d_fx_ben_sum %>% 
+ggplot(d_fx_ben_sum %>% mutate(gen = (gen - 50000) / 1000) %>%
          ungroup() %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance"),
-       aes(x = model, y = meanBen, colour = model)) +
-  facet_nested(r_title + log10(r) ~ .) +
-  #geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
-  geom_point(data = d_fx_ben_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)",
-                      nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance"),
-             aes(x = model, y = meanBen, group = model),
-             size = 1, position = position_dodge(0.9)) +
+       aes(x = interaction(gen, model), y = meanBen, colour = model)) +
+  facet_nested(r_title + log10(r) ~ "Did the population adapt?" + isAdapted) +
+  scale_x_discrete(guide = "axis_nested") +
+  geom_point(size = 1) +
   geom_errorbar(aes(ymin = meanBen - CIBen, 
-                    ymax = meanBen + CIBen), width = 0.1,
+                    ymax = meanBen + CIBen), width = 0.5,
                 position = position_dodge(0.9)) +
-  #scale_x_discrete(labels = model_labels) +
-  labs(x = "Model", 
+  scale_y_continuous(limits = c(0, 0.3), breaks = seq(from = 0, to = 0.3, by = 0.1)) +
+  labs(x = TeX("Model / Generations post-optimum shift ($\\times 10^{3}$)"), 
        y = "Average fitness effect\nof beneficial mutations",
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
@@ -483,7 +565,7 @@ ggplot(d_fx_ben_sum %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_ben_muts_s
 plt_ben_muts_s
-ggsave("plt_ben_muts_s.png", plt_ben_muts_s, width = 6, height = 4, device = png)
+ggsave("plt_ben_muts_s.png", plt_ben_muts_s, width = 12, height = 4, device = png)
 
 # Deleterious mutations
 d_fx_del <- d_fx_del %>%
