@@ -315,9 +315,6 @@ print(xtable(d_epi_means_pc_plt_sum %>%
         select(model, molComp, q50EW, range, meanFreqAboveDB, n)),
       include.rownames = F
 )
-d_epi_means_plt2 %>% select(model, minEW, q50EW, maxEW, meanFreqAboveDB, n)
-d_epi_sign_mean
-
 
 print(xtable(d_epi_means_plt2 %>% 
                mutate(minEW = round(minEW, digits = 4),
@@ -327,3 +324,7 @@ print(xtable(d_epi_means_plt2 %>%
       include.rownames = F
 )
 
+print(xtable(d_epi_sign_mean %>% 
+               select(model, isAdapted, r, meanEWsChanges, CIEWsChanges) %>%
+               mutate(r = as.integer(log10(r)))),
+             include.rownames = F)
