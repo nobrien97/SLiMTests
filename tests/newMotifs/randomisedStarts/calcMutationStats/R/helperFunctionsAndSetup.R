@@ -697,3 +697,126 @@ CalcSFS <- function(dat) {
     dplyr::select(timePoint, seed, modelindex, isAdapted,
            mutID, mutType, value, freqBin)
 }
+
+# Creates a new named variable for the molecular components across models
+ReconcileMutTypeNames <- function(dat) {
+  mutType_names <- c(
+    # NAR and PAR
+    TeX("$\\alpha_Z$", output = "character"),
+    TeX("$\\beta_Z$", output = "character"),
+    TeX("$K_Z$", output = "character"),
+    TeX("$K_{XZ}$", output = "character"),
+    TeX("$\\zeta_Z$", output = "character"), # baseline expression
+    TeX("$h$", output = "character"), # hill coefficient
+    TeX("$\\gamma_X$", output = "character"), # X multiplier
+    
+    # FFLC1 and FFLI1
+    TeX("$\\alpha_Y$", output = "character"),
+    TeX("$\\beta_Y$", output = "character"),
+    TeX("$K_Y$", output = "character"),
+    TeX("$\\alpha_Z$", output = "character"),
+    TeX("$\\beta_Z$", output = "character"),
+    TeX("$K_{XZ}$", output = "character"),
+    TeX("$\\zeta_Z$", output = "character"), # baseline expression
+    TeX("$h$", output = "character"), # hill coefficient
+    TeX("$\\gamma_X$", output = "character"), # X multiplier
+    
+    # FFBH
+    TeX("$\\alpha_X$", output = "character"),
+    TeX("$K_{ZX}$", output = "character"),
+    TeX("$\\alpha_Y$", output = "character"),
+    TeX("$\\beta_Y$", output = "character"),
+    TeX("$K_Y$", output = "character"),
+    TeX("$\\alpha_Z$", output = "character"),
+    TeX("$\\beta_Z$", output = "character"),
+    TeX("$K_{XZ}$", output = "character"),
+    TeX("$\\zeta_Z$", output = "character"), # baseline expression
+    TeX("$h$", output = "character"), # hill coefficient
+    TeX("$\\gamma_X$", output = "character") # X multiplier
+  )
+  
+  # Attach to dat
+  dat <- dat %>%
+    mutate(molComp = as.numeric(molComp),
+           molCompNamed = case_match(
+      as.character(model),
+      c("NAR", "PAR") ~ mutType_names[1:7][molComp - 2],
+      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp - 2],
+      "FFBH" ~ mutType_names[17:27][molComp - 2]
+    ))
+  
+  return(dat)
+}
+
+# Creates a variable for comparisons of molecular components across models
+ReconcileMutTypeComparisonNames <- function(dat) {
+  mutType_names <- c(
+    # NAR and PAR
+    "$\\alpha_Z$",
+    "$\\beta_Z$",
+    "$K_Z$",
+    "$K_{XZ}$",
+    "$\\zeta_Z$", # baseline expression
+    "$h$", # hill coefficient
+    "$\\gamma_X$", # X multiplier
+    
+    # FFLC1 and FFLI1
+    "$\\alpha_Y$",
+    "$\\beta_Y$",
+    "$K_Y$",
+    "$\\alpha_Z$",
+    "$\\beta_Z$",
+    "$K_{XZ}$",
+    "$\\zeta_Z$", # baseline expression
+    "$h$", # hill coefficient
+    "$\\gamma_X$", # X multiplier
+    
+    # FFBH
+    "$\\alpha_X$",
+    "$K_{ZX}$",
+    "$\\alpha_Y$",
+    "$\\beta_Y$",
+    "$K_Y$",
+    "$\\alpha_Z$",
+    "$\\beta_Z$",
+    "$K_{XZ}$",
+    "$\\zeta_Z$", # baseline expression
+    "$h$", # hill coefficient
+    "$\\gamma_X$" # X multiplier
+  )
+  
+  # Split molComp into 2
+  dat %>%
+    mutate(molCompSt = molComp %>%
+             str_split("_") %>%
+             purrr::map(~ sort(.x) %>% paste(collapse = "_"))
+    ) %>%
+    distinct(timePoint, modelindex, isAdapted, molCompSt, .keep_all = T) %>% # Keep only 3_4s, not 4_3s
+    ungroup() %>%
+    separate_wider_delim(molComp, delim = "_", names = c("molComp1", "molComp2")) -> dat
+  
+  # Name molcomp1 and 2: -2 offset by neutral and del mut types
+  dat <- dat %>%
+    mutate(molComp1 = as.numeric(molComp1), molComp2 = as.numeric(molComp2),
+      molCompNamed1 = case_match(
+      as.character(model),
+      c("NAR", "PAR") ~ mutType_names[1:7][molComp1 - 2],
+      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp1 - 2],
+      "FFBH" ~ mutType_names[17:27][molComp1 - 2]
+    ),
+    molCompNamed2 = case_match(
+      model,
+      c("NAR", "PAR") ~ mutType_names[1:7][molComp2 - 2],
+      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp2 - 2],
+      "FFBH" ~ mutType_names[17:27][molComp2 - 2]
+    ))
+  
+  # Combine again
+  dat <- dat %>%
+    unite("molCompNamed", c(molCompNamed1, molCompNamed2), sep = " vs ", remove = F) %>%
+    mutate(molCompNamed = TeX(molCompNamed, output = "character"),
+           molCompNamed1 = TeX(molCompNamed1, output = "character"),
+           molCompNamed2 = TeX(molCompNamed2, output = "character"))
+  
+  return(dat)
+}
