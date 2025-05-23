@@ -1,10 +1,9 @@
 #!/bin/bash -l
 #PBS -P ht96
-#PBS -q normalsr
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=520
-#PBS -l mem=2500GB
-#PBS -l jobfs=1000GB
+#PBS -l ncpus=15
+#PBS -l mem=190GB
+#PBS -l jobfs=400GB
 #PBS -l storage=scratch/ht96+gdata/ht96
 
 # Run with -v NJOBS=0
@@ -65,7 +64,7 @@ $ECHO "Running nci-parallel..."
 # Use 1 core per SLiM run
 module load nci-parallel/1.0.0a
 export ncores_per_task=1
-export ncores_per_numanode=13           # 13 cores per NUMA node for sapphire rapids nodes
+export ncores_per_numanode=12           # 12 cores per NUMA node for normal queue
 
 # Calculate the range of parameter combinations we are exploring this job
 CMDS_PATH=$HOME/tests/$TOTALJOBNAME/PBS/cmds.txt
