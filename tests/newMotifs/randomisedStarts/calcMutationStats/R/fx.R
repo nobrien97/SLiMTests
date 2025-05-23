@@ -576,31 +576,26 @@ d_fx_del <- d_fx_del %>%
 
 d_fx_del_sum <- d_fx_del %>%
   mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
-  group_by(model, r) %>%
+  group_by(gen, model, r, isAdapted) %>%
   summarise(meanCountDel = mean(countDel),
             CICountDel = CI(countDel),
             meanDel = mean(s),
             CIDel = CI(s))
 
-ggplot(d_fx_del_sum %>% 
+ggplot(d_fx_del_sum %>% mutate(gen = (gen - 50000) / 1000) %>%
          ungroup() %>%
          mutate(r_title = "Recombination rate (log10)",
                 nloci_title = "Number of loci",
                 tau_title = "Mutational effect size variance"),
-       aes(x = model, y = meanDel, colour = model)) +
-  facet_nested(r_title + log10(r) ~ .) +
-  #geom_quasirandom(shape = 1, dodge.width = 0.9, varwidth = T, na.rm = F) +
-  geom_point(data = d_fx_del_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)",
-                      nloci_title = "Number of loci",
-                      tau_title = "Mutational effect size variance"),
-             aes(x = model, y = meanDel, group = model),
-             size = 1, position = position_dodge(0.9)) +
+       aes(x = interaction(gen, model), y = meanDel, colour = model)) +
+  facet_nested(r_title + log10(r) ~ "Did the population adapt?" + isAdapted) +
+  scale_x_discrete(guide = "axis_nested") +
+  geom_point(size = 1) +
   geom_errorbar(aes(ymin = meanDel - CIDel, 
-                    ymax = meanDel + CIDel), width = 0.1,
+                    ymax = meanDel + CIDel), width = 0.5,
                 position = position_dodge(0.9)) +
-  #scale_x_discrete(labels = model_labels) +
-  labs(x = "Model", 
+  #scale_y_continuous(limits = c(0, 0.3), breaks = seq(from = 0, to = 0.3, by = 0.1)) +
+  labs(x = TeX("Model / Generations post-optimum shift ($\\times 10^{3}$)"), 
        y = "Average fitness effect\nof deleterious mutations",
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5), 
@@ -609,7 +604,7 @@ ggplot(d_fx_del_sum %>%
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_del_muts_s
 plt_del_muts_s
-ggsave("plt_del_muts_s.png", plt_ben_muts_s, width = 6, height = 4, device = png)
+ggsave("plt_del_muts_s.png", plt_ben_muts_s, width = 12, height = 4, device = png)
 
 # Both
 d_fx_notNeutral <- d_fx %>% filter(s < driftBarrier | s > driftBarrier)
