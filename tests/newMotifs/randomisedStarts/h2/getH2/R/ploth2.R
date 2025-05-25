@@ -103,7 +103,7 @@ d_h2 %>% distinct() -> d_h2
 
 # Add our variables
 d_combos <- read_delim('/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
-                     delim = " ", col_names = F)
+                       delim = " ", col_names = F)
 names(d_combos) <- c("model", "r")
 
 d_h2 %>% mutate(model = d_combos$model[.$modelindex],

@@ -740,9 +740,9 @@ ReconcileMutTypeNames <- function(dat) {
     mutate(molComp = as.numeric(molComp),
            molCompNamed = case_match(
       as.character(model),
-      c("NAR", "PAR") ~ mutType_names[1:7][molComp - 2],
-      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp - 2],
-      "FFBH" ~ mutType_names[17:27][molComp - 2]
+      c("NAR", "PAR", "'NAR'", "'PAR'") ~ mutType_names[1:7][molComp - 2],
+      c("FFLC1", "FFLI1", "'FFLC1'", "'FFLI1'") ~ mutType_names[8:16][molComp - 2],
+      c("FFBH", "'FFBH'")  ~ mutType_names[17:27][molComp - 2]
     ))
   
   return(dat)
@@ -800,15 +800,15 @@ ReconcileMutTypeComparisonNames <- function(dat) {
     mutate(molComp1 = as.numeric(molComp1), molComp2 = as.numeric(molComp2),
       molCompNamed1 = case_match(
       as.character(model),
-      c("NAR", "PAR") ~ mutType_names[1:7][molComp1 - 2],
-      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp1 - 2],
-      "FFBH" ~ mutType_names[17:27][molComp1 - 2]
+      c("NAR", "PAR", "'NAR'", "'PAR'") ~ mutType_names[1:7][molComp1 - 2],
+      c("FFLC1", "FFLI1", "'FFLC1'", "'FFLI1'") ~ mutType_names[8:16][molComp1 - 2],
+      c("FFBH", "'FFBH'") ~ mutType_names[17:27][molComp1 - 2]
     ),
     molCompNamed2 = case_match(
-      model,
-      c("NAR", "PAR") ~ mutType_names[1:7][molComp2 - 2],
-      c("FFLC1", "FFLI1") ~ mutType_names[8:16][molComp2 - 2],
-      "FFBH" ~ mutType_names[17:27][molComp2 - 2]
+      as.character(model),
+      c("NAR", "PAR", "'NAR'", "'PAR'") ~ mutType_names[1:7][molComp2 - 2],
+      c("FFLC1", "FFLI1", "'FFLC1'", "'FFLI1'") ~ mutType_names[8:16][molComp2 - 2],
+      c("FFBH", "'FFBH'") ~ mutType_names[17:27][molComp2 - 2]
     ))
   
   # Combine again

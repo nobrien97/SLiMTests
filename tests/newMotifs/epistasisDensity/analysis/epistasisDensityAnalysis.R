@@ -11,17 +11,23 @@ library(ggbeeswarm)
 library(legendry)
 
 # functions
-source("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/helperFunctionsAndSetup.R")
+source("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/helperFunctionsAndSetup.R")
+
+mutate <- dplyr::mutate
+summarise <- dplyr::summarise
+recode <- dplyr::recode
+filter <- dplyr::filter
 
 # combos
 d_combos <- read.table("../../R/combos.csv", header = F,
                             col.names = c("model", "r"))
 
 model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
-model_levels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+model_levels <- c("'NAR'", "'PAR'", "'FFLC1'", "'FFLI1'", "'FFBH'")
 
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/randomisedStarts/"
 
 
 # data
@@ -42,7 +48,7 @@ d_epi_means <- d_epi_means %>%
 
 d_epi_means_plt <- AddCombosToDF(d_epi_means %>% 
                                    mutate(modelindex = as.factor(modelindex))) %>%
-  mutate(model = factor(model, levels = model_levels))
+  mutate(model = factor(model, levels = model_levels, labels = model_labels))
 
 # Average over r, no effect
 d_epi_means_plt %>%
@@ -124,7 +130,7 @@ d_epi_means_percomp <- d_epi_means_percomp %>%
 
 d_epi_means_pc_plt <- AddCombosToDF(d_epi_means_percomp %>% 
                                       mutate(modelindex = as.factor(modelindex))) %>%
-  mutate(model = factor(model, levels = model_levels))
+  mutate(model = factor(model, levels = model_levels, labels = model_labels))
 
 d_epi_means_pc_plt <- ReconcileMutTypeComparisonNames(d_epi_means_pc_plt)
 
@@ -309,16 +315,16 @@ ggsave("plt_ew.png", width = 12, height = 5, device = png)
 
 # Table of results
 print(xtable(d_epi_means_pc_plt_sum %>% 
-        mutate(minEW = round(minEW, digits = 4),
-               maxEW = round(maxEW, digits = 4),
+        mutate(minEW = round(minEW, digits = 5),
+               maxEW = round(maxEW, digits = 5),
           range = paste0(minEW, " - ", maxEW)) %>%
         select(model, molComp, q50EW, range, meanFreqAboveDB, n)),
       include.rownames = F
 )
 
 print(xtable(d_epi_means_plt2 %>% 
-               mutate(minEW = round(minEW, digits = 4),
-                      maxEW = round(maxEW, digits = 4),
+               mutate(minEW = round(minEW, digits = 5),
+                      maxEW = round(maxEW, digits = 5),
                       range = paste0(minEW, " - ", maxEW)) %>%
                select(model, q50EW, range, meanFreqAboveDB, n)),
       include.rownames = F
