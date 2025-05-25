@@ -29,9 +29,13 @@ library(dendextend)
 
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
+
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/randomisedStarts/"
+R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis/"
+
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
-model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
+model_levels <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
 select <- dplyr::select
@@ -107,7 +111,7 @@ d_h2 <- d_h2 %>%
 
 
 # Add our variables
-d_combos <- read_delim('/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
+d_combos <- read_delim('/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
                      delim = " ", col_names = F)
 names(d_combos) <- c("model", "r")
 
@@ -119,7 +123,7 @@ d_h2 |>
   dplyr::filter(n > 1L)
 
 d_h2 <- d_h2 %>%
-  mutate(model = factor(model, levels = model_names))
+  mutate(model = factor(model, levels = model_levels))
 
 ggplot(d_h2 %>% distinct(gen, seed, modelindex, calcMode, .keep_all = T) %>% 
          select(gen, seed, modelindex, model, r, h2_w, calcMode) %>%
@@ -146,7 +150,7 @@ ggplot(d_h2 %>% distinct(gen, seed, modelindex, calcMode, .keep_all = T) %>%
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   labs(x = TeX("Kernel regression additive variance $(VA)$"), 
        y = TeX("Ridge regression additive variance $(VA)$"),
        colour = "Model") +
@@ -185,7 +189,7 @@ d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
   mutate(isAdapted = any(gen >= 59800 & mean_w > 0.95)) %>%
-  mutate(model = factor(model, levels = model_names)) %>%
+  mutate(model = factor(model, levels = model_levels)) %>%
   ungroup() -> d_qg
 
 d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, isAdapted) %>% filter(gen >= 49500)
@@ -235,7 +239,7 @@ ggplot(d_h2 %>%
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
@@ -259,7 +263,7 @@ ggplot(d_h2 %>%
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names,
+                      breaks = model_levels,
                       guide = guide_legend(override.aes = list(shape = 16,
                                                                size = 3))) +
   #coord_cartesian(ylim = c(0, 1)) +
@@ -472,13 +476,13 @@ d_h2_deltaVA %>%
 
 d_h2_deltaVA_molComp %>%
   group_by(model, r, molComp, isAdapted) %>%
-  summarise(meanDeltaVA = mean(totalDeltaVA, na.rm = T),
-            seDeltaVA = se(totalDeltaVA, na.rm = T)) -> d_h2_deltaVA_molComp_sum
+  summarise(meanDeltaVA = mean(log(totalDeltaVA), na.rm = T),
+            seDeltaVA = se(log(totalDeltaVA), na.rm = T)) -> d_h2_deltaVA_molComp_sum
 
 ggplot(d_h2_deltaVA %>% 
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = model, y = totalDeltaVA, colour = model)) +
+       aes(x = model, y = log(totalDeltaVA), colour = model)) +
   facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
   geom_quasirandom(dodge.width = 0.9) +
   #coord_cartesian(ylim = c(0, 1)) +
@@ -488,7 +492,7 @@ ggplot(d_h2_deltaVA %>%
              aes(x = model, y = meanDeltaVA, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Model", 
-       y = TeX("Change in additive variance $(\\Delta V_A)$"),
+       y = TeX("Log10 change in additive variance $(\\Delta V_A)$"),
        colour = "Model") +
   scale_x_discrete(labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
@@ -531,7 +535,7 @@ plot(gls.dva)
 # No difference between models in the change in VA between start and end
 
 
-d_h2 %>% filter(isAdapted) %>%
+d_h2 %>%
   select(!VA_w) %>%  # Remove fitness (since its a different measurement)
   filter(rowSums(is.na(select(., 6:83))) < (83 - 6 + 1)) %>%  # Drop rows with no variance
   group_by(modelindex, timePoint, isAdapted) %>%
@@ -540,7 +544,7 @@ d_h2 %>% filter(isAdapted) %>%
 
 # Separate into model indices
 # each sublist is replicates of a model index
-sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
 lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
 lapply(split_h2, function(x) {data.frame(timePoint = x$timePoint, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex
 
@@ -556,7 +560,7 @@ cov_matrix_modelindex <- GetMatrixIDs(split_h2)
 
 # Distance between G matrices
 # Analysis across all timepoints, timepoint doesn't affect the tree structure
-sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/distanceFunctions.cpp")
+sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/distanceFunctions.cpp")
 
 dist_matrix <- distanceMatrix(h2_mat)
 colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
@@ -595,7 +599,7 @@ id <- rbindlist(cov_matrix_modelindex,
 id$label <- as.character(1:nrow(id))
 id$modelindex <- as.factor(id$modelindex)
 id <- AddCombosToDF(id)
-id$model <- factor(id$model, levels = model_names)
+id$model <- factor(id$model, levels = model_levels)
 id$clus <- -1
 # add cluster
 for (i in 1:length(g)) {
@@ -656,10 +660,12 @@ d_ecr <- AddCombosToDF(d_ecr)
 
 # Refactor model
 d_ecr <- d_ecr %>%
-  mutate(model = factor(model, levels = model_names))
+  mutate(model = factor(model, levels = model_levels))
 
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
+# not much difference between adapted and maladapted populations, average over
+
 d_ecr_sum <- d_ecr %>%
   group_by(model, r) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
@@ -667,16 +673,17 @@ d_ecr_sum <- d_ecr %>%
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = model, y = log10(cev), colour = model)) +
+       aes(x = model, y = log(cev), colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = model, y = log10(cev_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
+             aes(x = model, y = log(cev_mean), group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9),
+             stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   labs(x = "Model", y = "Mean conditional\nevolvability (log10)",
        colour = "Model") +
   theme_bw() +
@@ -693,10 +700,11 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = log10(res_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
+             shape = 3, size = 2, position = position_dodge(0.9),
+             stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   labs(x = "Model", y = "Mean respondability (log10)",
        colour = "Model") +
   theme_bw() +
@@ -713,10 +721,11 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = aut_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
+             shape = 3, size = 2, position = position_dodge(0.9),
+             stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   labs(x = "Model", y = "Mean autonomy",
        colour = "Model") +
   theme_bw() +
@@ -733,10 +742,11 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = log10(ev_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
+             shape = 3, size = 2, position = position_dodge(0.9),
+             stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+                      breaks = model_levels) +
   labs(x = "Model", y = "Mean evolvability (log10)",
        colour = "Model") +
   theme_bw() +
@@ -756,6 +766,14 @@ plt_evol <- plot_grid(plt_ev + theme(legend.position = "none"),
 plt_evol <- plot_grid(plt_evol,
                       leg, nrow = 2, rel_heights = c(1, 0.05))
 plt_evol
+ggsave("plt_evol_full.png", device = png, bg = "white",
+       width = 10, height = 7)
+
+# Only look at cev and autonomy
+plt_evol <- plot_grid(plt_cev + theme(legend.position = "none"),
+                      plt_aut + theme(legend.position = "none"),
+                      ncol = 2, labels = "AUTO", label_size = 12)
+plt_evol
 ggsave("plt_evol.png", device = png, bg = "white",
        width = 10, height = 7)
 
@@ -763,7 +781,7 @@ ggsave("plt_evol.png", device = png, bg = "white",
 # Variance differs between groups, use gls to account for unequal variance
 # timepoint doesn't matter
 library(nlme)
-summary(gls.cev <- gls(cev ~ model + as.factor(r), d_ecr, 
+summary(gls.cev <- gls(cev ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.cev)
 report(gls.cev)
@@ -778,12 +796,7 @@ pairs(em.cev, simple = "model")
 pairs(em.cev, simple = "r")
 plot(em.cev, comparisons = T)
 
-xtable(em.cev)
-
-
-# Format to a nice table
-library(stargazer)
-stargazer(gls.cev)
+xtable(em.cev, digits = 5)
 
 # Repeat for autonomy, respondability, evolvability
 summary(gls.aut <- gls(aut ~ model * as.factor(r), d_ecr, 
@@ -796,9 +809,7 @@ pairs(em.aut, simple = "model")
 pairs(em.aut, simple = "r")
 plot(em.aut)
 
-xtable(em.aut)
-
-stargazer(gls.aut)
+xtable(em.aut, digits = 5)
 
 summary(gls.res <- gls(res ~ model * as.factor(r), d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
@@ -845,13 +856,20 @@ krz_in_timePoint <- id %>%
   mutate(g = h2_pd,
          group = interaction(log10(r), timePoint))
 
+krz_in_isAdapted <- id %>%
+  mutate(g = h2_pd,
+         group = interaction(log10(r), isAdapted))
+
+
 # Remove null matrices (no nearest matrix found)
 krz_in <- krz_in[!sapply(krz_in$g,is.null)];
 krz_in_timePoint <- krz_in_timePoint[!sapply(krz_in_timePoint$g,is.null)];
+krz_in_isAdapted <- krz_in_isAdapted[!sapply(krz_in_isAdapted$g,is.null)];
 
 # Save krz_in: run this part on HPC
 saveRDS(krz_in, "pca_in.RDS")
 saveRDS(krz_in_timePoint, "pca_tp_in.RDS")
+saveRDS(krz_in_timePoint, "pca_adapted_in.RDS")
 
 # Bootstrap in ten parts for RAM reasons
 # This is slow: uncomment to run, otherwise read in precalculated data
@@ -870,16 +888,23 @@ krz_in_timePoint_FFLC1 <- krz_in_timePoint %>% filter(model == "'FFLC1'")
 krz_in_timePoint_FFLI1 <- krz_in_timePoint %>% filter(model == "'FFLI1'")
 krz_in_timePoint_FFBH <- krz_in_timePoint %>% filter(model == "'FFBH'")
 
+krz_in_isAdapted_NAR <- krz_in_isAdapted %>% filter(model == "'NAR'")
+krz_in_isAdapted_PAR <- krz_in_isAdapted %>% filter(model == "'PAR'")
+krz_in_isAdapted_FFLC1 <- krz_in_isAdapted %>% filter(model == "'FFLC1'")
+krz_in_isAdapted_FFLI1 <- krz_in_isAdapted %>% filter(model == "'FFLI1'")
+krz_in_isAdapted_FFBH <- krz_in_isAdapted %>% filter(model == "'FFBH'")
+
+
   
 for (i in seq_along(newseed)) {
   # Set seed
   set.seed(newseed[i])
   # Run replicate but only within models
-  res_NAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_NAR, "group", T))
-  res_PAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_PAR, "group", T))
-  res_FFLC1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFLC1, "group", T))
-  res_FFLI1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFLI1, "group", T))
-  res_FFBH <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_timePoint_FFBH, "group", T))
+  res_NAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_isAdapted_NAR, "group", T))
+  res_PAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_isAdapted_PAR, "group", T))
+  res_FFLC1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_isAdapted_FFLC1, "group", T))
+  res_FFLI1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_isAdapted_FFLI1, "group", T))
+  res_FFBH <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_isAdapted_FFBH, "group", T))
   
   # To data.frame
   res_NAR <- unnest(as.data.frame(t(res_NAR)), cols = everything()) %>%
@@ -899,30 +924,32 @@ for (i in seq_along(newseed)) {
 
 tpLevels <- c("Start", "End")
 
+adaptedLevels <- c("TRUE", "FALSE")
+
 # Output list into combined df
 bootPCASim2 <- bind_rows(bootPCASim)
 bootPCASim <- bootPCASim2 %>%
-  separate(group1, c("r1", "timePoint1"), "\\.",
+  separate(group1, c("r1", "isAdapted1"), "\\.",
            extra = "merge") %>%
-  separate(group2, c("r2", "timePoint2"), "\\.",
+  separate(group2, c("r2", "isAdapted2"), "\\.",
            extra = "merge") %>%
   mutate(r1 = as.numeric(r1),
          r2 = as.numeric(r2),
-         timePoint1 = factor(timePoint1, levels = tpLevels),
-         timePoint2 = factor(timePoint2, levels = tpLevels)) %>%
-  rename(PCASim = krzCor)
+         isAdapted1 = factor(isAdapted1, levels = adaptedLevels, labels = c("Adapted", "Maladapted")),
+         isAdapted2 = factor(isAdapted2, levels = adaptedLevels, labels = c("Adapted", "Maladapted"))) %>%
+  dplyr::rename(PCASim = krzCor)
 
-saveRDS(bootPCASim, paste0(DATA_PATH, "d_bootPCASim_timepoints.RDS"))
-bootPCASim <- readRDS(paste0(DATA_PATH, "d_bootPCASim_timepoints.RDS"))
+saveRDS(bootPCASim, paste0(DATA_PATH, "d_bootPCASim_isAdapted.RDS"))
+bootPCASim <- readRDS(paste0(DATA_PATH, "d_bootPCASim_isAdapted.RDS"))
 
 # Plot
 # Split by model comparison
 
-GetModelComparison <- function(model1, model2, model_names) {
+GetModelComparison <- function(model1, model2, model_levels) {
   result <- character(length(model1))
   # assign by priority (NAR > PAR > FFLC1 > FFLI1 > FFBH)
-  model1_index <- match(model1, model_names)
-  model2_index <- match(model2, model_names)
+  model1_index <- match(model1, model_levels)
+  model2_index <- match(model2, model_levels)
   
   if (any(is.na(model1_index)) | any(is.na(model2_index))) {
     return(NA)
@@ -948,13 +975,15 @@ bootPCASim <- bootPCASim %>%
 
 # recomb by modelCombo
 bootPCASim_sum <- bootPCASim %>%
+  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2)) %>%
   group_by(r1, r2, model) %>%
-  summarise(meanPCASim = mean(PCASim),
-            ciPCASim = CI(PCASim))
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
 
 
 ggplot(bootPCASim_sum, aes(
-  x = as.factor(r1), y = as.factor(r2)
+  x = (as.factor(r1)), 
+  y = (as.factor(r2))
 )) +
   facet_nested("Model" + model ~ .) + 
   geom_tile(aes(fill = meanPCASim)) +
@@ -966,25 +995,109 @@ ggplot(bootPCASim_sum, aes(
        fill = "PCA Similarity") +
   theme(text = element_text(size = 10), legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_r.png", device = png, width = 15, height = 4)
+ggsave("PCASim_r.png", device = png, width = 4, height = 9)
+
+
+# recomb and isAdapted by modelCombo
+bootPCASim_sum <- bootPCASim %>%
+  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2)) %>%
+  group_by(r1, r2, model, isAdapted1, isAdapted2) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+            ciPCASim = CI(PCASim))
+
+
+ggplot(bootPCASim_sum, aes(
+  x = interaction(as.factor(r1), as.factor(isAdapted1)), 
+  y = interaction(as.factor(r2), as.factor(isAdapted2))
+)) +
+  facet_nested("Model" + model ~ .) + 
+  scale_x_discrete(guide = "axis_nested") + 
+  scale_y_discrete(guide = "axis_nested") + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 10), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_r_isAdapted.png", device = png, width = 12, height = 9)
+
+# isAdapted by modelCombo
+bootPCASim_sum <- bootPCASim %>%
+  group_by(isAdapted1, isAdapted2, model) %>%
+  dplyr::summarise(meanPCASim = mean(PCASim),
+                   ciPCASim = CI(PCASim))
+
+
+ggplot(bootPCASim_sum, aes(
+  x = (isAdapted1), 
+  y = (isAdapted2)
+)) +
+  facet_nested("Model" + model ~ .) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Population state 1", y = "Population state 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 10), legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+ggsave("PCASim_adapted.png", device = png, width = 4, height = 9)
+
+
 
 # beta regression
 # Distributions
 ggplot(bootPCASim, 
-       aes(x = rCombo, y = PCASim)) +
+       aes(x = model, y = PCASim)) +
   geom_quasirandom(dodge.width = 0.9)
 
 plot(density(bootPCASim$PCASim))
 
 # Definitely different between models, none are normally distributed
 
-# Floating point error: clamp to 1
-bootPCASim <- bootPCASim %>%
-  mutate(PCASim = raster::clamp(PCASim, 0, 1))
+# Reformat data: rename reciprocals/redundant comparisons
+bootPCASim_mdl <- bootPCASim %>%
+  rowwise() %>%
+  mutate(
+    r_min = min(r1, r2),
+    r_max = max(r1, r2),
+    isAdapted_min = min(as.integer(isAdapted1), as.integer(isAdapted2)),
+    isAdapted_max = max(as.integer(isAdapted1), as.integer(isAdapted2)),
+    ) %>%
+  ungroup() %>%
+  select(
+    model = model,
+    r1 = r_min,
+    r2 = r_max,
+    isAdapted1 = isAdapted_min,
+    isAdapted2 = isAdapted_max,
+    PCASim = PCASim
+  ) %>%
+  mutate(isAdapted1 = c("Adapted", "Maladapted")[as.integer(isAdapted1)],
+         isAdapted2 = c("Adapted", "Maladapted")[as.integer(isAdapted2)],
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)),
+         adaptedCombo = ifelse(isAdapted1 != isAdapted2, 
+                               paste(as.character(isAdapted1), 
+                                     as.character(isAdapted2), sep = "_"), 
+                               as.character(isAdapted1))
+)
+  
+
+
+# # Floating point error: clamp to 1
+# bootPCASim <- bootPCASim %>%
+#   mutate(PCASim = raster::clamp(PCASim, 0, 1))
 
 # Run regression: this is slow! Uncomment to run, otherwise load in saved object
-# br.pcasim <- betareg(PCASim ~ modelCombo * as.factor(rCombo) | modelCombo * as.factor(rCombo), 
-#                      bootPCASim)
+br.pcasim <- betareg(PCASim ~ model * as.factor(rCombo) + as.factor(adaptedCombo),
+                     bootPCASim_mdl)
 
 # Save output
 # saveRDS(br.pcasim, "betareg_pcaSim_big.RDS")
@@ -995,9 +1108,9 @@ plot(br.pcasim)
 car::Anova(br.pcasim, type = 3, test.statistic = "F")
 
 # Response is on log-odds scale
-em.pcasim <- emmeans(br.pcasim, ~modelCombo * as.factor(rCombo))
+em.pcasim <- emmeans(br.pcasim, ~model * as.factor(rCombo) + as.factor(adaptedCombo))
 em.pcasim <- regrid(em.pcasim)
-pairs(em.pcasim, simple = "modelCombo")
+pairs(em.pcasim, simple = "model")
 pairs(em.pcasim, simple = "rCombo")
 plot(em.pcasim, comparisons = T)
 pwpp(em.pcasim, by = "modelCombo", type = "response")
