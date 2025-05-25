@@ -26,10 +26,10 @@ DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 
 # data
 d_epi_means_percomp <- read.table(paste0(DATA_PATH, "epistasisDensity/d_epi_mean.csv"), header = F, sep = ",",
-                          col.names = c("timePoint", "modelindex", "isAdapted", "molComp", 
-                                        "meanEW", "sdEW", "minEW", "maxEW", "q025EW",
-                                        "q25EW", "q50EW", "q75EW", "q975EW", 
-                                        "count", "freqAboveDB"))
+                                  col.names = c("timePoint", "modelindex", "isAdapted", "molComp", 
+                                                "meanEW", "sdEW", "minEW", "maxEW", "q025EW",
+                                                "q25EW", "q50EW", "q75EW", "q975EW", 
+                                                "count", "freqAboveDB"))
 
 d_epi_means <- read.table(paste0(DATA_PATH, "epistasisDensity/d_epi_nomolcomp_mean.csv"), header = F, sep = ",",
                           col.names = c("timePoint", "modelindex", "isAdapted",
@@ -123,7 +123,7 @@ d_epi_means_percomp <- d_epi_means_percomp %>%
   mutate(isAdapted = as.logical(isAdapted)) 
 
 d_epi_means_pc_plt <- AddCombosToDF(d_epi_means_percomp %>% 
-                                   mutate(modelindex = as.factor(modelindex))) %>%
+                                      mutate(modelindex = as.factor(modelindex))) %>%
   mutate(model = factor(model, levels = model_levels))
 
 d_epi_means_pc_plt <- ReconcileMutTypeComparisonNames(d_epi_means_pc_plt)
@@ -147,7 +147,7 @@ ggplot(d_epi_means_pc_plt_sum %>% filter(!isAdapted) %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = meanFreqAboveDB, fill = model, colour = model)) +
   facet_wrap(isAdapted~molCompNamed, 
-               labeller = labeller(molCompNamed = label_parsed)) +
+             labeller = labeller(molCompNamed = label_parsed)) +
   geom_point() +
   geom_errorbar(aes(ymin = meanFreqAboveDB - CIFreqAboveDB,
                     ymax = meanFreqAboveDB + CIFreqAboveDB), width = 0.5) +
