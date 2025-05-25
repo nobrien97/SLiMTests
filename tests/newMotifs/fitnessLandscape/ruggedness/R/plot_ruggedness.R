@@ -1,6 +1,7 @@
 library(tidyverse)
 library(paletteer)
 library(ggbeeswarm)
+library(xtable)
 
 se <- function(x, na.rm = F) {
   if (na.rm)
@@ -13,13 +14,17 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
   return(qnorm(quantile) * se(x, na.rm))
 }
 
-model_names <- c("NAR", "PAR", "FFLC1", 
+model_levels <- c("NAR", "PAR", "FFLC1", 
                  "FFLI1", "FFBH")
 model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
 
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/ruggedness/R/"
+
+RUG_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/ruggedness/"
+
+
 # Load data
-RugRes <- data.table::fread(paste0(DATA_PATH, "d_ruggedness_permolcomp.csv"), header = F,
+RugRes <- data.table::fread(paste0(RUG_DATA_PATH, "d_ruggedness_permolcomp.csv"), header = F,
                                col.names = c("model", "startW", "endW", "netChangeW",
                                              "sumChangeW", "numFitnessHoles", "molComp",
                                              "bkg"))
@@ -29,7 +34,7 @@ RugRes$ruggedness <- RugRes$netChangeW - RugRes$sumChangeW
 
 # Average over genetic backgrounds
 d_ruggedness <- RugRes %>%
-  mutate(model = factor(model, levels = model_names)) %>%
+  mutate(model = factor(model, levels = model_levels)) %>%
   group_by(model, molComp, bkg) %>%
   mutate(replicate = row_number()) %>% # create replicate row
   ungroup() %>%
@@ -49,6 +54,11 @@ d_ruggedness_sum <- d_ruggedness %>%
             CIRuggedness = CI(ruggedness),
             meanFitnessHoles = mean(numFitnessHoles),
             CIFitnessHoles = CI(numFitnessHoles))
+
+# To table
+print(xtable(d_ruggedness_sum), include.rownames = F)
+
+
 
 # Plot ruggedness
 ggplot(d_ruggedness_sum %>% 
@@ -97,7 +107,7 @@ ggsave("plt_landscapeholeyness_permolcomp.png", device = png, width = 6, height 
 
 # What about proportion? How many mutations of each type are generating fitness holes?
 d_holes <- RugRes %>%
-  mutate(model = factor(model, levels = model_names)) %>%
+  mutate(model = factor(model, levels = model_levels)) %>%
   group_by(model, molComp, bkg) %>%
   mutate(replicate = row_number()) %>% # create replicate row
   ungroup() %>%
@@ -169,8 +179,8 @@ ggplot(d_holes_sum %>%
        colour = "Model") +
   theme(text = element_text(size = 12), legend.position = "none",
         panel.spacing.x = unit(1.0, "lines")) -> plt_holeyness
+plt_holeyness
 ggsave("plt_landscape_holeyness.png", device = png, width = 9, height = 4)
-
 
 d_ruggedness_sum <- d_ruggedness %>%
   group_by(model, replicate) %>% # replicate: walk direction is the same, averaged across backgrounds
@@ -191,6 +201,7 @@ ggplot(d_ruggedness_sum %>%
        colour = "Model") +
   theme(text = element_text(size = 12), legend.position = "none",
         panel.spacing.x = unit(1.0, "lines")) -> plt_ruggedness
+plt_ruggedness
 ggsave("plt_landscaperuggedness.png", device = png, width = 9, height = 4)
 
 leg <- get_legend(plt_ruggedness)
@@ -204,3 +215,26 @@ plt_landscape <- plot_grid(plt_landscape,
 plt_landscape
 ggsave("plt_landscape.png", device = png, bg = "white",
        width = 5, height = 9)
+
+# Tables
+
+# Average across replicates
+print(xtable(d_ruggedness %>%
+               group_by(model, molComp) %>%
+               summarise(meanRuggedness = mean(abs(ruggedness)),
+                         CIRuggedness = CI(ruggedness),
+                         meanFitnessHoles = mean(numFitnessHoles),
+                         CIFitnessHoles = CI(numFitnessHoles),
+                         count = n()), digits = 5
+), include.rownames = F)
+
+# Per model
+print(xtable(d_ruggedness %>%
+               group_by(model) %>%
+               summarise(meanRuggedness = mean(abs(ruggedness)),
+                         CIRuggedness = CI(ruggedness),
+                         meanFitnessHoles = mean(numFitnessHoles),
+                         CIFitnessHoles = CI(numFitnessHoles),
+                         n = n()), digits = 5
+), include.rownames = F)
+
