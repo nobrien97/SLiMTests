@@ -19,9 +19,14 @@ DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
 COMBO_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/"
 
-# DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
-#  R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
-#  COMBO_PATH <- "~/tests/newMotifs/R/"
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/randomisedStarts/"
+R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+COMBO_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/"
+
+
+DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
+ R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+ COMBO_PATH <- "~/tests/newMotifs/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 # Cowplot 1.1.3 bug: won't get legend, this fixes
@@ -102,6 +107,29 @@ d_fixations_sum <- d_fixations %>%
   group_by(gen, model, r, isAdapted) %>%
   summarise(meanFixations = mean(nFixed),
             CIFixations = CI(nFixed))
+
+# Average at end of sim
+d_fixations_end_sum <- d_fixations %>% filter(gen == 59000) %>%
+  group_by(model, r, isAdapted) %>%
+  summarise(meanFixations = mean(nFixed),
+            CIFixations = CI(nFixed))
+
+print(xtable(d_fixations_end_sum %>% 
+               select(model, isAdapted, r, meanFixations, CIFixations) %>%
+               mutate(r = as.integer(log10(r)))),
+      include.rownames = F)
+
+# Average across all recombination rates
+d_fixations_end_sum <- d_fixations %>% filter(gen == 59000) %>%
+  group_by(model, isAdapted) %>%
+  summarise(meanFixations = mean(nFixed),
+            CIFixations = CI(nFixed))
+
+print(xtable(d_fixations_end_sum %>% 
+               select(model, isAdapted, meanFixations, CIFixations)),
+      include.rownames = F)
+
+
 
 
 ggplot(d_fixations_sum %>% mutate(gen = (gen - 50000) / 1000), 
@@ -216,8 +244,7 @@ d_fx <- d_fx %>% distinct()
 d_fx <- left_join(d_fx, d_qg, by = c("gen", "seed", "modelindex"))
 
 # Drop any NAs and Infs
-d_fx <- d_fx %>% drop_na(s) %>%
-  filter(s <= 1)
+d_fx <- d_fx %>% drop_na(s)
 
 # plot distribution of fitness effects
 
@@ -254,6 +281,20 @@ driftBarrier <- 1 / (2 * 5000)
 # 
 # saveRDS(d_fx_sum, paste0(DATA_PATH, "calcMutationStats/d_fx_sum.RDS"))
 d_fx_sum <- readRDS(paste0(DATA_PATH, "calcMutationStats/d_fx_sum.RDS"))
+
+# Table of propNeutral, del, ben across all time points
+d_fx_props <- d_fx %>%
+  drop_na(s) %>%
+  group_by(seed, model, r, isAdapted) %>%
+  summarise(nMuts = n(),
+         propNeutral = sum((abs(s) < driftBarrier)) / nMuts,
+         propDel = sum(s < -driftBarrier) / nMuts,
+         propBen = 1 - (propNeutral + propDel)) %>%
+  ungroup() %>%
+  pivot_longer(cols = starts_with("prop"),
+               names_to = "mutClass", values_to = "prop")
+
+
 
 # Create secondary axis
 d_fx_sum <- d_fx_sum %>%
