@@ -45,8 +45,8 @@ get_legend <- function(plot, legend = NULL) {
 d_combos <- read.table("../R/combos.csv", header = F,
                        col.names = c("model", "r"))
 
-model_levels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
-model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+model_levels <- c("'NAR'", "'PAR'", "'FFLC1'", "'FFLI1'", "'FFBH'")
+model_labels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 
 
 # load trait evolution data
@@ -72,7 +72,7 @@ d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
   mutate(isAdapted = any(gen >= 59800 & w > 0.95),
-         model = factor(model, levels = model_names)) %>%
+         model = factor(model, levels = model_levels)) %>%
   ungroup() -> d_qg
 
 # Proportion of each model that adapted
@@ -98,7 +98,7 @@ d_qg_sum <- d_qg %>%
             SEFitness = se(w),
             meanFitnessVar = mean(var_w),
             SEFitnessVar = se(var_w)) %>%
-  mutate(model = factor(model, levels = model_names))
+  mutate(model = factor(model, levels = model_levels))
 
 # plot
 ggplot(d_qg_sum,
@@ -146,7 +146,7 @@ ggplot(d_qg_sum %>% filter(gen > -11000),
   theme_bw() +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
-  theme(text = element_text(size = 12),
+  theme(text = element_text(size = 14),
         panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg
 plt_adapt_avg
 ggsave("plt_randomisedStarts_adapt_w.png", width = 12, height = 5, device = png)
@@ -170,7 +170,8 @@ ggplot(d_qg %>% filter(simID %in% sampled_examples) %>%
          filter(gen > 40000) %>%
          mutate(gen = gen - 50000),
        aes(x = gen, y = w, colour = model, group = simID)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Did the population adapt?" + isAdapted) +
+  facet_nested("Recombination rate (log10)" + log10(r)~ "Adaptation outcome" + isAdapted,
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
   geom_line() +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, 
                                            direction = 1),
@@ -181,8 +182,8 @@ ggplot(d_qg %>% filter(simID %in% sampled_examples) %>%
   theme_bw() +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
-  theme(text = element_text(size = 12),
-        panel.spacing = unit(1.5, "lines"),
+  theme(text = element_text(size = 14),
+        panel.spacing = unit(2, "lines"),
         legend.position = "bottom") -> plt_adapt_eg
 plt_adapt_eg
 ggsave("plt_randomisedStarts_adapt_w_eg.png", width = 12, height = 5, device = png)
