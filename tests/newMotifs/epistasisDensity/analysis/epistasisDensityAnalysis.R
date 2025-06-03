@@ -22,7 +22,7 @@ filter <- dplyr::filter
 d_combos <- read.table("../../R/combos.csv", header = F,
                             col.names = c("model", "r"))
 
-model_labels <- c("NAR", "PAR", "FFL-C1", "FFL-I1", "FFBH")
+model_labels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 model_levels <- c("'NAR'", "'PAR'", "'FFLC1'", "'FFLI1'", "'FFBH'")
 
 
@@ -69,7 +69,8 @@ d_epi_means_plt %>%
 ggplot(d_epi_means_plt2 %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = interaction(timePoint, model), y = meanFreqAboveDB, fill = model, colour = model)) +
-  facet_nested(.~"Did the population adapt?" + isAdapted) +
+  facet_nested(.~"Adaptation outcome" + isAdapted,
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
   geom_point() +
   scale_x_discrete(guide = "axis_nested") +
   geom_errorbar(aes(ymin = meanFreqAboveDB - CIFreqAboveDB,
@@ -83,7 +84,7 @@ ggplot(d_epi_means_plt2 %>% mutate(timePoint = (timePoint - 50000) / 1000) %>%
   labs(x = "Model", y = "Proportion of samples with\nnon-negligible fitness epistasis", 
        fill = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_ew_freq_db_time
+  theme(text = element_text(size = 14)) -> plt_ew_freq_db_time
 plt_ew_freq_db_time
 ggsave("plt_ew_freq_time.png", width = 12, height = 4, device = png)
 
@@ -106,10 +107,12 @@ d_epi_means_plt %>%
 ggplot(d_epi_means_plt2 %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = meanFreqAboveDB, fill = model, colour = model)) +
-  facet_nested(.~"Did the population adapt?" + isAdapted) +
-  geom_point() +
+  facet_nested(.~"Adaptation outcome" + isAdapted, 
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
+  geom_point(size = 2) +
   geom_errorbar(aes(ymin = meanFreqAboveDB - CIFreqAboveDB,
-                    ymax = meanFreqAboveDB + CIFreqAboveDB), width = 0.2) +
+                    ymax = meanFreqAboveDB + CIFreqAboveDB), width = 0.2,
+                linewidth = 0.8) +
   scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 
                                          5, direction = 1),
                     labels = model_labels, guide = "none") +
@@ -119,7 +122,7 @@ ggplot(d_epi_means_plt2 %>%
   labs(x = "Model", y = "Proportion of samples with\nnon-negligible fitness epistasis", 
        fill = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_ew_freq_db
+  theme(text = element_text(size = 14)) -> plt_ew_freq_db
 plt_ew_freq_db
 ggsave("plt_ew_freq.png", width = 6, height = 4, device = png)
 
@@ -167,7 +170,7 @@ ggplot(d_epi_means_pc_plt_sum %>% filter(!isAdapted) %>%
        fill = "Model") +
   #scale_x_discrete(labels = c("K+", "K-")) +
   theme_bw() +
-  theme(text = element_text(size = 10),
+  theme(text = element_text(size = 14),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0))) -> plt_ew_freq_pc_db
 plt_ew_freq_pc_db
 ggsave("plt_ew_freq_pc_molComp_maladapted.png", width = 15, height = 15, device = png)
@@ -219,8 +222,10 @@ d_epi_means_pc_plt %>%
 ggplot(d_epi_means_pc_plt_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = meanFreqAboveDB, fill = model, colour = model)) +
-  facet_nested("Molecular component" + molComp~"Has the population adapted?" + isAdapted, 
-             labeller = labeller(molComp = label_parsed)) +
+  facet_nested("Molecular component" + molComp~"Adaptation outcome" + isAdapted, 
+             labeller = labeller(molComp = label_parsed,
+                                 isAdapted = c("FALSE" = "Maladapted", 
+                                               "TRUE" = "Adapted"))) +
   geom_point() +
   geom_errorbar(aes(ymin = meanFreqAboveDB - CIFreqAboveDB,
                     ymax = meanFreqAboveDB + CIFreqAboveDB), width = 0.5) +
@@ -237,7 +242,7 @@ ggplot(d_epi_means_pc_plt_sum %>%
   theme(text = element_text(size = 12),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0))) -> plt_ew_freq_pc_db
 plt_ew_freq_pc_db
-ggsave("plt_ew_freq_pc_av_molComp.png", width = 8, height = 9, device = png)
+ggsave("plt_ew_freq_pc_av_molComp.png", width = 8, height = 10, device = png)
 
 # How many times does epistasis change sign?
 d_epi_sign <- read.table(paste0(DATA_PATH, "epistasisDensity/d_epi_sign_nomolcomp.csv"), header = F, sep = ",",
@@ -287,21 +292,23 @@ d_epi_sign_mean <- d_epi_sign %>%
 ggplot(d_epi_sign_mean %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = meanEWsChanges, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~"Did the population adapt?" + isAdapted) +
-  geom_point() +
+  facet_nested("Recombination rate (log10)" + log10(r)~"Adaptation outcome" + isAdapted,
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
+  geom_point(size = 2) +
   geom_errorbar(aes(ymin = meanEWsChanges - CIEWsChanges,
                     ymax = meanEWsChanges + CIEWsChanges), 
-                position = position_dodge(0.9)) +
+                position = position_dodge(0.9),
+                width = 0.3, linewidth = 0.8) +
   scale_x_discrete(guide = "axis_nested") + 
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
                                            5, direction = 1),
                       labels = model_labels) +
   labs(x = "Model", 
-       y = "Mean number of sign changes in fitness epistasis", colour = "Model") +
+       y = "Mean number of sign changes\nin fitness epistasis", colour = "Model") +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
   theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_ew_s_sign  
+  theme(text = element_text(size = 14)) -> plt_ew_s_sign  
 plt_ew_s_sign
 ggsave("plt_ew_s_sign.png", width = 6, height = 6, device = png)
 
@@ -309,24 +316,30 @@ ggsave("plt_ew_s_sign.png", width = 6, height = 6, device = png)
 plot_grid(plt_ew_freq_db,
           plt_ew_s_sign + theme(legend.position = "none"),
           labels = "AUTO",
-          ncol = 2, rel_widths = c(0.9, 1))
+          nrow = 2, rel_heights = c(0.7, 1))
 
-ggsave("plt_ew.png", width = 12, height = 5, device = png)
+ggsave("plt_ew.png", width = 6*1.5, height = 5*1.5, device = png)
 
 # Table of results
 print(xtable(d_epi_means_pc_plt_sum %>% 
         mutate(minEW = round(minEW, digits = 5),
                maxEW = round(maxEW, digits = 5),
+               meanFreqAboveDB = paste0(round(meanFreqAboveDB, digits = 3)),
+               CIFreqAboveDB = paste0(round(CIFreqAboveDB, digits = 3)),
+               n = paste0(n),
           range = paste0(minEW, " - ", maxEW)) %>%
-        select(model, molComp, q50EW, range, meanFreqAboveDB, n)),
+        select(model, isAdapted, molComp, q50EW, range, meanFreqAboveDB, CIFreqAboveDB, n), digits = -3),
       include.rownames = F
 )
 
 print(xtable(d_epi_means_plt2 %>% 
                mutate(minEW = round(minEW, digits = 5),
                       maxEW = round(maxEW, digits = 5),
-                      range = paste0(minEW, " - ", maxEW)) %>%
-               select(model, q50EW, range, meanFreqAboveDB, n)),
+                      range = paste0(minEW, " - ", maxEW),
+                      meanFreqAboveDB = paste0(round(meanFreqAboveDB, digits = 3)),
+                      CIFreqAboveDB = paste0(round(CIFreqAboveDB, digits = 3)),
+                      n = paste0(n)) %>%
+               select(model, isAdapted, q50EW, range, meanFreqAboveDB, CIFreqAboveDB, n)),
       include.rownames = F
 )
 
@@ -334,3 +347,35 @@ print(xtable(d_epi_sign_mean %>%
                select(model, isAdapted, r, meanEWsChanges, CIEWsChanges) %>%
                mutate(r = as.integer(log10(r)))),
              include.rownames = F)
+
+# Per-model tables:
+print(xtable(d_epi_means_pc_plt %>% 
+               group_by(model) %>%
+               summarise(meanFreqAboveDB = mean(freqAboveDB),
+                      CIFreqAboveDB = CI(freqAboveDB)), digits = 3),
+      include.rownames = F
+)
+
+print(xtable(d_epi_means_pc_plt %>% 
+               group_by(model, isAdapted) %>%
+               summarise(meanFreqAboveDB = mean(freqAboveDB),
+                         CIFreqAboveDB = CI(freqAboveDB)), digits = 3),
+      include.rownames = F
+)
+
+# Min and max difference between adapted/maladapted
+# in fold difference relative to the maladapted case
+d_epi_means_plt2 %>%
+  group_by(model, isAdapted) %>%
+  pivot_wider(names_from = isAdapted, values_from = c(minEW, maxEW)) %>%
+  select(model, starts_with("minEW"), starts_with("maxEW")) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  summarise_all(max, na.rm = T) %>%
+  mutate(
+    range_TRUE = maxEW_TRUE - minEW_TRUE,
+    range_FALSE = maxEW_FALSE - minEW_FALSE,
+    rangeDiff = (range_TRUE - range_FALSE) / range_FALSE,
+  )
+
+
