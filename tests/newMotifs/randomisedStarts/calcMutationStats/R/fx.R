@@ -157,26 +157,26 @@ ggsave("plt_fixations.png", plt_fixations, device = png,
 
 # Fixations at end of sim
 ggplot(d_fixations_sum %>% filter(gen == 59000), 
-       aes(x = model, y = meanFixations)) +
+       aes(x = model, y = meanFixations, colour = model)) +
   facet_nested("Recombination rate (log10)" + log10(r) ~
-                 "Did the population adapt?" + isAdapted) +
+                 "Adaptation outcome" + isAdapted,
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
   geom_point() +
   geom_errorbar(aes(ymin = meanFixations - CIFixations,
                     ymax = meanFixations + CIFixations), position = position_dodge(0.9),
                 width = 0.5) +
-  # scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
-  #                                          5, direction = 1),
-  #                     labels = model_labels) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades",
+                                           5, direction = 1),
+                      labels = model_labels, guide = "none") +
+  scale_x_discrete(labels = model_labels) +
   labs(x = "Model", 
-       y = "Mean number of cumulative fixations at end of simulation") +
+       y = "Mean number of cumulative\nfixations at end of simulation") +
   theme_bw() +
-  guides(colour = guide_legend(position = "bottom",
-                               override.aes=list(linewidth = 5))) +
-  theme(text = element_text(size = 12),
+  theme(text = element_text(size = 14),
         panel.spacing = unit(0.75, "lines")) -> plt_fixations_end
 plt_fixations_end
 ggsave("plt_fixations_end.png", plt_fixations_end, device = png, 
-       width = 12, height = 6)
+       width = 9, height = 4.5)
 
 # Is there any difference between the models in the number of fixations?
 d_fixations_sbst <- d_fixations %>% filter(gen == 59000) %>%
@@ -322,7 +322,8 @@ fx_model_labels <- d_fx_sum %>%
 ggplot(d_fx_sum, 
        aes(x = x_numeric, y = meanProp, fill = mutClass)) +
   facet_nested("Recombination rate (log10)" + log10(r)~
-                 "Did the population adapt?" + isAdapted) +
+                 "Adaptation outcome" + isAdapted,
+               labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
   geom_bar(stat = "identity", width = 1) +
   # geom_errorbar(aes(ymin = meanProp - CIProp,
   #                   ymax = meanProp + CIProp), 
@@ -340,22 +341,38 @@ ggplot(d_fx_sum,
   theme_bw() +
   guides(colour = guide_legend(position = "bottom",
                                override.aes=list(linewidth = 5))) +
-  geom_text(data = fx_model_labels %>% filter(r == 0.1), aes(x = x, y = -0.15, 
+  geom_text(data = fx_model_labels %>% filter(r == 0.1), aes(x = x, y = -0.15 * 2.5, 
            label = model), inherit.aes = F) +
   geom_segment(data = fx_model_labels %>% filter(r == 0.1),
                aes(x = x - 5,
                    xend = x + 5,
-                   y = -0.085, yend = -0.085),
+                   y = -0.085 * 2.5, yend = -0.085 * 2.5),
                inherit.aes = FALSE,
                color = "black", size = 0.4) +
-  theme(text = element_text(size = 12),
+  theme(text = element_text(size = 14),
         panel.spacing = unit(0.75, "lines"),
         legend.position = "bottom",
+        axis.text.x = element_text(size = 8),
         axis.title.x = element_text(margin = margin(t = 28))) -> plt_prop
 plt_prop
 
 ggsave("plt_propFX.png", device = png, bg = "white",
-       width = 16, height = 10)
+       width = 10, height = 5)
+
+# Table of proportions
+print(xtable(d_fx_sum %>% filter(gen_index == 10) %>%
+               mutate(r = as.integer(log10(r)),
+                      isAdapted = if_else(isAdapted, "Adapted", "Maladapted"),
+                      mutClass = case_match(
+                        mutClass,
+                        "propBen" ~ "Beneficial",
+                        "propDel" ~ "Deleterious",
+                        "propNeutral" ~ "Neutral"
+                      )) %>%
+               select(model, isAdapted, r, mutClass, meanProp, CIProp),
+             digits = 3),
+      include.rownames = F)
+
 
 # Plot the number of beneficial mutations per molecular component
 d_fx_ben <- d_fx %>% filter(s > driftBarrier)
