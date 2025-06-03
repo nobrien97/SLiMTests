@@ -38,6 +38,8 @@ source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 model_levels <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
+model_labels <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+
 select <- dplyr::select
 mutate <- dplyr::mutate
 filter <- dplyr::filter
@@ -111,7 +113,7 @@ d_h2 <- d_h2 %>%
 
 
 # Add our variables
-d_combos <- read_delim('/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
+d_combos <- read_delim('/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv', 
                      delim = " ", col_names = F)
 names(d_combos) <- c("model", "r")
 
@@ -213,33 +215,33 @@ d_h2 <- d_h2 %>%
   mutate(timePoint = if_else(gen == 50000, "Start", "End"),
          timePoint = factor(timePoint, levels = c("Start", "End")))
 
-# summarise
+# summarise: time point not important
 d_h2_sum <- d_h2 %>% 
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(model, r) %>%
   dplyr::summarise(meanH2w = mean(h2_w, na.rm = T),
             seH2w = se(h2_w, na.rm = T),
-            meanVAw = mean(VA_w, na.rm = T),
-            seVAw = se(VA_w, na.rm = T))
+            meanVAw = mean(log10(VA_w), na.rm = T),
+            CIVAw = CI(log10(VA_w), na.rm = T))
 d_h2_sum$model <- as.factor(d_h2_sum$model)
 
 # Heritability distribution
 ggplot(d_h2 %>% 
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = timePoint, y = h2_w, colour = model)) +
+       aes(x = model, y = h2_w, colour = model)) +
   facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
-             aes(x = timePoint, y = meanH2w, group = model), colour = "black",
+             aes(x = model, y = meanH2w, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Time point", 
        y = TeX("Narrow-sense heritability $(h^2)$"),
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_levels) +
+                      breaks = model_levels, guide = "none") +
   coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
@@ -250,30 +252,69 @@ ggplot(d_h2 %>%
 ggplot(d_h2 %>% 
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = timePoint, y = log10(VA_w), colour = model)) +
-  facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
+       aes(x = model, y = log(VA_w), colour = model)) +
+  facet_nested(r_title + log10(r) ~ .) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_sum %>% ungroup() %>% 
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
-             aes(x = timePoint, y = log10(meanVAw), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  labs(x = "Time point", 
-       y = TeX("Log additive variance in fitness ($log_{10}(VA)$)"),
+             aes(x = model, y = (meanVAw), group = model), colour = "black",
+             fill = "white",
+             shape = 21, size = 2, position = position_dodge(0.9),
+             stroke = 1) +
+  labs(x = "Model", 
+       y = TeX("Log additive variance in fitness ($log_{10}(V_A)$)"),
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
                       breaks = model_levels,
-                      guide = guide_legend(override.aes = list(shape = 16,
-                                                               size = 3))) +
-  #coord_cartesian(ylim = c(0, 1)) +
+                      guide = "none") +
+  scale_x_discrete(labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_va_together
 plt_va_together
 
 ggsave("plt_va.png", device = png, bg = "white",
-       width = 12, height = 6)
+       width = 9, height = 6)
+
+# Additive variance regression
+summary(gls.vaw <- gls(VA_w ~ model * as.factor(r), 
+                       d_h2, 
+                       weights = varIdent(form = ~ 1 | model * as.factor(r))))
+
+plot(fitted(gls.vaw), resid(gls.vaw), 
+     xlab = "Fitted values", ylab = "Residuals")
+abline(h = 0, col = "red")
+qqnorm(resid(gls.vaw))
+qqline(resid(gls.vaw))
+null_model <- gls(log(VA_w) ~ 1, data = d_h2)
+AIC(null_model, gls.vaw)
+anova(null_model, gls.vaw)
+
+# Pseudo R^2 - lots of residual variability
+cor(fitted(gls.vaw), d_h2$VA_w)^2
+
+# No autocorrelation
+acf(resid(gls.vaw, type = "normalized"))
+plot(gls.vaw)
+
+# Significant differences between models
+em.vaw <- emmeans(gls.vaw, ~model * as.factor(r))
+
+xtable(em.vaw, digits = 5)
+
+# Raw means: per model
+d_h2 %>% 
+  group_by(model) %>%
+  dplyr::summarise(meanVAw = mean(VA_w, na.rm = T),
+                   CIVAw = CI(VA_w, na.rm = T))
+
+d_h2 %>% 
+  group_by(model, r) %>%
+  dplyr::summarise(meanVAw = mean(VA_w, na.rm = T),
+                   CIVAw = CI(VA_w, na.rm = T))
+
 
 # VA per molecular component
 d_h2_molcomp <- d_h2 %>%
@@ -535,18 +576,18 @@ plot(gls.dva)
 # No difference between models in the change in VA between start and end
 
 
-d_h2 %>%
+d_h2 %>% filter(timePoint == "Start") %>%
   select(!VA_w) %>%  # Remove fitness (since its a different measurement)
   filter(rowSums(is.na(select(., 6:83))) < (83 - 6 + 1)) %>%  # Drop rows with no variance
-  group_by(modelindex, timePoint, isAdapted) %>%
+  group_by(modelindex, isAdapted) %>%
   group_split(.) -> split_h2
 
 
 # Separate into model indices
 # each sublist is replicates of a model index
-sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
 lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
-lapply(split_h2, function(x) {data.frame(timePoint = x$timePoint, seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex
+lapply(split_h2, function(x) {data.frame(seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex
 
 # We want to know if certain architectures are more/less important for describing
 # variation between simulations and which components are most important for describing
@@ -560,7 +601,7 @@ cov_matrix_modelindex <- GetMatrixIDs(split_h2)
 
 # Distance between G matrices
 # Analysis across all timepoints, timepoint doesn't affect the tree structure
-sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/distanceFunctions.cpp")
+sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/distanceFunctions.cpp")
 
 dist_matrix <- distanceMatrix(h2_mat)
 colnames(dist_matrix) <- paste("Matrix", 1:nrow(dist_matrix))
@@ -629,7 +670,7 @@ id %>% ungroup() %>%
 
 phylo <- full_join(as.phylo(phylo), id, by = "label")
 
-ggtree(phylo, aes(colour = as.factor(model)), layout="equal_angle") +
+ggtree(phylo, aes(colour = as.factor(model)), layout="circular") +
   geom_tippoint(size = 2) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
                                            5),
@@ -679,7 +720,8 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = log(cev_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9),
+             fill = "white",
+             shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
@@ -700,7 +742,8 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = log10(res_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9),
+             fill = "white",
+             shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
@@ -721,7 +764,8 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = aut_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9),
+             fill = "white",
+             shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
@@ -742,7 +786,8 @@ ggplot(d_ecr %>%
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
              aes(x = model, y = log10(ev_mean), group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9),
+             fill = "white",
+             shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
@@ -781,7 +826,7 @@ ggsave("plt_evol.png", device = png, bg = "white",
 # Variance differs between groups, use gls to account for unequal variance
 # timepoint doesn't matter
 library(nlme)
-summary(gls.cev <- gls(cev ~ model * as.factor(r), d_ecr, 
+summary(gls.cev <- gls(log10(cev) ~ model + as.factor(r) + isAdapted, d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 plot(gls.cev)
 report(gls.cev)
@@ -791,20 +836,27 @@ anova(gls.cev)
 # Marginal means
 library(emmeans)
 library(xtable)
-em.cev <- emmeans(gls.cev, ~ model * r)
+em.cev <- emmeans(gls.cev, ~ model + as.factor(r) + isAdapted)
 pairs(em.cev, simple = "model")
 pairs(em.cev, simple = "r")
 plot(em.cev, comparisons = T)
 
 xtable(em.cev, digits = 5)
 
+# Overall mean FFBH vs other models
+d_ecr %>%
+  group_by(model) %>%
+  mutate(cev = log10(cev)) %>%
+  summarise_if(is.numeric, list(mean = mean, CI = CI))
+
+
 # Repeat for autonomy, respondability, evolvability
-summary(gls.aut <- gls(aut ~ model * as.factor(r), d_ecr, 
+summary(gls.aut <- gls(aut ~ model * as.factor(r) + isAdapted, d_ecr, 
                        weights = varIdent(form = ~ 1 | model * as.factor(r))))
 
 anova(gls.aut)
 plot(gls.aut)
-em.aut <- emmeans(gls.aut, ~ model * r)
+em.aut <- emmeans(gls.aut, ~ model * as.factor(r) + isAdapted)
 pairs(em.aut, simple = "model")
 pairs(em.aut, simple = "r")
 plot(em.aut)
@@ -882,12 +934,6 @@ newseed <- c(407844323L, 2049133531L, 970639651L, 452738391L, 1161959903L,
 bootPCASim <- vector(mode = "list", length = length(newseed))
 
 # Per model inputs
-krz_in_timePoint_NAR <- krz_in_timePoint %>% filter(model == "'NAR'")
-krz_in_timePoint_PAR <- krz_in_timePoint %>% filter(model == "'PAR'")
-krz_in_timePoint_FFLC1 <- krz_in_timePoint %>% filter(model == "'FFLC1'")
-krz_in_timePoint_FFLI1 <- krz_in_timePoint %>% filter(model == "'FFLI1'")
-krz_in_timePoint_FFBH <- krz_in_timePoint %>% filter(model == "'FFBH'")
-
 krz_in_isAdapted_NAR <- krz_in_isAdapted %>% filter(model == "'NAR'")
 krz_in_isAdapted_PAR <- krz_in_isAdapted %>% filter(model == "'PAR'")
 krz_in_isAdapted_FFLC1 <- krz_in_isAdapted %>% filter(model == "'FFLC1'")
@@ -921,8 +967,6 @@ for (i in seq_along(newseed)) {
   # Combine to output
   bootPCASim[[i]] <- rbind(res_NAR, res_PAR, res_FFLC1, res_FFLI1, res_FFBH)
 }
-
-tpLevels <- c("Start", "End")
 
 adaptedLevels <- c("TRUE", "FALSE")
 
@@ -973,9 +1017,20 @@ bootPCASim <- bootPCASim %>%
                                as.character(r2), sep = "_"), 
                          as.character(r1)))
 
+# Facet design
+design <- c(
+  "
+  AABB
+  CCDD
+  #EE#
+  "
+)
+
+
 # recomb by modelCombo
 bootPCASim_sum <- bootPCASim %>%
-  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2)) %>%
+  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2),
+                model = factor(model, levels = model_levels, labels = model_labels)) %>%
   group_by(r1, r2, model) %>%
   dplyr::summarise(meanPCASim = mean(PCASim),
                    ciPCASim = CI(PCASim))
@@ -985,22 +1040,29 @@ ggplot(bootPCASim_sum, aes(
   x = (as.factor(r1)), 
   y = (as.factor(r2))
 )) +
-  facet_nested("Model" + model ~ .) + 
+  facet_manual(.~model, design = design, axes = T) + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
-  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+  geom_jitter(data = bootPCASim %>% 
+                mutate(model = factor(model, levels = model_levels, labels = model_labels)), 
+              mapping = aes(fill = PCASim),
               shape = 21, size = 1) +
-  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  scale_fill_gradientn(colours = viridis::viridis(5), values = c(0, 0.25, 0.375, 0.5, 1)) +
+  #scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
        fill = "PCA Similarity") +
-  theme(text = element_text(size = 10), legend.position = "bottom") +
+  theme(text = element_text(size = 10), 
+        axis.text.y = element_text(angle = 90, hjust = 0.5),
+        panel.spacing.x = unit(2, "lines"),
+        legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_r.png", device = png, width = 4, height = 9)
+ggsave("PCASim_r.png", device = png, width = 7, height = 9)
 
 
 # recomb and isAdapted by modelCombo
 bootPCASim_sum <- bootPCASim %>%
-  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2)) %>%
+  dplyr::mutate(r1 = as.factor(r1), r2 = as.factor(r2),
+                model = factor(model, levels = model_levels, labels = model_labels)) %>%
   group_by(r1, r2, model, isAdapted1, isAdapted2) %>%
   dplyr::summarise(meanPCASim = mean(PCASim),
             ciPCASim = CI(PCASim))
@@ -1015,7 +1077,9 @@ ggplot(bootPCASim_sum, aes(
   scale_y_discrete(guide = "axis_nested") + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
-  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+  geom_jitter(data = bootPCASim %>%
+                mutate(model = factor(model, levels = model_levels, labels = model_labels)), 
+              mapping = aes(fill = PCASim),
               shape = 21, size = 1) +
   scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
   labs(x = "Recombination rate 1 (log10)", y = "Recombination rate 2 (log10)", 
@@ -1026,28 +1090,50 @@ ggsave("PCASim_r_isAdapted.png", device = png, width = 12, height = 9)
 
 # isAdapted by modelCombo
 bootPCASim_sum <- bootPCASim %>%
+  mutate(model = factor(model, levels = model_levels, labels = model_labels)) %>%
   group_by(isAdapted1, isAdapted2, model) %>%
   dplyr::summarise(meanPCASim = mean(PCASim),
                    ciPCASim = CI(PCASim))
+
+# Relative differences in mean PCA similarity
+bootPCASim_sum %>%
+  filter((isAdapted1 == "Adapted" & isAdapted2 == "Adapted") | 
+           (isAdapted1 == "Maladapted" & isAdapted2 == "Maladapted")) %>%
+  ungroup() %>%
+  select(-isAdapted2) %>%
+  group_by(model, isAdapted1) %>%
+  pivot_wider(names_from = isAdapted1, values_from = c(meanPCASim)) %>%
+  select(-ciPCASim) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  summarise_all(max, na.rm = T) %>%
+  mutate(
+    diffPCASim = (Adapted - Maladapted) / Maladapted,
+  )
+
 
 
 ggplot(bootPCASim_sum, aes(
   x = (isAdapted1), 
   y = (isAdapted2)
 )) +
-  facet_nested("Model" + model ~ .) + 
+  facet_manual(.~model, design = design, axes = T) + 
   geom_tile(aes(fill = meanPCASim)) +
   theme_bw() +
-  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+  geom_jitter(data = bootPCASim %>%
+                mutate(model = factor(model, levels = model_levels, labels = model_labels)), 
+              mapping = aes(fill = PCASim),
               shape = 21, size = 1) +
-  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
-  labs(x = "Population state 1", y = "Population state 2", 
+  scale_fill_gradientn(colours = viridis::viridis(5), values = c(0, 0.25, 0.375, 0.5, 1)) +
+  #scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Adaptation outcome 1", y = "Adaptation outcome 2", 
        fill = "PCA Similarity") +
-  theme(text = element_text(size = 10), legend.position = "bottom") +
+  theme(text = element_text(size = 10), 
+        axis.text.y = element_text(angle = 90, hjust = 0.5),
+        panel.spacing.x = unit(2, "lines"),
+        legend.position = "bottom") +
   guides(fill = guide_colorbar(barwidth = 10))
-ggsave("PCASim_adapted.png", device = png, width = 4, height = 9)
-
-
+ggsave("PCASim_adapted.png", device = png, width = 7, height = 9)
 
 # beta regression
 # Distributions
@@ -1090,46 +1176,25 @@ bootPCASim_mdl <- bootPCASim %>%
 )
   
 
-
-# # Floating point error: clamp to 1
-# bootPCASim <- bootPCASim %>%
-#   mutate(PCASim = raster::clamp(PCASim, 0, 1))
-
-# Run regression: this is slow! Uncomment to run, otherwise load in saved object
-br.pcasim <- betareg(PCASim ~ model * as.factor(rCombo) + as.factor(adaptedCombo),
-                     bootPCASim_mdl)
-
-# Save output
-# saveRDS(br.pcasim, "betareg_pcaSim_big.RDS")
-br.pcasim <- readRDS(paste0(DATA_PATH, "betareg_pcaSim_big.RDS"))
-summary(br.pcasim)
-plot(br.pcasim)
-
-car::Anova(br.pcasim, type = 3, test.statistic = "F")
-
-# Response is on log-odds scale
-em.pcasim <- emmeans(br.pcasim, ~model * as.factor(rCombo) + as.factor(adaptedCombo))
-em.pcasim <- regrid(em.pcasim)
-pairs(em.pcasim, simple = "model")
-pairs(em.pcasim, simple = "rCombo")
-plot(em.pcasim, comparisons = T)
-pwpp(em.pcasim, by = "modelCombo", type = "response")
-emmip(br.pcasim,  ~ modelCombo | rCombo)
-joint_tests(em.pcasim)
-xtable(em.pcasim)
-
-# fractional logit: easier to get confidence intervals in response scale, 
+# fractional logit: easier than betareg to get confidence intervals in response scale, 
 # similar results to betareg
-fl.pcasim <- glm(PCASim ~ modelCombo * as.factor(rCombo),
-                 data = bootPCASim,
+fl.pcasim <- glm(PCASim ~ model * as.factor(rCombo) + as.factor(adaptedCombo),
+                 data = bootPCASim_mdl,
                  family = quasibinomial())
 summary(fl.pcasim)
 plot(fl.pcasim)
-em.fl.pcasim <- emmeans(fl.pcasim, ~modelCombo * as.factor(rCombo))
+em.fl.pcasim <- emmeans(fl.pcasim, ~model * as.factor(rCombo) + as.factor(adaptedCombo))
 em.fl.pcasim <- regrid(em.fl.pcasim)
-pairs(em.fl.pcasim, simple = "modelCombo")
+pairs(em.fl.pcasim, simple = "model")
 pairs(em.fl.pcasim, simple = "rCombo")
-pwpp(em.fl.pcasim, by = "modelCombo")
-emmip(em.fl.pcasim,  ~ modelCombo | rCombo)
+pwpp(em.fl.pcasim, by = "model")
+emmip(em.fl.pcasim,  ~ model | adaptedCombo)
 xtable(em.fl.pcasim)
+
+# Per model means
+bootPCASim_mdl %>%
+  group_by(model, adaptedCombo) %>%
+  summarise_if(is.numeric, list(mean = mean, CI = CI))
+
+
 
