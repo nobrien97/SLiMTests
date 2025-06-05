@@ -873,7 +873,13 @@ GetMotifParameterRange <- function(model) {
     "'PAR'"   = { result <- c(1, 3, 5, 8, 10, 11, 12) },
     "'FFLC1'" = { result <- c(1, 2, 5, 7:12) },
     "'FFLI1'" = { result <- c(1, 2, 5, 7:12) },
-    "'FFBH'"  = { result <- c(1:2, 4:12) }
+    "'FFBH'"  = { result <- c(1:2, 4:12) },
+    "NAR"   = { result <- c(1, 3, 5, 8, 10, 11, 12) },
+    "PAR"   = { result <- c(1, 3, 5, 8, 10, 11, 12) },
+    "FFLC1" = { result <- c(1, 2, 5, 7:12) },
+    "FFLI1" = { result <- c(1, 2, 5, 7:12) },
+    "FFBH"  = { result <- c(1:2, 4:12) }
+
   )
   return(result)
 } 

@@ -14,6 +14,11 @@ library(GGally)
 setwd("/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis")
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/randomisedStarts/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/analysis/"
+
+setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis")
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/randomisedStarts/"#"/mnt/d/SLiMTests/tests/newMotifs/pilot/"
+R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/analysis/"
+
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 # Cowplot 1.1.3 bug: won't get legend, this fixes
@@ -72,7 +77,7 @@ d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
   mutate(isAdapted = any(gen >= 59800 & w > 0.95),
-         model = factor(model, levels = model_levels)) %>%
+         model = factor(model, levels = model_labels)) %>%
   ungroup() -> d_qg
 
 # Proportion of each model that adapted
@@ -98,7 +103,7 @@ d_qg_sum <- d_qg %>%
             SEFitness = se(w),
             meanFitnessVar = mean(var_w),
             SEFitnessVar = se(var_w)) %>%
-  mutate(model = factor(model, levels = model_levels))
+  mutate(model = factor(model, levels = model_labels))
 
 # plot
 ggplot(d_qg_sum,
@@ -125,7 +130,7 @@ ggplot(d_qg_sum,
 ggsave("plt_adapt_mdist.png", width = 12, height = 5, device = png)
 
 # Mean fitness
-ggplot(d_qg_sum %>% filter(gen > -11000),
+ggplot(d_qg_sum %>% filter(gen > -1000),
        aes(x = gen, y = meanFitness, colour = model)) +
   facet_grid(log10(r)~.) +
   geom_line() +
@@ -167,7 +172,7 @@ sampled_examples <- d_qg %>%
   select(simID) %>% unlist(.)
 
 ggplot(d_qg %>% filter(simID %in% sampled_examples) %>%
-         filter(gen > 40000) %>%
+         filter(gen > 49000) %>%
          mutate(gen = gen - 50000),
        aes(x = gen, y = w, colour = model, group = simID)) +
   facet_nested("Recombination rate (log10)" + log10(r)~ "Adaptation outcome" + isAdapted,

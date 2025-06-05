@@ -125,7 +125,7 @@ d_h2 |>
   dplyr::filter(n > 1L)
 
 d_h2 <- d_h2 %>%
-  mutate(model = factor(model, levels = model_levels))
+  mutate(model = factor(model, levels = model_labels))
 
 ggplot(d_h2 %>% distinct(gen, seed, modelindex, calcMode, .keep_all = T) %>% 
          select(gen, seed, modelindex, model, r, h2_w, calcMode) %>%
@@ -252,7 +252,7 @@ ggplot(d_h2 %>%
 ggplot(d_h2 %>% 
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = model, y = log(VA_w), colour = model)) +
+       aes(x = model, y = log10(VA_w), colour = model)) +
   facet_nested(r_title + log10(r) ~ .) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_sum %>% ungroup() %>% 
@@ -361,7 +361,7 @@ ggsave("plt_va_percomp.png", device = png, bg = "white",
 # What does their trajectory look like compare to the other ones?
 # High aZ
 View(d_h2_molcomp %>%
-  filter(model == "'FFBH'", timePoint == "End", molComp == "aZ",
+  filter(model == "FFBH", timePoint == "End", molComp == "aZ",
          VA > 0.5))
 # Low aZ
 View(d_h2_molcomp %>%
@@ -585,7 +585,7 @@ d_h2 %>% filter(timePoint == "Start") %>%
 
 # Separate into model indices
 # each sublist is replicates of a model index
-sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
 lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
 lapply(split_h2, function(x) {data.frame(seed = x$seed, modelindex = x$modelindex, isAdapted = x$isAdapted)}) -> cov_matrix_modelindex
 
@@ -640,7 +640,7 @@ id <- rbindlist(cov_matrix_modelindex,
 id$label <- as.character(1:nrow(id))
 id$modelindex <- as.factor(id$modelindex)
 id <- AddCombosToDF(id)
-id$model <- factor(id$model, levels = model_levels)
+id$model <- factor(id$model, levels = model_labels)
 id$clus <- -1
 # add cluster
 for (i in 1:length(g)) {
@@ -701,7 +701,15 @@ d_ecr <- AddCombosToDF(d_ecr)
 
 # Refactor model
 d_ecr <- d_ecr %>%
-  mutate(model = factor(model, levels = model_levels))
+  mutate(model = factor(model, levels = model_labels))
+
+# Join va
+d_ecr <- full_join(d_ecr, d_h2 %>% filter(gen == 50000) %>% 
+                     select(seed, modelindex, VA_w), by = c("seed", "modelindex"))
+
+# CEV and autonomy have weird densities - maybe related to the total variance?
+d_ecr <- d_ecr %>%
+  mutate(isLowVariance = log10(VA_w) <= -1)
 
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
@@ -709,17 +717,20 @@ d_ecr <- d_ecr %>%
 
 d_ecr_sum <- d_ecr %>%
   group_by(model, r) %>%
-  summarise_if(is.numeric, list(mean = mean, se = se))
+  summarise(cev_mean = mean(log10(cev)),
+            res_mean = mean(log10(res)),
+            aut_mean = mean(aut),
+            ev_mean = mean(log10(ev)))
 
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = model, y = log(cev), colour = model)) +
+       aes(x = model, y = log10(cev), colour = model)) +
   facet_nested(r_title + log10(r)~.) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = model, y = log(cev_mean), group = model), colour = "black",
+             aes(x = model, y = cev_mean, group = model), colour = "black",
              fill = "white",
              shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
@@ -741,7 +752,7 @@ ggplot(d_ecr %>%
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = model, y = log10(res_mean), group = model), colour = "black",
+             aes(x = model, y = res_mean, group = model), colour = "black",
              fill = "white",
              shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +
@@ -785,7 +796,7 @@ ggplot(d_ecr %>%
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = model, y = log10(ev_mean), group = model), colour = "black",
+             aes(x = model, y = ev_mean, group = model), colour = "black",
              fill = "white",
              shape = 21, size = 2, position = position_dodge(0.9),
              stroke = 1) +

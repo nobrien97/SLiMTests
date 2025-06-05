@@ -231,6 +231,9 @@ plot(em_numFix, comparisons = T)
 xtable(em_numFix)
 
 
+########
+# effect sizes
+########
 
 d_fx <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_fx.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor",
@@ -311,25 +314,20 @@ d_fx_sum <- d_fx_sum %>%
   mutate(model_index = as.integer(factor(model, levels = model_levels)),
          x_numeric = (model_index - 1) * (length(gen_levels) + gap) + gen_index)
 
-gen_labels <- d_fx_sum %>%
+gen_labels <- d_fx_sum %>% filter(gen_k != 0) %>%
   group_by(model, gen_k) %>%
   summarise(x = mean(x_numeric), .groups = "drop")
 
-fx_model_labels <- d_fx_sum %>%
+fx_model_labels <- d_fx_sum %>% filter(gen_k != 0) %>%
   group_by(model, r, isAdapted) %>%
   summarise(x = mean(x_numeric), .groups = "drop")
 
-ggplot(d_fx_sum, 
+ggplot(d_fx_sum %>% filter(gen_k > 0), 
        aes(x = x_numeric, y = meanProp, fill = mutClass)) +
   facet_nested("Recombination rate (log10)" + log10(r)~
                  "Adaptation outcome" + isAdapted,
                labeller = labeller(isAdapted = c("FALSE" = "Maladapted", "TRUE" = "Adapted"))) +
   geom_bar(stat = "identity", width = 1) +
-  # geom_errorbar(aes(ymin = meanProp - CIProp,
-  #                   ymax = meanProp + CIProp), 
-  #               position = position_dodge(0.9)) +
-  #scale_x_discrete(guide = "axis_nested") +
-  #scale_y_continuous(limits = c(0, 1)) +
   coord_cartesian(ylim = c(0, 1), expand = F, clip = "off") +
   scale_fill_manual(values = paletteer_d("ggprism::viridis", 
                                            5, direction = 1)[c(5, 1, 3)],
