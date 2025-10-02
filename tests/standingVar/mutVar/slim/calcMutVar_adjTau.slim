@@ -50,6 +50,7 @@ initialize() {
 	
 	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
 	setCfgParam("outMutVar", c(paste0('slim_mutvar_adjtau', identifier, '.csv'))); // Output filename/path for shared mutation frequencies
+	setCfgParam("outMutVarPerComp", c(paste0('slim_mutvar_percomp_adjtau', identifier, '.csv'))); // Output filename/path for mutational variance per mol comp
 	setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
 				
 	initializeSLiMModelType("nonWF");
@@ -155,9 +156,23 @@ s1 late() {
 		phenotypes = p3.individuals.phenotype;
 		phenovar = var(phenotypes);
 
+		// Covariance of phenotypes with each molecular component
+		molComps = p3.individuals.ODEPars;
+		aZ = molComps[seq(1, length(molComps)-1, by = 5)];
+		bZ = molComps[seq(2, length(molComps)-1, by = 5)];
+		KZ = molComps[seq(3, length(molComps)-1, by = 5)];
+		KXZ = molComps[seq(4, length(molComps)-1, by = 5)];
+
+		cov_aZ = cov(phenotypes, aZ);
+		cov_bZ = cov(phenotypes, b);
+		cov_KZ = cov(phenotypes, KZ);
+		cov_KXZ = cov(phenotypes, KXZ);
+
 		// Write output
 		WriteMutVarOutput(phenovar);
+		WriteMutVarPerMolComp(cov_aZ, cov_bZ, cov_KZ, cov_KXZ);
 	} 
+	
 	cur_index = cur_index + 1;
 
 	// Move output
@@ -207,6 +222,11 @@ survival(p3) {
 function (void) WriteMutVarOutput(f$ variance) {
 	Mfile = paste(cur_index, asString(seed), modelindex, variance, sep=",");
 	writeFile(outMutVar, Mfile, append = T);
+}
+
+function (void) WriteMutVarPerMolComp(f$ cov_aZ, f$ cov_bZ, f$ cov_KZ, f$ cov_KXZ) {
+	Mfile = paste(cur_index, asString(seed), modelindex, cov_aZ, cov_bZ, cov_KZ, cov_KXZ, sep=",");
+	writeFile(outMutVarPerComp, Mfile, append = T);
 }
 
 
