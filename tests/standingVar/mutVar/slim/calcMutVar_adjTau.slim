@@ -164,7 +164,7 @@ s1 late() {
 		KXZ = molComps[seq(4, length(molComps)-1, by = 5)];
 
 		cov_aZ = cov(phenotypes, aZ);
-		cov_bZ = cov(phenotypes, b);
+		cov_bZ = cov(phenotypes, bZ);
 		cov_KZ = cov(phenotypes, KZ);
 		cov_KXZ = cov(phenotypes, KXZ);
 
@@ -178,6 +178,7 @@ s1 late() {
 	// Move output
 	if (cur_index == N_replicates * 2) {
 		system(paste0("mv ./", outMutVar, " ", moveDir));
+		system(paste0("mv ./", outMutVarPerComp, " ", moveDir));
 	}
 }
 
