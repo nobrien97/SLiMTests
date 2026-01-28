@@ -1,0 +1,173 @@
+// set up a simple neutral simulation
+initialize() {
+	if (!exists("slimgui")) {
+		defineConstant("seed", getSeed());
+	}
+	else {
+		setSeed(asInteger(round(runif(1, 1, 2^62 - 1))));
+		defineConstant("seed", getSeed());
+		catn("Actual seed: " + asInteger(seed));
+	}
+
+	initializeTreeSeq();
+
+	// Mutation rate
+	setCfgParam("mu", 1e-7);
+	
+	// Selection coefficient
+	setCfgParam("s", 0.01);
+	
+	// Population size
+	setCfgParam("N", 5000);
+	
+	// Number of adaptive mutations
+	setCfgParam("n_s", 1);
+	
+	// Equilibrium check epsilon
+	setCfgParam("eps", 1e-6);
+	
+	// A selected alleles region
+	setCfgParam("Aregion", c(1e5, 2e5));	
+	
+	// B selected alleles region
+	setCfgParam("Bregion", c(5e5, 6e5));
+	
+	// Input file path
+	setCfgParam("inputFile", "./file.trees");
+		
+	// Expected Heterozygosity at mutation-drift balance: H = theta / (1 + theta)
+	defineConstant("theta", 4 * N * mu);
+	defineConstant("H_e", theta / (1 + theta));
+	
+	// Model index
+	setCfgParam("modelindex", 1);
+	
+	// Model identifier
+	defineConstant("modelid", paste0(seed, "_", modelindex));
+	
+	initializeMutationRate(mu);
+	
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	
+	// m2 mutation type: beneficial in environment A, deleterious in environment B
+	initializeMutationType("m2", 0.5, "f", s);
+	m2.color = "blue";
+	
+	// m3 mutation type: beneficial in environment B, deleterious in environment A
+	initializeMutationType("m3", 0.5, "f", -s);
+	m3.color = "green";
+	
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 100 kb with uniform recombination
+	initializeGenomicElement(g1, 0, 99999);
+	initializeRecombinationRate(1e-8);	
+}
+
+
+function (void) setCfgParam(s$ name, ifls value) {
+	// Automate defining constants for SLiMgui and slim command line
+	if (!exists(name)) {
+		defineConstant(name, value);
+	}
+}
+
+mutationEffect(m2) {
+	// For any odd populations, don't change the selection coeff 
+	if (subpop.id % 2 != 0) {
+		return effect;
+	}
+	// Flip the selection coeff sign
+	if (homozygous) {
+		return 1.0 - mut.selectionCoeff
+	}
+	
+	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff
+}
+
+mutationEffect(m3) {
+	// For any even populations, don't change the selection coeff 
+	if (subpop.id % 2 == 0) {
+		return effect;
+	}
+	// Flip the selection coeff sign
+	if (homozygous) {
+		return 1.0 - mut.selectionCoeff
+	}
+	
+	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff
+}
+
+
+// create subpopulations
+1 early() {
+
+	// Read in population/mutation info
+	//sim.readFromPopulationFile(setCfgParam);
+	sim.addSubpop("p1", N);
+	
+	// Setup simulation events
+	community.rescheduleScriptBlock(s1, start = community.tick);
+	community.rescheduleScriptBlock(s2, ticks = community.tick + 100 * N);
+	community.rescheduleScriptBlock(s3, ticks = community.tick + 100 * N);
+
+}
+
+s1 late() {
+	// Check that the populations are close to equilibrium
+	pop_avg = float(length(sim.subpopulations));
+	
+	for (subpop in sim.subpopulations) {
+		inds = p1.sampleIndividuals(10);
+		avg = 0;	
+		
+		for (i in seqAlong(inds)) {
+			avg = avg + (calcPairHeterozygosity(inds[i].genome1, inds[i].genome2) * 1 / length(inds));
+		}
+		
+		pop_avg[i] = avg;
+	}
+	
+	// If we're at equilibrium in all subpops, continue with the test
+	if (all(abs(pop_avg - H_e) <= eps) {
+		community.rescheduleScriptBlock(s1, end = community.tick);
+		community.rescheduleScriptBlock(s2, start = community.tick, end = community.tick);
+		community.rescheduleScriptBlock(s3, start = community.tick + 1, end = community.tick + 10000);
+		return;
+	}
+	
+	if (community.tick == 10 * N) {
+		stop("Failed to reach equilibrium heterozygosity...");
+	}
+}
+
+//s2 late() {
+late() {
+	// Randomly sample mutations in the m2/m3 regions and turn them into m2/m3 mutations
+	for (subpop in sim.subpopulations) {
+		muts = subpop.genomes.mutations;
+		isPopA = subpop.id % 2 == 0;
+		region = isPopA ? Aregion : Bregion;
+		putative = muts[muts.position >= region[0] & muts.position <= region[1]];
+		
+		// Sample n_s mutations per subpop
+		adaptiveMut = sample(putative, n_s);
+		
+		// Update mutation info
+		adaptiveMut.setMutationType(isPopA ? m2 : m3);
+		adaptiveMut.setSelectionCoeff(s);
+	}
+	
+	log = community.createLogFile(paste0("output_", modelid), logInterval = 10);
+	log.addTick();
+	log.addCustomColumn("pi_p1", "calcPi(p1.genomes);");
+}
+
+s3 late() {
+	// Measure outputs
+	//// pi, heterozygosity, theta
+	calcPi()
+}
