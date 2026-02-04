@@ -9,10 +9,14 @@ initialize() {
 		catn("Actual seed: " + asInteger(seed));
 	}
 
-	initializeTreeSeq();
+	initializeSLiMModelType("WF");
+	initializeTreeSeq(timeUnit = "generations");
+
+	// Chromosome length
+	setCfgParam("L", 9e6);
 
 	// Mutation rate
-	setCfgParam("mu", 1e-7);
+	setCfgParam("mu", 1e-8);
 	
 	// Selection coefficient
 	setCfgParam("s", 0.01);
@@ -33,7 +37,7 @@ initialize() {
 	setCfgParam("Bregion", c(5e5, 6e5));
 	
 	// Input file path
-	setCfgParam("inputFile", "./file.trees");
+	setCfgParam("inputFile", "/mnt/c/GitHub/SLiMTests/tests/coalBurnIn/test.trees");
 		
 	// Expected Heterozygosity at mutation-drift balance: H = theta / (1 + theta)
 	defineConstant("theta", 4 * N * mu);
@@ -45,6 +49,8 @@ initialize() {
 	// Model identifier
 	defineConstant("modelid", paste0(seed, "_", modelindex));
 	
+	defineConstant("outputPath", paste0("output_", modelid, ".vcf"));
+	
 	initializeMutationRate(mu);
 	
 	// m1 mutation type: neutral
@@ -52,7 +58,7 @@ initialize() {
 	
 	// m2 mutation type: beneficial in environment A, deleterious in environment B
 	initializeMutationType("m2", 0.5, "f", s);
-	m2.color = "blue";
+	m2.color = "red";
 	
 	// m3 mutation type: beneficial in environment B, deleterious in environment A
 	initializeMutationType("m3", 0.5, "f", -s);
@@ -63,7 +69,7 @@ initialize() {
 	initializeGenomicElementType("g1", m1, 1.0);
 	
 	// uniform chromosome of length 100 kb with uniform recombination
-	initializeGenomicElement(g1, 0, 99999);
+	initializeGenomicElement(g1, 0, L-1);
 	initializeRecombinationRate(1e-8);	
 }
 
@@ -82,10 +88,10 @@ mutationEffect(m2) {
 	}
 	// Flip the selection coeff sign
 	if (homozygous) {
-		return 1.0 - mut.selectionCoeff
+		return 1.0 - mut.selectionCoeff;
 	}
 	
-	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff
+	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff;
 }
 
 mutationEffect(m3) {
@@ -95,10 +101,10 @@ mutationEffect(m3) {
 	}
 	// Flip the selection coeff sign
 	if (homozygous) {
-		return 1.0 - mut.selectionCoeff
+		return 1.0 - mut.selectionCoeff;
 	}
 	
-	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff
+	return 1.0 + mut.mutationType.dominanceCoeff * -mut.selectionCoeff;
 }
 
 
@@ -106,13 +112,20 @@ mutationEffect(m3) {
 1 early() {
 
 	// Read in population/mutation info
-	//sim.readFromPopulationFile(setCfgParam);
-	sim.addSubpop("p1", N);
-	
+	sim.readFromPopulationFile(inputFile);
+			
 	// Setup simulation events
-	community.rescheduleScriptBlock(s1, start = community.tick);
+	community.rescheduleScriptBlock(s1, start = 1);
 	community.rescheduleScriptBlock(s2, ticks = community.tick + 100 * N);
 	community.rescheduleScriptBlock(s3, ticks = community.tick + 100 * N);
+	
+	defineConstant("pdfPath", writeTempFile("plot_", ".png", ""));
+	sim.setValue("avg_he", NULL);
+	if (exists("slimgui"))
+	{
+		slimgui.openDocument(pdfPath);
+		sim.setValue("pdfOpened", F);
+	}
 
 }
 
@@ -120,54 +133,83 @@ s1 late() {
 	// Check that the populations are close to equilibrium
 	pop_avg = float(length(sim.subpopulations));
 	
-	for (subpop in sim.subpopulations) {
-		inds = p1.sampleIndividuals(10);
+	for (i in seqAlong(sim.subpopulations)) {
+		subpop = sim.subpopulations[i];
+		inds = subpop.sampleIndividuals(10);
 		avg = 0;	
 		
-		for (i in seqAlong(inds)) {
-			avg = avg + (calcPairHeterozygosity(inds[i].genome1, inds[i].genome2) * 1 / length(inds));
+		for (j in seqAlong(inds)) {
+			avg = avg + (calcPairHeterozygosity(inds[j].haploidGenome1, inds[j].haploidGenome2) * 1 / length(inds));
 		}
 		
 		pop_avg[i] = avg;
 	}
 	
+	catn(paste("Tick:", community.tick, "Heterozygosity =", pop_avg)); 
+	
 	// If we're at equilibrium in all subpops, continue with the test
-	if (all(abs(pop_avg - H_e) <= eps) {
+	if (all(abs(pop_avg - H_e) <= eps)) {
 		community.rescheduleScriptBlock(s1, end = community.tick);
 		community.rescheduleScriptBlock(s2, start = community.tick, end = community.tick);
-		community.rescheduleScriptBlock(s3, start = community.tick + 1, end = community.tick + 10000);
+		community.rescheduleScriptBlock(s3, ticks = community.tick + 10000);
 		return;
 	}
+	
+	if (community.tick % 10 == 0) {
+		avg_he = mean(pop_avg);
+		he_history = c(sim.getValue("avg_he"), avg_he);
+		sim.setValue("avg_he", he_history);
+		
+		rstr = paste(c('{',
+		'x <- (1:' + size(he_history) + ') * 10',
+		'y <- c(' + paste(he_history, sep=", ") + ')',
+		'png(file="' + pdfPath + '", width=4, height=4)',
+		'par(mar=c(4.0, 4.0, 1.5, 1.5))',
+		'plot(x=x, y=y, xlim=c(0, 50000), ylim=c(0, 500), type="l",',
+			'xlab="Generation", ylab="Average heterozygosity", cex.axis=0.95,',
+			'cex.lab=1.2, mgp=c(2.5, 0.7, 0), col="red", lwd=2,',
+			'xaxp=c(0, 50000, 2))',
+		'box()',
+		'dev.off()',
+		'}'), sep="\n");
+		
+		scriptPath = writeTempFile("plot_", ".R", rstr);
+		system("/usr/local/bin/Rscript", args=scriptPath);
+		deleteFile(scriptPath);
+		
+		if (!sim.getValue("pdfOpened"))
+		{
+			system("xdg-open " + pdfPath, wait=F);
+			//sim.setValue("pdfOpened", T);
+		}
+	}
+	
 	
 	if (community.tick == 10 * N) {
 		stop("Failed to reach equilibrium heterozygosity...");
 	}
 }
 
-//s2 late() {
-late() {
+s2 late() {
+//late() {
 	// Randomly sample mutations in the m2/m3 regions and turn them into m2/m3 mutations
 	for (subpop in sim.subpopulations) {
 		muts = subpop.genomes.mutations;
 		isPopA = subpop.id % 2 == 0;
-		region = isPopA ? Aregion : Bregion;
+		region = isPopA ? Aregion else Bregion;
 		putative = muts[muts.position >= region[0] & muts.position <= region[1]];
 		
 		// Sample n_s mutations per subpop
 		adaptiveMut = sample(putative, n_s);
 		
 		// Update mutation info
-		adaptiveMut.setMutationType(isPopA ? m2 : m3);
+		adaptiveMut.setMutationType(isPopA ? m2 else m3);
 		adaptiveMut.setSelectionCoeff(s);
 	}
-	
-	log = community.createLogFile(paste0("output_", modelid), logInterval = 10);
-	log.addTick();
-	log.addCustomColumn("pi_p1", "calcPi(p1.genomes);");
 }
 
 s3 late() {
-	// Measure outputs
-	//// pi, heterozygosity, theta
-	calcPi()
+	// Output VCF
+	c(p1.genomes, p2.genomes).outputVCF(outputPath);
+	
 }
