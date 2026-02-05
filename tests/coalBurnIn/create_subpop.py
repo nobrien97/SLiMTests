@@ -29,8 +29,8 @@ recomb_map = msp.RateMap(
     rate = [5e-8, 0.5e-8, 5e-8]
 )
 
-ts = msp.sim_ancestry(samples={"p1": 1000, "p2": 1000, "p3": 1000,
-                               "p4": 1000, "p5": 1000, "p6": 1000}, 
+ts = msp.sim_ancestry(samples={"p1": 5000, "p2": 5000, "p3": 5000,
+                               "p4": 5000, "p5": 5000, "p6": 5000}, 
                       demography = demography,
                       recombination_rate=recomb_map)
 #ts
