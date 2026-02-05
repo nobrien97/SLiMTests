@@ -15,11 +15,16 @@ initialize() {
 	// Chromosome length
 	setCfgParam("L", 9e6);
 
-	// Mutation rate
-	setCfgParam("mu", 1e-8);
+	// Mutation rates
+	setCfgParam("mu", c(1e-8, 1e-9, 1e-8));
+	
+	setCfgParam("breaks", c(3000000, 6000000, 9000000-1));
+	
+	// Recombination rates
+	setCfgParam("r", c(5e-8, 0.5e-8, 5e-8));
 	
 	// Selection coefficient
-	setCfgParam("s", 0.01);
+	setCfgParam("s", 0.05);
 	
 	// Population size
 	setCfgParam("N", 5000);
@@ -36,13 +41,18 @@ initialize() {
 	// B selected alleles region
 	setCfgParam("Bregion", c(5e5, 6e5));
 	
+	// Migration between A/B pairs
+	setCfgParam("m", 0.1);
+	
+	// How often to check heterozygosity
+	setCfgParam("checkHeRate", 100);
+	
+	// How many time points to check slope against for overall trend
+	setCfgParam("HeCheckHistorySize", 20);
+	
 	// Input file path
 	setCfgParam("inputFile", "/mnt/c/GitHub/SLiMTests/tests/coalBurnIn/test.trees");
-		
-	// Expected Heterozygosity at mutation-drift balance: H = theta / (1 + theta)
-	defineConstant("theta", 4 * N * mu);
-	defineConstant("H_e", theta / (1 + theta));
-	
+			
 	// Model index
 	setCfgParam("modelindex", 1);
 	
@@ -61,7 +71,7 @@ initialize() {
 	m2.color = "red";
 	
 	// m3 mutation type: beneficial in environment B, deleterious in environment A
-	initializeMutationType("m3", 0.5, "f", -s);
+	initializeMutationType("m3", 0.5, "f", s);
 	m3.color = "green";
 	
 	
@@ -79,6 +89,57 @@ function (void) setCfgParam(s$ name, ifls value) {
 	if (!exists(name)) {
 		defineConstant(name, value);
 	}
+}
+
+function (numeric) updateRecentHeMatrix(ifls HeMatrix, ifls latestRow) {
+	// Updates a recent heterozygosity matrix with the latest entry
+	if (length(dim(HeMatrix)) != 2) {
+		stop("HeMatrix must be a matrix.");
+	}
+	
+	if (length(latestRow) != ncol(HeMatrix)) {
+		stop("latestRow must have length equal to the number of columns in HeMatrix.");
+	}
+	
+	n = nrow(HeMatrix);
+	
+	HeMatrix[1:(n-1),] = HeMatrix[0:(n-2),];
+	HeMatrix[0,] = latestRow;
+	return HeMatrix;
+}
+
+function (numeric) shift(fi x, [i$ n = 1]) {
+	// Shifts a vector by n
+	if (n == 0) {
+		return x;
+	}
+	
+	end = length(x) - 1;
+		
+	if (abs(n) > end) {
+		if (isInteger(x)) {
+			return integer(length(x));
+		} else {
+			return float(length(x));
+		}
+	}
+	
+	zero = isInteger(x) ? 0 else 0.0;
+
+	// Handle lag case
+	if ( n > 0 ) {
+		x[n:end] = x[0:(end - n)];
+		x[0:(n-1)] = zero;
+		return x;
+	}
+	
+	
+	// Handle lead case, n < 0
+	start = end + n;
+	x[start:0] = x[end:(-n)];
+	x[end:(start+1)] = zero;
+	return x;
+	
 }
 
 mutationEffect(m2) {
@@ -109,18 +170,14 @@ mutationEffect(m3) {
 
 
 // create subpopulations
-1 early() {
-
-	// Read in population/mutation info
-	sim.readFromPopulationFile(inputFile);
-			
+1 early() {			
 	// Setup simulation events
 	community.rescheduleScriptBlock(s1, start = 1);
 	community.rescheduleScriptBlock(s2, ticks = community.tick + 100 * N);
 	community.rescheduleScriptBlock(s3, ticks = community.tick + 100 * N);
 	
+	// Setup plotting
 	defineConstant("pdfPath", writeTempFile("plot_", ".png", ""));
-	sim.setValue("avg_he", NULL);
 	if (exists("slimgui"))
 	{
 		slimgui.openDocument(pdfPath);
@@ -128,57 +185,109 @@ mutationEffect(m3) {
 
 }
 
-s1 late() {
-	// Check that the populations are close to equilibrium
-	pop_avg = float(length(sim.subpopulations));
+1 late() {
+	// Read in population/mutation info
+	sim.readFromPopulationFile(inputFile);
 	
+	// Handle migration
 	for (i in seqAlong(sim.subpopulations)) {
 		subpop = sim.subpopulations[i];
-		inds = subpop.sampleIndividuals(10);
-		avg = 0;	
 		
-		for (j in seqAlong(inds)) {
-			avg = avg + (calcPairHeterozygosity(inds[j].haploidGenome1, inds[j].haploidGenome2) * 1 / length(inds));
+		if (i % 2 == 0) {
+			subpop.setMigrationRates(sim.subpopulations[i+1], m);
+		} else {
+			subpop.setMigrationRates(sim.subpopulations[i-1], m);
 		}
-		
-		pop_avg[i] = avg;
 	}
 	
-	// catn(paste("Tick:", community.tick, "Heterozygosity =", pop_avg)); 
-	
-	// If we're at equilibrium in all subpops, continue with the test
-	if (all(abs(pop_avg - H_e) <= eps)) {
-		community.rescheduleScriptBlock(s1, end = community.tick);
-		community.rescheduleScriptBlock(s2, start = community.tick, end = community.tick);
-		community.rescheduleScriptBlock(s3, ticks = community.tick + 10000);
-		return;
-	}
-	
-	if (community.tick % 10 == 0) {
-		avg_he = mean(pop_avg);
-		he_history = c(sim.getValue("avg_he"), avg_he);
-		sim.setValue("avg_he", he_history);
-		
-		rstr = paste(c('{',
-		'x <- (1:' + size(he_history) + ') * 10',
-		'y <- c(' + paste(he_history, sep=", ") + ')',
-		'png(file="' + pdfPath + '", width=4, height=4, units = "in", res = 72)',
-		'par(mar=c(4, 4, 1.5, 1.5))',
-		'plot(x=x, y=y, xlim=c(0, '+ (community.tick + 100) +'), ylim=c(0, '+ (max(he_history) * 1.1) +'), type="l",',
-		'xlab="Generation", ylab="Average heterozygosity", cex.axis=0.95,',
-		'cex.lab=1.2, mgp=c(2.5, 0.7, 0), col="red", lwd=2,',
-		'xaxp=c(0, ' + (community.tick + 100) + ', 2))',
-		'box()',
-		'dev.off()',
-		'}'), sep="\n");
+	// Check for heterozygosity equilibrium
+	defineGlobal("last_he", matrix(rep(1000000.0, size(sim.subpopulations) * HeCheckHistorySize), nrow = HeCheckHistorySize));
+	sim.setValue("avg_he", NULL);
 
-		scriptPath = writeTempFile("plot_", ".R", rstr);
-		system("/usr/bin/Rscript", args=scriptPath);
-		deleteFile(scriptPath);
+}
+
+s1 late() {
+	// Check that the populations are close to equilibrium
+		
+	// If we're at equilibrium in all subpops, continue with the test: check every 50 generations or so
+	if (community.tick % checkHeRate == 0) {
+	
+		pop_avg = float(length(sim.subpopulations));
+	
+		for (i in seqAlong(sim.subpopulations)) {
+			subpop = sim.subpopulations[i];
+			inds = subpop.sampleIndividuals(10);
+			avg = 0;
+				
+			for (j in seqAlong(inds)) {
+				avg = avg + (calcPairHeterozygosity(inds[j].haploidGenome1, inds[j].haploidGenome2) * 1 / length(inds));
+			}
+			
+			pop_avg[i] = avg;
 		}
+							
+		defineGlobal("last_he", updateRecentHeMatrix(last_he, pop_avg));
+		
+		atEquil = T;
+
+		// Check equilibrium - 
+		// Lagged differences multi-order: average of the nth order slopes
+		diff = array(float(product(c(dim(last_he), HeCheckHistorySize))), c(dim(last_he), HeCheckHistorySize));
+		diffSums = float(size(sim.subpopulations));
+		for (i in 0:(HeCheckHistorySize-1)) {
+			diff[,,i] = abs(shift(last_he, n = i+1) - last_he);
+			diff[0:i,,i] = 0.0; // Ignore first i values, these are NA
+			
+			diffSums = diffSums + colSums(matrix(diff[,,i], nrow(diff)));
+		}
+		
+		// Turn diffSums to average - exclude the 0s (triangular number)
+		tri = nrow(last_he) - 1;
+		denominator = (tri * (tri + 1))/2;
+		
+		avDiffs = diffSums / denominator;
+		catn(avDiffs);
+		
+		if (any(avDiffs > eps)) {
+			atEquil = F;
+		}
+		
+		// Handle plotting
+			avg_he = mean(pop_avg);
+			he_history = c(sim.getValue("avg_he"), avg_he);
+			sim.setValue("avg_he", he_history);
+
+			rstr = paste(c('{',
+			'x <- (1:' + size(he_history) + ' * ' + checkHeRate +')',
+			'y <- c(' + paste(he_history, sep=", ") + ')',
+			'png(file="' + pdfPath + '", width=4, height=4, units = "in", res = 72)',
+			'par(mar=c(4, 4, 1.5, 1.5))',
+			'plot(x=x, y=y, ylim=c(0, '+ (max(he_history) * 1.1) +'), type="l",',
+			'xlab="Generation", ylab="Average heterozygosity", cex.axis=0.95,',
+			'cex.lab=1.2, mgp=c(2.5, 0.7, 0), col="red", lwd=2,',
+			'xaxp=c(0, ' + (community.tick + 100) + ', 4))',
+			'box()',
+			'dev.off()',
+			'}'), sep="\n");
+
+			scriptPath = writeTempFile("plot_", ".R", rstr);
+			system("/usr/bin/Rscript", args=scriptPath);
+			deleteFile(scriptPath);
+
+		if (atEquil) {
+			catn("Reached equilibrium at tick " + community.tick);
+			community.deregisterScriptBlock(s1);
+			community.rescheduleScriptBlock(s2, ticks = community.tick + 1);
+			community.rescheduleScriptBlock(s3, ticks = community.tick + 10000);
+			
+			if (exists("slimgui")) {
+				slimgui.pauseExecution();
+			}
+			return;
+		}
+	}	
 	
-	
-	if (community.tick == 10 * N) {
+	if (community.tick >= 10 * N) {
 		stop("Failed to reach equilibrium heterozygosity...");
 	}
 }
@@ -187,7 +296,7 @@ s2 late() {
 //late() {
 	// Randomly sample mutations in the m2/m3 regions and turn them into m2/m3 mutations
 	for (subpop in sim.subpopulations) {
-		muts = subpop.genomes.mutations;
+		muts = subpop.haplosomes.mutations;
 		isPopA = subpop.id % 2 == 0;
 		region = isPopA ? Aregion else Bregion;
 		putative = muts[muts.position >= region[0] & muts.position <= region[1]];
