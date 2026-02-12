@@ -13,12 +13,12 @@ initialize() {
 	initializeTreeSeq(timeUnit = "generations");
 
 	// Chromosome length
-	setCfgParam("L", 9e6);
+	setCfgParam("L", 2e6);
 
 	// Mutation rates
 	setCfgParam("mu", c(1e-8, 1e-9, 1e-8));
 	
-	setCfgParam("breaks", c(3000000, 6000000, 9000000-1));
+	setCfgParam("breaks", c(1000000, 1500000, 2000000-1));
 	
 	// Recombination rates
 	setCfgParam("r", c(5e-8, 0.5e-8, 5e-8));
@@ -33,16 +33,22 @@ initialize() {
 	setCfgParam("n_s", 1);
 	
 	// Equilibrium check epsilon
-	setCfgParam("eps", 1e-6);
+	setCfgParam("eps", 1e-5);
 	
 	// A selected alleles region
 	setCfgParam("Aregion", c(1e5, 2e5));	
 	
 	// B selected alleles region
 	setCfgParam("Bregion", c(5e5, 6e5));
+		
+	// Migration matrix between populations
+	setCfgParam("m", matrix(c(0.0, 0.1, 0.0, 0.0, 0.0,
+									  0.1, 0.0, 0.0, 0.0, 0.0,
+									  0.0, 0.0, 0.0, 0.0, 0.0,
+									  0.0, 0.0, 0.0, 0.0, 0.1,
+									  0.0, 0.0, 0.0, 0.1, 0.0), 
+									  nrow = 5, byrow=T));
 	
-	// Migration between A/B pairs
-	setCfgParam("m", 0.1);
 	
 	// How often to check heterozygosity
 	setCfgParam("checkHeRate", 100);
@@ -50,8 +56,11 @@ initialize() {
 	// How many time points to check slope against for overall trend
 	setCfgParam("HeCheckHistorySize", 20);
 	
+	// Whether to plot heterozygosity
+	setCfgParam("plotHe", T);
+	
 	// Input file path
-	setCfgParam("inputFile", "/mnt/c/GitHub/SLiMTests/tests/coalBurnIn/test.trees");
+	setCfgParam("inputFile", "/mnt/c/GitHub/SLiMTests/tests/coalBurnIn/new_chapt4.trees");
 			
 	// Model index
 	setCfgParam("modelindex", 1);
@@ -144,7 +153,7 @@ function (numeric) shift(fi x, [i$ n = 1]) {
 
 mutationEffect(m2) {
 	// For any odd populations, don't change the selection coeff 
-	if (subpop.id % 2 != 0) {
+	if (match(subpop, sim.subpopulations) % 2 != 0) {
 		return effect;
 	}
 	// Flip the selection coeff sign
@@ -157,7 +166,7 @@ mutationEffect(m2) {
 
 mutationEffect(m3) {
 	// For any even populations, don't change the selection coeff 
-	if (subpop.id % 2 == 0) {
+	if (match(subpop, sim.subpopulations) % 2 == 0) {
 		return effect;
 	}
 	// Flip the selection coeff sign
@@ -177,12 +186,14 @@ mutationEffect(m3) {
 	community.rescheduleScriptBlock(s3, ticks = community.tick + 100 * N);
 	
 	// Setup plotting
-	defineConstant("pdfPath", writeTempFile("plot_", ".png", ""));
-	if (exists("slimgui"))
-	{
-		slimgui.openDocument(pdfPath);
+	
+	if (plotHe) {
+		defineConstant("pdfPath", writeTempFile("plot_", ".png", ""));
+		if (exists("slimgui"))
+		{
+			slimgui.openDocument(pdfPath);
+		}
 	}
-
 }
 
 1 late() {
@@ -191,16 +202,14 @@ mutationEffect(m3) {
 	
 	// Handle migration
 	for (i in seqAlong(sim.subpopulations)) {
-		subpop = sim.subpopulations[i];
-		
-		if (i % 2 == 0) {
-			subpop.setMigrationRates(sim.subpopulations[i+1], m);
-		} else {
-			subpop.setMigrationRates(sim.subpopulations[i-1], m);
-		}
+		subpop = sim.subpopulations[i];		
+		indices = setDifference(seqAlong(sim.subpopulations), match(subpop, sim.subpopulations));
+		others = sim.subpopulations[indices];
+		rates = c(m[i,])[indices];
+		subpop.setMigrationRates(others, rates);
 	}
 	
-	// Check for heterozygosity equilibrium
+	// Set heterozygosity variables
 	defineGlobal("last_he", matrix(rep(1000000.0, size(sim.subpopulations) * HeCheckHistorySize), nrow = HeCheckHistorySize));
 	sim.setValue("avg_he", NULL);
 
@@ -235,17 +244,17 @@ s1 late() {
 		diff = array(float(product(c(dim(last_he), HeCheckHistorySize))), c(dim(last_he), HeCheckHistorySize));
 		diffSums = float(size(sim.subpopulations));
 		for (i in 0:(HeCheckHistorySize-1)) {
-			diff[,,i] = abs(shift(last_he, n = i+1) - last_he);
+			diff[,,i] = shift(last_he, n = i+1) - last_he;
 			diff[0:i,,i] = 0.0; // Ignore first i values, these are NA
 			
 			diffSums = diffSums + colSums(matrix(diff[,,i], nrow(diff)));
 		}
 		
-		// Turn diffSums to average - exclude the 0s (triangular number)
+		// Average diffSums - exclude the 0s (triangular number)
 		tri = nrow(last_he) - 1;
 		denominator = (tri * (tri + 1))/2;
 		
-		avDiffs = diffSums / denominator;
+		avDiffs = abs(diffSums / denominator);
 		catn(avDiffs);
 		
 		if (any(avDiffs > eps)) {
@@ -253,6 +262,7 @@ s1 late() {
 		}
 		
 		// Handle plotting
+		if (plotHe) {
 			avg_he = mean(pop_avg);
 			he_history = c(sim.getValue("avg_he"), avg_he);
 			sim.setValue("avg_he", he_history);
@@ -273,16 +283,18 @@ s1 late() {
 			scriptPath = writeTempFile("plot_", ".R", rstr);
 			system("/usr/bin/Rscript", args=scriptPath);
 			deleteFile(scriptPath);
-
+		}
+		
+		// Check equilibrium
 		if (atEquil) {
 			catn("Reached equilibrium at tick " + community.tick);
 			community.deregisterScriptBlock(s1);
 			community.rescheduleScriptBlock(s2, ticks = community.tick + 1);
 			community.rescheduleScriptBlock(s3, ticks = community.tick + 10000);
 			
-			if (exists("slimgui")) {
-				slimgui.pauseExecution();
-			}
+//			if (exists("slimgui")) {
+//				slimgui.pauseExecution();
+//			}
 			return;
 		}
 	}	
