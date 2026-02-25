@@ -26,20 +26,26 @@ initialize() {
 	// Selection coefficient
 	setCfgParam("s", 0.05);
 	
-	// Population size
-	setCfgParam("N", 5000);
-	
 	// Number of adaptive mutations
-	setCfgParam("n_s", 1);
-	
+	setCfgParam("n_s", 3);
+		
 	// Equilibrium check epsilon
 	setCfgParam("eps", 1e-5);
 	
-	// A selected alleles region
-	setCfgParam("Aregion", c(1e5, 2e5));	
+	// Number of regions per ecotype
+	setCfgParam("n_r", 3);
+	
+	// A selected alleles regions
+	// Regions sampled with
+	// leftboundary = sample(0:1999999, n_r * 2)
+	//		1727750 1460268 1149215 883893 348079 1698376
+	// rightboundary = leftboundary+999
+	//		1728749 1461267 1150214 884892 349078 1699375
+	// for regions of n loci
+	setCfgParam("Aregion", c(1727750:1728749, 1460268:1461267, 1149215:1150214));	
 	
 	// B selected alleles region
-	setCfgParam("Bregion", c(5e5, 6e5));
+	setCfgParam("Bregion", c(883893:884892, 348079:349078, 1698376:1699375));
 		
 	// Migration matrix between populations
 	setCfgParam("m", matrix(c(0.0, 0.1, 0.0, 0.0, 0.0,
@@ -58,6 +64,9 @@ initialize() {
 	
 	// Whether to plot heterozygosity
 	setCfgParam("plotHe", T);
+	
+	// Number of individuals to sample per subpopulation for vcf output
+	setCfgParam("N_vcf", 10);
 	
 	// Input file path
 	setCfgParam("inputFile", "/mnt/c/GitHub/SLiMTests/tests/coalBurnIn/new_chapt4.trees");
@@ -182,8 +191,8 @@ mutationEffect(m3) {
 1 early() {			
 	// Setup simulation events
 	community.rescheduleScriptBlock(s1, start = 1);
-	community.rescheduleScriptBlock(s2, ticks = community.tick + 100 * N);
-	community.rescheduleScriptBlock(s3, ticks = community.tick + 100 * N);
+	community.rescheduleScriptBlock(s2, ticks = community.tick + 1000000);
+	community.rescheduleScriptBlock(s3, ticks = community.tick + 1000000);
 	
 	// Setup plotting
 	
@@ -255,7 +264,9 @@ s1 late() {
 		denominator = (tri * (tri + 1))/2;
 		
 		avDiffs = abs(diffSums / denominator);
-		catn(avDiffs);
+		if (avDiffs[0] < 99999.0) {
+			catn(avDiffs);
+		}
 		
 		if (any(avDiffs > eps)) {
 			atEquil = F;
@@ -295,11 +306,11 @@ s1 late() {
 //			if (exists("slimgui")) {
 //				slimgui.pauseExecution();
 //			}
-			return;
+//			return;
 		}
 	}	
 	
-	if (community.tick >= 10 * N) {
+	if (community.tick >= 1000000) {
 		stop("Failed to reach equilibrium heterozygosity...");
 	}
 }
@@ -310,20 +321,32 @@ s2 late() {
 	for (subpop in sim.subpopulations) {
 		muts = subpop.haplosomes.mutations;
 		isPopA = subpop.id % 2 == 0;
-		region = isPopA ? Aregion else Bregion;
-		putative = muts[muts.position >= region[0] & muts.position <= region[1]];
+		regionType = isPopA ? Aregion else Bregion;
 		
-		// Sample n_s mutations per subpop
-		adaptiveMut = sample(putative, n_s);
+		// Iterate over regions
+		for (i in seqLen(n_r)) {
+			reg = regionType[(i*1000):(((i+1)*1000) - 1)];
+			putIdx = match(reg, muts.position);
+			putIdx = putIdx[putIdx > -1];
+			putative = muts[putIdx];
 		
-		// Update mutation info
-		adaptiveMut.setMutationType(isPopA ? m2 else m3);
-		adaptiveMut.setSelectionCoeff(s);
+			// Sample n_s mutations per subpop - unless there aren't enough mutations in the region,
+			// then we choose the minimum
+			n_muts = min(n_s, size(putative));
+		
+			adaptiveMut = sample(putative, n_muts);
+		
+			// Update mutation info
+			adaptiveMut.setMutationType(isPopA ? m2 else m3);
+			adaptiveMut.setSelectionCoeff(s);
+		}
 	}
 }
 
 s3 late() {
 	// Output VCF
-	c(p1.genomes, p2.genomes).outputVCF(outputPath);
+	sampled = sim.subpopulations.sampleIndividuals(N_vcf);
+	sampled.outputIndividualsToVCF(outputPath);
 	
+	sim.simulationFinished();
 }
