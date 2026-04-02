@@ -2,6 +2,7 @@ library(tidyverse)
 library(ggh4x)
 library(paletteer)
 library(emmeans)
+library(patchwork)
 
 # Helper functions
 ModelFromIndex <- function(id) {
@@ -81,20 +82,131 @@ group_by(model, traitCombo) %>%
               var = var(cor)) %>%
     ungroup()
 
-ggplot(d_qg_traitCor_sum %>%
-         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
-                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
-    aes(x = as.factor(traitCombo), y = mean, colour = model)) +
-    geom_point(position = position_dodge(0.9)) +
+
+trait_comp_names_nar <- c(
+  "Response time vs steady state" # 12
+)
+
+trait_comp_names_c1 <- c(
+  "Response time vs response delay", # 12
+  "Response time vs steady state", # 13
+  "Response delay vs steady state" # 23
+)
+
+trait_comp_names_i1 <- c(
+  "Time to half max expression vs max expression", # 12
+  "Time to half max expression vs time above half max expression", # 13
+  "Max expression vs time above half max expression" # 23
+)
+
+trait_comp_names_bh <- c(
+  "Time to max expression vs max expression", # 12
+  "Time to max expression vs time to final steady state", # 13
+  "Time to max expression vs final steady state", # 14
+  "Max expression vs time to final steady state", # 23
+  "Max expression vs final steady state", # 24
+  "Time to final steady state vs final steady state" # 34
+)
+
+trait_comp_names <- data.frame(model = c(rep("NAR", times = length(trait_comp_names_nar)),
+                                         rep("PAR", times = length(trait_comp_names_nar)),
+                                         rep("FFLC1", times = length(trait_comp_names_c1)),
+                                         rep("FFLI1", times = length(trait_comp_names_i1)),
+                                         rep("FFBH", times = length(trait_comp_names_bh))),
+                               label = c(trait_comp_names_nar, trait_comp_names_nar,
+                                         trait_comp_names_c1, trait_comp_names_i1,
+                                         trait_comp_names_bh))
+
+traitCorBoilerplate <- function(plt) {
+  plt + 
+    facet_nested(. ~ model) +
+    geom_point(position = position_dodge(0.9), show.legend = F) +
     geom_errorbar(aes(ymin = mean - var, ymax = mean + var), width = 0.2,
-                  position = position_dodge(0.9)) +
+                  position = position_dodge(0.9), show.legend = F) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
     coord_cartesian(ylim = c(-0.5, 0.5)) +
-    scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1)) +
     labs(x = "Trait combination", y = "Mean correlation", colour = "Model") +
     theme_bw() +
     theme(text = element_text(size = 12),
           legend.position = "bottom")
-ggsave("plt_trait_cor.png", device = png, bg = "white", width = 7, height = 8)
+}
+
+
+ggplot(d_qg_traitCor_sum %>%
+         filter(model == "NAR") %>%
+         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
+                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
+    aes(x = as.factor(traitCombo), y = mean, colour = model)) +
+    scale_x_discrete(labels = trait_comp_names[trait_comp_names$model == "NAR",2],
+                     guide = guide_axis(n.dodge = 2)) +
+    scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                             5, direction = -1)[4]) -> plt_traitcor_nar
+plt_traitcor_nar <- traitCorBoilerplate(plt_traitcor_nar)
+
+ggplot(d_qg_traitCor_sum %>%
+         filter(model == "PAR") %>%
+         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
+                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
+       aes(x = as.factor(traitCombo), y = mean, colour = model)) +
+  scale_x_discrete(labels = trait_comp_names[trait_comp_names$model == "PAR",2],
+                   guide = guide_axis(n.dodge = 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = -1)[5]) -> plt_traitcor_par
+plt_traitcor_par <- traitCorBoilerplate(plt_traitcor_par)
+
+ggplot(d_qg_traitCor_sum %>%
+         filter(model == "FFLC1") %>%
+         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
+                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
+       aes(x = as.factor(traitCombo), y = mean, colour = model)) +
+  scale_x_discrete(labels = trait_comp_names[trait_comp_names$model == "FFLC1",2],
+                   guide = guide_axis(n.dodge = 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = -1)[2]) -> plt_traitcor_fflc1
+plt_traitcor_fflc1 <- traitCorBoilerplate(plt_traitcor_fflc1)
+
+ggplot(d_qg_traitCor_sum %>%
+         filter(model == "FFLI1") %>%
+         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
+                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
+       aes(x = as.factor(traitCombo), y = mean, colour = model)) +
+  scale_x_discrete(labels = trait_comp_names[trait_comp_names$model == "FFLI1",2],
+                   guide = guide_axis(n.dodge = 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = -1)[3]) -> plt_traitcor_ffli1
+plt_traitcor_ffli1 <- traitCorBoilerplate(plt_traitcor_ffli1)
+
+
+ggplot(d_qg_traitCor_sum %>%
+         filter(model == "FFBH") %>%
+         filter(!(model != "FFBH" & as.numeric(traitCombo) %% 10 > 3), # illegal comparisons
+                !(nchar(model) == 3 & as.numeric(traitCombo) %% 10 > 2)),
+       aes(x = as.factor(traitCombo), y = mean, colour = model)) +
+  scale_x_discrete(labels = trait_comp_names[trait_comp_names$model == "FFBH",2],
+                   guide = guide_axis(n.dodge = 2)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 
+                                           5, direction = -1)[1]) -> plt_traitcor_ffbh
+plt_traitcor_ffbh <- traitCorBoilerplate(plt_traitcor_ffbh)
+
+
+layout <-
+"
+AABB
+CCCC
+DDDD
+EEEE
+"
+
+plt_traitcor <- plt_traitcor_nar +
+plt_traitcor_par +
+plt_traitcor_fflc1 +
+plt_traitcor_ffli1 + 
+plt_traitcor_ffbh
+
+plt_traitcor <- plt_traitcor + plot_layout(design = layout)
+plt_traitcor
+
+ggsave("plt_trait_cor.png", device = png, bg = "white", width = 12, height = 8)
 
 # trait correlations between ~0 and ~0.333
 
@@ -177,7 +289,7 @@ ggplot(d_qg_sum %>%
   geom_point() +
   geom_errorbar(aes(ymin = meanMean - CIMean, ymax = meanMean + CIMean),
                 width = 0.2) +
-  labs(x = "Trait", y = "Mean of means") +
+  labs(x = "Trait", y = "Mean of mean trait values") +
   theme_bw() +
   theme(text = element_text(size = 12),
         legend.position = "bottom")
