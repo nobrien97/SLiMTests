@@ -32,7 +32,6 @@ initialize() {
 	setCfgParam("genomelength", 1386); // Loci across the genome
 	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
 	setCfgParam("locisigma", 0.0004); // Variance used for QTL effect pulls - the effect size distribution
-	
 	setCfgParam("fitnessCost", 0.05);	// Set so 1 phenotypic unit deviation is a 20% drop in fitness
 	setCfgParam("fitnessCostDistance", 0.1); // 10% phenotypic unit deviation to cause fitnessCost% decay in fitness
 	setCfgParam("maxStartMolCompValue", 2.0); // Maximum value a molecular component can be when starting the simulation (prior to exp)
@@ -44,7 +43,7 @@ initialize() {
 	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
 	setCfgParam("outMutVar", c(paste0('slim_mutvar', identifier, '.csv'))); // Output filename/path for mutational variance
 	setCfgParam("outMutVarPerComp", c(paste0('slim_mutvar_percomp', identifier, '.csv'))); // Output filename/path for mutational variance per mol comp
-	setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
+	//setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
 				
 	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(keepPedigrees=T);
@@ -120,16 +119,7 @@ mutation(m1, p3) {
 	
 	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
 	mut.setMutationType(sampleMutTypeFromSite(mut.position));
-	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
-	
-	if (all(molTraitFix == -1))
-		return T;
-	
-	// Check if the mutation type is meant to be locked: if it is, don't mutate	
-	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2])) {
-		return F;
-	}
-	
+	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());	
 	
 	return T;
 }
@@ -174,116 +164,9 @@ mutationEffect(m13) {
 
 // Setup population
 1 early() {
-	//LoadPopulation();
-	
-	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, ".bin"));
-	
-	// QTL positions
-	// TODO: Remove inputPath - used for testing
-	pos = readCSV(paste0(inputPath, "slim_pos", inputID, ".csv"), colNames = F);
-	pos_QTL = c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix());
-	sim.setValue("pos_QTL", pos_QTL);
+	catn("Loading population...");
+	LoadPopulation();
 		
-	// Optimum
-	numTraits = 3;
-	if (modelType == "NAR" | modelType == "PAR") { numTraits = 2; }
-	if (modelType == "FFBH") { numTraits = 4; }
-
-	// TODO: Remove inputPath - used for testing
-	opt = readCSV(paste0(inputPath, "slim_opt", inputID, ".csv"), colNames = F);
-	opt = opt.subset(0, 2:(1+numTraits));
-	
-	sim.setValue("optimum", opt);
-	
-	// Misc initial values
-
-	// Set delta difference value
-	sim.setValue("lastDist", 0.0);
-	sim.setValue("lastw", 0.0);
-		
-	// Set mutation rate
-	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
-	u_g = genomelength * mu;
-	u_q = u_g / nloci;
-	u_n = u_g / (genomelength - nloci);
-	
-	// return early if we have no QTLs: mutation rate is always mu
-	if (length(pos_QTL) == 0) {
-		return;
-	}
-	
-	// Set molMutCutoffs
-	// mol traits are in order: first molMutProp[0]% are alpha, next molMutProp[1]% are beta, then KZ, then KXZ
-	// figure out the actual cutoffs 
-	molMuts = 7;
-
-	// Set molMuts for different motifs
-	if (modelType == "FFLC1" | modelType == "FFLI1") {
-		molMuts = 9;
-	}
-
-	if (modelType == "FFBH") {
-		molMuts = 11;
-	}
-
-	molMutProp = 1/molMuts;
-	molMutres = integer(size(molMutProp));
-
-	for (i in seqLen(size(molMutProp)))
-	{
-		if (i == 0) 
-		{ 
-			molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)); 
-			next;
-		}
-
-		if (i == size(molMutProp)-1) 
-		{ 
-			molMutres[i] = nloci; 
-			next;
-		}
-
-		molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)) + molMutres[i-1];
-	}
-	
-	// if the first element has 0 loci, remove it
-	if (molMutres[0] == 0) {
-		molMutres = molMutres[1:(length(molMutres)-1)];
-	}
-		
-	// Ensure we don't go over nloci
-	molMutres[molMutres > nloci] = nloci; 
-		
-	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
-	molMutres = unique(molMutres);
-
-	defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
-	
-	ends = unique(findMutBreakpoints(pos_QTL));
-	
-	
-
-	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
-	if (sort(pos_QTL)[0] == 0) {
-		rates = rep(c(u_q, u_n), length(ends));
-	} else {
-		rates = rep(c(u_n, u_q), length(ends));
-	}
-	
-	// shorten to match ends length
-	rates = rates[0:(length(ends)-1)];	
-		
-	// get a vector of values
-	sim.chromosome.setMutationRate(rates, ends);	
-	
-	// Calculate p2 phenotypes first so we don't overwrite p1 sim.setvalue("fitness")
-	calcPhenotype(p2.individuals, modelType);
-	calcPhenotype(p1.individuals, modelType);
-	catn(opt);
-	//calcFitnessGaussian(p1.individuals, opt);
-	
-	setSeed(inputSeed);
-	
 	// Remove p2
 	if (exists("p2")) {
 		p2.removeSubpopulation();
@@ -300,7 +183,9 @@ mutationEffect(m13) {
 
 // handle cloning the population
 s1 late() {
+	catn("Running s1");
 	if (cur_index % 2 != 0) {
+		catn("Writing output...");
 		// Measure variance
 		calcPhenotype(p3.individuals, modelType);
 		trait1 = p3.individuals.getTraitValues(0);
@@ -340,7 +225,7 @@ s1 late() {
 		molTraitCovs = matrix(float(ncol(molVals) * length(trait_var)), nrow = length(trait_var));
 		for (i in seqLen(length(trait_var))) {
 			for (j in seqLen(ncol(molVals))) {
-				molTraitCovs[i, j] = executeLambda(paste0("cov(trait",i+1,", molVals[,",j,"]);"));
+				molTraitCovs[i, j] = executeLambda(paste0("cov(trait",i+1,", c(molVals[,",j,"]));"));
 			}
 		}
 
@@ -349,7 +234,7 @@ s1 late() {
 		WriteMutVarPerMolComp(molTraitCovs);
 	} 
 
-	cur_index = cur_index + 1;
+	defineGlobal("cur_index", cur_index + 1);
 
 	// Move output
 	if (cur_index == N_replicates * 2) {
@@ -413,19 +298,20 @@ function (void) LoadPopulation(void) {
 	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, ".bin"));
 	
 	// QTL positions
-	pos = readCSV(paste0("./slim_pos", inputID, ".csv"), colNames = F);
-	pos_QTL = c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix());
-	sim.setValue("pos_QTL", pos_QTL);
+	// TODO: Remove inputPath - used for testing
+	pos = readCSV(paste0(inputPath, "slim_pos", inputID, ".csv"), colNames = F);
+	defineConstant("pos_QTL", c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix()));
 		
 	// Optimum
 	numTraits = 3;
-	if (calcMode == "NAR" | calcMode == "PAR") { numTraits = 2; }
-	if (calcMode == "FFBH") { numTraits = 4; }
+	if (modelType == "NAR" | modelType == "PAR") { numTraits = 2; }
+	if (modelType == "FFBH") { numTraits = 4; }
 
-	opt = readCSV(paste0("./slim_opt", inputID, ".csv"), colNames = F);
-	opt = opt.subset(0, 2:(1+numTraits));
+	// TODO: Remove inputPath - used for testing
+	opt = readCSV(paste0(inputPath, "slim_opt", inputID, ".csv"), colNames = F);
+	opt = (opt.subset(0, 2:(1+numTraits))).asMatrix();
 	
-	sim.setValue("optimum", opt);
+	defineConstant("optimum", opt);
 	
 	// Misc initial values
 
@@ -447,40 +333,23 @@ function (void) LoadPopulation(void) {
 	// Set molMutCutoffs
 	// mol traits are in order: first molMutProp[0]% are alpha, next molMutProp[1]% are beta, then KZ, then KXZ
 	// figure out the actual cutoffs 
-	molMutres = integer(size(molMutProp));
+	molMuts = 7;
 
-	for (i in seqLen(size(molMutProp)))
-	{
-		if (i == 0) 
-		{ 
-			molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)); 
-			next;
-		}
-
-		if (i == size(molMutProp)-1) 
-		{ 
-			molMutres[i] = nloci; 
-			next;
-		}
-
-		molMutres[i] = asInteger(ceil(molMutProp[i] * nloci)) + molMutres[i-1];
+	// Set molMuts for different motifs
+	if (modelType == "FFLC1" | modelType == "FFLI1") {
+		molMuts = 9;
 	}
-	
-	// if the first element has 0 loci, remove it
-	if (molMutres[0] == 0) {
-		molMutres = molMutres[1:(length(molMutres)-1)];
+
+	if (modelType == "FFBH") {
+		molMuts = 11;
 	}
-		
-	// Ensure we don't go over nloci
-	molMutres[molMutres > nloci] = nloci; 
-		
-	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
-	molMutres = unique(molMutres);
+
+
+	molMutres = getMolMutCutoffs(molMuts);
 
 	defineConstant("molMutCutoffs", c(0, molMutres-1)); // convert to zero-indexed
 	
 	ends = unique(findMutBreakpoints(pos_QTL));
-	
 	
 
 	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
@@ -496,10 +365,16 @@ function (void) LoadPopulation(void) {
 	// get a vector of values
 	sim.chromosome.setMutationRate(rates, ends);	
 	
+	// Optimum settings
+	startTraits = getStartTraitValues(modelType);
+	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
+
+	
 	// Calculate p2 phenotypes first so we don't overwrite p1 sim.setvalue("fitness")
 	calcPhenotype(p2.individuals, modelType);
 	calcPhenotype(p1.individuals, modelType);
-	calcFitnessGaussian(p1.individuals, opt);
+	catn(opt);
+	calcFitnessGaussian(p1.individuals, opt, modelType);
 	
 	setSeed(inputSeed);
 	return;

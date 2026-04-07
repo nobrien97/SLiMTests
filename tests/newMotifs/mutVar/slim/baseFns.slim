@@ -104,6 +104,42 @@ function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
 }
 
 
+function (integer) getMolMutCutoffs(i$ molMuts) {
+	molMutres = integer(molMuts); 
+	molMutProp = 1/molMuts;
+
+	for (i in seqLen(molMuts))
+	{
+		if (i == 0)
+		{
+			molMutres[i] = asInteger(ceil(molMutProp * nloci));
+			next;
+		}
+		
+		if (i == molMuts-1)
+		{
+			molMutres[i] = nloci;
+			next;
+		}
+		
+		molMutres[i] = asInteger(ceil(molMutProp * nloci)) + molMutres[i-1];
+	}
+	
+	// if the first element has 0 loci, remove it
+	if (molMutres[0] == 0) {
+		molMutres = molMutres[1:(length(molMutres)-1)];
+	}
+	
+	// Ensure we don't go over nloci
+	molMutres[molMutres > nloci] = nloci; 
+	
+	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
+	molMutres = unique(molMutres);
+
+	return molMutres;
+}
+
+
 function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
 	// Handle additive first
@@ -136,20 +172,73 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 
 }
 
+// Gets number of traits
+function (integer) getNumTraits(s$ model) {
+	if (model == "FFLC1" | model == "FFLI1") { 
+		return 3; 
+	}
 
-function (void) calcFitnessGaussian(o<Individual> inds, fi$ optimum) {
+	if (model == "FFBH") { 
+		return 4; 
+	}
+
+	// if NAR or PAR
+	return 2;
+}
+
+
+// Get starting trait values before any mutation
+function (float) getStartTraitValues(s$ calcMode) {
+	n = getNumTraits(calcMode) - 1;
+	
+	startOpt = sim.ODEIntegrate(p1.individuals[0], calcMode)[0:n]; // Get the starting trait values NOTE: This will only work in gen 1 before muts are sampled!
+	return startOpt;
+}
+
+
+function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
+	// Calculate the strength of selection per trait, assuming equal contributions per trait
+
+	// Get correct row in optimum matrix for the model
+	//traits = c(getOptTraits(optBurn, calcMode));
+	n = size(optTraits);
+	
+	// If any of the traits are zero, we need to set a minimum width for that trait
+	optTraits[optTraits == 0] = minimumSigma;
+
+	// change in fitnessCostDistance% of trait optimum over the distance for fitnessCost% change in fitness is sigma	
+	cost = sqrt(-(1 / (2 * log(1 - fitnessCost))));
+	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation NOT a variance
+		
+	return result;
+
+}
+
+function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMode) {
 	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
-	phenotypes = inds.phenotype;
-	dists = (phenotypes - optimum)^2;
 	
-	// Make sure that phenotype is never below 0
-	dists[dists < 0] = 0.0;
+	// Calculate fitness width based on the given distance
+	sigma = diag(optSigma * optSigma); //calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+	// Index for the maximum trait index to get in the optimum matrix
+	optMax = 2;
+	if (calcMode == "NAR" | calcMode == "PAR") { optMax = 1; }
+	if (calcMode == "FFBH") { optMax = 3; }
+
+	// Normalise fitness
+	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
+
+	traits = matrix(c(inds.getTraitValues(0:optMax)), ncol = optMax + 1, byrow = T);
+	fitnesses = dmvnorm(traits, c(optTraits), sigma) / fitnessNorm;
+
+	// Ensure we don't set fitnesses to 0 exactly, causes problems
+	fitnesses[fitnesses <= 0.0] = 1e-6;
+	inds.fitnessScaling = fitnesses; // Gaussian fitness function comes from Lande 1976
 	
-	inds.fitnessScaling = exp(-(dists * width)); // Gaussian fitness function comes from Lande 1976: width is 1/2w^2
 	// Make sure we never have all individuals with 0 fitness
 	if (all(inds.fitnessScaling == 0.0)) { inds.fitnessScaling = 1e-6; }
+	
 	sim.setValue("fitness", inds.fitnessScaling);
-
 }
 
 
