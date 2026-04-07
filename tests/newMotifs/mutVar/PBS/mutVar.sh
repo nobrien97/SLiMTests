@@ -1,14 +1,14 @@
 #!/bin/bash -l
 #PBS -P ht96
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=432
-#PBS -l mem=1710GB
-#PBS -l jobfs=1000GB
+#PBS -l ncpus=480
+#PBS -l mem=1900GB
+#PBS -l jobfs=4000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
   
 ECHO=/bin/echo
-BASEJOBNAME=standingVar
+BASEJOBNAME=newMotifs
 JOBNAME=mutVar
 TOTALJOBNAME=$BASEJOBNAME/$JOBNAME
 #
@@ -77,6 +77,8 @@ $ECHO "All jobs finished, moving output..."
 cd /scratch/ht96/nb9894/$TOTALJOBNAME/
 
 cat ./slim_mutvar* >> $SAVEDIR/slim_mutvar.csv
+cat ./slim_mutvar_percomp* >> $SAVEDIR/slim_mutvar_percomp.csv
+
 
 # Delete loose files with seed and model indices
 find -regex ".*[0-9]*_*[0-9].csv+" -delete

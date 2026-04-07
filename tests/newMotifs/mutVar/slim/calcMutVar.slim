@@ -10,16 +10,15 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/mutVar/slim/"); // "/home/564/nb9894/tests/newMotifs/mutVar/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/mutVar/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/mutVar/slim/"); //  
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	
 	setCfgParam("debug", F);
-	setCfgParam("inputPath", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/mutVar/slim/"); // "/g/data/ht96/nb9894/newMotifs/randomisedStarts/popstates/"); // input population file to load
+	setCfgParam("inputPath", "/g/data/ht96/nb9894/newMotifs/randomisedStarts/popstates/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/mutVar/slim/"); // input population file to load
 	setCfgParam("inputSeed", 4);
 	setCfgParam("inputModel", 24);
-	setCfgParam("inputBlock", 0);
-	setCfgParam("inputID", paste0(inputSeed, "_", inputModel, "_", inputBlock));
+	setCfgParam("inputID", paste0(inputModel, "_", inputSeed)); // randomisedStarts layout
 	setCfgParam("modelType", "FFLI1"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
 	setCfgParam("N", 5000); // Population size
@@ -43,7 +42,7 @@ initialize() {
 	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
 	setCfgParam("outMutVar", c(paste0('slim_mutvar', identifier, '.csv'))); // Output filename/path for mutational variance
 	setCfgParam("outMutVarPerComp", c(paste0('slim_mutvar_percomp', identifier, '.csv'))); // Output filename/path for mutational variance per mol comp
-	//setCfgParam("moveDir", "/scratch/ht96/nb9894/standingVar/mutVar/"); // Directory to move output to at end of simulation
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/newMotifs/mutVar/"); // Directory to move output to at end of simulation
 				
 	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(keepPedigrees=T);
@@ -164,7 +163,6 @@ mutationEffect(m13) {
 
 // Setup population
 1 early() {
-	catn("Loading population...");
 	LoadPopulation();
 		
 	// Remove p2
@@ -183,9 +181,7 @@ mutationEffect(m13) {
 
 // handle cloning the population
 s1 late() {
-	catn("Running s1");
 	if (cur_index % 2 != 0) {
-		catn("Writing output...");
 		// Measure variance
 		calcPhenotype(p3.individuals, modelType);
 		trait1 = p3.individuals.getTraitValues(0);
@@ -295,11 +291,19 @@ function (void) WriteMutVarPerMolComp(f covMatrix) {
 
 
 function (void) LoadPopulation(void) {
-	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, ".bin"));
+	// HACK: check what our input ID is - if we are in block 0 or 1
+	block = 0;
+	if (inputModel > 8) {
+		block = 1;
+	}	
+	
+	catn("Loading input " + paste0(inputPath, "slim_popstate", inputID, "_", block, ".bin"));
+	sim.readFromPopulationFile(paste0(inputPath, "slim_popstate", inputID, "_", block, ".bin"));
 	
 	// QTL positions
 	// TODO: Remove inputPath - used for testing
-	pos = readCSV(paste0(inputPath, "slim_pos", inputID, ".csv"), colNames = F);
+	pos = readCSV(paste0("./slim_pos", inputID, ".csv"), colNames = F);
+//	pos = readCSV(paste0(inputPath, "slim_pos", inputID, ".csv"), colNames = F);
 	defineConstant("pos_QTL", c(pos.subsetColumns(3:(pos.ncol-1)).asMatrix()));
 		
 	// Optimum
@@ -308,7 +312,8 @@ function (void) LoadPopulation(void) {
 	if (modelType == "FFBH") { numTraits = 4; }
 
 	// TODO: Remove inputPath - used for testing
-	opt = readCSV(paste0(inputPath, "slim_opt", inputID, ".csv"), colNames = F);
+	opt = readCSV(paste0("./slim_opt", inputID, ".csv"), colNames = F);
+	// opt = readCSV(paste0(inputPath, "slim_opt", inputID, ".csv"), colNames = F);
 	opt = (opt.subset(0, 2:(1+numTraits))).asMatrix();
 	
 	defineConstant("optimum", opt);
@@ -373,9 +378,8 @@ function (void) LoadPopulation(void) {
 	// Calculate p2 phenotypes first so we don't overwrite p1 sim.setvalue("fitness")
 	calcPhenotype(p2.individuals, modelType);
 	calcPhenotype(p1.individuals, modelType);
-	catn(opt);
 	calcFitnessGaussian(p1.individuals, opt, modelType);
 	
-	setSeed(inputSeed);
+	setSeed(seed);
 	return;
 }
