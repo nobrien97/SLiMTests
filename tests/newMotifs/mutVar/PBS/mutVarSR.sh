@@ -31,13 +31,13 @@ SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Extract data from /g/data
 # Ensure that all three only have one row, if not choose the first (can happen if a simulation is repeated)
-awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == a && $2 == b){print;exit;}}' $DATAPATH/slim_pos.csv > slim_pos${MODELINDEX}_${SEED_NUM}.csv
-awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == b && $2 == a){print;exit;}}' $DATAPATH/slim_opt.csv > slim_opt${MODELINDEX}_${SEED_NUM}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == a && $2 == b){print;exit;}}' $DATAPATH/slim_pos.csv > slim_pos${MODELINDEX}_${SEED}.csv
+awk -F',' -v a="$MODELINDEX" -v b="$SEED_NUM" '{if ($1 == b && $2 == a){print;exit;}}' $DATAPATH/slim_opt.csv > slim_opt${MODELINDEX}_${SEED}.csv
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
 
-$HOME/SLiM/chp3/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=$SEED -d inputModel=$MODELINDEX -d modelType="${MODEL_NUM[1]}" $TESTDIR/slim/calcMutVar.slim
+$HOME/SLiM/chp3/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d inputSeed=$SEED -d inputModel=$MODELINDEX -d modelType="${MODEL_NUM[0]}" $TESTDIR/slim/calcMutVar.slim
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished at $(date)!"
