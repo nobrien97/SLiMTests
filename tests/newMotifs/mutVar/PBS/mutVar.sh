@@ -76,8 +76,10 @@ $ECHO "All jobs finished, moving output..."
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$TOTALJOBNAME/
 
-cat ./slim_mutvar* >> $SAVEDIR/slim_mutvar.csv
 cat ./slim_mutvar_percomp* >> $SAVEDIR/slim_mutvar_percomp.csv
+rm ./slim_mutvar_percomp*
+
+cat ./slim_mutvar* >> $SAVEDIR/slim_mutvar.csv
 
 
 # Delete loose files with seed and model indices
