@@ -182,17 +182,19 @@ mutationEffect(m13) {
 // handle cloning the population
 s1 late() {
 	if (cur_index % 2 != 0) {
-		// Measure variance - scale and centre
+		// Measure variance
 		calcPhenotype(p3.individuals, modelType);
-		trait1 = scale(p3.individuals.getTraitValues(0));
-		trait2 = scale(p3.individuals.getTraitValues(1));
-		trait3 = scale(p3.individuals.getTraitValues(2));
-		trait4 = scale(p3.individuals.getTraitValues(3));
+		trait1 = p3.individuals.getTraitValues(0);
+		trait2 = p3.individuals.getTraitValues(1);
+		trait3 = p3.individuals.getTraitValues(2);
+		trait4 = p3.individuals.getTraitValues(3);
 
 		trait_var = float(4);
-		// Find variance
+		trait_mean = float(4);
+		// Find variance and mean
 		for (i in seqLen(length(trait_var))) {
 			trait_var[i] = executeLambda(paste0("var(trait",i+1,");"));
+			trait_mean[i] = executeLambda(paste0("mean(trait",i+1,");"));
 		}
 
 		trait_cov = float(6);
@@ -215,9 +217,6 @@ s1 late() {
 		// molVals: Each row is an individual, columns are mol comps
 		molVals = matrix(molComps, nrow = length(p3.individuals), byrow = T);
 
-		// scale each column separately
-		molVals = apply(molVals, 1, "scale(applyValue);");
-
 		// molTraitCovs: Rows are traits, columns are comps (so value in index 0, 0 is cov(trait1, comp1))
 		molTraitCovs = matrix(float(ncol(molVals) * length(trait_var)), nrow = length(trait_var));
 		for (i in seqLen(length(trait_var))) {
@@ -227,7 +226,7 @@ s1 late() {
 		}
 
 		// Write output
-		WriteMutVarOutput(trait_var, trait_cov);
+		WriteMutVarOutput(trait_mean, trait_var, trait_cov);
 		WriteMutVarPerMolComp(molTraitCovs);
 	} 
 
@@ -278,15 +277,8 @@ survival(p3) {
 	return (individual.age < 1);
 }
 
-function (float) scale(f x) {
-	xbar = mean(x);
-	sdx = sd(x);
-
-	return (x - xbar) / sdx;
-}
-
-function (void) WriteMutVarOutput(f variance, f covariance) {
-	Mfile = paste(cur_index, asString(seed), modelindex, variance, covariance, sep=",");
+function (void) WriteMutVarOutput(f mean, f variance, f covariance) {
+	Mfile = paste(cur_index, asString(seed), modelindex, mean, variance, covariance, sep=",");
 	writeFile(outMutVar, Mfile, append = T);
 }
 
