@@ -175,21 +175,19 @@ mutationEffect(m13) {
 	community.rescheduleScriptBlock(s1, start = sim.cycle + 1, end = sim.cycle + N_replicates * 2);
 	defineGlobal("cur_index", 0);
 	// Diagnostics for this run
-	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed)));
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), " with modelType ", modelType));
 
 }
 
 // handle cloning the population
 s1 late() {
 	if (cur_index % 2 != 0) {
-		// Measure variance
+		// Measure variance - scale and centre
 		calcPhenotype(p3.individuals, modelType);
-		trait1 = p3.individuals.getTraitValues(0);
-		trait2 = p3.individuals.getTraitValues(1);
-		trait3 = p3.individuals.getTraitValues(2);
-		trait4 = p3.individuals.getTraitValues(3);
-
-		// Scale traits
+		trait1 = scale(p3.individuals.getTraitValues(0));
+		trait2 = scale(p3.individuals.getTraitValues(1));
+		trait3 = scale(p3.individuals.getTraitValues(2));
+		trait4 = scale(p3.individuals.getTraitValues(3));
 
 		trait_var = float(4);
 		// Find variance
@@ -216,6 +214,9 @@ s1 late() {
 		
 		// molVals: Each row is an individual, columns are mol comps
 		molVals = matrix(molComps, nrow = length(p3.individuals), byrow = T);
+
+		// scale each column separately
+		molVals = apply(molVals, 1, "scale(applyValue);");
 
 		// molTraitCovs: Rows are traits, columns are comps (so value in index 0, 0 is cov(trait1, comp1))
 		molTraitCovs = matrix(float(ncol(molVals) * length(trait_var)), nrow = length(trait_var));
@@ -275,6 +276,13 @@ survival(p1) {
 
 survival(p3) {
 	return (individual.age < 1);
+}
+
+function (float) scale(f x) {
+	xbar = mean(x);
+	sdx = sd(x);
+
+	return (x - xbar) / sdx;
 }
 
 function (void) WriteMutVarOutput(f variance, f covariance) {
@@ -371,14 +379,14 @@ function (void) LoadPopulation(void) {
 	sim.chromosome.setMutationRate(rates, ends);	
 	
 	// Optimum settings
-	startTraits = getStartTraitValues(modelType);
-	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
+	//startTraits = getStartTraitValues(modelType);
+	//defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
 
 	
 	// Calculate p2 phenotypes first so we don't overwrite p1 sim.setvalue("fitness")
 	calcPhenotype(p2.individuals, modelType);
 	calcPhenotype(p1.individuals, modelType);
-	calcFitnessGaussian(p1.individuals, opt, modelType);
+	//calcFitnessGaussian(p1.individuals, opt, modelType);
 	
 	setSeed(seed);
 	return;
