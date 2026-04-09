@@ -34,8 +34,10 @@ List extractCovarianceMatrices(DataFrame df) {
   
   // Create a map to quickly get the index of a variable
   std::map<std::string, int> var_index;
+//  printf("%d variables\n", n);
   for (int i = 0; i < n; ++i) {
     var_index[variables[i]] = i;
+//    printf("Setting var_index %s to %d\n", variables[i].c_str(), i);
   }
   
   // Initialize a list to store the covariance matrices
@@ -51,9 +53,13 @@ List extractCovarianceMatrices(DataFrame df) {
       std::string col_name = Rcpp::as<std::string>(col_names[i]);
       if (col_name.substr(3, 1) == "v") {
         // Diagonal elements
-        std::string var = col_name.substr(3,1);
+        std::string var = col_name.substr(0,2);
+//        printf("var = %s\n", var.c_str());
         int idx = var_index[var];
         double value = Rcpp::as<NumericVector>(df[i])[row];
+        
+//        printf("Diagonal element %s = %f, index = %d\n", 
+//               var.c_str(), value, idx);
         
         // If the variance for this variable is NA, mark it 0
         if (NumericVector::is_na(value)) {
@@ -74,6 +80,8 @@ List extractCovarianceMatrices(DataFrame df) {
         int idx1 = var_index[var1];
         int idx2 = var_index[var2];
         double value = Rcpp::as<NumericVector>(df[i])[row];
+        
+//        printf("Off-diagonal element %s, %s = %f\n", var1.c_str(), var2.c_str(), value);
 
         // If the variance for this variable is NA, mark it 0
         if (NumericVector::is_na(value)) {
