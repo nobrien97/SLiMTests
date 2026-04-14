@@ -90,14 +90,7 @@ function (void) assignQTLPositions(void) {
 	// Set delta difference value
 	sim.setValue("lastDist", 0.0);
 	sim.setValue("lastw", 0.0);
-	
-	// Set initial sample rates for adaptive sampling
-	if (adaptiveSampling == T) {
-		sim.setValue("sRate", samplerate);
-		sim.setValue("burnDelta", NULL);
-		sim.setValue("curTime", 0);
-	}	
-	
+		
 	// Calculate and set mutation rates according to n loci so we have a consistent per-genome rate
 	u_g = genomelength * mu;
 	u_q = u_g / nloci;
@@ -306,10 +299,11 @@ function (void) writeQuantileODEPar(o<Subpopulation> pop, [Nf quantiles = 0.5], 
 }
 
 
-function (void) writeAlleleData(void) {
-	
+function (void) writeAlleleData(o<Subpopulation> pop) {
+
 	// Store vectors of unique mutations, sorted by the generation in which they originated
-	muts = sortBy(c(sim.mutations[sim.mutations.mutationType != m1]), "originTick");
+	muts = pop.individuals.uniqueMutations;
+	muts = sortBy(c(muts[muts.mutationType != m1]), "originTick");
 	
 	// same for substitutions
 	subs = sortBy(c(sim.substitutions[sim.substitutions.mutationType != m1]), "originTick");
@@ -317,7 +311,7 @@ function (void) writeAlleleData(void) {
 	// Distance from the optimum - if we're in burn-in, distance is 0
 	curOpt = optBurn;
 	if (sim.cycle >= burnTime) { curOpt = optimum; }//c(getOptTraits(optBurn, modelType)); }
-	dist = abs(mean(p1.individuals.getDistanceFromOptimum(curOpt, optSigma)));
+	dist = abs(mean(pop.individuals.getDistanceFromOptimum(curOpt, optSigma)));
 	
 	// Set up an empty output to store all our mutations' information for this generation
 	mutsLines = NULL;
@@ -327,7 +321,7 @@ function (void) writeAlleleData(void) {
 	// Check if there are any substitutions, if not we need to fix the output lines	by not including the \n character at the end of the last mutation line. 
 	// This is because writeFile() automatically adds a \n character, so we'd end up with an extra empty line if we do write that way
 	
-	genom = sim.subpopulations.genomes;
+	genom = pop.genomes;
 	
 	for (mut in muts) {
 		mutFreq = mean(genom.containsMutations(mut));
@@ -338,7 +332,6 @@ function (void) writeAlleleData(void) {
 		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq, mutCount, "NA", sep = ",");
 		mutsLine = paste0(mutsLine, "\n");
 		mutsLines = paste0(mutsLines, mutsLine);
-	
 	}
 	
 	subCount = N*2;
