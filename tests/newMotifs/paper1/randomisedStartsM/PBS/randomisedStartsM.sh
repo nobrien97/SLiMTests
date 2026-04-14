@@ -9,8 +9,8 @@
   
   
 ECHO=/bin/echo
-JOBNAME=newMotifs/paper1
-FULLJOBNAME=$JOBNAME/randomisedStartsM
+JOBNAME=randomisedStartsM
+FULLJOBNAME=newMotifs/paper1/$JOBNAME
 #
 # These variables are assumed to be set:
 #   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)

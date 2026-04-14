@@ -1,8 +1,7 @@
 # Paper 1: Network topology constrains evolvability: developmental bias in the mutational landscape across gene regulatory motifs
 
 These simulations extend chapter 3
-Mutational variance is rescaled - not tau = 0.004 anymore, it correctly accounts for the 10% drop rather than 5% drop in fitness at the optimum shift
-tau = 0.006
+5% drop in fitness now instead of 10%; this corrects the tau = 0.004 aligning with 100 additive beneficial mutations to get to the optimum again
 
 
 - adjTau.slim runs an experiment for how much the results depend on mutational scaling. Mutation scale adjustment: 
