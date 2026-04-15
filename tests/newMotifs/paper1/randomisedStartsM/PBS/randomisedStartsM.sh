@@ -17,19 +17,11 @@ FULLJOBNAME=newMotifs/paper1/$JOBNAME
 #   NJOB is the number of the current job in the sequence (defaults to 0)
 #   For this job, NJOBS should = 0
 # Submit as two separate jobs: NJOBS=0, NJOB=0 and NJOBS=0, NJOB=1
-  
-if [ X$NJOBS == X ]; then
-    $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
-    export NJOBS=1
-fi
-  
-if [ X$NJOB == X ]; then
-    $ECHO "NJOB (current job number in sequence) is not set - defaulting to 0"
-    export NJOB=0
+    
+if (( "$NJOB" == 0 )); then
     # Since this is the first iteration, create our folders
     $ECHO "Creating outputs folders..."
     cd $PBS_O_WORKDIR
-
     # Make output folder
     mkdir -p /scratch/ht96/nb9894/$FULLJOBNAME
     mkdir -p /g/data/ht96/nb9894/$FULLJOBNAME

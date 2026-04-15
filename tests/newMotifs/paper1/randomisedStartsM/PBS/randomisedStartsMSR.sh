@@ -21,12 +21,12 @@ fi
 # Get the correct modelindex from the file: put into array
 MODEL_FILE=$COMBOSDIR/R/combos.csv
 MODEL_NUM=($(awk "NR==$MODELINDEX" $MODEL_FILE))
-SEED_FILE=$FULLJOBNAME/R/${JOBNAME}_seeds.csv               # Copied from randomisedStarts
+SEED_FILE=$TESTDIR/R/${JOBNAME}_seeds.csv               # Copied from randomisedStarts
 SEED_NUM=($(awk "NR==$SEED" $SEED_FILE))
 
 # Run the model
 echo "Running modelindex = $MODELINDEX, seed = $SEED...\n"
-$HOME/SLiM/chp3/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d identifier=\"${FILENAME}\" -d molTraitFix=-1 -d modelType=${MODEL_NUM[0]} -d rwide=${MODEL_NUM[1]} $TESTDIR/slim/baseScript.slim
+$HOME/SLiM/chp3/slim -s ${SEED_NUM} -d modelindex=$MODELINDEX -d identifier=\"${FILENAME}\" -d molTraitFix=-1 -d modelType=${MODEL_NUM[0]} -d rwide=${MODEL_NUM[1]} $TESTDIR/slim/randomisedStartsM.slim
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODELINDEX, seed = $SEED finished!"

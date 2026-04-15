@@ -10,6 +10,7 @@ function (void) setCfgParam(s$ name, ifls value) {
 
 function (void) writeTimeData(void) {
 	curTime = clock() - beginTime;
+	catn(paste(sim.cycle, curTime, sep = "->"));
 	tFile = paste(sim.cycle, asString(seed), modelindex, curTime, sep = ",");
 	writeFile(outTime, tFile, append = T);
 }
@@ -100,7 +101,6 @@ function (void) assignQTLPositions(void) {
 	if (length(pos_QTL) == 0) {
 		return;
 	}
-	
 	ends = findMutBreakpoints(pos_QTL);
 
 	// determine what rates to use: starting with neutral or qtl depending on whether we have a QTL at pos 0
@@ -113,7 +113,7 @@ function (void) assignQTLPositions(void) {
 	// shorten to match ends length
 	rates = rates[0:(length(ends)-1)];	
 		
-	// get a vector of valuessa
+	// get a vector of values
 	sim.chromosome.setMutationRate(rates, ends);
 
 }
@@ -302,7 +302,7 @@ function (void) writeQuantileODEPar(o<Subpopulation> pop, [Nf quantiles = 0.5], 
 function (void) writeAlleleData(o<Subpopulation> pop) {
 
 	// Store vectors of unique mutations, sorted by the generation in which they originated
-	muts = pop.individuals.uniqueMutations;
+	muts = unique(pop.individuals.uniqueMutations);
 	muts = sortBy(c(muts[muts.mutationType != m1]), "originTick");
 	
 	// same for substitutions
@@ -323,20 +323,22 @@ function (void) writeAlleleData(o<Subpopulation> pop) {
 	
 	genom = pop.genomes;
 	
-	for (mut in muts) {
-		mutFreq = mean(genom.containsMutations(mut));
-		mutCount = size(genom[genom.containsMutations(mut)]);
+	// Calculate all frequencies at once
+	mutCount = genom.mutationCountsInGenomes(muts);
+	mutFreq = mutCount / size(genom);
+	for (i in seqAlong(muts)) {
+		mut = muts[i];
 		mutType = mut.mutationType.id;
 		mutValue = asString(mut.selectionCoeff);
 		//mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
-		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq, mutCount, "NA", sep = ",");
+		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq[i], mutCount[i], "NA", sep = ",");
 		mutsLine = paste0(mutsLine, "\n");
 		mutsLines = paste0(mutsLines, mutsLine);
 	}
 	
 	subCount = N*2;
+	subFreq = 1.0;
 	for (sub in subs) {
-		subFreq = 1.0;
 		subType = sub.mutationType.id;
 		subValue = asString(sub.selectionCoeff);
 		//subChi = sub.selectionCoeff * sqrt(1/(2*dist));
@@ -911,7 +913,11 @@ function (void) setInitTraitMatrix(object<Subpopulation> pop) {
 	sim.setValue("initTraits", traitMatrix);
 
 	// ODEPars as well
-	ODEPARMatrix = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
+	// Needs to be buffered: 11 is the maximum number of ODEPars
+	// TODO: This is fragile
+	ODEPARMatrix = matrix(float(11 * size(pop.individuals)), nrow = size(pop.individuals), byrow = T);
+	ODEPARMatrix[, 0:(size(pop.individuals[0].ODEPars) - 1)] = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
+
 	sim.setValue("initODEPars", ODEPARMatrix);
 }
 
@@ -923,7 +929,11 @@ function (void) writeMMatrix(object<Subpopulation>$ pop) {
 	calcPhenotype(pop.individuals, modelType);
 
 	traitMatrix = matrix(pop.individuals.getTraitValues(0:3), nrow = size(pop.individuals), byrow = T);
-	ODEPARMatrix = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
+
+	// ODEPar matrix needs to be buffered for the maximum number of ODEPars (11) for the csv to be read by R properly
+	// TODO: This is fragile, it will break if we change the max ODEPars/add a new motif with more ODEPars
+	ODEPARMatrix = matrix(float(11 * size(pop.individuals)), nrow = size(pop.individuals), byrow = T);
+	ODEPARMatrix[, 0:(size(pop.individuals[0].ODEPars) - 1)] = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
 
 
 	// Get differences between current trait values and past values
