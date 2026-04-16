@@ -3,6 +3,9 @@ library(ggh4x)
 library(paletteer)
 library(emmeans)
 library(patchwork)
+library(mvtnorm)
+library(ggforce) # geom_ellipse
+
 
 # Helper functions
 ModelFromIndex <- function(id) {
@@ -21,6 +24,8 @@ se <- function(x, na.rm = F) {
 CI <- function(x, quantile = 0.975, na.rm = F) {
   return(qnorm(quantile) * se(x, na.rm))
 }
+
+rad2deg <- function(rad) {(rad * 180) / (pi)}
 
 
 # Load in data
@@ -78,8 +83,10 @@ joint_tests(em.ffbh)
  
 d_qg_traitCor_sum <- d_qg_traitCor %>%
 group_by(model, traitCombo) %>%
+  mutate(angle = rad2deg(acos(cor))) %>%
     summarise(mean = mean(cor),
-              var = var(cor)) %>%
+              var = var(cor),
+              angle = mean(angle)) %>%
     ungroup()
 
 
@@ -208,7 +215,228 @@ plt_traitcor
 
 ggsave("plt_trait_cor.png", device = png, bg = "white", width = 12, height = 8)
 
+# Print correct correlations
+d_qg_traitCor_sum %>%
+  filter(!(model == "NAR" & grepl("[3-4]", traitCombo)),
+         !(model == "PAR" & grepl("[3-4]", traitCombo)),
+         !(model == "FFLC1" & grepl("[4]", traitCombo)),
+         !(model == "FFLI1" & grepl("[4]", traitCombo))) %>%
+  select(-var) -> d_traitCor_tab
+d_traitCor_tab
+
+# Get correlation matrices
+C_NAR <- matrix(rep(1, times = 4), nrow = 2)
+C_NAR[!diag(nrow = 2, ncol = 2)] <- d_traitCor_tab[d_traitCor_tab$model == "NAR",]$mean
+
+C_PAR <- matrix(rep(1, times = 4), nrow = 2)
+C_PAR[!diag(nrow = 2, ncol = 2)] <- d_traitCor_tab[d_traitCor_tab$model == "PAR",]$mean
+
+C_FFLC1 <- matrix(rep(1, times = 9), nrow = 3)
+C_FFLC1[upper.tri(C_FFLC1)] <- d_traitCor_tab[d_traitCor_tab$model == "FFLC1",]$mean
+C_FFLC1[lower.tri(C_FFLC1)] <- d_traitCor_tab[d_traitCor_tab$model == "FFLC1",]$mean
+
+C_FFLI1 <- matrix(rep(1, times = 9), nrow = 3)
+C_FFLI1[upper.tri(C_FFLI1)] <- d_traitCor_tab[d_traitCor_tab$model == "FFLI1",]$mean
+C_FFLI1[lower.tri(C_FFLI1)] <- d_traitCor_tab[d_traitCor_tab$model == "FFLI1",]$mean
+
+C_FFBH <- matrix(rep(1, times = 16), nrow = 4)
+C_FFBH[lower.tri(C_FFBH)] <- d_traitCor_tab[d_traitCor_tab$model == "FFBH",]$mean
+C_FFBH[upper.tri(C_FFBH)] <- t(C_FFBH)[upper.tri(C_FFBH)]
+
+C_NAR; C_PAR; C_FFLC1; C_FFLI1; C_FFBH
+
+# Calculate leading eigenvector for each
+GetDirAtAngle <- function(c, angle, r, x0) {
+  eig <- eigen(c)
+  Q <- eig$vectors
+  L <- diag(eig$values)
+  
+  # Whitened space
+  W <- solve(sqrt(L)) %*% t(Q)
+  Winv <- Q %*% sqrt(L)
+  
+  # Transform Q by whitened space and normalise
+  vz <- W %*% Q[,1]
+  vz <- vz / sqrt(sum(vz*vz))
+  
+  u <- rnorm(ncol(c))
+  u <- u - sum(u * vz) * vz
+  u <- u / sqrt(sum(u*u))
+  
+  d <- cos(angle) * vz + sin(angle) * u
+  
+  # Starting point in whitened space
+  z0 <- W %*% x0
+  
+  # End point in whitened space
+  z_new <- z0 + r * d
+  
+  # End point in original space
+  x_new <- Winv %*% z_new
+  return(x_new)
+}
+
+GetEllipse <- function(mat, trait_data) {
+  ev <- eigen(mat, symmetric = T)
+  
+  # We need to find the angle to rotate the ellipse back onto trait space: 
+  # this is using inverse tangent between the distance between lambda_gmax 
+  # (ev$values[1]) and the first trait's variance (diag(g)[1]) and the covariance 
+  # (g[upper.tri(g)][1]) between traits
+  theta <- atan2((ev$values[1] - diag(mat)[1]), mat[upper.tri(mat)][1]) * (180/pi)
+  
+  # Get the length of the major and minor axes: these are the square root of eigenvalues
+  # multiplied by the confidence interval for the ellipse (here it's a 95% CI)
+  major_len <- qnorm(0.975) * sqrt(ev$values[1])
+  minor_len <- qnorm(0.975) * sqrt(ev$values[2])
+  
+  # Center of ellipse is the sum of the traits' eigenvectors times their mean
+  dplot_ellipse <- data.frame(vert_x = cos(theta * pi/180) * major_len,
+                              vert_y = sin(theta * pi/180) * major_len,
+                              covert_x = cos((theta - 90) * pi/180) * minor_len,
+                              covert_y = sin((theta - 90) * pi/180) * minor_len,
+                              mean_t1 = mean(trait_data[,1]),
+                              mean_t2 = mean(trait_data[,2]),
+                              theta = theta,
+                              major_len = major_len,
+                              minor_len = minor_len)
+  return(dplot_ellipse)
+}
+
+Q_NAR <- GetDirAtAngle(C_NAR, 0, 1, rep(0, 2))
+Q_PAR <- GetDirAtAngle(C_PAR, 0, 1, rep(0, 2))
+Q_FFLC1 <- GetDirAtAngle(C_FFLC1, 0, 1, rep(0, 3))
+Q_FFLI1 <- GetDirAtAngle(C_FFLI1, 0, 1, rep(0, 3))
+Q_FFBH <- GetDirAtAngle(C_FFBH, 0, 1, rep(0, 4))
+
+# Test
+d_nar_test <- as.data.frame(rmvnorm(10000, sigma = C_NAR))
+d_nar_ellipse <- GetEllipse(C_NAR, d_nar_test)
+
+# Plot the ellipses
+# geom_ellipse() expects angle in radians
+ggplot(d_nar_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(t(Q_NAR)), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+d_par_test <- as.data.frame(rmvnorm(10000, sigma = C_PAR))
+d_par_ellipse <- GetEllipse(C_PAR, d_par_test)
+
+# Plot the ellipses
+# geom_ellipse() expects angle in radians
+ggplot(d_par_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(t(Q_PAR)), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+
+d_fflc1_test <- as.data.frame(rmvnorm(10000, sigma = C_FFLC1))
+d_fflc1_ellipse <- GetEllipse(C_FFLC1, d_fflc1_test)
+
+# Plot the ellipses
+# geom_ellipse() expects angle in radians
+ggplot(d_fflc1_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(t(Q_FFLC1)), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+FactoMineR::PCA(d_fflc1_test, scale. = T)
+eigen(C_FFLC1)
+
+
+d_ffli1_test <- as.data.frame(rmvnorm(10000, sigma = C_FFLI1))
+d_ffli1_ellipse <- GetEllipse(C_FFLI1, d_ffli1_test)
+
+# Plot the ellipses
+# geom_ellipse() expects angle in radians
+ggplot(d_ffli1_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(t(Q_FFLI1)), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+
+d_ffbh_test <- as.data.frame(rmvnorm(10000, sigma = C_FFBH))
+d_ffbh_ellipse <- GetEllipse(C_FFBH, d_ffbh_test)
+
+# Plot the ellipses
+# geom_ellipse() expects angle in radians
+ggplot(d_ffbh_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(t(Q_FFBH)), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+
+
+
 # trait correlations between ~0 and ~0.333
+# Save in a table for the adjusted selection direction experiments
+write_csv(d_traitCor_tab, "./traitCor.csv", col_names = F)
 
 d_qg_means <- d_qg %>%
   mutate(model = ModelFromIndex(modelindex)) %>%
