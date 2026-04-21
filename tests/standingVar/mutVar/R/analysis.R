@@ -1,16 +1,34 @@
 library(tidyverse)
 library(ggh4x)
+library(ggbeeswarm)
+library(paletteer)
+library(latex2exp)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/mutVar/R")
+
+setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/mutVar/R")
+
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/mutVar/"
 COMBOS_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/R/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
+
+
+DATA_PATH <- "/mnt/j/SLiMTests/tests/standingVar/mutVar/"
+COMBOS_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/R/"
+R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
+
+
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 
 # Read data
 d_mutvar <- data.table::fread(paste0(DATA_PATH, "slim_mutvar.csv"), header = F,
                             col.names = c("replicate", "seed", "modelindex", "variance"))
+
+d_mutvar_percomp <- data.table::fread(paste0(DATA_PATH, "slim_mutvar_percomp.csv"), header = F,
+                              col.names = c("replicate", "seed", "modelindex", "cov_aZ", "cov_bZ",
+                                            "cov_KZ", "cov_KXZ"))
+
 
 
 d_combos <- read.table(paste0(COMBOS_PATH, "combos.csv"), header = F,
@@ -46,9 +64,60 @@ ggplot(d_mutvar, aes(x = model, y = log10(variance), colour = model)) +
   theme(text = element_text(size = 14), legend.position = "none")
 ggsave("plt_vm.png", device = png, width = 5, height = 9)  
 
+
+d_mutvar_percomp <- d_mutvar_percomp %>%
+  mutate(replicate = replicate %/% 2 + 1, # convert from 1 3 5 to 1 2 3 
+         seed = as.factor(seed),
+         modelindex = as.factor(modelindex))
+
+d_mutvar_percomp <- AddCombosToDF(d_mutvar_percomp)
+
+d_mutvar_percomp <- d_mutvar_percomp %>%
+  pivot_longer(cols = c(cov_aZ, cov_bZ, cov_KZ, cov_KXZ), names_to = "molComp", values_to = "cov") %>%
+  group_by(molComp, model, r) %>% 
+  mutate(scaledCOV = scale(cov)) %>%
+  ungroup()
+
+d_mutvar_percomp_sum <- d_mutvar_percomp %>%
+  group_by(molComp, model, r) %>%
+  summarise(meanCOV = mean(cov),
+            CICOV = CI(cov),
+            meanScaledCOV = mean(scaledCOV),
+            CIScaledCOV = CI(scaledCOV))
+
+# Plot mutational covariance
+ggplot(d_mutvar_percomp %>% filter(cov >= 0, cov < 1), aes(x = model, y = cov, colour = molComp)) +
+  facet_nested("Recombination rate (log10)" + log10(r) ~ .) +
+  geom_quasirandom(dodge.width = 0.8) +
+  # geom_point(data = d_mutvar_percomp_sum, 
+  #            aes(x = model, y = meanCOV, group = molComp),
+  #            shape = 3, size = 2, position = position_dodge(0.8), 
+  #            colour = "black", inherit.aes = F) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 4, 
+                                           direction = -1),
+                      labels = c(TeX("$\\alpha_Z$"), 
+                                 TeX("$\\beta_Z$"), 
+                                 TeX("$K_Z$"), 
+                                 TeX("$K_{XZ}$"))) +
+  scale_x_discrete(labels = c("Additive", "K+", "K-")) +
+  #coord_cartesian(ylim = c(-1e-5, 1e-5)) +
+  labs(x = "Model", 
+       y = "Mutational covariance",
+       colour = "Molecular Component") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+ggsave("plt_mut_cov.png", device = png, width = 5, height = 9)  
+
+
+
 # Plot Vm in adjusted tau runs
 d_mutvar_adjtau <- data.table::fread(paste0(DATA_PATH, "slim_mutvar_adjtau.csv"), header = F,
                               col.names = c("replicate", "seed", "modelindex", "variance"))
+
+d_mutvar_percomp_adjtau <- data.table::fread(paste0(DATA_PATH, "slim_mutvar_percomp_adjtau.csv"), header = F,
+                                      col.names = c("replicate", "seed", "modelindex", "cov_aZ", "cov_bZ",
+                                                    "cov_KZ", "cov_KXZ"))
+
 
 d_mutvar_adjtau$normalised <- T
 
@@ -60,6 +129,49 @@ d_mutvar_adjtau <- d_mutvar_adjtau %>%
          modelindex = as.factor(modelindex))
 
 d_mutvar_adjtau <- AddCombosToDF(d_mutvar_adjtau)
+
+
+d_mutvar_percomp_adjtau <- d_mutvar_percomp_adjtau %>%
+  mutate(replicate = replicate %/% 2 + 1, # convert from 1 3 5 to 1 2 3 
+         seed = as.factor(seed),
+         modelindex = as.factor(modelindex))
+
+d_mutvar_percomp_adjtau <- AddCombosToDF(d_mutvar_percomp_adjtau)
+
+d_mutvar_percomp_adjtau <- d_mutvar_percomp_adjtau %>%
+  pivot_longer(cols = c(cov_aZ, cov_bZ, cov_KZ, cov_KXZ), names_to = "molComp", values_to = "cov") %>%
+  group_by(molComp, model, r) %>% 
+  mutate(scaledCOV = scale(cov)) %>%
+  ungroup()
+
+d_mutvar_percomp_adjtau_sum <- d_mutvar_percomp_adjtau %>%
+  group_by(molComp, model, r) %>%
+  summarise(meanCOV = mean(cov),
+            CICOV = CI(cov),
+            meanScaledCOV = mean(scaledCOV),
+            CIScaledCOV = CI(scaledCOV))
+
+ggplot(d_mutvar_percomp_adjtau, aes(x = model, y = cov, colour = molComp)) +
+  facet_nested("Recombination rate (log10)" + log10(r) ~ .) +
+  geom_quasirandom(dodge.width = 0.8) +
+  geom_point(data = d_mutvar_percomp_adjtau_sum, 
+             aes(x = model, y = meanCOV, group = molComp),
+             shape = 3, size = 2, position = position_dodge(0.8), 
+             colour = "black", inherit.aes = F) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 4, 
+                                           direction = -1),
+                      labels = c(TeX("$\\alpha_Z$"), 
+                                 TeX("$\\beta_Z$"), 
+                                 TeX("$K_Z$"), 
+                                 TeX("$K_{XZ}$"))) +
+  scale_x_discrete(labels = c("K+", "K-")) +
+  #coord_cartesian(ylim = c(-1e-5, 1e-5)) +
+  labs(x = "Model", 
+       y = "Mutational covariance",
+       colour = "Molecular Component") +
+  theme_bw() +
+  theme(text = element_text(size = 14), legend.position = "bottom")
+ggsave("plt_mut_cov.png", device = png, width = 5, height = 9)  
 
 # Join with regular
 d_mutvar2 <- full_join(d_mutvar, d_mutvar_adjtau, by = c("replicate", "seed", "modelindex",
