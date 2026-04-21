@@ -5,6 +5,8 @@ library(emmeans)
 library(patchwork)
 library(mvtnorm)
 library(ggforce) # geom_ellipse
+library(chebpol)
+library(Rcpp)
 
 
 # Helper functions
@@ -26,7 +28,97 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
 }
 
 rad2deg <- function(rad) {(rad * 180) / (pi)}
+deg2rad <- function(deg) {(deg * pi / 180)}
 
+cppFunction('IntegerVector double2int(NumericVector x) { 
+              int n = x.size();
+              IntegerVector result(n);
+              
+              for (int i = 0; i < n; ++i) {
+                int64_t x64 = (int64_t)x[i];
+                result[i] = static_cast<int32_t>(x64);
+              }
+              return result;
+            }')
+
+
+pivot_pairwise <- function(data, 
+                           pivot_cols, 
+                           other_cols = !pivot_cols,
+                           names_to = "name",
+                           values_to = "value",
+                           pair_label = c("x", "y"),
+                           pair_label_sep = "_",
+                           row_id = "row_id") {
+  
+  # construct variable names
+  x_value <- paste(pair_label[1], values_to, sep = pair_label_sep)
+  y_value <- paste(pair_label[2], values_to, sep = pair_label_sep)
+  x_name  <- paste(pair_label[1], names_to, sep = pair_label_sep)
+  y_name  <- paste(pair_label[2], names_to, sep = pair_label_sep)
+  
+  # create an id column
+  base <- data |> 
+    dplyr::mutate({{row_id}} := dplyr::row_number())
+  
+  # variables to be retained but not pairwise-pivoted
+  fixed_data <- base |> 
+    dplyr::select(
+      {{other_cols}}, 
+      tidyselect::all_of(row_id)
+    )
+  
+  # select pivoting columns, pivot to long, and relabel as x-var 
+  long_x <- base |>
+    dplyr::select(
+      {{pivot_cols}},            
+      tidyselect::all_of(row_id)
+    ) |>
+    tidyr::pivot_longer(
+      cols = {{pivot_cols}},
+      names_to = {{x_name}},
+      values_to = {{x_value}}
+    )
+  
+  # same data frame, but with new variable names for pivoted vars
+  long_y <- long_x |> 
+    dplyr::rename(
+      {{y_name}} := {{x_name}}, 
+      {{y_value}} := {{x_value}}
+    )
+  
+  # full join with many-to-many gives all pairs; then restore other columns
+  pairs <- dplyr::full_join(
+    x = long_x,
+    y = long_y,
+    by = row_id,
+    relationship = "many-to-many"
+  ) |>
+    dplyr::relocate({{y_name}}, .after = {{x_name}}) |>
+    dplyr::left_join(fixed_data, by = row_id)
+  
+  return(pairs)
+}
+
+generate_vector_at_angle <- function(u, angle) {
+  # https://stackoverflow.com/questions/72374034/generating-two-vectors-with-a-given-angle-between-them
+  ab <- runif(2)
+  a <- ab[1]
+  b <- ab[2]
+  h <- (b - a) - (b - a) * (u*u)
+  
+  cos(angle) * u + sin(angle) * h
+}
+
+test_u <- c(0.1, 0.2)
+d_test_gen <- as.data.frame(t(replicate(100, generate_vector_at_angle(test_u, deg2rad(90)))))
+
+
+ggplot(d_test_gen, 
+       aes(x = V1, y = V2)) +
+  geom_abline(slope = 0.2/0.1, colour = "red", linetype = "dashed") +
+  geom_point() +
+  theme_bw()
 
 # Load in data
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
@@ -380,7 +472,9 @@ ggplot(d_fflc1_ellipse, aes(x = mean_t1, y = mean_t2)) +
   labs(x = "Trait 1", y = "Trait 2") +
   coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
 
-FactoMineR::PCA(d_fflc1_test, scale. = T)
+fflc1_pca <- FactoMineR::PCA(d_fflc1_test, scale. = T)
+fviz_pca_ind(fflc1_pca)
+
 eigen(C_FFLC1)
 
 
@@ -431,7 +525,194 @@ ggplot(d_ffbh_ellipse, aes(x = mean_t1, y = mean_t2)) +
   labs(x = "Trait 1", y = "Trait 2") +
   coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
 
+# Interpolate along C_max
+eigen(C_FFLC1)$vectors[,1]
 
+
+
+lin.interp <- function(p0, p1, s) {
+  # Calculates a point s units away from the origin of a point across a direction vector 
+  d <- p1 - p0
+  norm_d <- sqrt(sum(d^2))
+  d_unit <- d / norm_d
+  
+  outer(s, d_unit) + matrix(p0, nrow = length(s), ncol = length(p0), byrow = T)
+}
+
+interpol <- lin.interp(c(0,0,0),
+                       eigen(C_FFLC1)$vectors[,1],
+                       3)
+
+known <- data.frame(
+  x = c(0, eigen(C_FFLC1)$vectors[1,1], interpol[1,1]),
+  y = c(0, eigen(C_FFLC1)$vectors[2,1], interpol[1,2]),
+  z = c(0, eigen(C_FFLC1)$vectors[3,1], interpol[1,3])
+)
+
+GGally::ggpairs(known)
+
+ggplot(d_fflc1_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(interpol), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+interpol <- lin.interp(c(0,0),
+                       eigen(C_PAR)$vectors[,1],
+                       3)
+
+
+# Gets a random normalised direction orthogonal to another direction 
+RandomDirectionOrthogonalTo <- function(dir) {
+  u <- rnorm(length(dir))
+  u <- u - sum(u * dir) * dir
+  return (u / sqrt(sum(u^2)))
+}
+
+orth_point <- lin.interp(c(0,0),
+                         RandomDirectionOrthogonalTo(eigen(C_PAR)$vectors[,1]),
+                        3)
+
+RandomValueOrthogonalTo(eigen(C_PAR)$vectors[,1])
+
+known <- data.frame(
+  x = c(0, eigen(C_PAR)$vectors[1,1], interpol[1,1], orth_point[1,1]),
+  y = c(0, eigen(C_PAR)$vectors[2,1], interpol[1,2], orth_point[1,2])
+)
+
+GGally::ggpairs(known)
+
+ggplot(d_par_ellipse, aes(x = mean_t1, y = mean_t2)) +
+  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
+  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
+                   a = major_len, b = minor_len, angle = theta * pi/180)) +
+  geom_point(data = as.data.frame(interpol), aes(x = V1, y = V2),
+             colour = "red") +
+  geom_point(data = as.data.frame(orth_point), aes(x = V1, y = V2),
+             colour = "blue") +
+  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
+               linetype = "dashed") +
+  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
+               linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Trait 1", y = "Trait 2") +
+  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
+
+
+interpol <- lin.interp(c(0,0,0),
+                       eigen(C_FFLC1)$vectors[,1],
+                       3)
+
+orth_point <- lin.interp(c(0,0,0),
+                         RandomDirectionOrthogonalTo(eigen(C_FFLC1)$vectors[,1]),
+                         3)
+
+known <- data.frame(
+  x = c(0, eigen(C_FFLC1)$vectors[1,1], interpol[1,1], orth_point[1,1]),
+  y = c(0, eigen(C_FFLC1)$vectors[2,1], interpol[1,2], orth_point[1,2]),
+  z = c(0, eigen(C_FFLC1)$vectors[3,1], interpol[1,3], orth_point[1,3])
+)
+
+GGally::ggpairs(known)
+
+
+# Save direction vector to file
+# SLiM can't do eigen(), will need to load them in
+# scale eigenvectors to unit length so we can scale by selection strength in SLiM
+
+# The parallel choice is the first eigenvector - need a value per model
+v_NAR_u <- eigen(C_NAR)$vectors[,1] / sum(abs(eigen(C_NAR)$vectors[,1]))
+v_PAR_u <- eigen(C_PAR)$vectors[,1] / sum(abs(eigen(C_PAR)$vectors[,1]))
+v_FFLC1_u <- eigen(C_FFLC1)$vectors[,1] / sum(abs(eigen(C_FFLC1)$vectors[,1]))
+v_FFLI1_u <- eigen(C_FFLI1)$vectors[,1] / sum(abs(eigen(C_FFLI1)$vectors[,1]))
+v_FFBH_u <- eigen(C_FFBH)$vectors[,1] / sum(abs(eigen(C_FFBH)$vectors[,1]))
+
+
+# The orthogonal is a randomly sampled other eigenvector - because randomly sampled,
+# we need a value for each model and seed
+# Load model seeds
+seeds <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/R/newMotifs_seeds.csv", 
+                  col_names = F)
+
+# These are 64 bits but R only supports 32 so we will ignore the last 32 bits
+seeds_t <- double2int(seeds$X1)
+
+# Result matrix - number of seeds x max number of traits x number motifs 
+result <- matrix(double(length(seeds_t) * ncol(C_FFBH) * 5), ncol = ncol(C_FFBH))
+
+eig_motifs <- list(v_NAR_u, 
+                v_PAR_u, 
+                v_FFLC1_u, 
+                v_FFLI1_u, 
+                v_FFBH_u)
+
+# Fill result matrix 
+for (i in seq_along(seeds_t)) {
+  seed <- seeds_t[i]
+  for (j in seq_along(eig_motifs)) {
+    motif <- eig_motifs[[j]]
+    
+    # Number of traits
+    n <- length(motif)
+    
+    # 1D index
+    index <- (i-1) * length(eig_motifs) + j
+    
+    # Set seed
+    set.seed(seed)
+    
+    # Sample and normalise direction
+    dir <- RandomDirectionOrthogonalTo(motif)
+    #dir <- dir / (sum(abs(dir)))
+    result[index, 1:n] <- dir
+  }
+}
+
+# Test that they are orthogonal in some directions
+known <- data.frame(
+  t1 = c(0, eig_motifs[[3]][1], result[8,1]),
+  t2 = c(0, eig_motifs[[3]][2], result[8,2]),
+  t3 = c(0, eig_motifs[[3]][3], result[8,3])
+)
+
+sum(eig_fflc1$vectors[1,] * eig_fflc1$vectors[2,])
+
+known <- known %>%
+  pivot_pairwise(pivot_cols = starts_with("t"))
+
+ggplot(known, 
+       aes(x = x_value, y = y_value)) +
+  ggh4x::facet_grid2(y_name ~ x_name, scales = "free",
+                     render_empty = F) +
+  geom_point() +
+  geom_line() +
+  labs(x = NULL, y = NULL) +
+  theme_bw()
+
+GGally::ggpairs(known)
+
+test_FFLC1 <- rmvnorm(1000, c(0, 0, 0), sigma = C_FFLC1)
+plot(test_FFLC1[,1], test_FFLC1[,2])
+plot(test_FFLC1[,1], test_FFLC1[,3])
+plot(test_FFLC1[,2], test_FFLC1[,3])
+plot(test_FFLC1 %*% (eig_fflc1$vectors))
+plot(test_FFLC1 %*% (eig_fflc1$vectors / sum(abs(eig_fflc1$vectors))))
 
 
 # trait correlations between ~0 and ~0.333
