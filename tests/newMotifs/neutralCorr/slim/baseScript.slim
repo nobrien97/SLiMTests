@@ -1,0 +1,256 @@
+// set up a simple neutral simulation
+initialize() {
+	if (!exists("slimgui")) {
+		defineConstant("seed", getSeed());
+	}
+	else {
+		setSeed(asInteger(round(runif(1, 1, 2^62 - 1))));
+		defineConstant("seed", getSeed());
+		catn("Actual seed: " + asInteger(seed));
+	}
+	
+	
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/neutralCorr/slim/"); //  "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/slim/"); //  
+	// Load functions from file
+	source(paste0(wd, "baseFns.slim"));
+	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
+	
+	// Declare/define parameters if they haven't been by the command line arguments
+	// Values from literature are cited
+	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
+	setCfgParam("modelType", "FFLI1"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
+	setCfgParam("mu", 1e-6); // Per locus mutation rate
+	setCfgParam("N", 5000); // Population size
+	setCfgParam("rwide", 0.5); // Whole genome recombination rate
+	setCfgParam("nloci", 1386); // Number of sites: common multiple of all n_C in all models
+	setCfgParam("genomelength", 1386); // Loci across the genome
+	setCfgParam("locimu", 0.0); // Mean used for QTL mutation effect distribution pulls
+	setCfgParam("locisigma", 1.0); // Variance used for QTL effect pulls - the effect size distribution
+	setCfgParam("maxStartMolCompValue", 2.0); // Maximum value a molecular component can be when starting the simulation (prior to exp)
+									 		
+	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
+	setCfgParam("burnTime", integerDiv(10 * N, 2)); // Number of generations of burn-in before the test period
+	setCfgParam("samplerate", c(50, 50)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("molTraitFix", -1); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none	
+	setCfgParam("modelindex", 1); // Identifier for the combination of predictors used in latin hypercube: this is the row number 
+	// in the lscombos.csv file
+	setCfgParam("identifier", paste(asString(seed), modelindex, sep = "_")); // Unique identifier for the run - seed_modelindex
+	
+	// Set up the filesystem for saving data - thread safety, write to separate files for each run with unique names
+	//	We write to /$PBS_JOBFS and copy all files of the same type after the full job is complete to a combined file
+	// IMPORTANT: in the PBS script remember to cd $PBS_JOBFS
+	
+	setCfgParam("outPositions", paste0('slim_pos', identifier, '.csv')); // Output filename/path for locus positions
+	setCfgParam("outQG", paste0('slim_qg', identifier, '.csv')); // Output filename/path for the trait means/variance	
+	
+	setCfgParam("moveDir", "/scratch/ht96/nb9894/newMotifs/neutralCorr/"); // Directory to move output to at end of simulation
+	
+	// Time tests
+	setCfgParam("outTime", paste0('slim_time', identifier, '.csv'));
+	
+	if (debug == T)
+		defineConstant("beginTime", clock());
+			
+	// Lookup table for round to digits
+	defineGlobal("roundFactor", 10^(1:6));	
+	
+	
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(keepPedigrees=T);
+	//	initializeTreeSeq();
+	initializeMutationRate(mu);
+	
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	m1.convertToSubstitution = T;
+	
+	// m2 mutation type: background
+	initializeMutationType("m2", 0.5, "n", 0.0, 1.0);
+	m2.color = "red";
+	m1.convertToSubstitution = T;
+	
+	//m3 mutation type: aZ mutation
+	initializeMutationType("m3", 0.5, "n", locimu, locisigma);
+	m3.color = "green";
+	m3.convertToSubstitution = T;
+	
+	//m4 mutation type: bZ mutation
+	initializeMutationType("m4", 0.5, "n", locimu, locisigma);
+	m4.color = "blue";
+	m4.convertToSubstitution = T;
+	
+	//m5 mutation type: KZ mutation
+	initializeMutationType("m5", 0.5, "n", locimu, locisigma);
+	m5.color = "cyan";
+	m5.convertToSubstitution = T;
+	
+	//m6 mutation type: KXZ mutation
+	initializeMutationType("m6", 0.5, "n", locimu, locisigma);
+	m6.color = "purple";
+	m6.convertToSubstitution = T;
+	
+	//m7 mutation type: constitutive rate (NAR/PAR), bZ (FFL) or KY (FFBH)
+	initializeMutationType("m7", 0.5, "n", locimu, locisigma);
+	m7.convertToSubstitution = T;
+	
+	//m8 mutation type: hill coefficient (NAR/PAR), KXZ (FFL) or aZ (FFBH)
+	initializeMutationType("m8", 0.5, "n", locimu, locisigma);
+	m8.convertToSubstitution = T;
+	
+	//m9 mutation type: XMult (NAR/PAR), constitutive rate (FFL) or bZ (FFBH)
+	initializeMutationType("m9", 0.5, "n", locimu, locisigma);
+	m9.convertToSubstitution = T;
+	
+	//m10 mutation type: hill coefficient (FFL) or KXZ (FFBH)
+	initializeMutationType("m10", 0.5, "n", locimu, locisigma);
+	m10.convertToSubstitution = T;
+
+	//m11 mutation type: XMult (FFL) or constitutive rate (FFBH)
+	initializeMutationType("m11", 0.5, "n", locimu, locisigma);
+	m11.convertToSubstitution = T;
+
+	//m12 mutation type: hill coefficient (FFBH)
+	initializeMutationType("m12", 0.5, "n", locimu, locisigma);
+	m12.convertToSubstitution = T;
+
+	//m13 mutation type: XMult mutation (sensitivity to cue) (FFBH)
+	initializeMutationType("m13", 0.5, "n", locimu, locisigma);
+	m13.convertToSubstitution = T;
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 100 kb with uniform recombination
+	initializeGenomicElement(g1, 0, genomelength-1);
+	initializeRecombinationRate(rwide);
+
+}
+
+mutation(m1) {
+	// Set the new mutation type according to a randomly sampled mutation type that is available at a certain site
+	mut.setMutationType(sampleMutTypeFromSite(mut.position));
+	mut.setSelectionCoeff(mut.mutationType.drawSelectionCoefficient());
+	
+	// Neutral mutation: Get rid of
+//	if (mut.mutationType == sim.mutationTypes[0])
+//		return F;
+	
+	if (all(molTraitFix == -1))
+		return T;
+	
+	// Check if the mutation type is meant to be locked: if it is, don't mutate	
+	if (any(mut.mutationType == sim.mutationTypes[molTraitFix+2]))
+		return F;
+	
+	return T;
+}
+
+mutationEffect(m2) {
+	return 1.0;
+}
+
+mutationEffect(m3) {
+	return 1.0;
+}
+mutationEffect(m4) {
+	return 1.0;
+}
+mutationEffect(m5) {
+	return 1.0;
+}
+mutationEffect(m6) {
+	return 1.0;
+}
+mutationEffect(m7) {
+	return 1.0;
+}
+mutationEffect(m8) {
+	return 1.0;
+}
+mutationEffect(m9) {
+	return 1.0;
+}
+mutationEffect(m10) {
+	return 1.0;
+}
+mutationEffect(m11) {
+	return 1.0;
+}
+mutationEffect(m12) {
+	return 1.0;
+}
+mutationEffect(m13) {
+	return 1.0;
+}
+
+
+// create a population of 500 individuals
+1 early() {
+	sim.addSubpop("p1", N);
+	sim.addSubpop("p2", 0); // Staging population for crossing experiment
+	
+	
+	assignQTLPositions(); // Assign QTL behaviours
+
+	// Randomise the molecular components
+	RandomiseMolCompStartingValues();
+		
+	// Activate script blocks 
+	community.rescheduleScriptBlock(s1, start = 1, end = burnTime);
+	// Script blocks for reproduction callbacks: burn-in
+	community.rescheduleScriptBlock(s3, start = 2, end = burnTime);
+
+	// Diagnostics for this run
+	catn(paste0("Running modelindex: ", modelindex, "; seed: ", asString(seed), 
+	"; nloci: ", nloci, "; locisigma: ", locisigma, "; rwide: ", rwide, "; modelType: ", modelType));
+
+}
+
+// Burn-in under stabilising selection
+s3 reproduction() {	
+	inds = p1.individuals;
+	fitness = sim.getValue("fitness");
+	parent1 = sample(inds, N, replace = T, weights = fitness);
+	parent2 = sample(inds, N, replace = T, weights = fitness);
+	
+	for (i in seqLen(N))
+		p1.addCrossed(parent1[i], parent2[i]);
+	
+	self.active = 0;
+}
+
+survival() {
+	return (individual.age == 0);
+}
+
+// Burn in
+s1 late() {
+	inds = p1.individuals;
+	calcPhenotype(inds, modelType);	
+
+	// Check if we're at the end of the sim
+	if (sim.cycle == burnTime) {
+		writeQuantGenOutput(p1);
+
+		system(paste0("mv ./", outPositions, " ", moveDir));
+		system(paste0("mv ./", outQG, " ", moveDir));
+
+		if (debug) {
+			writeTimeData();
+			system(paste0("mv ./", outTime, " ", moveDir));
+		}
+
+		sim.simulationFinished();
+		return;
+	}
+
+	// Check if we are sampling type 1 output this generation (quant gen)
+	if (sim.cycle % samplerate[0] & sim.cycle != 1)
+		return;
+	
+	writeQuantGenOutput(p1);
+	
+	if (debug)
+		writeTimeData();
+	
+}

@@ -1,0 +1,247 @@
+// General functions useful for quantitative population genetics - network models
+
+function (void) setCfgParam(s$ name, ifls value) {
+	// Automate defining constants for SLiMgui and slim command line
+	
+	if (!exists(name)) {
+		defineConstant(name, value);
+	}
+}
+
+function (i) findMutBreakpoints(i pos) {
+	// sort the list
+	pos = sort(pos);
+	
+	// neutral breakpoints
+	neuPos = pos - 1;
+	
+	// case where this is only 1 QTL
+	if (length(pos) == 1) {
+		result = c(neuPos[neuPos > -1], pos, genomelength-1);
+		result = sort(unique(result));
+		return result;
+	}
+
+	// collapse adjacent positions and exclude from breakpoints
+	for (i in 1:(length(pos)-1)) {
+		if (pos[i] == pos[i-1]+1) {
+			pos[i-1] = -1;
+			neuPos[i] = -1;
+		}
+	}
+	pos = pos[pos > -1];
+	neuPos = neuPos[neuPos > -1];
+
+	// combine and add the last breakpoint (end of genome) if that isn't already sampled	
+	pos = sort(c(pos, neuPos));
+	if (pos[length(pos)-1] != genomelength - 1) {
+		pos = c(pos, genomelength - 1);
+	}
+	
+	// return sorted list
+	return pos;		
+}
+
+function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
+	// Find the correct mutation type options for a given position and sample one
+		
+	// Additive case
+	if (modelType == "Add") {
+			// Additive/mult case: since we are additive/mult, we want to ignore mutTypes m4 onwards
+		if (any(mut.position == pos_QTL)) {
+			choice = sample(sim.mutationTypes[c(0,2)], 1);
+		}
+		else {
+			choice = sample(sim.mutationTypes[0], 1);
+		}
+
+		if (isInteger(choice))
+			return sim.mutationTypes[0];
+
+		return choice;
+	}
+
+	molMuts = 7;
+
+	// Set molMuts for different motifs
+	if (modelType == "FFLC1" | modelType == "FFLI1") {
+		molMuts = 9;
+	}
+
+	if (modelType == "FFBH") {
+		molMuts = 11;
+	}
+	
+	molMutProp = 1/molMuts;
+
+
+		// If we are an ubiquitin QTL we're in the first molMutProp[0]% of the nloci loci in pos_QTL - we will take the 
+		// ceiling of that to be consistent
+		// We can only sample neutral, deleterious, and aZ: m1, m2, m3
+		// If we are at an enhancer site we're in the second molMutProp[1]% of the nloci loci in pos_QTL
+		// We can only sample neutral, deleterious, and bZ: m1, m2, m4
+		// If we are at KZ site we're in the third molMutProp[2]% of the nloci loci in pos_QTL
+		// We can only sample neutral, deleterious, and KZ: m1, m2, m5
+		// If we are at KXZ site we're in the fourth molMutProp[3]% of the nloci loci in pos_QTL
+		// We can only sample neutral, deleterious, and KXZ: m1, m2, m6
+
+		// exit early if we aren't a QTL: return m1
+		if (!any(pos == pos_QTL)) {
+			return sim.mutationTypes[0];
+		}
+		
+		// Iterate through mutation types, sample relevant mutation
+
+		for (i in 1:(length(molMutCutoffs)-1)) {
+			if (any(pos == pos_QTL[asInteger(molMutCutoffs[i-1]):asInteger(molMutCutoffs[i])])) {
+				mutType = i + 1; // Offset by 1 to account for the deleterious mutation type
+				return sample(sim.mutationTypes[c(0, mutType)], 1);
+			}
+		}		
+		
+		// if we somehow fail, stop the simulation
+		stop(paste("sampleMutTypeFromSite: Failed to find mutation type for locus", pos));
+}
+
+
+function (integer) getMolMutCutoffs(i$ molMuts) {
+	molMutres = integer(molMuts); 
+	molMutProp = 1/molMuts;
+
+	for (i in seqLen(molMuts))
+	{
+		if (i == 0)
+		{
+			molMutres[i] = asInteger(ceil(molMutProp * nloci));
+			next;
+		}
+		
+		if (i == molMuts-1)
+		{
+			molMutres[i] = nloci;
+			next;
+		}
+		
+		molMutres[i] = asInteger(ceil(molMutProp * nloci)) + molMutres[i-1];
+	}
+	
+	// if the first element has 0 loci, remove it
+	if (molMutres[0] == 0) {
+		molMutres = molMutres[1:(length(molMutres)-1)];
+	}
+	
+	// Ensure we don't go over nloci
+	molMutres[molMutres > nloci] = nloci; 
+	
+	// Remove extras in case we don't have all the molecular components (e.g. molMutProp has zeros) 
+	molMutres = unique(molMutres);
+
+	return molMutres;
+}
+
+
+function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
+	// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
+	// Handle additive first
+	if (calcMode == "Add")
+	{
+		// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
+		fixed = sim.substitutions;
+		sizem3 = size(fixed[fixed.mutationType == m3]);
+		fixedfx = sizem3 ? 2 * sum(fixed[fixed.mutationType == m3].selectionCoeff) else 0.0;
+		
+		for (ind in inds) {
+			muts = ind.genomes.mutationsOfType(m3);			// Get only trait effects
+			mutscount = size(muts);
+			
+			phenotype = (mutscount ? sum(muts.selectionCoeff) else 0.0);
+			phenotype = phenotype + fixedfx; // add fixed effects
+			if (calcMode == "Mult") {phenotype = exp(phenotype);}
+			ind.phenotype = phenotype;
+		}
+		return;
+	}
+
+	// Handle ODEs
+	numTraits = 3;
+	if (calcMode == "NAR" | calcMode == "PAR") { numTraits = 2; }
+	if (calcMode == "FFBH") { numTraits = 4; }
+	
+	inds.setTraitValues(sim.ODEIntegrate(inds, calcMode), numTraits);
+	return;
+
+}
+
+// Gets number of traits
+function (integer) getNumTraits(s$ model) {
+	if (model == "FFLC1" | model == "FFLI1") { 
+		return 3; 
+	}
+
+	if (model == "FFBH") { 
+		return 4; 
+	}
+
+	// if NAR or PAR
+	return 2;
+}
+
+
+// Get starting trait values before any mutation
+function (float) getStartTraitValues(s$ calcMode) {
+	n = getNumTraits(calcMode) - 1;
+	
+	startOpt = sim.ODEIntegrate(p1.individuals[0], calcMode)[0:n]; // Get the starting trait values NOTE: This will only work in gen 1 before muts are sampled!
+	return startOpt;
+}
+
+
+function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
+	// Calculate the strength of selection per trait, assuming equal contributions per trait
+
+	// Get correct row in optimum matrix for the model
+	//traits = c(getOptTraits(optBurn, calcMode));
+	n = size(optTraits);
+	
+	// If any of the traits are zero, we need to set a minimum width for that trait
+	optTraits[optTraits == 0] = minimumSigma;
+
+	// change in fitnessCostDistance% of trait optimum over the distance for fitnessCost% change in fitness is sigma	
+	cost = sqrt(-(1 / (2 * log(1 - fitnessCost))));
+	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation NOT a variance
+		
+	return result;
+
+}
+
+function (void) calcFitnessGaussian(o<Individual> inds, fi optTraits, s$ calcMode) {
+	// Calculate fitness from phenotype. Make sure this is only called after CalcPhenotype()!
+	
+	// Calculate fitness width based on the given distance
+	sigma = diag(optSigma * optSigma); //calcFitnessWidth(optTraits, fitnessCostDistance, fitnessCost);
+
+	// Index for the maximum trait index to get in the optimum matrix
+	optMax = 2;
+	if (calcMode == "NAR" | calcMode == "PAR") { optMax = 1; }
+	if (calcMode == "FFBH") { optMax = 3; }
+
+	// Normalise fitness
+	fitnessNorm = dmvnorm(c(optTraits), c(optTraits), sigma);
+
+	traits = matrix(c(inds.getTraitValues(0:optMax)), ncol = optMax + 1, byrow = T);
+	fitnesses = dmvnorm(traits, c(optTraits), sigma) / fitnessNorm;
+
+	// Ensure we don't set fitnesses to 0 exactly, causes problems
+	fitnesses[fitnesses <= 0.0] = 1e-6;
+	inds.fitnessScaling = fitnesses; // Gaussian fitness function comes from Lande 1976
+	
+	// Make sure we never have all individuals with 0 fitness
+	if (all(inds.fitnessScaling == 0.0)) { inds.fitnessScaling = 1e-6; }
+	
+	sim.setValue("fitness", inds.fitnessScaling);
+}
+
+
+function (void) savePopState(void) {
+	sim.outputFull(outPopState, binary = T, pedigreeIDs = T);
+}

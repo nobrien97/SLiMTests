@@ -275,7 +275,7 @@ function (void) calcPhenotype(o<Individual> inds, s$ calcMode) {
 		// Calculate phenotypes for individuals based on their QTL effects - both segregating and substitutions
 		fixed = sim.substitutions;
 		sizem3 = size(fixed[fixed.mutationType == m3]);
-		fixedfx = sizem3 ? sum(fixed[fixed.mutationType == m3].selectionCoeff) else 0.0;
+		fixedfx = sizem3 ? 2 * sum(fixed[fixed.mutationType == m3].selectionCoeff) else 0.0;
 		
 		for (ind in inds) {
 			muts = ind.genomes.mutationsOfType(m3);			// Get only trait effects
@@ -908,6 +908,96 @@ function (void) writeHaploRel(o<Subpopulation>$ pop, i$ n) {
 	writeFile(outRelVals, relValues, append = T);
 
 }
+
+
+function (void) setInitTraitMatrix(object<Subpopulation> pop) {
+	// Store phenotypes to calculate M matrix
+	calcPhenotype(pop.individuals, modelType);
+
+	traitMatrix = matrix(pop.individuals.getTraitValues(0:3), nrow = size(pop.individuals), byrow = T);
+	sim.setValue("initTraits", traitMatrix);
+
+	// ODEPars as well
+	ODEPARMatrix = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
+	sim.setValue("initODEPars", ODEPARMatrix);
+}
+
+function (void) writeMMatrix(object<Subpopulation>$ pop) {
+
+	// Measure variance in cloned individuals - mutational variance
+
+	// Get phenotype
+	calcPhenotype(pop.individuals, modelType);
+
+	traitMatrix = matrix(pop.individuals.getTraitValues(0:3), nrow = size(pop.individuals), byrow = T);
+	ODEPARMatrix = matrix(pop.individuals.ODEPars, nrow = size(pop.individuals), byrow = T);
+
+
+	// Get differences between current trait values and past values
+	initTraits = sim.getValue("initTraits");
+	initODEPars = sim.getValue("initODEPars");
+
+	mutEffectMatrix = traitMatrix - initTraits;
+	ODEParEffectMatrix = ODEPARMatrix - initODEPars;
+
+
+	trait1 = c(mutEffectMatrix[,0]);
+	trait2 = c(mutEffectMatrix[,1]);
+	trait3 = c(mutEffectMatrix[,2]);
+	trait4 = c(mutEffectMatrix[,3]);
+
+
+	trait_var = float(4);
+	trait_mean = float(4);
+
+	// Find variance and mean
+	for (i in seqLen(length(trait_var))) {
+		trait_var[i] = executeLambda(paste0("var(trait",i+1,");"));
+		trait_mean[i] = executeLambda(paste0("mean(trait",i+1,");"));
+	}
+
+	trait_cov = float(6);
+	combinations = matrix(c(1,2,
+						  	1,3,
+						 	1,4,
+						  	2,3,
+						  	2,4,
+						  	3,4),
+							nrow = 6, byrow = T);
+	
+	// Find covariance
+	for (i in seqLen(length(trait_cov))) {
+		trait_cov[i] = executeLambda(paste0("cov(trait",combinations[i,0],", trait",combinations[i,1],");"));
+	}
+
+	// Covariance of phenotypes with each molecular component
+	
+	// molTraitCovs: Rows are traits, columns are comps (so value in index 0, 0 is cov(trait1, comp1))
+	molTraitCovs = matrix(float(ncol(ODEParEffectMatrix) * length(trait_var)), nrow = length(trait_var));
+
+	for (i in seqLen(length(trait_var))) {
+		for (j in seqLen(ncol(ODEParEffectMatrix))) {
+			molTraitCovs[i, j] = executeLambda(paste0("cov(trait",i+1,", c(ODEParEffectMatrix[,",j,"]));"));
+		}
+	}
+
+	// Write output
+	WriteMutVarOutput(trait_mean, trait_var, trait_cov);
+	WriteMutVarPerMolComp(molTraitCovs);	
+}
+
+function (void) WriteMutVarOutput(f mean, f variance, f covariance) {
+	Mfile = paste(sim.cycle, asString(seed), modelindex, mean, variance, covariance, sep=",");
+	writeFile(outMutVar, Mfile, append = T);
+}
+
+function (void) WriteMutVarPerMolComp(f covMatrix) {
+	// Print out matrix by row
+	// So order is cov(trait1, comp1), cov(trait1, comp 2), ... cov(traitn, compn)
+	Mfile = paste(sim.cycle, asString(seed), modelindex, t(covMatrix), sep=",");
+	writeFile(outMutVarPerComp, Mfile, append = T);
+}
+
 
 // Obsolete
 //function (void) writeHaplo(o<Subpopulation>$ pop, i$ n) {
