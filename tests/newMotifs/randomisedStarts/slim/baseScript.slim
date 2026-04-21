@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/randomisedStarts/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/slim/"); // 
+	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/slim/"); // "/home/564/nb9894/tests/newMotifs/randomisedStarts/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -20,11 +20,12 @@ initialize() {
 	// The realistic range of w^2 is 3-50, so 18 to 5000 for 2w^2, or 0.05556 to 0.0002 for 1/2w^2
 	setCfgParam("modelType", "NAR"); // The model type: NAR/PAR/FFLC1/FFLI1/FFBH
 	setCfgParam("mu", 1e-5); // Per locus mutation rate
-	setCfgParam("N", 5000); // Population size
+	setCfgParam("N", 100); // Population size
 	setCfgParam("N_sires", 5); // Number of sires for sampling
 	setCfgParam("N_dam", 20); // Number of dams per sire
 	setCfgParam("N_perdam", 10); // Number of offspring per dam
 	setCfgParam("N_samp", N_sires*N_dam*N_perdam); // Sample size for haplotypes etc.
+	setCfgParam("N_clone", 10); // Number of clones for M matrix estimate
 	setCfgParam("del_mean", -1); // Mean used for the gamma distribution that deleterious mutations are pulled from
 	setCfgParam("del_shape", 10); // Shape parameter for gamma distribution used for deleterious mutations
 	setCfgParam("rwide", 0.1); // Whole genome recombination rate
@@ -62,9 +63,9 @@ initialize() {
 										initDist*0.05, 0), ncol = 2, byrow = T));
 
 	setCfgParam("printH", F); // Print values of heterozygosity over time during burn-in: used to decide how long burn-in needs to be
-	setCfgParam("burnTime", 10 * N); // Number of generations of burn-in before the test period
+	setCfgParam("burnTime", 1 * N); // Number of generations of burn-in before the test period
 	setCfgParam("testTime", 10000); // Number of generations of test time: where selection is applied (or additional generations of drift, if selType = "d")
-	setCfgParam("samplerate", c(500, 500)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
+	setCfgParam("samplerate", c(50, 50)); // Sample rate in generations for phenotypic output (first value) and allelic output (second value)
 	setCfgParam("molTraitFix", -1); // Molecular trait to hold fixed (disable mutations): 0 = aZ, 1 = bZ, 2 = KZ, 3 = KXZ, -1: none
 	setCfgParam("testSampling", 50); // Sample rate during test period
 	setCfgParam("sharedMutSampling", 1000); // How often to sample shared mutation frequencies
@@ -99,7 +100,9 @@ initialize() {
 	setCfgParam("outPopState", paste0('slim_popstate', identifier, '.bin')); // Output binary population saved state
 	//setCfgParam("outMutsInd", paste0('slim_indMut', identifier, '.csv')); // Output individual mutation/allele information
 	setCfgParam("outHet", paste0('slim_locusHo', identifier, '.csv')); // Output per locus heterozygosity information
-	
+	setCfgParam("outMutVar", c(paste0('slim_mutvar', identifier, '.csv'))); // Output filename/path for mutational variance
+	setCfgParam("outMutVarPerComp", c(paste0('slim_mutvar_percomp', identifier, '.csv'))); // Output filename/path for mutational variance per mol comp
+
 	
 	setCfgParam("moveDir", "/scratch/ht96/nb9894/newMotifs/randomisedStarts/"); // Directory to move output to at end of simulation
 	
@@ -252,6 +255,7 @@ mutationEffect(m13) {
 1 early() {
 	sim.addSubpop("p1", N);
 	sim.addSubpop("p2", 0); // Staging population for crossing experiment
+	sim.addSubpop("p3", 0); // Staging population for M matrix experiment
 	
 	
 	assignQTLPositions(); // Assign QTL behaviours
@@ -284,15 +288,26 @@ mutationEffect(m13) {
 
 // Burn-in under stabilising selection
 s3 reproduction() {
-	
 	// Mating design at end of burn-in
 	if ( (sim.cycle) == burnTime ) {
+		// G matrix: half-sib/full-sib crossing design 
 		sires = p1.sampleIndividuals(N_sires);
 		for (sire in sires) {
 			dams = p1.sampleIndividuals(N_dam, exclude = sire);
 			for (dam in dams) {
 				p2.addCrossed(sire, dam, count = N_perdam);
 			}
+		}
+
+	}
+
+	// Clone design is offset by 1
+	if ( (sim.cycle) == burnTime - 1) {
+		// M matrix: clone design
+		// Clone p3 from randomly sampled ind	
+		//ind = p1.sampleIndividuals(1);
+		for (ind in p1.individuals) {
+			p3.addCloned(ind, N_clone);
 		}
 	}
 	
@@ -311,6 +326,7 @@ s3 reproduction() {
 s4 reproduction() {
 	// Only do the mating design a generation before we sample, add individuals to the staging population
 	if (!((sim.cycle) % testSampling) | (sim.cycle) == (burnTime+testTime)) {
+		// G matrix: half-sib/full-sib crossing design 
 		sires = p1.sampleIndividuals(N_sires);
 		for (sire in sires) {
 			dams = p1.sampleIndividuals(N_dam, exclude = sire);
@@ -318,8 +334,17 @@ s4 reproduction() {
 				p2.addCrossed(sire, dam, count = N_perdam);
 			}
 		}
-		// Calc phenotypes
-		// calcPhenotype(p2.individuals);
+	}
+
+	// Do clone design generation before sample
+	if (!((sim.cycle + 1) % testSampling) | (sim.cycle) == (burnTime+testTime - 1)) {
+		// M matrix: clone design
+		// Clone p3 from all individuals, measure phenotypes	
+		//ind = p1.sampleIndividuals(1);
+		for (ind in p1.individuals) {
+			p3.addCloned(ind, N_clone);
+		}
+
 	}
 	
 	inds = p1.individuals;
@@ -333,6 +358,13 @@ s4 reproduction() {
 	self.active = 0;
 }
 
+// In p3, each generation we want to clone individuals, but only if we are on a sampling generation
+s7 reproduction(p3) {
+	if (!((sim.cycle) % testSampling) | (sim.cycle) == (burnTime+testTime)) {
+		p3.addCloned(individual, 1);
+	}
+}
+
 survival() {
 	return (individual.age == 0);
 }
@@ -343,6 +375,11 @@ s1 late() {
 	calcPhenotype(inds, modelType);
 	optTraits = optBurn;//getOptTraits(optBurn, modelType);
 	//calcFitnessGaussian(inds, optTraits, modelType);
+
+	// Store phenotypes to calculate M matrix next generation
+	if (sim.cycle == burnTime - 1) {
+		setInitTraitMatrix(p3);
+	}
 	
 	// Check if we're at the end of burn-in
 	if (sim.cycle == burnTime) {
@@ -352,6 +389,7 @@ s1 late() {
 		writeSharedMutFreqs(p1);
 		//writeGenMap();
 		writeHaploRel(p2, N_samp);
+		writeMMatrix(p3);
 		writePMMatrix(p2);
 		savePopState();
 		setSeed(seed); // Reset the seed so its the same when we reload the file to calculate h2
@@ -399,6 +437,8 @@ s2 late() {
 		//writeLDmat(p1, F);
 		writeSharedMutFreqs(p1);
 		//writeGenMap();
+		writeMMatrix(p3);
+
 		writeHaploRel(p2, N_samp); // write haplo and rel at end of sim regardless of checkpoints
 		writeHetData();
 		writePMMatrix(p2);
@@ -436,6 +476,13 @@ s2 late() {
 		writeSharedMutFreqs(p1);
 	}
 
+
+	// Check if we need to setup the trait matrix for M calculation
+	if (sim.cycle == (burnTime + testTime - 1) | !((sim.cycle + 1) % testSampling)) {
+		setInitTraitMatrix(p3);
+	}
+
+
 	// Check if we're sampling this generation
 	if (sim.cycle % testSampling)
 		return;
@@ -448,6 +495,7 @@ s2 late() {
 	writeAlleleData();
 	writeIndOutput(p1);
 	writeHetData();
+	writeMMatrix(p3);
 
 
 	// Only store haplotype and relatedness matrix at certain checkpoints in the simulation
