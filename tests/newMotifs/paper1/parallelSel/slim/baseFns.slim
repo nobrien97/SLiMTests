@@ -195,7 +195,6 @@ function (float) CalcSelectionSigmas(f optTraits, [f$ minimumSigma = 0.1]) {
 	result = (fitnessCostDistance * optTraits * cost); // Note this is a standard deviation NOT a variance
 		
 	return result;
-
 }
 
 function (io<MutationType>$) sampleMutTypeFromSite(i$ pos) {
@@ -495,11 +494,8 @@ function (float) calcNewOptimum(f oldOptimum, f sigma, f$ desiredFitnessAtShift,
 	return optNew;
 }
 
-function (float) calcNewOptimumWithCorr(f oldOptimum, f sigma, f$ desiredFitnessAtShift, f corr) {
+function (float) calcNewOptimumAlongVector(f oldOptimum, f sigma, f$ desiredFitnessAtShift, f dir) {
 	// Calculates a new optimum given a correlation structure
-
-	// Corr is in order 1-2, 1-3, 1-4, 2-3, 2-4, 3-4 
-	// convert angles to heading vector
 
 	n = size(oldOptimum);
 	//shifts = widths * sqrt(dist / n); // Evenly distribute distance across the n traits
