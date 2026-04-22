@@ -246,17 +246,23 @@ mutationEffect(m13) {
 	// Randomise the molecular components
 	RandomiseMolCompStartingValues();
 
-	// Get burn-in optima
+	// Get start trait values
 	startTraits = getStartTraitValues(modelType);
-	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1)); // Calculate width of fitness function per axis
+
+	// Calculate width of fitness function per axis
+	defineGlobal("optSigma", CalcSelectionSigmas(startTraits, 0.1));
 
 
 	// trait shift direction will be in the direction of the correlation, as measured in the neutral simulations
-	// Correlation is the cosine of the angle between two vectors, so we can translate directly to angle and get a shift direction
-	// which aligns with those angles
+	// "parallel" is the first eigenvector of the trait correlation matrix
+	// Load standardised direction of selection
+	// First 4 is the eigenvector, last value is eigenvalue
+	traitDir = readCSV(paste0(wd, "parallel_traitDir.csv"), colNames = F).asMatrix();
+
 	
-	defineGlobal("traitShiftDir", getRandomTraitShiftDirection(size(startTraits)));
-	defineGlobal("optBurn", calcNewOptimum(startTraits, optSigma, 1 - fitnessCost, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
+	
+	defineGlobal("traitShiftDir", ChooseTraitDir(traitDir, modelType));
+	defineGlobal("optBurn", calcNewOptimumAlongVector(startTraits, optSigma, 1 - fitnessCost, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
 		
 	// Activate script blocks for burn-in, stabilising selection around local optima, and test time post-environmental shift
 	// s1: stabilising selection for X generations around
