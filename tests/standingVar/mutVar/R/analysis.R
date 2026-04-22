@@ -1,4 +1,5 @@
 library(tidyverse)
+library(ggh4x)
 library(legendry)
 library(ggbeeswarm)
 library(paletteer)
@@ -58,6 +59,10 @@ d_mutvar_percomp <- d_mutvar_percomp %>%
 # d_mutvar_percomp <- d_mutvar_percomp %>%
 #   filter(cov > lower_bound, cov < upper_bound)
 
+# Reorder components
+d_mutvar_percomp <- d_mutvar_percomp %>%
+  mutate(molComp = factor(molComp, 
+                          levels = c("cov_aZ", "cov_bZ", "cov_KZ", "cov_KXZ")))
 
 d_mutvar_percomp_sum <- d_mutvar_percomp %>%
   # Average
@@ -142,6 +147,10 @@ d_mutvar_percomp_adjtau <- d_mutvar_percomp_adjtau %>%
   # Remove massive values
   filter(cov < 1e1, cov > -1e1)
 
+# Reorder components
+d_mutvar_percomp_adjtau <- d_mutvar_percomp_adjtau %>%
+  mutate(molComp = factor(molComp, 
+                          levels = c("cov_aZ", "cov_bZ", "cov_KZ", "cov_KXZ")))
 
 # Join with regular
 d_mutvar2 <- full_join(d_mutvar, d_mutvar_adjtau, by = c("replicate", "seed", "modelindex",
@@ -149,8 +158,9 @@ d_mutvar2 <- full_join(d_mutvar, d_mutvar_adjtau, by = c("replicate", "seed", "m
                                                          "nloci", "tau", "r"))
 
 d_mutvar2 <- d_mutvar2 %>%
-  mutate(scaled = if_else(normalised, "Scaled tau", "Unscaled tau"),
-         scaled = factor(scaled, levels = c("Unscaled tau", "Scaled tau")))
+  mutate(scaled = if_else(normalised, TeX("Scaled $\\tau$", output = 'character'), 
+                          TeX("Unscaled $\\tau$", output = 'character')),
+         scaled = factor(scaled, levels = c("'Unscaled '*tau", "'Scaled '*tau")))
 
 d_mutvar_sum <- d_mutvar2 %>% filter(tau == 0.0125) %>%
   group_by(model, scaled) %>%
@@ -168,9 +178,13 @@ d_mutvar_percomp2 <- d_mutvar_percomp2 %>%
   filter(tau == 0.0125)
 
 d_mutvar_percomp2 <- d_mutvar_percomp2 %>%
-  mutate(scaled = if_else(normalised, "Scaled tau", "Unscaled tau"),
-         scaled = factor(scaled, levels = c("Unscaled tau", "Scaled tau")),
-         scaledCOV = scale(cov))
+  mutate(scaled = if_else(normalised, TeX("Scaled $\\tau$", output = 'character'), 
+                          TeX("Unscaled $\\tau$", output = 'character')),
+         scaled = factor(scaled, levels = c("'Unscaled '*tau", "'Scaled '*tau")),
+         scaledCOV = scale(cov)) %>%
+  group_by(modelindex, seed, replicate, scaled) %>%
+  mutate(contribution = abs(cov) / sum(abs(cov))) %>%
+  ungroup()
 
 d_mutvar_percomp_sum <- d_mutvar_percomp2 %>%
   group_by(model, molComp, scaled) %>%
@@ -178,49 +192,54 @@ d_mutvar_percomp_sum <- d_mutvar_percomp2 %>%
             CICOV = CI(cov),
             meanAbsCov = mean(abs(cov)),
             meanScaledCOV = mean(scaledCOV),
-            CIUScaledCov = CI(scaledCOV))
+            CIUScaledCov = CI(scaledCOV),
+            meanCont = mean(contribution))
 
 ggplot(d_mutvar2 %>% filter(tau == 0.0125) %>%
          mutate(model = fct_recode(model, "Additive" = "Add", "K+" = "K", "K-" = "ODE")), 
        aes(x = model, y = variance, colour = model)) +
-  facet_nested(. ~ scaled, space = "free", scales = "free") +
+  facet_nested(. ~ scaled, space = "free", scales = "free", labeller = labeller(scaled = label_parsed)) +
   geom_quasirandom(dodge.width = 0.8) +
   geom_point(data = d_mutvar_sum %>% ungroup() %>%
                mutate(model = fct_recode(model, "Additive" = "Add", "K+" = "K", "K-" = "ODE")), 
              aes(x = model, y = meanVar),
-             shape = 3, size = 2, colour = "black", inherit.aes = F) +
+             fill = "white", stroke = 1,
+             shape = 21, size = 2, colour = "black", inherit.aes = F) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 3, 
                                            direction = -1)) +
   labs(x = "Model", 
        y = "Mutational variance") +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "none") -> plt_vm
+  theme(text = element_text(size = 14), legend.position = "none") -> plt_vm
+plt_vm
 ggsave("plt_vm_scaled.png", device = png, width = 9, height = 5)  
 
 # Covariance
 ggplot(d_mutvar_percomp2 %>% filter(cov != 0.0) %>%
          mutate(model = fct_recode(model, "K+" = "K", "K-" = "ODE")), 
-       aes(x = model, y = abs(cov), colour = molComp)) +
-  facet_nested(. ~ scaled) +
+       aes(x = molComp, y = abs(cov), colour = model)) +
+  facet_nested(. ~ scaled, labeller = labeller(scaled = label_parsed)) +
   geom_quasirandom(dodge.width = 0.8) +
   geom_point(data = d_mutvar_percomp_sum %>% ungroup() %>% filter(meanAbsCov > 0.0) %>%
                mutate(model = fct_recode(model, "K+" = "K", "K-" = "ODE")),
-             aes(x = model, y = meanAbsCov, group = molComp),
+             aes(x = molComp, y = meanAbsCov, group = model),
              position = position_dodge(0.8),
-             shape = 3, size = 2, colour = "black", inherit.aes = F) +
+             fill = "white", stroke = 1,
+             shape = 21, size = 2, colour = "black", inherit.aes = F) +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 4, 
-                                           direction = -1),
-                      labels = c(TeX("$\\alpha_Z$"),
-                                 TeX("$\\beta_Z$"),
-                                 TeX("$K_Z$"),
-                                 TeX("$K_{XZ}$"))) +
+                                           direction = 1)) +
   #coord_cartesian(ylim = c(-0.00001, 0.00001)) +
+  scale_x_discrete(labels = c(TeX("$\\alpha_Z$"),
+                              TeX("$\\beta_Z$"),
+                              TeX("$K_Z$"),
+                              TeX("$K_{XZ}$"))) +
   scale_y_log10() +
-  labs(x = "Model", 
+  labs(x = "Molecular component", 
        y = "Absolute mutational\ncovariance (log10)",
-       colour = "Molecular component") +
+       colour = "Model") +
   theme_bw() +
-  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_covm
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_covm
+plt_covm
 ggsave("plt_covm_scaled_new.png", device = png, width = 9, height = 5)  
 
 
@@ -334,19 +353,20 @@ ggplot(d_adapted_sum,
   labs(x = "Generations post-optimum shift", y = "Mean phenotype", 
        colour = "Model") +
   theme_bw() +
-  theme(legend.position = "bottom", text = element_text(size = 12),
+  theme(legend.position = "bottom", text = element_text(size = 14),
         panel.spacing = unit(0.75, "lines")) -> plt_adjtau_pheno
+plt_adjtau_pheno
 ggsave("plt_adapt_mutScale.png", width = 6, height = 5, device = png)
 
 
 # Plot as a grid
 layout <-
 "
-AABB
-#CC#
+AAC
+BBC
 "
-( ( plt_vm + plt_covm ) / ( plt_adjtau_pheno ) ) -> plt_combined
 plt_vm + plt_covm + plt_adjtau_pheno -> plt_combined
 plt_combined + plot_layout(design = layout) + 
     plot_annotation(tag_levels = 'A')
-ggsave("plt_vm_fig.png", device = png, width = 10, height = 7)
+
+ggsave("plt_vm_fig.png", device = png, width = 10, height = 8)
