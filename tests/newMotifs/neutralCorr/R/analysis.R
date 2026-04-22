@@ -5,7 +5,6 @@ library(emmeans)
 library(patchwork)
 library(mvtnorm)
 library(ggforce) # geom_ellipse
-library(chebpol)
 library(Rcpp)
 
 
@@ -637,11 +636,72 @@ GGally::ggpairs(known)
 # scale eigenvectors to unit length so we can scale by selection strength in SLiM
 
 # The parallel choice is the first eigenvector - need a value per model
-v_NAR_u <- eigen(C_NAR)$vectors[,1] / sum(abs(eigen(C_NAR)$vectors[,1]))
-v_PAR_u <- eigen(C_PAR)$vectors[,1] / sum(abs(eigen(C_PAR)$vectors[,1]))
-v_FFLC1_u <- eigen(C_FFLC1)$vectors[,1] / sum(abs(eigen(C_FFLC1)$vectors[,1]))
-v_FFLI1_u <- eigen(C_FFLI1)$vectors[,1] / sum(abs(eigen(C_FFLI1)$vectors[,1]))
-v_FFBH_u <- eigen(C_FFBH)$vectors[,1] / sum(abs(eigen(C_FFBH)$vectors[,1]))
+
+c1_NAR_u <- c(eigen(C_NAR)$vectors[,1], rep(0, 2))
+c1_PAR_u <- c(eigen(C_PAR)$vectors[,1], rep(0, 2))
+c1_FFLC1_u <- c(eigen(C_FFLC1)$vectors[,1], rep(0, 1))
+c1_FFLI1_u <- c(eigen(C_FFLI1)$vectors[,1], rep(0, 1))
+c1_FFBH_u <- eigen(C_FFBH)$vectors[,1]
+
+d_parallel_motifs <- data.frame(t1 = double(length(cor_matrices)),
+                                t2 = double(length(cor_matrices)),
+                                t3 = double(length(cor_matrices)),
+                                t4 = double(length(cor_matrices)),
+                                l1 = double(length(cor_matrices)))
+
+cor_matrices <- list(C_NAR,
+                     C_PAR,
+                     C_FFLC1,
+                     C_FFLI1,
+                     C_FFBH)
+
+for (i in seq_along(cor_matrices)) {
+  m <- cor_matrices[[i]]
+  
+  eig <- eigen(m)
+  v <- eig$vectors[,1]
+  v <- v / sum(abs(v)) # normalise
+  
+  if (length(v) < 4) {
+    v <- c(v, double(4 - length(v)))
+  }
+  
+  l <- eig$values[1]
+  
+  d_parallel_motifs[i,] <- c(v, l)
+}
+
+
+write_csv(d_parallel_motifs, "./parallel_traitdir.csv", col_names = F)
+
+# Test direction is right
+
+d_dir <- data.frame(point = c("start", "end"),
+                    x = c(0.00473648, 0.00521012),
+                    y = c(1.69566, 1.69614))
+
+
+ggplot(d_dir,
+       aes(x = x, y = y, colour = point)) +
+  geom_point() +
+  stat_ellipse(data = d_sim, aes(x = V1, y = V2), inherit.aes = F) +
+ # geom_line(aes(group = NA), arrow = arrow(), colour = "black") + 
+  theme_bw()
+
+
+c2_NAR_u <- c(eigen(C_NAR)$vectors[,2], rep(0, 2))
+c2_PAR_u <- c(eigen(C_PAR)$vectors[,2] , rep(0, 2))
+c3_FFLC1_u <- c(eigen(C_FFLC1)$vectors[,3], rep(0, 1))
+c3_FFLI1_u <- c(eigen(C_FFLI1)$vectors[,3], rep(0, 1))
+c4_FFBH_u <- eigen(C_FFBH)$vectors[,4]
+
+d_orth_motifs <- as.data.frame(matrix(c(c2_NAR_u, 
+                                        c2_PAR_u, 
+                                        c3_FFLC1_u, 
+                                        c3_FFLI1_u, 
+                                        c4_FFBH_u), nrow  = 5, byrow = T))
+
+write_csv(d_orth_motifs, "./orth_traitdir.csv", col_names = F)
 
 
 # The orthogonal is a randomly sampled other eigenvector - because randomly sampled,

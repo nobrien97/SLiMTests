@@ -5,11 +5,22 @@ library(ggbeeswarm)
 library(paletteer)
 library(latex2exp)
 library(patchwork)
+library(ggh4x)
 
 setwd("/mnt/c/GitHub/SLiMTests/tests/standingVar/mutVar/R")
+
+setwd("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/mutVar/R")
+
 DATA_PATH <- "/mnt/d/SLiMTests/tests/standingVar/mutVar/"
 COMBOS_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/R/"
 R_PATH <- "/mnt/c/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
+
+
+DATA_PATH <- "/mnt/j/SLiMTests/tests/standingVar/mutVar/"
+COMBOS_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/R/"
+R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/calcMutationStats/R/"
+
+
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
 
