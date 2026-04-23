@@ -405,72 +405,10 @@ ggplot(d_dir_fflc1,
   facet_grid(dir~.) +
   geom_point() +
   geom_line(aes(group = NA), 
-            arrow = arrow(length = unit(0.03, "npc")), colour = "black") + 
+            arrow = arrow(length = unit(0.03, "npc"),
+                          ends = "last"), colour = "black") + 
   theme_bw()
 
-
-# The orthogonal is a randomly sampled other eigenvector - because randomly sampled,
-# we need a value for each model and seed
-# Load model seeds
-seeds <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/R/newMotifs_seeds.csv", 
-                  col_names = F)
-
-# These are 64 bits but R only supports 32 so we will ignore the last 32 bits
-seeds_t <- double2int(seeds$X1)
-
-# Result matrix - number of seeds x max number of traits x number motifs 
-result <- matrix(double(length(seeds_t) * ncol(C_FFBH) * 5), ncol = ncol(C_FFBH))
-
-eig_motifs <- list(v_NAR_u, 
-                v_PAR_u, 
-                v_FFLC1_u, 
-                v_FFLI1_u, 
-                v_FFBH_u)
-
-# Fill result matrix 
-for (i in seq_along(seeds_t)) {
-  seed <- seeds_t[i]
-  for (j in seq_along(eig_motifs)) {
-    motif <- eig_motifs[[j]]
-    
-    # Number of traits
-    n <- length(motif)
-    
-    # 1D index
-    index <- (i-1) * length(eig_motifs) + j
-    
-    # Set seed
-    set.seed(seed)
-    
-    # Sample and normalise direction
-    dir <- RandomDirectionOrthogonalTo(motif)
-    #dir <- dir / (sum(abs(dir)))
-    result[index, 1:n] <- dir
-  }
-}
-
-# Test that they are orthogonal in some directions
-known <- data.frame(
-  t1 = c(0, eig_motifs[[3]][1], result[8,1]),
-  t2 = c(0, eig_motifs[[3]][2], result[8,2]),
-  t3 = c(0, eig_motifs[[3]][3], result[8,3])
-)
-
-sum(eig_fflc1$vectors[1,] * eig_fflc1$vectors[2,])
-
-known <- known %>%
-  pivot_pairwise(pivot_cols = starts_with("t"))
-
-ggplot(known, 
-       aes(x = x_value, y = y_value)) +
-  ggh4x::facet_grid2(y_name ~ x_name, scales = "free",
-                     render_empty = F) +
-  geom_point() +
-  geom_line() +
-  labs(x = NULL, y = NULL) +
-  theme_bw()
-
-GGally::ggpairs(known)
 
 test_FFLC1 <- rmvnorm(1000, c(0, 0, 0), sigma = C_FFLC1)
 plot(test_FFLC1[,1], test_FFLC1[,2])
