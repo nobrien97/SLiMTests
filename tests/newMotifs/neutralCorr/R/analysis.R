@@ -359,22 +359,24 @@ for (i in seq_along(cor_matrices)) {
   m <- cor_matrices[[i]]
   
   eig <- eigen(m)
+  # Parallel direction
   v1 <- eig$vectors[,1]
   v1 <- v1 / sum(abs(v1)) # normalise
   
-  v2 <- eig$vectors[,2]
-  v2 <- v2 / sum(abs(v2)) # normalise
+  # Minimal variance/most misaligned with correlations
+  vlast <- eig$vectors[,ncol(eig$vectors)]
+  vlast <- vlast / sum(abs(vlast)) # normalise
   
   if (length(v1) < 4) {
     v1 <- c(v1, double(4 - length(v1)))
-    v2 <- c(v2, double(4 - length(v2)))
+    vlast <- c(vlast, double(4 - length(vlast)))
   }
   
   l1 <- eig$values[1]
-  l2 <- eig$values[2]
+  llast <- eig$values[length(eig$values)]
   
   d_parallel_motifs[i,] <- c(v1, l1)
-  d_orth_motifs[i,] <- c(v2, l2)
+  d_orth_motifs[i,] <- c(vlast, llast)
 }
 
 write_csv(d_parallel_motifs, "./parallel_traitdir.csv", col_names = F)
