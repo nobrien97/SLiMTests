@@ -10,7 +10,7 @@ initialize() {
 	}
 	
 	
-	defineConstant("wd", "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/slim/"); // "/home/564/nb9894/tests/newMotifs/paper1/parallelSel/slim/"); // 
+	defineConstant("wd", "/home/564/nb9894/tests/newMotifs/paper1/orthSel/slim/"); // "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/orthSel/slim/"); // 
 	// Load functions from file
 	source(paste0(wd, "baseFns.slim"));
 	setCfgParam("debug", F); // Verbose debug outputs straight to stdout
@@ -254,10 +254,10 @@ mutationEffect(m13) {
 
 
 	// trait shift direction will be in the direction of the correlation, as measured in the neutral simulations
-	// "parallel" is the first eigenvector of the trait correlation matrix
+	// "orth" is the second eigenvector of the trait correlation matrix
 	// Load standardised direction of selection
 	// First 4 is the eigenvector, last value is eigenvalue
-	traitDir = readCSV(paste0(wd, "parallel_traitdir.csv"), colNames = F).asMatrix();		
+	traitDir = readCSV(paste0(wd, "orth_traitdir.csv"), colNames = F).asMatrix();		
 	
 	defineGlobal("traitShiftDir", ChooseTraitDir(traitDir, modelType));
 	defineGlobal("optBurn", calcNewOptimumAlongVector(startTraits, optSigma, 1 - fitnessCost, traitShiftDir)); // Calculate burn-in optimum (assuming equal contributions)
