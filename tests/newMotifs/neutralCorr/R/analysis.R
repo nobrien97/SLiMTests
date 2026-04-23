@@ -336,312 +336,16 @@ C_FFBH[upper.tri(C_FFBH)] <- t(C_FFBH)[upper.tri(C_FFBH)]
 
 C_NAR; C_PAR; C_FFLC1; C_FFLI1; C_FFBH
 
-# Calculate leading eigenvector for each
-GetDirAtAngle <- function(c, angle, r, x0) {
-  eig <- eigen(c)
-  Q <- eig$vectors
-  L <- diag(eig$values)
-  
-  # Whitened space
-  W <- solve(sqrt(L)) %*% t(Q)
-  Winv <- Q %*% sqrt(L)
-  
-  # Transform Q by whitened space and normalise
-  vz <- W %*% Q[,1]
-  vz <- vz / sqrt(sum(vz*vz))
-  
-  u <- rnorm(ncol(c))
-  u <- u - sum(u * vz) * vz
-  u <- u / sqrt(sum(u*u))
-  
-  d <- cos(angle) * vz + sin(angle) * u
-  
-  # Starting point in whitened space
-  z0 <- W %*% x0
-  
-  # End point in whitened space
-  z_new <- z0 + r * d
-  
-  # End point in original space
-  x_new <- Winv %*% z_new
-  return(x_new)
-}
-
-GetEllipse <- function(mat, trait_data) {
-  ev <- eigen(mat, symmetric = T)
-  
-  # We need to find the angle to rotate the ellipse back onto trait space: 
-  # this is using inverse tangent between the distance between lambda_gmax 
-  # (ev$values[1]) and the first trait's variance (diag(g)[1]) and the covariance 
-  # (g[upper.tri(g)][1]) between traits
-  theta <- atan2((ev$values[1] - diag(mat)[1]), mat[upper.tri(mat)][1]) * (180/pi)
-  
-  # Get the length of the major and minor axes: these are the square root of eigenvalues
-  # multiplied by the confidence interval for the ellipse (here it's a 95% CI)
-  major_len <- qnorm(0.975) * sqrt(ev$values[1])
-  minor_len <- qnorm(0.975) * sqrt(ev$values[2])
-  
-  # Center of ellipse is the sum of the traits' eigenvectors times their mean
-  dplot_ellipse <- data.frame(vert_x = cos(theta * pi/180) * major_len,
-                              vert_y = sin(theta * pi/180) * major_len,
-                              covert_x = cos((theta - 90) * pi/180) * minor_len,
-                              covert_y = sin((theta - 90) * pi/180) * minor_len,
-                              mean_t1 = mean(trait_data[,1]),
-                              mean_t2 = mean(trait_data[,2]),
-                              theta = theta,
-                              major_len = major_len,
-                              minor_len = minor_len)
-  return(dplot_ellipse)
-}
-
-Q_NAR <- GetDirAtAngle(C_NAR, 0, 1, rep(0, 2))
-Q_PAR <- GetDirAtAngle(C_PAR, 0, 1, rep(0, 2))
-Q_FFLC1 <- GetDirAtAngle(C_FFLC1, 0, 1, rep(0, 3))
-Q_FFLI1 <- GetDirAtAngle(C_FFLI1, 0, 1, rep(0, 3))
-Q_FFBH <- GetDirAtAngle(C_FFBH, 0, 1, rep(0, 4))
-
-# Test
-d_nar_test <- as.data.frame(rmvnorm(10000, sigma = C_NAR))
-d_nar_ellipse <- GetEllipse(C_NAR, d_nar_test)
-
-# Plot the ellipses
-# geom_ellipse() expects angle in radians
-ggplot(d_nar_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(t(Q_NAR)), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-d_par_test <- as.data.frame(rmvnorm(10000, sigma = C_PAR))
-d_par_ellipse <- GetEllipse(C_PAR, d_par_test)
-
-# Plot the ellipses
-# geom_ellipse() expects angle in radians
-ggplot(d_par_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(t(Q_PAR)), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-
-d_fflc1_test <- as.data.frame(rmvnorm(10000, sigma = C_FFLC1))
-d_fflc1_ellipse <- GetEllipse(C_FFLC1, d_fflc1_test)
-
-# Plot the ellipses
-# geom_ellipse() expects angle in radians
-ggplot(d_fflc1_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(t(Q_FFLC1)), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-fflc1_pca <- FactoMineR::PCA(d_fflc1_test, scale. = T)
-fviz_pca_ind(fflc1_pca)
-
-eigen(C_FFLC1)
-
-
-d_ffli1_test <- as.data.frame(rmvnorm(10000, sigma = C_FFLI1))
-d_ffli1_ellipse <- GetEllipse(C_FFLI1, d_ffli1_test)
-
-# Plot the ellipses
-# geom_ellipse() expects angle in radians
-ggplot(d_ffli1_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(t(Q_FFLI1)), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-
-d_ffbh_test <- as.data.frame(rmvnorm(10000, sigma = C_FFBH))
-d_ffbh_ellipse <- GetEllipse(C_FFBH, d_ffbh_test)
-
-# Plot the ellipses
-# geom_ellipse() expects angle in radians
-ggplot(d_ffbh_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(t(Q_FFBH)), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-# Interpolate along C_max
-eigen(C_FFLC1)$vectors[,1]
-
-
-
-lin.interp <- function(p0, p1, s) {
-  # Calculates a point s units away from the origin of a point across a direction vector 
-  d <- p1 - p0
-  norm_d <- sqrt(sum(d^2))
-  d_unit <- d / norm_d
-  
-  outer(s, d_unit) + matrix(p0, nrow = length(s), ncol = length(p0), byrow = T)
-}
-
-interpol <- lin.interp(c(0,0,0),
-                       eigen(C_FFLC1)$vectors[,1],
-                       3)
-
-known <- data.frame(
-  x = c(0, eigen(C_FFLC1)$vectors[1,1], interpol[1,1]),
-  y = c(0, eigen(C_FFLC1)$vectors[2,1], interpol[1,2]),
-  z = c(0, eigen(C_FFLC1)$vectors[3,1], interpol[1,3])
-)
-
-GGally::ggpairs(known)
-
-ggplot(d_fflc1_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(interpol), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-interpol <- lin.interp(c(0,0),
-                       eigen(C_PAR)$vectors[,1],
-                       3)
-
-
-# Gets a random normalised direction orthogonal to another direction 
-RandomDirectionOrthogonalTo <- function(dir) {
-  u <- rnorm(length(dir))
-  u <- u - sum(u * dir) * dir
-  return (u / sqrt(sum(u^2)))
-}
-
-orth_point <- lin.interp(c(0,0),
-                         RandomDirectionOrthogonalTo(eigen(C_PAR)$vectors[,1]),
-                        3)
-
-RandomValueOrthogonalTo(eigen(C_PAR)$vectors[,1])
-
-known <- data.frame(
-  x = c(0, eigen(C_PAR)$vectors[1,1], interpol[1,1], orth_point[1,1]),
-  y = c(0, eigen(C_PAR)$vectors[2,1], interpol[1,2], orth_point[1,2])
-)
-
-GGally::ggpairs(known)
-
-ggplot(d_par_ellipse, aes(x = mean_t1, y = mean_t2)) +
-  #geom_point(data = as.data.frame(d_nar_test), aes(x = V1, y = V2)) +
-  geom_ellipse(aes(x0 = mean_t1, y0 = mean_t2, 
-                   a = major_len, b = minor_len, angle = theta * pi/180)) +
-  geom_point(data = as.data.frame(interpol), aes(x = V1, y = V2),
-             colour = "red") +
-  geom_point(data = as.data.frame(orth_point), aes(x = V1, y = V2),
-             colour = "blue") +
-  geom_segment(aes(xend = (mean_t1 + vert_x), yend = (mean_t2 + vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - vert_x), yend = (mean_t2 - vert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 + covert_x), yend = (mean_t2 + covert_y)),
-               linetype = "dashed") +
-  geom_segment(aes(xend = (mean_t1 - covert_x), yend = (mean_t2 - covert_y)),
-               linetype = "dashed") +
-  theme_bw() +
-  labs(x = "Trait 1", y = "Trait 2") +
-  coord_fixed() # important! ensures gmax and g2 appear orthogonal. different aspect ratios distort the angles between gmax and g2 
-
-
-interpol <- lin.interp(c(0,0,0),
-                       eigen(C_FFLC1)$vectors[,1],
-                       3)
-
-orth_point <- lin.interp(c(0,0,0),
-                         RandomDirectionOrthogonalTo(eigen(C_FFLC1)$vectors[,1]),
-                         3)
-
-known <- data.frame(
-  x = c(0, eigen(C_FFLC1)$vectors[1,1], interpol[1,1], orth_point[1,1]),
-  y = c(0, eigen(C_FFLC1)$vectors[2,1], interpol[1,2], orth_point[1,2]),
-  z = c(0, eigen(C_FFLC1)$vectors[3,1], interpol[1,3], orth_point[1,3])
-)
-
-GGally::ggpairs(known)
-
-
 # Save direction vector to file
 # SLiM can't do eigen(), will need to load them in
 # scale eigenvectors to unit length so we can scale by selection strength in SLiM
 
 # The parallel choice is the first eigenvector - need a value per model
-
-c1_NAR_u <- c(eigen(C_NAR)$vectors[,1], rep(0, 2))
-c1_PAR_u <- c(eigen(C_PAR)$vectors[,1], rep(0, 2))
-c1_FFLC1_u <- c(eigen(C_FFLC1)$vectors[,1], rep(0, 1))
-c1_FFLI1_u <- c(eigen(C_FFLI1)$vectors[,1], rep(0, 1))
-c1_FFBH_u <- eigen(C_FFBH)$vectors[,1]
+cor_matrices <- list(C_NAR,
+                     C_PAR,
+                     C_FFLC1,
+                     C_FFLI1,
+                     C_FFBH)
 
 d_parallel_motifs <- data.frame(t1 = double(length(cor_matrices)),
                                 t2 = double(length(cor_matrices)),
@@ -649,59 +353,60 @@ d_parallel_motifs <- data.frame(t1 = double(length(cor_matrices)),
                                 t4 = double(length(cor_matrices)),
                                 l1 = double(length(cor_matrices)))
 
-cor_matrices <- list(C_NAR,
-                     C_PAR,
-                     C_FFLC1,
-                     C_FFLI1,
-                     C_FFBH)
+d_orth_motifs <- d_parallel_motifs
 
 for (i in seq_along(cor_matrices)) {
   m <- cor_matrices[[i]]
   
   eig <- eigen(m)
-  v <- eig$vectors[,1]
-  v <- v / sum(abs(v)) # normalise
+  v1 <- eig$vectors[,1]
+  v1 <- v1 / sum(abs(v1)) # normalise
   
-  if (length(v) < 4) {
-    v <- c(v, double(4 - length(v)))
+  v2 <- eig$vectors[,2]
+  v2 <- v2 / sum(abs(v2)) # normalise
+  
+  if (length(v1) < 4) {
+    v1 <- c(v1, double(4 - length(v1)))
+    v2 <- c(v2, double(4 - length(v2)))
   }
   
-  l <- eig$values[1]
+  l1 <- eig$values[1]
+  l2 <- eig$values[2]
   
-  d_parallel_motifs[i,] <- c(v, l)
+  d_parallel_motifs[i,] <- c(v1, l1)
+  d_orth_motifs[i,] <- c(v2, l2)
 }
 
-
 write_csv(d_parallel_motifs, "./parallel_traitdir.csv", col_names = F)
+write_csv(d_orth_motifs, "./orth_traitdir.csv", col_names = F)
 
 # Test direction is right
+d_dir_nar <- data.frame(point = c("start", "end"),
+                    dir = rep(c("parallel", "orthogonal"), each = 2),
+                    x = c(0.052335, 0.0575675, 0.052335, 0.0471026),
+                    y = c(2.58808, 2.59331, 2.58808, 2.59331))
 
-d_dir <- data.frame(point = c("start", "end"),
-                    x = c(0.00473648, 0.00521012),
-                    y = c(1.69566, 1.69614))
-
-
-ggplot(d_dir,
+ggplot(d_dir_nar,
        aes(x = x, y = y, colour = point)) +
+  facet_grid(dir~.) +
   geom_point() +
-  stat_ellipse(data = d_sim, aes(x = V1, y = V2), inherit.aes = F) +
- # geom_line(aes(group = NA), arrow = arrow(), colour = "black") + 
+  geom_line(aes(group = NA), 
+            arrow = arrow(length = unit(0.03, "npc")), colour = "black") + 
   theme_bw()
 
+d_dir_fflc1 <- data.frame(point = c("start", "end"),
+                        dir = rep(c("parallel", "orthogonal"), each = 2),
+                        x = c(0.15665, 0.17048, 0.15665, 0.167308),
+                        y = c(0.2, 0.20938, 0.2, 0.185343),
+                        z = c(7.41879, 7.4363, 7.41879, 7.41822))
 
-c2_NAR_u <- c(eigen(C_NAR)$vectors[,2], rep(0, 2))
-c2_PAR_u <- c(eigen(C_PAR)$vectors[,2] , rep(0, 2))
-c3_FFLC1_u <- c(eigen(C_FFLC1)$vectors[,3], rep(0, 1))
-c3_FFLI1_u <- c(eigen(C_FFLI1)$vectors[,3], rep(0, 1))
-c4_FFBH_u <- eigen(C_FFBH)$vectors[,4]
-
-d_orth_motifs <- as.data.frame(matrix(c(c2_NAR_u, 
-                                        c2_PAR_u, 
-                                        c3_FFLC1_u, 
-                                        c3_FFLI1_u, 
-                                        c4_FFBH_u), nrow  = 5, byrow = T))
-
-write_csv(d_orth_motifs, "./orth_traitdir.csv", col_names = F)
+ggplot(d_dir_fflc1,
+       aes(x = y, y = z, colour = x, shape = point)) +
+  facet_grid(dir~.) +
+  geom_point() +
+  geom_line(aes(group = NA), 
+            arrow = arrow(length = unit(0.03, "npc")), colour = "black") + 
+  theme_bw()
 
 
 # The orthogonal is a randomly sampled other eigenvector - because randomly sampled,
