@@ -13,12 +13,88 @@ source("helperFn.R")
 # Load M
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
 
-d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", "meanH", 
-                                          paste0("phenomean_", 1:4),
-                                          paste0("phenovar_", 1:4),
-                                          paste0("phenocor_", c(12, 13, 14, 23, 24, 34)),
-                                          paste0("molTrait_", 1:11)))
+d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", 
+                                          paste0("mean_", 1:4),
+                                          paste0("var_", 1:4),
+                                          paste0("cov_", c(12, 13, 14, 23, 24, 34))))
 
+d_m <- d_m %>%
+  mutate(model = ModelFromIndexWithR(modelindex))
+  
+# Convert a row to a matrix
+row_to_m <- function(x) {
+  # Get the number of traits and covariance terms
+  n <- 2
+  cov_terms <- 12
+  
+  if (x$model == "FFLC1" | x$model == "FFLI1") {
+    n <- 3
+    cov_terms <- c(12, 13, 23)
+  }
+  
+  if (x$model == "FFBH") {
+    n <- 4
+    cov_terms <- c(12, 13, 14, 23, 24, 34)
+  }
+  
+  # Triangular number for number of covariance terms
+  n_cov <- ((n-1) * n) / 2
+  
+  m <- matrix(NA_real_, nrow = n, ncol = n)
+  
+  # Variances
+  diag(m) <- unlist(x[1,paste0("var_", 1:n)])
+  
+  # Covariances
+  m[lower.tri(m)] <- unlist(x[1,paste0("cov_", cov_terms)])
+  m[upper.tri(m)] <- t(m)[upper.tri(m)]
+  
+  return(m)
+}
+
+# get matrices
+m_matrices <- d_m %>%
+  rowwise() %>%
+  group_map(~ row_to_m(.x))
+
+# Get eigenvectors of each M
+e_m <- lapply(m_matrices, eigen)
+saveRDS(e_m, "eigen_randomised_m.RDS")
+
+# Calculate relative eigenvalue dispersion
+Vrel <- function(l) {
+  p <- length(l)
+  avg_l <- mean(l)
+  
+  sum((l - avg_l)^2) / (p * (p-1) * avg_l^2)
+}
+
+vrel_m <- unlist(lapply(e_m, function(x) { Vrel(x$values) }))
+
+# Add to data
+d_vrel <- d_m %>%
+  mutate(r = RFromIndex(modelindex),
+         vrel = vrel_m) %>%
+  select(gen, seed, modelindex, model, r, vrel)
+
+# Plot
+
+d_vrel_sum <- d_vrel %>%
+  group_by(gen, model) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+ggplot(d_vrel_sum,
+       aes(x = gen - 50000, y = vrel_mean, colour = model)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, fill = model),
+              colour = NA, alpha = 0.2, show.legend = F) +
+  labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1)) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1)) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
 
 
 ## Neutral trait correlations
@@ -44,12 +120,13 @@ d_qg_traitCor_mdl <- d_qg_traitCor %>%
          se = 1 / sqrt(5000 - 3)) %>%
   filter(gen == 25000)
 
+hist(d_qg_traitCor_mdl$cor, breaks = 100)
 hist(d_qg_traitCor_mdl$z, breaks = 100)
 
 fit <- brm(
   z ~ model * traitCombo + (1 | seed),
   data = d_qg_traitCor_mdl,
-  family = student(),
+  family = gaussian(),
   chains = 4, cores = 4, iter = 4000
 )
 
@@ -94,50 +171,17 @@ make_matrix <- function(x) {
   return(cor_mat)
 }
 
+# Store as correlation matrices - alphabetical order
 cor_mats <- r_long %>%
+mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
   group_by(model) %>%
   group_map(~ make_matrix(.x))
 
-
-C_FFBH_post <- array(1, dim = c(4, 4, 3))
-# lower CI
-C_FFBH_post[,,1][lower.tri(C_FFBH_post[,,1])] <- r_long[r_long$model == "FFBH",]$r_post_ci_lower
-C_FFBH_post[,,1][upper.tri(C_FFBH_post[,,1])] <- t(C_FFBH_post[,,1])[upper.tri(C_FFBH_post[,,1])]
-# mean
-C_FFBH_post[,,2][lower.tri(C_FFBH_post[,,2])] <- r_long[r_long$model == "FFBH",]$r_post_mean
-C_FFBH_post[,,2][upper.tri(C_FFBH_post[,,2])] <- t(C_FFBH_post[,,2])[upper.tri(C_FFBH_post[,,2])]
-# upper CI
-C_FFBH_post[,,3][lower.tri(C_FFBH_post[,,3])] <- r_long[r_long$model == "FFBH",]$r_post_ci_upper
-C_FFBH_post[,,3][upper.tri(C_FFBH_post[,,3])] <- t(C_FFBH_post[,,3])[upper.tri(C_FFBH_post[,,3])]
+# label
+names(cor_mats) <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 
 
 
-
-# Convert to matrix form
-make_cor_mat <- function(x) {
-  n <- length(x)
-  
-  matrix(x, nrow = n)
-}
-
-cor_mats <- lapply()
-
-
-
-d_qg_traitCor_sum <- d_qg_traitCor %>%
-  group_by(gen, model, traitCombo) %>%
-  summarise(meanCor = mean(cor),
-            var = var(cor))
-
-d_qg_traitCor_sum %>%
-  filter(!(model == "NAR" & grepl("[3-4]", traitCombo)),
-         !(model == "PAR" & grepl("[3-4]", traitCombo)),
-         !(model == "FFLC1" & grepl("[4]", traitCombo)),
-         !(model == "FFLI1" & grepl("[4]", traitCombo))) %>%
-  select(-var) -> d_traitCor_tab
-d_traitCor_tab
-
-# Get 
 
 ## Eigenvalue dispersion - do more complex motifs produce more anisotropic M?
 

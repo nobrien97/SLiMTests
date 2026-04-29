@@ -3,6 +3,17 @@ ModelFromIndex <- function(id) {
   return(motifs[id])
 }
 
+ModelFromIndexWithR <- function(id) {
+  motifs <- rep(c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), times = 3)
+  return(motifs[id])
+}
+
+RFromIndex <- function(id) {
+  r <- rep(c(1e-10, 1e-5, 1e-1), each = 5)
+  return(r[id])
+}
+
+
 se <- function(x, na.rm = F) {
   if (na.rm)
     x <- x[!is.na(x)]
