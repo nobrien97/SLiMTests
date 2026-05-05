@@ -292,10 +292,6 @@ d_selvec <- d_selvec %>%
          t4_dir = t4_dir / norm) %>%
   select(gen, seed, modelindex, model, r, norm, ends_with("dir"))
 
-
-
-
-
 d_qg_optPerc <- d_qg %>% select(gen, seed, modelindex, isAdapted) %>% filter(gen >= 49500)
 
 
@@ -433,15 +429,15 @@ d_cossim <- AddCombosToDF(d_cossim)
 
 d_cossim_sum <- d_cossim %>%
   group_by(timePoint, model, r, isAdapted) %>%
-  dplyr::summarise(meanCosSim = mean(cosSim, na.rm = T),
-                   seCosSim = se(cosSim, na.rm = T),
+  dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
+                   seCosSim = se(sqrt(cosSim^2), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
 d_cossim_sum$model <- as.factor(d_cossim_sum$model)
 
 
 ggplot(d_cossim, 
-       aes(x = timePoint, y = cosSim, colour = model)) +
+       aes(x = timePoint, y = sqrt(cosSim^2), colour = model)) +
   facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_cossim_sum %>% ungroup() %>%
@@ -450,7 +446,7 @@ ggplot(d_cossim,
              aes(x = timePoint, y = meanCosSim, group = model), colour = "black",
              shape = 3, size = 2, position = position_dodge(0.9)) +
   labs(x = "Time point", 
-       y = TeX("Cosine similarity between $g_{max}$ and $\\beta"),
+       y = TeX("Absolute cosine similarity between $g_{max}$ and $\\beta"),
        colour = "Model") +
   scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
                       labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
