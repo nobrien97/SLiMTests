@@ -266,20 +266,20 @@ if (!is.na(mrr_result[1])) {
 relTraits <- relTraits[-(1:1000)]
 
 # Setup traits
+relTraits_dat <- data.frame(t1    = relTraits[seq(1, length(relTraits), by = 4)],
+                            t2    = relTraits[seq(2, length(relTraits), by = 4)],
+                            t3    = relTraits[seq(3, length(relTraits), by = 4)],
+                            t4    = relTraits[seq(4, length(relTraits), by = 4)])
+
+# Remove extra traits
+
 if (model == "NAR" | model == "PAR") {
   # Get molecular component dataframe
-  relTraits_dat <- data.frame(t1    = relTraits[seq(1, length(relTraits), by = 2)],
-                              t2    = relTraits[seq(2, length(relTraits), by = 2)])
+  relTraits_dat["t3"] <- NULL
+  relTraits_dat["t4"] <- NULL
 } else if (model == "FFLC1" | model == "FFLI1") {
   # Get molecular component dataframe
-  relTraits_dat <- data.frame(t1    = relTraits[seq(1, length(relTraits), by = 3)],
-                              t2    = relTraits[seq(2, length(relTraits), by = 3)],
-                              t3    = relTraits[seq(3, length(relTraits), by = 3)])
-} else if (model == "FFBH") {
-  relTraits_dat <- data.frame(t1    = relTraits[seq(1, length(relTraits), by = 4)],
-                              t2    = relTraits[seq(2, length(relTraits), by = 4)],
-                              t3    = relTraits[seq(3, length(relTraits), by = 4)],
-                              t4    = relTraits[seq(4, length(relTraits), by = 4)])
+  relTraits_dat["t4"] <- NULL
 }
 
 # Scale and center
@@ -336,6 +336,7 @@ if (!is.na(mkr_trait_result[1])) {
   }
 
   if (model == "FFBH") {
+    traitNames <- allTraitNames
     colnames(mkr_trait_result$Vb) <- allTraitNames
   }
 
@@ -348,7 +349,7 @@ if (!is.na(mkr_trait_result[1])) {
   
   h2 <- rep(NA, 4)
   names(h2) <- allTraitNames
-  h2[molTraitNames] <- mkr_trait_result$h2
+  h2[traitNames] <- mkr_trait_result$h2
   
   cov_terms <- combn(allTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
@@ -360,7 +361,7 @@ if (!is.na(mkr_trait_result[1])) {
   mkr_result_df[1, cov_terms] <- G_T[t(upper.tri(G_T))]
   
   # heritability
-  mkr_result_df[1, paste("h2", allMolTraitNames, sep = "_")] <- h2
+  mkr_result_df[1, paste("h2", allTraitNames, sep = "_")] <- h2
   
 
   # Output file
@@ -382,6 +383,7 @@ if (!is.na(mrr_result[1])) {
   }
 
   if (model == "FFBH") {
+    traitNames <- allTraitNames
     colnames(mrr_trait_result$Vb) <- allTraitNames  
   }
 
@@ -389,14 +391,14 @@ if (!is.na(mrr_result[1])) {
 
   
   G_T <- matrix(NA, nrow = 4, ncol = 4)
-  colnames(G_T) <- allMolTraitNames
+  colnames(G_T) <- allTraitNames
   rownames(G_T) <- colnames(G_T)
   
   G_T[rownames(mrr_trait_result$Vb), colnames(mrr_trait_result$Vb)] <- mrr_trait_result$Vb
   
   h2 <- rep(NA, 4)
   names(h2) <- allTraitNames
-  h2[molTraitNames] <- mrr_trait_result$h2
+  h2[traitNames] <- mrr_trait_result$h2
   
   cov_terms <- combn(allTraitNames, 2)
   cov_terms <- paste(cov_terms[1,], cov_terms[2,], sep = "_") 
