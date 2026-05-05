@@ -417,8 +417,8 @@ d_cossim_m_traitcor <- AddCombosToDF(d_cossim_m_traitcor)
 
 d_cossim_m_traitcor_sum <- d_cossim_m_traitcor %>%
   group_by(timePoint, model, r, isAdapted) %>%
-  dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
-                   seCosSim = se(sqrt(cosSim^2), na.rm = T),
+  dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
+                   seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
 d_cossim_m_traitcor_sum$model <- as.factor(d_cossim_m_traitcor_sum$model)
@@ -461,6 +461,11 @@ ggplot(d_cossim_m_traitcor_sum,
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
+# Adapted populations look like they have less variation along the trait correlation axis
+## need to get around the constraint
+### can we look at how this is affected by the alignment between selection and trait corr?
+### if selection is opposing trait corr, then adaptation will require M and G to become 
+### misaligned with R
 
 # Contingency table: population adapted vs cosine similarity > threshold
 ## model type is collinear with this
