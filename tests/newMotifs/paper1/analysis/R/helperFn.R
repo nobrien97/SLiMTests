@@ -135,6 +135,12 @@ GetCosineSimilarity <- function(matList, bFrame, id) {
     g <- g[idx, idx]
     b <- unlist(bFrame[i, idx])
     
+
+    # If matrix isn't symmetric, force it to be
+    if (!is.symmetric.matrix(g)) {
+      g[lower.tri(g)] <- t(g)[lower.tri(g)] 
+    }
+    
     # If the matrix isn't positive semi-definite, find the nearest PD
     if (!is.positive.semi.definite(g)) {
       g <- as.matrix(nearPD(g)$mat)
