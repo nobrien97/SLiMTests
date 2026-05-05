@@ -2,6 +2,7 @@ library(tidyverse)
 library(paletteer)
 library(latex2exp)
 library(brms)
+library(betareg)
 
 # Helper functions
 source("helperFn.R")
@@ -12,8 +13,9 @@ source("helperFn.R")
 ## Eigenstructure of M for each motif
 # Load M
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
 
-d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", 
+d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                           paste0("mean_", 1:4),
                                           paste0("var_", 1:4),
                                           paste0("cov_", c(12, 13, 14, 23, 24, 34))))
@@ -61,6 +63,8 @@ m_matrices <- d_m %>%
 e_m <- lapply(m_matrices, eigen)
 saveRDS(e_m, "eigen_randomised_m.RDS")
 
+# e_m <- readRDS("eigen_randomised_m.RDS")
+
 # Calculate relative eigenvalue dispersion
 Vrel <- function(l) {
   p <- length(l)
@@ -78,7 +82,6 @@ d_vrel <- d_m %>%
   select(gen, seed, modelindex, model, r, vrel)
 
 # Plot
-
 d_vrel_sum <- d_vrel %>%
   group_by(gen, model) %>%
   summarise(vrel_mean = mean(vrel),
@@ -96,10 +99,43 @@ ggplot(d_vrel_sum,
   theme(text = element_text(size = 12),
         legend.position = "bottom")
 
+# Stable over time, can take average?
+d_vrel_tab <- d_vrel %>%
+  group_by(model) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+d_vrel_tab
+
+lm_vrel <- lm(vrel ~ model, data = d_vrel)
+summary(lm_vrel)
+
+# beta distributed
+hist(d_vrel$vrel, breaks = 100)
+
+br_vrel <- betareg(vrel ~ model, data = d_vrel %>% filter(gen == 60000))
+
+summary(br_vrel)
+
+# SLOW
+# beta_vrel <- brm(
+#   bf(vrel ~ model),
+#   data = d_vrel,
+#   family = Beta(),
+#   chains = 4, iter = 2000, 
+#   cores = 4,
+#   file = "beta_vrel"
+# )
+# 
+# summary(beta_vrel)
+# 
+# vrel_post <- posterior_epred(beta_vrel)
+
 
 ## Neutral trait correlations
 
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
+
 d_qg <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", "meanH", 
                                           paste0("phenomean_", 1:4),
                                   paste0("phenovar_", 1:4),
@@ -173,7 +209,7 @@ make_matrix <- function(x) {
 
 # Store as correlation matrices - alphabetical order
 cor_mats <- r_long %>%
-mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
+  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
   group_by(model) %>%
   group_map(~ make_matrix(.x))
 
