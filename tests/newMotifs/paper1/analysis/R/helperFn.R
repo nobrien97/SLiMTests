@@ -1,6 +1,42 @@
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
+# Adds the parameter combination to a dataframe
+AddCombosToDF <- function(df) {
+  df %>% ungroup() %>%
+    mutate(model = d_combos$model[as.numeric(levels(modelindex))[modelindex]],
+           r = d_combos$r[as.numeric(levels(modelindex))[modelindex]])
+}
+
+select <- dplyr::select
+mutate <- dplyr::mutate
+filter <- dplyr::filter
+
+# Cowplot 1.1.3 bug: won't get legend, this fixes
+get_legend <- function(plot, legend = NULL) {
+  
+  gt <- ggplotGrob(plot)
+  
+  pattern <- "guide-box"
+  if (!is.null(legend)) {
+    pattern <- paste0(pattern, "-", legend)
+  }
+  
+  indices <- grep(pattern, gt$layout$name)
+  
+  not_empty <- !vapply(
+    gt$grobs[indices], 
+    inherits, what = "zeroGrob", 
+    FUN.VALUE = logical(1)
+  )
+  indices <- indices[not_empty]
+  
+  if (length(indices) > 0) {
+    return(gt$grobs[[indices[1]]])
+  }
+  return(NULL)
+}
+
 
 
 ModelFromIndex <- function(id) {
@@ -33,6 +69,31 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
 
 rad2deg <- function(rad) {(rad * 180) / (pi)}
 deg2rad <- function(deg) {(deg * pi / 180)}
+
+
+
+
+######################
+# G matrix functions #
+######################
+# transform IDs from matrices to a list form
+GetMatrixIDs <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(timePoint = x$timePoint, 
+               seed = x$seed, 
+               modelindex = x$modelindex, 
+               isAdapted = x$isAdapted)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
+
+
 
 # Calculate evolvability metrics for trait data (Hansen and Houle 2008)
 CalcECRATrait <- function(matList, id) {
