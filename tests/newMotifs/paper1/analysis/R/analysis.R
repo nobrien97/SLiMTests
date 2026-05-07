@@ -8,6 +8,8 @@ library(ggbeeswarm)
 library(cowplot)
 library(nlme)
 library(emmeans)
+library(matrixcalc)
+library(Matrix)
 
 # Helper functions
 source("helperFn.R")
@@ -239,6 +241,7 @@ d_selvec_m <- d_selvec_m %>%
 d_cossim_m <- GetCosineSimilarity(m_matrices, d_selvec_m %>% select(ends_with("dir")), id_m)
 
 saveRDS(d_cossim_m, "d_cossim_m.RDS")
+d_cossim_m <- readRDS("d_cossim_m.RDS")
 
 d_cossim_m <- AddCombosToDF(d_cossim_m)
 
@@ -569,8 +572,8 @@ d_cossim <- AddCombosToDF(d_cossim)
 
 d_cossim_sum <- d_cossim %>%
   group_by(timePoint, model, r, isAdapted) %>%
-  dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
-                   seCosSim = se(sqrt(cosSim^2), na.rm = T),
+  dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
+                   seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
 d_cossim_sum$model <- as.factor(d_cossim_sum$model)
@@ -615,8 +618,6 @@ ggplot(d_cossim,
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
-
-
 
 d_ecr <- CalcECRATrait(h2_pd, id)
 d_ecr <- AddCombosToDF(d_ecr)
@@ -887,8 +888,8 @@ d_cossim_corBeta <- AddCombosToDF(d_cossim_corBeta)
 
 d_cossim_corBeta_sum <- d_cossim_corBeta %>%
   group_by(timePoint, model, r, isAdapted) %>%
-  dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
-                   seCosSim = se(sqrt(cosSim^2), na.rm = T),
+  dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
+                   seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
 d_cossim_corBeta_sum$model <- as.factor(d_cossim_corBeta_sum$model)
@@ -1053,8 +1054,6 @@ test(em_bTGb_mmax_beta)
 emmip(em_bTGb_mmax_beta, model ~ isAdapted, CIs = T)
 
 # Adapted populations tended to have more mutational variance along beta
-
-
 ## Eigenvalue dispersion - do more complex motifs produce more anisotropic M?
 
 ## Leading eigenvector directions
@@ -1063,14 +1062,58 @@ emmip(em_bTGb_mmax_beta, model ~ isAdapted, CIs = T)
 # 2) Alignment with M predicts evolvability
 
 ## Evolvability against alignment of M with direction of selection
+## Evolvability = bTGb
 
-# G matrix evolvability analysis
+# Join the evolvability estimates with M alignment
+d_btgb_Malign <- left_join(d_cossim %>% 
+                             select(timePoint, seed, modelindex, isAdapted,
+                                    model, r, bTMb, cosSim) %>%
+                             rename(bTGb = bTMb) %>%
+                             mutate(absCS_Gb = abs(cosSim)) %>%
+                             select(-cosSim),
+                           d_cossim_m %>%
+                             filter(timePoint == 60000 | timePoint == 50000) %>%
+                             mutate(timePoint = if_else(timePoint == 50000, "Start", "End")) %>%
+                             select(timePoint, seed, modelindex, isAdapted,
+                                    model, r, bTMb, cosSim) %>%
+                             mutate(absCS_Mb = abs(cosSim)) %>%
+                             select(-cosSim),
+                           by = c("timePoint", "seed", "modelindex", "isAdapted",
+                                  "model", "r"))
 
 
+ggplot(d_btgb_Malign,
+       aes(x = absCS_Mb, y = bTGb, colour = model)) +
+#  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested("Recombination rate (log10)" + log10(r)~ "Time point" + timePoint) +
+  geom_point(shape = 1) +
+  labs(x = TeX("Absolute $cos(\\theta)_{M\\beta}$"), 
+       y = TeX("Evolvability ($\\beta^T G \\beta$)"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                    breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
 
-### Calculate alignment of M and beta
+gls_btgb_malign <- gls(bTGb ~ absCS_Mb * model,
+                          data = d_btgb_Malign,
+                          weights = varIdent(form = ~ 1 | model))
+summary(gls_btgb_malign)
+em_btgb_malign <- emmeans(gls_btgb_malign, ~ absCS_Mb * model,
+                             type = "response", 
+                          at = list(absCS_Mb = c(0, 0.5, 1)))
+summary(em_btgb_malign)
+test(em_btgb_malign)
+emmip(em_btgb_malign, model ~ absCS_Mb, CIs = T)
 
-### Get evolvability along beta bTGb
+## Positive relationship between bTGb and cosine similarity between M and b
+## evolvability along the selection gradient increases when mutational variance is biased
+## towards that direction - not really surprising
 
 
 # 3) Positive and negative controls confirm developmental bias
