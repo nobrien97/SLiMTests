@@ -168,6 +168,23 @@ GetMotifTraitRange <- function(model) {
   return(result)
 } 
 
+# similarity between first eigenvectors of two matrices (lists of matrices)
+GetCosineSimilarityTwoMats <- function(mat1, mat2, id) {
+  #mat1 will be transformed in the original function, need to find
+  # e_max for mat2
+  
+  eig <- lapply(mat2, function(x) return(eigen(x)$vectors[,1]))
+  eig <- lapply(eig, function(x) {
+    result <- numeric(4)
+    result[1:length(x)] <- x
+    return(result)
+  })
+  
+  d_eig <- as.data.frame(t(as.data.frame(eig)))
+
+  return(GetCosineSimilarity(mat1, mat2, id))
+}
+
 # M is list of matrices, b is df of selection vectors
 GetCosineSimilarity <- function(matList, bFrame, id) {
   require(matrixcalc)

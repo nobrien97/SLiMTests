@@ -79,7 +79,7 @@ m_matrices <- d_m %>%
 e_m <- lapply(m_matrices, eigen)
 saveRDS(e_m, "eigen_randomised_m.RDS")
 
-# e_m <- readRDS("eigen_randomised_m.RDS")
+e_m <- readRDS("eigen_randomised_m.RDS")
 
 # Calculate relative eigenvalue dispersion
 Vrel <- function(l) {
@@ -103,14 +103,19 @@ d_vrel_sum <- d_vrel %>%
   summarise(vrel_mean = mean(vrel),
             vrel_CI = CI(vrel))
 
+
+model_names_noquote <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+
 ggplot(d_vrel_sum,
        aes(x = gen - 50000, y = vrel_mean, colour = model)) +
   geom_line() +
   geom_ribbon(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, fill = model),
               colour = NA, alpha = 0.2, show.legend = F) +
   labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1)) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      breaks = model_names_noquote) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    breaks = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 12),
         legend.position = "bottom")
@@ -1126,6 +1131,28 @@ emmip(em_btgb_malign, model ~ absCS_Mb, CIs = T)
 
 
 # 4) G and M under drift and selection
+
+# Measure cosine similarity between M matrix correlations and G matrix correlations
+## Match G matrix rows to M matrix rows
+id_m_for_g_match <- id_m %>%
+  mutate(m_idx = row_number()) %>%
+  filter(timePoint == 50000 | timePoint == 60000) %>%
+  mutate(timePoint = if_else(timePoint == 50000, "Start", "End"))
+
+id_m_g_matched <- left_join(id %>%
+                              select(timePoint, seed, modelindex,
+                                     isAdapted), 
+                            id_m_for_g_match %>%
+                              select(timePoint, seed, modelindex,
+                                     isAdapted, m_idx),
+                            by = c("timePoint", "seed", "modelindex",
+                                   "isAdapted"))
+
+m_cor_for_g_match <- m_cor[id_m_g_matched$m_idx]
+
+# now h2_cor, need to find leading eigenvalues
+d_cossim_m_vs_g <- GetCosineSimilarityTwoMats(m_cor_for_g_match, h2_cor, id_m_g_matched)
+
 
 ## Angle between leading eigenvectors of M and G
 
