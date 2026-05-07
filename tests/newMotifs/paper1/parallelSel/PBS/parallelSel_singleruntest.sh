@@ -1,0 +1,107 @@
+#!/bin/bash -l
+#PBS -P ht96
+#PBS -q normalsr
+#PBS -l walltime=24:00:00
+#PBS -l ncpus=1
+#PBS -l mem=48GB
+#PBS -l jobfs=100GB
+#PBS -l storage=scratch/ht96+gdata/ht96
+  
+  
+ECHO=/bin/echo
+JOBNAME=parallelSel
+FULLJOBNAME=newMotifs/paper1/$JOBNAME
+#
+# These variables are assumed to be set:
+#   NJOBS is the total number of jobs in a sequence of jobs (defaults to 1)
+#   NJOB is the number of the current job in the sequence (defaults to 0)
+#   For this job, NJOBS should = 0
+# Submit as two separate jobs: NJOBS=0, NJOB=0 and NJOBS=0, NJOB=1
+    
+if (( "$NJOB" == 0 )); then
+    # Since this is the first iteration, create our folders
+    $ECHO "Creating outputs folders..."
+    cd $PBS_O_WORKDIR
+    # Make output folder
+    mkdir -p /scratch/ht96/nb9894/$FULLJOBNAME
+    mkdir -p /g/data/ht96/nb9894/$FULLJOBNAME
+    mkdir -p $HOME/tests/$FULLJOBNAME/done
+fi
+
+#
+# Quick termination of job sequence - look for a specific file 
+#
+if [ -f STOP_SEQUENCE ] ; then
+    $ECHO  "Terminating sequence at job number $NJOB"
+    exit 0
+fi
+
+$ECHO "Starting job $NJOB of $NJOBS"
+
+# Pre-job file manipulation goes here ...
+# 
+# INSERT CODE
+cd $PBS_O_WORKDIR
+SAVEDIR=/g/data/ht96/nb9894/$FULLJOBNAME
+
+
+# ========================================================================
+# .... USER INSERTION OF EXECUTABLE LINE HERE 
+# ========================================================================
+# Make sure we're at the right place so we can find the bash script to run
+
+# Problematic run from earlier
+./parallelSelSR.sh 7 78 0
+
+$ECHO "All jobs finished, moving output..."
+
+# Combine output into a single file
+cd /scratch/ht96/nb9894/$FULLJOBNAME/
+
+cat $(ls -1 | grep -E "slim_pos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_pos_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_opt[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_opt_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_muts[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_muts_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_qg[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_qg_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_indPheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_indPheno_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_fix_${NJOB}.csv
+# Remove haplo fix before we collect regular haplos - otherwise they get stuck to the end of the file
+rm $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}")
+cat $(ls -1 | grep -E "slim_haplo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sampled_pheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_pheno_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sampled_moltrait[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_moltrait_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_fx[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_fx_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_locusHo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_locusHo_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_PMmat[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_PMmat_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_relPos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relPos_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_relVals[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relVals_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_sharedmutfreqs[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sharedmutfreqs_${NJOB}.csv
+
+# Mutational variance
+cat $(ls -1 | grep -E "slim_mutvar_percomp[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar_percomp_${NJOB}.csv
+
+# Remove percomp before collecting regular mutvar
+rm $(ls -1 | grep -E "slim_mutvar_percomp[0-9]+_[0-9]+_${NJOB}")
+cat $(ls -1 | grep -E "slim_mutvar[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar_${NJOB}.csv
+
+
+# Save population state
+mkdir -p $SAVEDIR/popstates
+mv $(ls -1 | grep -E "slim_popstate[0-9]+_[0-9]+_${NJOB}") $SAVEDIR/popstates
+
+# Delete loose files with seed and model indices
+find -regex ".*[0-9]+_[0-9]+_${NJOB}.csv+" -delete
+
+# 
+# Check the exit status
+#
+errstat=$?
+if [ $errstat -ne 0 ]; then
+    # A brief nap so PBS kills us in normal termination
+    # If execution line above exceeded some limit we want PBS
+    # to kill us hard
+    sleep 5 
+    $ECHO "Job number $NJOB returned an error status $errstat - stopping job sequence."
+    exit $errstat
+fi
+
+$ECHO "Finished last job in sequence of $NJOBS jobs"
