@@ -302,7 +302,7 @@ function (void) writeQuantileODEPar(o<Subpopulation> pop, [Nf quantiles = 0.5], 
 function (void) writeAlleleData(o<Subpopulation> pop) {
 
 	// Store vectors of unique mutations, sorted by the generation in which they originated
-	muts = unique(pop.individuals.uniqueMutations);
+	muts = unique(pop.individuals.uniqueMutations, F);
 	muts = sortBy(c(muts[muts.mutationType != m1]), "originTick");
 	
 	// same for substitutions
@@ -323,22 +323,47 @@ function (void) writeAlleleData(o<Subpopulation> pop) {
 	
 	genom = pop.genomes;
 	
-	// Calculate all frequencies at once
-	mutCount = genom.mutationCountsInGenomes(muts);
-	mutFreq = mutCount / size(genom);
+	// perf testing
+//	genom = p1.genomes;
+//	muts = p1.individuals.uniqueMutations;
+//	begin = clock();
+//	mut = muts[0];
+//	mutFreq = mean(genom.containsMutations(mut));
+//	mutCount = size(genom[genom.containsMutations(mut)]);
+//	end = clock();
+//	
+//	begin_n = clock();
+//	mut = muts[0];
+//	mutCount = genom.mutationCountsInGenomes(mut);
+//	mutFreq = mutCount / (2 * N);
+//	end_n = clock();
+//	
+//	begin_n = clock();
+//	mut = muts[0];
+//	mutCount = genom.mutationCountsInGenomes(mut);
+//	mutFreq = genom.mutationFrequenciesInGenomes(mut);
+//	end_n = clock();
+
+	mutsLines = string(size(muts) + size(subs));
+	
 	for (i in seqAlong(muts)) {
 		mut = muts[i];
+		mutCount = genom.mutationCountsInGenomes(mut);
+		mutFreq = mutCount / (2 * N);
 		mutType = mut.mutationType.id;
 		mutValue = asString(mut.selectionCoeff);
 		//mutChi = mut.selectionCoeff * sqrt(1)/(2*dist);
-		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq[i], mutCount[i], "NA", sep = ",");
-		mutsLine = paste0(mutsLine, "\n");
-		mutsLines = paste0(mutsLines, mutsLine);
+		mutsLine = paste(sim.cycle, asString(seed), modelindex, mutType, mut.id, mut.position, mut.originTick, mutValue, mutFreq, mutCount, "NA", sep = ",");
+		mutsLines[i] = paste0(mutsLine, "\n");
 	}
 	
 	subCount = N*2;
 	subFreq = 1.0;
-	for (sub in subs) {
+	mutLengthOffset = size(muts) - 1;
+	for (i in seqAlong(subs)) {
+		sub = subs[i];
+		// offset by the number of muts
+		j = i + mutLengthOffset;
 		subType = sub.mutationType.id;
 		subValue = asString(sub.selectionCoeff);
 		//subChi = sub.selectionCoeff * sqrt(1/(2*dist));
@@ -346,14 +371,16 @@ function (void) writeAlleleData(o<Subpopulation> pop) {
 		subLine = paste(sim.cycle, asString(seed), modelindex, subType, sub.id, sub.position, sub.originTick, subValue, subFreq, subCount, sub.fixationTick, sep = ",");
 		subLine = paste0(subLine, "\n");
 		
-		mutsLines = paste0(mutsLines, subLine); // Add substitutions to mutation output
-	
+		mutsLines[j] = subLine; // Add substitutions to mutation output
 	}
+	
+	// paste together once
+	out = paste0(mutsLines);
 	
 	// Write the mutations file
 	// Fail safe in case there are no mutations at some point and the for loop doesn't run
 	if (exists('mutsLine') | exists('subLine'))
-		writeFile(outMuts, mutsLines, append = T);
+		writeFile(outMuts, out, append = T);
 }
 
 function (void) writeHetData(void) {
