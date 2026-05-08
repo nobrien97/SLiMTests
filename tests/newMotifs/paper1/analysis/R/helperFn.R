@@ -152,6 +152,7 @@ CalcECRATrait <- function(matList, id) {
 
 
 GetMotifTraitRange <- function(model) {
+  result <- 1:4
   switch (model,
           "'NAR'"   = { result <- 1:2 },
           "'PAR'"   = { result <- 1:2 },
@@ -182,7 +183,7 @@ GetCosineSimilarityTwoMats <- function(mat1, mat2, id) {
   
   d_eig <- as.data.frame(t(as.data.frame(eig)))
 
-  return(GetCosineSimilarity(mat1, mat2, id))
+  return(GetCosineSimilarity(mat1, d_eig, id))
 }
 
 # M is list of matrices, b is df of selection vectors
