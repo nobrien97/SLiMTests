@@ -60,47 +60,48 @@ export ncores_per_numanode=13
 # Calculate the range of parameter combinations we are exploring this job
 # CAUTION: may error if CUR_TOT is not a multiple of PBS_NCPUS - untested
 CMDS_PATH=$HOME/tests/$FULLJOBNAME/PBS/cmds.txt
-CUR_TOT=$(cat $CMDS_PATH | wc -l)
-CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
-CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
+NJOB=1
+# CUR_TOT=$(cat $CMDS_PATH | wc -l)
+# CUR_MIN=$(($NJOB*$PBS_NCPUS+1))
+# CUR_MAX=$((($NJOB+1)*$PBS_NCPUS))
 
-if [ $CUR_MAX -gt $CUR_TOT ]; then
-    CUR_MAX=$CUR_TOT
-fi
+# if [ $CUR_MAX -gt $CUR_TOT ]; then
+#     CUR_MAX=$CUR_TOT
+# fi
 
-sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH_${NJOB}.txt
+# sed -n -e "${CUR_MIN},${CUR_MAX}p" $CMDS_PATH > ./JOB_PATH_${NJOB}.txt
 
-mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ./JOB_PATH_${NJOB}.txt --timeout 172800
+mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 172800
 
 $ECHO "All jobs finished, moving output..."
 
 # Combine output into a single file
 cd /scratch/ht96/nb9894/$FULLJOBNAME/
 
-cat $(ls -1 | grep -E "slim_pos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_pos_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_opt[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_opt_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_muts[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_muts_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_qg[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_qg_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_indPheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_indPheno_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_fix_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_pos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_pos.csv
+cat $(ls -1 | grep -E "slim_opt[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_opt.csv
+cat $(ls -1 | grep -E "slim_muts[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_muts.csv
+cat $(ls -1 | grep -E "slim_qg[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_qg.csv
+cat $(ls -1 | grep -E "slim_indPheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_indPheno.csv
+cat $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_fix.csv
 # Remove haplo fix before we collect regular haplos - otherwise they get stuck to the end of the file
 rm $(ls -1 | grep -E "slim_haplo_fix[0-9]+_[0-9]+_${NJOB}")
-cat $(ls -1 | grep -E "slim_haplo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_sampled_pheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_pheno_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_sampled_moltrait[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_moltrait_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_fx[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_fx_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_locusHo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_locusHo_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_PMmat[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_PMmat_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_relPos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relPos_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_relVals[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relVals_${NJOB}.csv
-cat $(ls -1 | grep -E "slim_sharedmutfreqs[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sharedmutfreqs_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_haplo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_haplo.csv
+cat $(ls -1 | grep -E "slim_sampled_pheno[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_pheno.csv
+cat $(ls -1 | grep -E "slim_sampled_moltrait[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sampled_moltrait.csv
+cat $(ls -1 | grep -E "slim_fx[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_fx.csv
+cat $(ls -1 | grep -E "slim_locusHo[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_locusHo.csv
+cat $(ls -1 | grep -E "slim_PMmat[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_PMmat.csv
+cat $(ls -1 | grep -E "slim_relPos[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relPos.csv
+cat $(ls -1 | grep -E "slim_relVals[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_relVals.csv
+cat $(ls -1 | grep -E "slim_sharedmutfreqs[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_sharedmutfreqs.csv
 
 # Mutational variance
-cat $(ls -1 | grep -E "slim_mutvar_percomp[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar_percomp_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_mutvar_percomp[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar_percomp.csv
 
 # Remove percomp before collecting regular mutvar
 rm $(ls -1 | grep -E "slim_mutvar_percomp[0-9]+_[0-9]+_${NJOB}")
-cat $(ls -1 | grep -E "slim_mutvar[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar_${NJOB}.csv
+cat $(ls -1 | grep -E "slim_mutvar[0-9]+_[0-9]+_${NJOB}") >> $SAVEDIR/slim_mutvar.csv
 
 
 # Save population state
