@@ -388,6 +388,26 @@ cor_mats <- r_long %>%
 names(cor_mats) <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 
 
+# Table for supplementary
+
+cor_mats_ci <- lapply(cor_mats, function(x) {
+  return(x[,,2] - x[,,1])
+})
+
+cor_mats_table <- vector("list", 5)
+
+for (i in seq_along(cor_mats_table)) {
+  meanMat <- round(cor_mats[[i]][,,2], 3)
+  n <- nrow(meanMat)
+  result <- meanMat
+  diag(result) <- "1"
+  cor_mats_table[[i]] <- result
+}
+
+knitr::kable(cor_mats_table, format = "latex")
+
+
+
 # Read G matrices
 G_DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
@@ -1090,7 +1110,7 @@ d_btgb_Malign <- left_join(d_cossim %>%
 ggplot(d_btgb_Malign,
        aes(x = absCS_Mb, y = bTGb, colour = model)) +
 #  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Time point" + timePoint) +
+  facet_nested("Recombination rate (log10)" + log10(r)~ "Is adapted" + isAdapted) +
   geom_point(shape = 1) +
   labs(x = TeX("Absolute $cos(\\theta)_{M\\beta}$"), 
        y = TeX("Evolvability ($\\beta^T G \\beta$)"),
@@ -1104,6 +1124,57 @@ ggplot(d_btgb_Malign,
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
+
+ggplot(d_btgb_Malign,
+       aes(x = absCS_Mb, y = absCS_Gb, colour = model)) +
+  #  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested("Recombination rate (log10)" + log10(r)~ "Is adapted" + isAdapted) +
+  geom_point(shape = 1) +
+  labs(x = TeX("Alignment of M with $\\beta (abs(cos(\\theta)_\\beta^{M}))$"), 
+       y = TeX("Alignment of G with $\\beta (abs(cos(\\theta)_\\beta^{G}))$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                    breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
+
+## Summary
+d_btgb_Malign_sum <- d_btgb_Malign %>%
+  group_by(model, isAdapted) %>%
+  summarise(meanCosSim_Gb = mean(absCS_Gb),
+            CICosSim_Gb = CI(absCS_Gb),
+            meanCosSim_Mb = mean(absCS_Mb),
+            CICosSim_Mb = CI(absCS_Mb))
+
+ggplot(d_btgb_Malign_sum,
+       aes(x = meanCosSim_Mb, y = meanCosSim_Gb, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(ymin = meanCosSim_Gb - CICosSim_Gb,
+                    ymax = meanCosSim_Gb + CICosSim_Gb)) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("Mean $abs(cos(\\theta)_\\beta^{M})$"), 
+       y = TeX("Mean $abs(cos(\\theta)_\\beta^{G})$"),
+       colour = "Model") +
+  coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+### 
+
 
 gls_btgb_malign <- gls(bTGb ~ absCS_Mb * model,
                           data = d_btgb_Malign,
@@ -1148,18 +1219,203 @@ id_m_g_matched <- left_join(id %>%
                             by = c("timePoint", "seed", "modelindex",
                                    "isAdapted"))
 
-m_cor_for_g_match <- m_cor[id_m_g_matched$m_idx]
+id_m_g_matched <- AddCombosToDF(id_m_g_matched)
 
-# now h2_cor, need to find leading eigenvalues
-d_cossim_m_vs_g <- GetCosineSimilarityTwoMats(m_cor_for_g_match, h2_cor, id_m_g_matched)
+# covariance instead of correlation matrices
+m_cov_for_g_match <- m_matrices[id_m_g_matched$m_idx]
 
+m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) return(eigen(x)$vectors[,1]))
+m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
+  result <- numeric(4)
+  result[1:length(x)] <- x
+  return(result)
+})
+
+
+m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
+  result <- matrix(0, 4, 4)
+  result[1:nrow(x), 1:nrow(x)] <- x
+  return(result)
+})
 
 ## Angle between leading eigenvectors of M and G
+d_cossim_m_vs_g <- GetCosineSimilarityTwoMats(h2_pd, m_cov_for_g_match, id_m_g_matched)
+d_cossim_m_vs_g <- AddCombosToDF(d_cossim_m_vs_g)
+d_cossim_m_vs_g$model <- factor(d_cossim_m_vs_g$model)
+                                    
+d_cossim_m_vs_g_sum <- d_cossim_m_vs_g %>%
+  group_by(model, isAdapted) %>%
+  dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
+                   seCosSim = se(abs(cosSim), na.rm = T),
+                   meanbTGb = mean(bTMb, na.rm = T),
+                   sebTGb = se(bTMb, na.rm = T))
+
+# similarity between g_max and m_max
+ggplot(d_cossim_m_vs_g, 
+       aes(x = abs(cosSim), fill = model)) +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted) +
+  geom_density(alpha = 0.2, show.legend = F) +
+  labs(x = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
+       fill = "Model") +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+ggplot(d_cossim_m_vs_g_sum, 
+       aes(x = model, y = meanCosSim, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
+                    colour = model), show.legend = F,
+                position = position_dodge(0.9)) +
+  labs(x = "Model", 
+       y = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
+
+# Amount of genetic variance shared along the m_max
+ggplot(d_cossim_m_vs_g_sum, 
+       aes(x = model, y = meanbTGb, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = meanbTGb - sebTGb, ymax = meanbTGb + sebTGb,
+                    colour = model), show.legend = F,
+                position = position_dodge(0.9)) +
+  labs(x = "Model", 
+       y = TeX("Evolvability along $m_{max} (m_{max}^T~G~m_{max})$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
 
 ## expect G = M under drift
 
 
 # 5) Evolvability, autonomy and V_A through M
+d_ecr_m <- CalcECRATrait(m_matrices, id_m)
+d_ecr_m <- AddCombosToDF(d_ecr_m)
+
+saveRDS(d_ecr_m, "d_ecr_m.RDS")
+# d_ecr_m <- readRDS("d_ecr_m.RDS")
+
+# Refactor model
+d_ecr_m <- d_ecr_m %>%
+  mutate(model = factor(model, levels = model_names))
+
+# Need to calculate cev means separately for the different models
+# K- shouldn't mean over cev_KZ and KXZ
+d_ecr_m_sum <- d_ecr_m %>%
+  group_by(timePoint, model, r, isAdapted) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
+
+
+ggplot(d_ecr_m %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = timePoint, y = cev, colour = model)) +
+  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = timePoint, y = cev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  labs(x = "Time point", y = "Mean conditional evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_m
+
+ggplot(d_ecr_m %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = timePoint, y = res, colour = model)) +
+  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = timePoint, y = res_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  labs(x = "Time point", y = "Mean respondability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_res_m
+
+ggplot(d_ecr_m %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = timePoint, y = aut, colour = model)) +
+  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = timePoint, y = aut_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  labs(x = "Time point", y = "Mean autonomy",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_aut_m
+
+ggplot(d_ecr_m %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = timePoint, y = ev, colour = model)) +
+  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = timePoint, y = ev_mean, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  labs(x = "Time point", y = "Mean evolvability",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_ev_m
+
+leg <- get_legend(plt_ev_m)
+
+plt_evol_m <- plot_grid(plt_ev_m + theme(legend.position = "none"),
+                      plt_cev_m + theme(legend.position = "none"),
+                      plt_res_m + theme(legend.position = "none"),
+                      plt_aut_m + theme(legend.position = "none"),
+                      ncol = 2, labels = "AUTO", label_size = 12)
+
+plt_evol <- plot_grid(plt_evol,
+                      leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_evol
+ggsave("plt_evol.png", device = png, bg = "white",
+       width = 10, height = 7) 
 
 ## FFBH had high V_A but low adaptation - was VA concentrated along M's leading eigenvectors and misaligned with selection?
 
