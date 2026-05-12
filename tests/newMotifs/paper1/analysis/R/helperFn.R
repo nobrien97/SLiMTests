@@ -1,6 +1,17 @@
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
+model_names_noquote <- c("NAR", "PAR", "FFLC1", 
+                         "FFLI1", "FFBH")
+
+model_names_labeller <- c("'NAR'" = "NAR", 
+                          "'PAR'" = "PAR", 
+                          "'FFLC1'" = "FFLC1", 
+                          "'FFLI1'" = "FFLI1", 
+                          "'FFBH'" = "FFBH")
+
+pal <- paletteer_d("nationalparkcolors::Everglades", 5)[c(1:2, 4, 3, 5)]
+
 # Adds the parameter combination to a dataframe
 AddCombosToDF <- function(df) {
   df %>% ungroup() %>%
@@ -35,6 +46,44 @@ get_legend <- function(plot, legend = NULL) {
     return(gt$grobs[[indices[1]]])
   }
   return(NULL)
+}
+
+# Convert a row to a matrix
+row_to_m <- function(x) {
+  # Get the number of traits and covariance terms
+  n <- 2
+  cov_terms <- 12
+  
+  if (x$model == "FFLC1" | x$model == "FFLI1") {
+    n <- 3
+    cov_terms <- c(12, 13, 23)
+  }
+  
+  if (x$model == "FFBH") {
+    n <- 4
+    cov_terms <- c(12, 13, 14, 23, 24, 34)
+  }
+  
+  # Triangular number for number of covariance terms
+  n_cov <- ((n-1) * n) / 2
+  
+  m <- matrix(NA_real_, nrow = n, ncol = n)
+  
+  # Variances
+  diag(m) <- unlist(x[1,paste0("var_", 1:n)])
+  
+  # Covariances
+  m[lower.tri(m)] <- unlist(x[1,paste0("cov_", cov_terms)])
+  m[upper.tri(m)] <- t(m)[upper.tri(m)]
+  
+  return(m)
+}
+
+Vrel <- function(l) {
+  p <- length(l)
+  avg_l <- mean(l)
+  
+  sum((l - avg_l)^2) / (p * (p-1) * avg_l^2)
 }
 
 
@@ -235,3 +284,11 @@ GetCosineSimilarity <- function(matList, bFrame, id) {
   return(result)
 }
 
+# https://stackoverflow.com/a/28459434
+equal_breaks <- function(n = 3, s = 0.05){
+  function(x){
+    # rescaling
+    d <- s * diff(range(x)) / (1+2*s)
+    seq(min(x)+d, max(x)-d, length=n)
+  }
+}

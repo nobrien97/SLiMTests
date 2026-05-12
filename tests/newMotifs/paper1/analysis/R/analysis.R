@@ -10,163 +10,21 @@ library(nlme)
 library(emmeans)
 library(matrixcalc)
 library(Matrix)
+library(tidymodels)
 
 # Helper functions
 source("helperFn.R")
 
 # Combos
 COMBO_PATH <- '/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
-COMBO_PATH <- '/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
+#COMBO_PATH <- '/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
 d_combos <- read_delim(COMBO_PATH, 
                        delim = " ", col_names = F)
 names(d_combos) <- c("model", "r")
 
-
-
-
-# 1) Network topology shapes M
-
-## Eigenstructure of M for each motif
-# Load M
-DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
-#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
-
-d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
-                                          paste0("mean_", 1:4),
-                                          paste0("var_", 1:4),
-                                          paste0("cov_", c(12, 13, 14, 23, 24, 34))))
-
-d_m <- d_m %>%
-  mutate(model = ModelFromIndexWithR(modelindex))
-  
-# Convert a row to a matrix
-row_to_m <- function(x) {
-  # Get the number of traits and covariance terms
-  n <- 2
-  cov_terms <- 12
-  
-  if (x$model == "FFLC1" | x$model == "FFLI1") {
-    n <- 3
-    cov_terms <- c(12, 13, 23)
-  }
-  
-  if (x$model == "FFBH") {
-    n <- 4
-    cov_terms <- c(12, 13, 14, 23, 24, 34)
-  }
-  
-  # Triangular number for number of covariance terms
-  n_cov <- ((n-1) * n) / 2
-  
-  m <- matrix(NA_real_, nrow = n, ncol = n)
-  
-  # Variances
-  diag(m) <- unlist(x[1,paste0("var_", 1:n)])
-  
-  # Covariances
-  m[lower.tri(m)] <- unlist(x[1,paste0("cov_", cov_terms)])
-  m[upper.tri(m)] <- t(m)[upper.tri(m)]
-  
-  return(m)
-}
-
-# get matrices
-m_matrices <- d_m %>%
-  rowwise() %>%
-  group_map(~ row_to_m(.x))
-
-# Get eigenvectors of each M
-e_m <- lapply(m_matrices, eigen)
-saveRDS(e_m, "eigen_randomised_m.RDS")
-
-e_m <- readRDS("eigen_randomised_m.RDS")
-
-# Calculate relative eigenvalue dispersion
-Vrel <- function(l) {
-  p <- length(l)
-  avg_l <- mean(l)
-  
-  sum((l - avg_l)^2) / (p * (p-1) * avg_l^2)
-}
-
-vrel_m <- unlist(lapply(e_m, function(x) { Vrel(x$values) }))
-
-# Add to data
-d_vrel <- d_m %>%
-  mutate(r = RFromIndex(modelindex),
-         vrel = vrel_m) %>%
-  select(gen, seed, modelindex, model, r, vrel)
-
-# Plot
-d_vrel_sum <- d_vrel %>%
-  group_by(gen, model) %>%
-  summarise(vrel_mean = mean(vrel),
-            vrel_CI = CI(vrel))
-
-
-model_names_noquote <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
-
-ggplot(d_vrel_sum,
-       aes(x = gen - 50000, y = vrel_mean, colour = model)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, fill = model),
-              colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      breaks = model_names_noquote) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    breaks = model_names_noquote) +
-  theme_bw() +
-  theme(text = element_text(size = 12),
-        legend.position = "bottom")
-
-# Stable over time, can take average?
-d_vrel_tab <- d_vrel %>%
-  group_by(model) %>%
-  summarise(vrel_mean = mean(vrel),
-            vrel_CI = CI(vrel))
-d_vrel_tab
-
-lm_vrel <- lm(vrel ~ model, data = d_vrel)
-summary(lm_vrel)
-
-# beta distributed
-hist(d_vrel$vrel, breaks = 100)
-
-br_vrel <- betareg(vrel ~ model, data = d_vrel %>% filter(gen == 60000))
-
-summary(br_vrel)
-
-# SLOW
-# beta_vrel <- brm(
-#   bf(vrel ~ model),
-#   data = d_vrel,
-#   family = Beta(),
-#   chains = 4, iter = 2000, 
-#   cores = 4,
-#   file = "beta_vrel"
-# )
-# 
-# summary(beta_vrel)
-# 
-# vrel_post <- posterior_epred(beta_vrel)
-
-
-# Measure cosine similarity between M matrices and beta
-
-d_opt <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
-d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
-
-# o = optimum, s = sigma, d = direction (-1, 1)
-colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
-                     "s_t1", "s_t2", "s_t3", "s_t4", "d_t1", "d_t2", "d_t3",
-                     "d_t4")
-
-
-
 # Attach quant gen data
 PATH_QG <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
-PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
+#PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 
 d_qg <- data.table::fread(PATH_QG, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -192,6 +50,187 @@ d_qg %>%
   mutate(model = factor(model, levels = model_names)) %>%
   ungroup() -> d_qg
 
+
+
+
+# 1) Network topology shapes M
+
+## Eigenstructure of M for each motif
+# Load M
+DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
+
+d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
+                                          paste0("mean_", 1:4),
+                                          paste0("var_", 1:4),
+                                          paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m <- d_m %>%
+  mutate(model = ModelFromIndexWithR(modelindex))
+  
+
+# get matrices
+# m_matrices <- d_m %>%
+#   rowwise() %>%
+#   group_map(~ row_to_m(.x))
+
+#saveRDS(m_matrices, "m_matrices.RDS")
+m_matrices <- readRDS("m_matrices.RDS")
+
+
+# Get eigenvectors of each M
+#e_m <- lapply(m_matrices, eigen)
+#saveRDS(e_m, "eigen_randomised_m.RDS")
+
+e_m <- readRDS("eigen_randomised_m.RDS")
+
+# Calculate relative eigenvalue dispersion
+
+vrel_m <- unlist(lapply(e_m, function(x) { Vrel(x$values) }))
+
+# Add to data
+d_vrel <- d_m %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         r = RFromIndex(modelindex),
+         vrel = vrel_m) %>%
+  select(gen, seed, modelindex, model, r, vrel)
+
+# join with quant gen data
+d_vrel <- left_join(d_m %>% mutate(seed = factor(seed),
+                                   modelindex = factor(modelindex),
+                                   r = RFromIndex(modelindex),
+                                   vrel = vrel_m),
+                     d_qg %>% select(gen, seed, modelindex, model, r, isAdapted) %>%
+                       mutate(model = str_remove_all(model, "'")),
+                     by = c("gen", "seed", "modelindex", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names_noquote))
+
+
+# Plot
+d_vrel_sum <- d_vrel %>%
+  group_by(gen, model, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+ggplot(d_vrel_sum,
+       aes(x = gen - 50000, y = vrel_mean, colour = model)) +
+  facet_nested(.~"Population adapted" + isAdapted) +
+  geom_line() +
+  geom_ribbon(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, fill = model),
+              colour = NA, alpha = 0.2, show.legend = F) +
+  labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+
+
+
+# Stable over time (except FFLC1, mirrors M evolvability), can take average?
+d_vrel_tab <- d_vrel %>%
+  group_by(model, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+d_vrel_tab
+
+ggplot(d_vrel,
+       aes(x = model, y = vrel, colour = model)) +
+  facet_nested(.~"Population adapted" + isAdapted) +
+  geom_boxplot() +
+  geom_point(data = d_vrel_tab, aes(y = vrel_mean), size = 2, stroke = 1,
+             shape = 21,
+             colour = "black", fill = "white") +
+  labs(x = "Model", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_colour_manual(values = pal,
+                      breaks = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+ggsave("plt_vrel.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+# beta distributed
+hist(d_vrel$vrel, breaks = 100)
+
+br_vrel <- betareg(vrel ~ model + isAdapted, data = d_vrel %>% filter(gen == 60000))
+plot(br_vrel)
+summary(br_vrel)
+
+em.vrel <- emmeans(br_vrel, ~ model + isAdapted, type = "response")
+test(em.vrel)
+pwpp(em.vrel, by = "model")
+
+emmip(em.vrel, ~ model + isAdapted, CIs = T) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Model", y= TeX("Predicted $V_{rel}$")) +
+  theme(text = element_text(size = 12))
+ggsave("plt_pred_vrel.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+
+## V_rel shows that all models are quite anisotropic, but interestingly the FFBH is
+## most isotropic of them all.
+## There is a consistent difference between adapted and maladapted models: adapted
+## have lower V_rel (more isotropy) than maladapted.
+
+# Does the correlation structure among traits reflect correlations among molecular 
+# components?
+## Can look at covariance of trait M with mol comps?
+DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
+#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
+
+t_mc_combos <- expand.grid(1:11, 1:4)
+
+d_m_molcomp <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
+                                         paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)))
+
+d_m_molcomp <- d_m_molcomp %>%
+  mutate(model = ModelFromIndexWithR(modelindex))
+
+# Split cov_ wider
+d_m_molcomp <- d_m_molcomp %>% filter(gen == 60000) %>%
+  pivot_longer(cols = starts_with("cov"),
+               names_to = c("misc", "trait", "component"),
+               names_sep = "_",
+               values_to = "cov") %>%
+  select(-misc)
+
+d_m_molcomp <- left_join(d_m_molcomp %>% mutate(seed = factor(seed),
+                                   modelindex = factor(modelindex),
+                                   r = RFromIndex(modelindex)),
+                    d_qg %>% select(gen, seed, modelindex, model, r, isAdapted) %>%
+                      mutate(model = str_remove_all(model, "'")),
+                    by = c("gen", "seed", "modelindex", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names_noquote))
+
+
+
+d_m_molcomp_sum <- d_m_molcomp %>%
+  group_by(model, isAdapted, trait, component) %>%
+  summarise(meanCov = mean(cov),
+            SECov = se(cov))
+
+# Plot covariances as heatmap
+ggplot(d_m_molcomp_sum, 
+       aes(x = trait, y = component, fill = meanCov)) +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted) +
+  geom_tile() +
+  theme_bw() +
+  labs(x = "Trait", y = "Component", fill = "Covariance")
+
+
+# Measure cosine similarity between M matrices and beta
+
+d_opt <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
+#d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
+
+# o = optimum, s = sigma, d = direction (-1, 1)
+colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
+                     "s_t1", "s_t2", "s_t3", "s_t4", "d_t1", "d_t2", "d_t3",
+                     "d_t4")
 
 
 d_selvec_m <- d_qg %>%
@@ -1310,98 +1349,118 @@ d_ecr_m <- CalcECRATrait(m_matrices, id_m)
 d_ecr_m <- AddCombosToDF(d_ecr_m)
 
 saveRDS(d_ecr_m, "d_ecr_m.RDS")
-# d_ecr_m <- readRDS("d_ecr_m.RDS")
+#d_ecr_m <- readRDS("d_ecr_m.RDS")
 
 # Refactor model
 d_ecr_m <- d_ecr_m %>%
   mutate(model = factor(model, levels = model_names))
 
+# d_ecr_m_plt <- d_ecr_m %>%
+#   filter(timePoint == 50000 | timePoint == 60000) %>%
+#   mutate(timePoint = if_else(timePoint == 50000, "Start", "End"),
+#          timePoint = factor(timePoint, levels = c("Start", "End")))
+
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
 d_ecr_m_sum <- d_ecr_m %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  filter(!is.nan(cev)) %>%
+  mutate(timePoint = timePoint - 50000) %>%
+  group_by(timePoint, model, isAdapted) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
 
-ggplot(d_ecr_m %>%
+ggplot(d_ecr_m_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = cev, colour = model)) +
-  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
-  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = cev_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean conditional evolvability",
+       aes(x = timePoint, y = cev_mean, colour = model)) +
+  facet_nested("Model" + model~"Population adapted" + isAdapted,
+               scales = "free", labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
+  geom_ribbon(aes(ymin = cev_mean - cev_se, ymax = cev_mean + cev_se, 
+                  fill = model), alpha = 0.2, colour = NA, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  scale_y_continuous(breaks = equal_breaks(3, 0.05),
+                     labels = scales::label_scientific(digits = 2)) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post-optimum shift", y = "Mean conditional evolvability (M matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
-        text = element_text(size = 12)) -> plt_cev_m
+        panel.spacing.y = unit(1, "lines"),
+        text = element_text(size = 10)) -> plt_cev_m
+plt_cev_m
 
-ggplot(d_ecr_m %>%
+ggplot(d_ecr_m_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = res, colour = model)) +
-  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
-  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = res_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean respondability",
+       aes(x = timePoint, y = res_mean, colour = model)) +
+  facet_nested("Model" + model~"Population adapted" + isAdapted,
+               scales = "free", labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
+  geom_ribbon(aes(ymin = res_mean - res_se, ymax = res_mean + res_se, 
+                  fill = model), alpha = 0.2, colour = NA, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  scale_y_continuous(breaks = equal_breaks(3, 0.05),
+                     labels = scales::label_scientific(digits = 2)) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post-optimum shift", y = "Mean respondability (M matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
-        text = element_text(size = 12)) -> plt_res_m
+        panel.spacing.y = unit(1, "lines"),
+        text = element_text(size = 10)) -> plt_res_m
 
-ggplot(d_ecr_m %>%
+ggplot(d_ecr_m_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = aut, colour = model)) +
-  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
-  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = aut_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean autonomy",
+       aes(x = timePoint, y = aut_mean, colour = model)) +
+  facet_nested("Model" + model~"Population adapted" + isAdapted,
+               scales = "free", labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
+  geom_ribbon(aes(ymin = aut_mean - aut_se, ymax = aut_mean + aut_se, 
+                  fill = model), alpha = 0.2, colour = NA, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  scale_y_continuous(breaks = equal_breaks(3, 0.05),
+                     labels = scales::label_scientific(digits = 2)) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Generations post-optimum shift", y = "Mean autonomy (M matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
-        text = element_text(size = 12)) -> plt_aut_m
+        panel.spacing.y = unit(1, "lines"),
+        text = element_text(size = 10)) -> plt_aut_m
+plt_aut_m
 
-ggplot(d_ecr_m %>%
+
+ggplot(d_ecr_m_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = ev, colour = model)) +
-  facet_nested(r_title + log10(r)~"Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
-  geom_point(data = d_ecr_m_sum %>% ungroup() %>%
-               mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = ev_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean evolvability",
+       aes(x = timePoint, y = ev_mean, colour = model)) +
+  facet_nested("Model" + model~"Population adapted" + isAdapted,
+               scales = "free", labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
+  geom_ribbon(aes(ymin = ev_mean - ev_se, ymax = ev_mean + ev_se, 
+                  fill = model), alpha = 0.2, colour = NA, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_y_continuous(breaks = equal_breaks(3, 0.05),
+                     labels = scales::label_scientific(digits = 2)) +
+  labs(x = "Generations post-optimum shift", y = "Mean evolvability (M matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
-        text = element_text(size = 12)) -> plt_ev_m
+        panel.spacing.y = unit(1, "lines"),
+        text = element_text(size = 10)) -> plt_ev_m
+
+plt_ev_m
 
 leg <- get_legend(plt_ev_m)
 
@@ -1411,13 +1470,33 @@ plt_evol_m <- plot_grid(plt_ev_m + theme(legend.position = "none"),
                       plt_aut_m + theme(legend.position = "none"),
                       ncol = 2, labels = "AUTO", label_size = 12)
 
-plt_evol <- plot_grid(plt_evol,
+plt_evol_m <- plot_grid(plt_evol_m,
                       leg, nrow = 2, rel_heights = c(1, 0.05))
-plt_evol
-ggsave("plt_evol.png", device = png, bg = "white",
-       width = 10, height = 7) 
+plt_evol_m
+ggsave("plt_evol_m.png", device = png, bg = "white",
+       width = 10, height = 8) 
 
-## FFBH had high V_A but low adaptation - was VA concentrated along M's leading eigenvectors and misaligned with selection?
+## Variation in the M matrix (across all selection gradients) differs between motifs
+## All models see increases in conditional evolvability in adapted vs maladapted pops
+## NAR, PAR, and FFLI1 models behave similarly in the other three: increases to evolvability
+## and respondability in adapted vs maladapted, decrease in autonomy (leveraging mutational
+## correlations, interesting). FFLC1 and FFBH behave similarly in the opposite direction:
+## adapted pops have reduced evolvability, increased autonomy and reduced respondability
+
+## increase in autonomy suggests that trait correlations severely limit adaptation in those
+## two, there is a requirement to reduce developmental constraints to increase the conditional
+## evolvability. A side effect is a decrease in net evolvability and respondability however.
+## how does this occur? Adapted populations have an M matrix which is uncorrelated, but can only make
+## small changes as a result? Whereas for other populations, correlations are less problematic,
+## so larger pleiotropic effects are tolerable, increasing overall evolvability and conditional
+## ev without strongly hampering fitness?
+
+## This is average across all directions
+
+
+
+## FFBH had high V_A but low adaptation - was VA concentrated along M's leading 
+# eigenvectors and misaligned with selection?
 
 ## Conditional evolvability in the direction of selection predicts adaptive success
 
