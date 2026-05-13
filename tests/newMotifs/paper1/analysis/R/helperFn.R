@@ -86,6 +86,27 @@ Vrel <- function(l) {
   sum((l - avg_l)^2) / (p * (p-1) * avg_l^2)
 }
 
+# Setup correlation matrices
+make_matrix <- function(x) {
+  # triangular number to get length
+  t <- nrow(x) 
+  n <- ((-1 + sqrt(1 + 8 * t)) / 2) + 1
+  
+  cor_mat <- array(1, dim = c(n, n, 3))
+  
+  # lower CI
+  cor_mat[,,1][lower.tri(cor_mat[,,1])] <- x$r_post_ci_lower
+  cor_mat[,,1][upper.tri(cor_mat[,,1])] <- t(cor_mat[,,1])[upper.tri(cor_mat[,,1])]
+  # mean
+  cor_mat[,,2][lower.tri(cor_mat[,,2])] <- x$r_post_mean
+  cor_mat[,,2][upper.tri(cor_mat[,,2])] <- t(cor_mat[,,2])[upper.tri(cor_mat[,,2])]
+  # upper CI
+  cor_mat[,,3][lower.tri(cor_mat[,,3])] <- x$r_post_ci_upper
+  cor_mat[,,3][upper.tri(cor_mat[,,3])] <- t(cor_mat[,,3])[upper.tri(cor_mat[,,3])]
+  
+  return(cor_mat)
+}
+
 
 
 ModelFromIndex <- function(id) {

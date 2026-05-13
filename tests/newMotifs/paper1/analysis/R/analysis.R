@@ -180,7 +180,7 @@ ggsave("plt_pred_vrel.png", device = png, bg = "white",
 # components?
 ## Can look at covariance of trait M with mol comps?
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
-#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
+DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 
 t_mc_combos <- expand.grid(1:11, 1:4)
 
@@ -210,8 +210,8 @@ d_m_molcomp <- left_join(d_m_molcomp %>% mutate(seed = factor(seed),
 
 d_m_molcomp_sum <- d_m_molcomp %>%
   group_by(model, isAdapted, trait, component) %>%
-  summarise(meanCov = mean(cov),
-            SECov = se(cov))
+  summarise(meanCov = mean(abs(cov)),
+            SECov = se(abs(cov)))
 
 # Plot covariances as heatmap
 ggplot(d_m_molcomp_sum, 
@@ -222,10 +222,12 @@ ggplot(d_m_molcomp_sum,
   labs(x = "Trait", y = "Component", fill = "Covariance")
 
 
+
+
 # Measure cosine similarity between M matrices and beta
 
 d_opt <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
-#d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -290,52 +292,44 @@ d_cossim_m <- readRDS("d_cossim_m.RDS")
 d_cossim_m <- AddCombosToDF(d_cossim_m)
 
 d_cossim_m_sum <- d_cossim_m %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  mutate(timePoint = timePoint - 50000) %>%
+  group_by(timePoint, model, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
                    seCosSim = se(sqrt(cosSim^2), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
-d_cossim_m_sum$model <- as.factor(d_cossim_m_sum$model)
+d_cossim_m_sum$model <- factor(d_cossim_m_sum$model, levels = model_names)
 
 
 ggplot(d_cossim_m_sum, 
        aes(x = timePoint, y = meanCosSim, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
   geom_line() +
   geom_ribbon(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Absolute cosine similarity between $m_{max}$ and $\\beta"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  
-  #coord_cartesian(ylim = c(0, 1)) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal, labels = model_names_noquote) +
+  scale_fill_manual(values = pal, labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
 ggplot(d_cossim_m_sum, 
        aes(x = timePoint, y = meanbTGb, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested("Model" + model~ "Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
   geom_line() +
   geom_ribbon(aes(ymin = meanbTGb - sebTGb, ymax = meanbTGb + sebTGb,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Evolvability ($\\beta^T M \\beta$)"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                    breaks = model_names) +
-  
-  #coord_cartesian(ylim = c(0, 1)) +
+  scale_colour_manual(values = pal, labels = model_names_noquote) +
+  scale_fill_manual(values = pal, labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -344,7 +338,7 @@ ggplot(d_cossim_m_sum,
 ## Neutral trait correlations
 
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
-#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
+DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
 
 d_qg_traitCor <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", "meanH", 
                                           paste0("phenomean_", 1:4),
@@ -394,31 +388,21 @@ r_long <- as.data.frame(t(r_post)) %>%
          !(model == "PAR" & grepl("[3-4]", traitCombo)),
          !(model == "FFLC1" & grepl("[4]", traitCombo)),
          !(model == "FFLI1" & grepl("[4]", traitCombo)))
-  
 
-# Setup correlation matrices
-make_matrix <- function(x) {
-  # triangular number to get length
-  t <- nrow(x) 
-  n <- ((-1 + sqrt(1 + 8 * t)) / 2) + 1
-  
-  cor_mat <- array(1, dim = c(n, n, 3))
-  
-  # lower CI
-  cor_mat[,,1][lower.tri(cor_mat[,,1])] <- x$r_post_ci_lower
-  cor_mat[,,1][upper.tri(cor_mat[,,1])] <- t(cor_mat[,,1])[upper.tri(cor_mat[,,1])]
-  # mean
-  cor_mat[,,2][lower.tri(cor_mat[,,2])] <- x$r_post_mean
-  cor_mat[,,2][upper.tri(cor_mat[,,2])] <- t(cor_mat[,,2])[upper.tri(cor_mat[,,2])]
-  # upper CI
-  cor_mat[,,3][lower.tri(cor_mat[,,3])] <- x$r_post_ci_upper
-  cor_mat[,,3][upper.tri(cor_mat[,,3])] <- t(cor_mat[,,3])[upper.tri(cor_mat[,,3])]
-  
-  return(cor_mat)
-}
+d_traitCor_sum <- d_qg_traitCor_mdl %>%
+  group_by(gen, modelindex, model, traitCombo) %>%
+  summarise(r_post_mean = mean(cor),
+            r_post_ci = CI(cor),
+            r_post_ci_lower = r_post_mean - CI(r_post),
+            r_post_ci_upper = r_post_mean + CI(r_post)) %>%
+  filter(!(model == "NAR" & grepl("[3-4]", traitCombo)), # remove invalid trait combinations
+         !(model == "PAR" & grepl("[3-4]", traitCombo)),
+         !(model == "FFLC1" & grepl("[4]", traitCombo)),
+         !(model == "FFLI1" & grepl("[4]", traitCombo)))
 
+  
 # Store as correlation matrices - alphabetical order
-cor_mats <- r_long %>%
+cor_mats <- d_traitCor_sum %>%
   mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
   group_by(model) %>%
   group_map(~ make_matrix(.x))
@@ -519,9 +503,7 @@ ggplot(d_h2_trait %>%
   labs(x = "Time point", 
        y = TeX("Narrow-sense heritability $(h^2)$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+  scale_colour_manual(values = pal, labels = model_names) +
   coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
@@ -543,11 +525,8 @@ ggplot(d_h2_trait %>%
   labs(x = "Time point", 
        y = TeX("Additive variance in fitness $(VA)$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names,
-                      guide = guide_legend(override.aes = list(shape = 16,
-                                                               size = 3))) +
+  scale_colour_manual(values = pal,
+                      labels = model_names) +
   coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
@@ -635,7 +614,7 @@ d_cossim <- GetCosineSimilarity(h2_pd, d_selvec2 %>% select(ends_with("dir")), i
 d_cossim <- AddCombosToDF(d_cossim)
 
 d_cossim_sum <- d_cossim %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(timePoint, model, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
                    seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
@@ -645,7 +624,7 @@ d_cossim_sum$model <- as.factor(d_cossim_sum$model)
 
 ggplot(d_cossim, 
        aes(x = timePoint, y = sqrt(cosSim^2), colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_cossim_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -655,17 +634,15 @@ ggplot(d_cossim,
   labs(x = "Time point", 
        y = TeX("Absolute cosine similarity between $g_{max}$ and $\\beta"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  #coord_cartesian(ylim = c(0, 1)) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
 ggplot(d_cossim, 
        aes(x = timePoint, y = bTMb, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_cossim_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -675,10 +652,9 @@ ggplot(d_cossim,
   labs(x = "Time point", 
        y = TeX("Evolvability ($\\beta^T G \\beta$)"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  coord_cartesian(ylim = c(0, 1)) +
+  scale_colour_manual(values = pal,
+                      labels = model_names) +
+  #coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -693,89 +669,93 @@ d_ecr <- d_ecr %>%
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
 d_ecr_sum <- d_ecr %>%
-  group_by(timePoint, model, r) %>%
+  group_by(model, isAdapted) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = cev, colour = model)) +
-  facet_nested(r_title + log10(r)~.) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = cev, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = cev_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean conditional evolvability",
+             aes(x = model, y = cev_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean conditional evolvability (G matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_cev
+plt_cev
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = res, colour = model)) +
-  facet_nested(r_title + log10(r)~.) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = res, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = res_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean respondability",
+             aes(x = model, y = res_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean respondability (G matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_res
+plt_res
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = aut, colour = model)) +
-  facet_nested(r_title + log10(r)~.) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = aut, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = aut_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean autonomy",
+             aes(x = model, y = aut_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean autonomy (G matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_aut
+plt_aut
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
-       aes(x = timePoint, y = ev, colour = model)) +
-  facet_nested(r_title + log10(r)~.) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = ev, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
-             aes(x = timePoint, y = ev_mean, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  labs(x = "Time point", y = "Mean evolvability",
+             aes(x = model, y = ev_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean evolvability (G matrix)",
        colour = "Model") +
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
         legend.margin = margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_ev
+plt_ev
 
 leg <- get_legend(plt_ev)
 
@@ -788,7 +768,7 @@ plt_evol <- plot_grid(plt_ev + theme(legend.position = "none"),
 plt_evol <- plot_grid(plt_evol,
                       leg, nrow = 2, rel_heights = c(1, 0.05))
 plt_evol
-ggsave("plt_evol.png", device = png, bg = "white",
+ggsave("plt_evol_g.png", device = png, bg = "white",
        width = 10, height = 7)
 
 
@@ -817,56 +797,64 @@ d_trait_cor <- as.data.frame(t(as.data.frame(cor_eig[id$corMatIndex])))
 d_cossim_R <- GetCosineSimilarity(h2_cor, d_trait_cor, id)
 
 d_cossim_R <- AddCombosToDF(d_cossim_R)
+d_cossim_R$model <- factor(d_cossim_R$model, levels = model_names)
 
 d_cossim_R_sum <- d_cossim_R %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(model, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
                    seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
-d_cossim_R_sum$model <- as.factor(d_cossim_R_sum$model)
 
 
 ggplot(d_cossim_R, 
-       aes(x = timePoint, y = abs(cosSim), colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = abs(cosSim), colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_cossim_R_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
-             aes(x = timePoint, y = meanCosSim, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  labs(x = "Time point", 
+             aes(x = model, y = meanCosSim, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  labs(x = "Model", 
        y = TeX("Absolute cosine similarity between $g_{max}$ and $r_{max}$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
   #coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_cossim_gmax_R
 
 ggplot(d_cossim_R, 
-       aes(x = timePoint, y = bTMb, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+       aes(x = model, y = bTMb, colour = model)) +
+  facet_nested(. ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_cossim_R_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
-             aes(x = timePoint, y = meanbTGb, group = model), colour = "black",
-             shape = 3, size = 2, position = position_dodge(0.9)) +
-  labs(x = "Time point", 
+             aes(x = model, y = meanbTGb, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  labs(x = "Model", 
        y = TeX("Evolvability ($r_{max}^T G ~r_{max}$)"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_rtgr
 
-# M 
+plot_grid(plt_cossim_gmax_R,
+          plt_rtgr,
+          ncol = 2,
+          labels = "AUTO")
+
+####################################
+
+
+# M vs trait correlation
 m_cor <- vector(mode = "list", length(m_matrices))
 for (i in seq_along(m_matrices)) {
   result <- cov2cor(m_matrices[[i]])
@@ -883,57 +871,68 @@ id_m <- id_m %>%
 d_m_cor <- as.data.frame(t(as.data.frame(cor_eig[id_m$corMatIndex])))
 
 # Measure cosine similarity between M matrix correlations and neutral trait correlations
-d_cossim_m_traitcor <- GetCosineSimilarity(m_cor, d_m_cor, id_m)
+#d_cossim_m_traitcor <- GetCosineSimilarity(m_cor, d_m_cor, id_m)
 
-saveRDS(d_cossim_m_traitcor, "d_cossim_m_traitcor.RDS")
+#saveRDS(d_cossim_m_traitcor, "d_cossim_m_traitcor.RDS")
+
+d_cossim_m_traitcor <- readRDS("d_cossim_m_traitcor.RDS")
 
 d_cossim_m_traitcor <- AddCombosToDF(d_cossim_m_traitcor)
+d_cossim_m_traitcor$model <- factor(d_cossim_m_traitcor$model, levels = model_names)
+d_cossim_m_traitcor$timePoint <- d_cossim_m_traitcor$timePoint - 50000
+
 
 d_cossim_m_traitcor_sum <- d_cossim_m_traitcor %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(timePoint, model, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
                    seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
-d_cossim_m_traitcor_sum$model <- as.factor(d_cossim_m_traitcor_sum$model)
 
 ggplot(d_cossim_m_traitcor_sum, 
        aes(x = timePoint, y = meanCosSim, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_line() +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
   geom_ribbon(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Absolute cosine similarity between $m_{max}$ and $r_{max}$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                    breaks = model_names) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                      labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_cossim_mmax_r
+plt_cossim_mmax_r
+
 
 ggplot(d_cossim_m_traitcor_sum, 
        aes(x = timePoint, y = meanbTGb, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_line() +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
   geom_ribbon(aes(ymin = meanbTGb - sebTGb, ymax = meanbTGb + sebTGb,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Evolvability ($r_{max}^T M r_{max}$)"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                    breaks = model_names) +
+  scale_y_continuous(breaks = equal_breaks(3, 0.05),
+                     labels = scales::label_number(digits = 2)) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_rtmr
+plt_rtmr
 
 # Adapted populations look like they have less variation along the trait correlation axis
 ## need to get around the constraint
@@ -948,104 +947,87 @@ d_cossim_corBeta <- GetCosineSimilarity(corBeta_mats, d_selvec_m %>% select(ends
 
 saveRDS(d_cossim_corBeta, "d_cossim_corBeta.RDS")
 
+d_cossim_corBeta <- readRDS("d_cossim_corBeta.RDS")
+
 d_cossim_corBeta <- AddCombosToDF(d_cossim_corBeta)
+d_cossim_corBeta$model <- factor(d_cossim_corBeta$model, levels = model_names)
+d_cossim_corBeta$timePoint <- d_cossim_corBeta$timePoint - 50000
 
 d_cossim_corBeta_sum <- d_cossim_corBeta %>%
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(timePoint, model, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
                    seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
                    sebTGb = se(bTMb, na.rm = T))
-d_cossim_corBeta_sum$model <- as.factor(d_cossim_corBeta_sum$model)
 
 ggplot(d_cossim_corBeta_sum, 
        aes(x = timePoint, y = meanCosSim, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_line() +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
   geom_ribbon(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Absolute cosine similarity between $r_{max}$ and $\\beta$"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                    breaks = model_names) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_cossim_rmax_beta
+plt_cossim_rmax_beta
 
-#  Across all points
-ggplot(d_cossim_corBeta, 
-       aes(x = abs(cosSim), fill = model)) +
-  facet_nested("Model" + model ~ "Population adapted" + isAdapted) +
-  geom_histogram(bins = 100, show.legend = F) +
-  labs(
-       x = TeX("Absolute cosine similarity between $r_{max}$ and $\\beta$"),
-       fill = "") +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  theme_bw() +
-  theme(text = element_text(size = 14),
-        legend.position = "bottom")
-
-
+## Increase in alignment of rmax with beta in FFLC1 adapted models corresponds to 
+## increased conditional evolvability (M matrix) and reduced autonomy
+## In other words, when trait correlations align with selection, mutational variance
+## spikes along that direction
 
 ggplot(d_cossim_corBeta_sum, 
        aes(x = timePoint, y = meanbTGb, colour = model)) +
-  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
-  geom_line() +
+  facet_nested("Model" + model ~ "Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
+  geom_line(show.legend = F) +
   geom_ribbon(aes(ymin = meanbTGb - sebTGb, ymax = meanbTGb + sebTGb,
                   fill = model), colour = NA, alpha = 0.2, show.legend = F) +
-  labs(x = "Time point", 
+  labs(x = "Generations post-optimum shift", 
        y = TeX("Evolvability ($\\beta^T R \\beta$)"),
        colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                    breaks = model_names) +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
-        legend.position = "bottom")
+        legend.position = "bottom") -> plt_btrb
 
 
-# Is the probability that you are adapted predicted well by the cosine similarity between r_max and beta,
-# or by model type alone
-
-d_cossim_corBeta_abs <- d_cossim_corBeta %>%
-  mutate(absCosSim = abs(cosSim)) %>%
-  filter(timePoint == 60000)
-
-lm_rmax_beta <- glm(isAdapted ~ model * absCosSim,
-                    data = d_cossim_corBeta_abs,
-                    family = "binomial")
-plot(lm_rmax_beta)
-summary(lm_rmax_beta)
-
-em_rmax_beta <- emmeans(lm_rmax_beta, ~ model * absCosSim, 
-                        at = list(absCosSim = c(0.1, 0.5, 0.9)),
-                        type = "response")
-summary(em_rmax_beta)
-test(em_rmax_beta)
-emmip(em_rmax_beta, model ~ absCosSim)
-
-# Or flip the model: what is the cosine similarity of maladapted/adapted pops
+# what is the cosine similarity of maladapted/adapted pops
 
 gls_cossim_rmax_beta <- gls(absCosSim ~ model * isAdapted,
                            data = d_cossim_corBeta_abs,
                            weights = varIdent(form = ~ 1 | model * isAdapted))
 summary(gls_cossim_rmax_beta)
+plot(gls_cossim_rmax_beta)
 em_cossim_rmax_beta <- emmeans(gls_cossim_rmax_beta, ~ model * isAdapted,
                         type = "response")
 summary(em_cossim_rmax_beta)
 test(em_cossim_rmax_beta)
 emmip(em_cossim_rmax_beta, model ~ isAdapted)
+pwpp(em_cossim_rmax_beta, by = "model")
 
+emmip(em_cossim_rmax_beta, ~ model + isAdapted, CIs = T) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Model", y= TeX("Predicted $abs(cos(\\theta)_\\beta^{rmax})$")) +
+  theme(text = element_text(size = 12))
+ggsave("plt_pred_cossim_beta_rmax.png", device = png, bg = "white",
+       width = 8, height = 6)
 
 # Prediction says that cosine similarity between beta and r_max decreases in adapted pops
 ## except for FFLI1, FFLC1 not significant
@@ -1063,6 +1045,7 @@ em_bTRb_rmax_beta <- emmeans(gls_bTRb_rmax_beta, ~ model * isAdapted,
 summary(em_bTRb_rmax_beta)
 test(em_bTRb_rmax_beta)
 emmip(em_bTRb_rmax_beta, model ~ isAdapted)
+pwpp(em_bTRb_rmax_beta, by = "model")
 
 
 ## GLS for Gmax
@@ -1079,6 +1062,8 @@ em_cossim_gmax_beta <- emmeans(gls_cossim_gmax_beta, ~ model * isAdapted,
 summary(em_cossim_gmax_beta)
 test(em_cossim_gmax_beta)
 emmip(em_cossim_gmax_beta, model ~ isAdapted, CIs = T)
+pwpp(em_cossim_gmax_beta, by = "model")
+
 
 ## bTGb
 gls_bTGb_gmax_beta <- gls(bTMb ~ model * isAdapted,
@@ -1090,6 +1075,7 @@ em_bTGb_gmax_beta <- emmeans(gls_bTGb_gmax_beta, ~ model * isAdapted,
 summary(em_bTGb_gmax_beta)
 test(em_bTGb_gmax_beta)
 emmip(em_bTGb_gmax_beta, model ~ isAdapted, CIs = T)
+pwpp(em_bTGb_gmax_beta, by = "model")
 
 # M matrix
 d_cossim_mmax_abs <- d_cossim_m %>%
@@ -1224,7 +1210,20 @@ em_btgb_malign <- emmeans(gls_btgb_malign, ~ absCS_Mb * model,
                           at = list(absCS_Mb = c(0, 0.5, 1)))
 summary(em_btgb_malign)
 test(em_btgb_malign)
-emmip(em_btgb_malign, model ~ absCS_Mb, CIs = T)
+emmip(em_btgb_malign, model ~ absCS_Mb, CIs = T) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1)) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  labs(x = TeX("Predicted $abs(cos(\\theta)_M^\\beta)$"), y= TeX("Predicted $abs(cos(\\theta)_G^\\beta)$")) +
+  theme(text = element_text(size = 12))
+emmeans::contrast(em_btgb_malign)
+ggsave("plt_pred_cossimGbeta_cossimMbeta.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+# Both G and M tend to be correlated with the direction of selection, not for NAR or PAR though
+## But not a 1:1 relationship, Gmax is often misaligned with beta
+
+
 
 ## Positive relationship between bTGb and cosine similarity between M and b
 ## evolvability along the selection gradient increases when mutational variance is biased
@@ -1263,14 +1262,6 @@ id_m_g_matched <- AddCombosToDF(id_m_g_matched)
 # covariance instead of correlation matrices
 m_cov_for_g_match <- m_matrices[id_m_g_matched$m_idx]
 
-m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) return(eigen(x)$vectors[,1]))
-m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
-  result <- numeric(4)
-  result[1:length(x)] <- x
-  return(result)
-})
-
-
 m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
   result <- matrix(0, 4, 4)
   result[1:nrow(x), 1:nrow(x)] <- x
@@ -1280,7 +1271,7 @@ m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
 ## Angle between leading eigenvectors of M and G
 d_cossim_m_vs_g <- GetCosineSimilarityTwoMats(h2_pd, m_cov_for_g_match, id_m_g_matched)
 d_cossim_m_vs_g <- AddCombosToDF(d_cossim_m_vs_g)
-d_cossim_m_vs_g$model <- factor(d_cossim_m_vs_g$model)
+d_cossim_m_vs_g$model <- factor(d_cossim_m_vs_g$model, levels = model_names)
                                     
 d_cossim_m_vs_g_sum <- d_cossim_m_vs_g %>%
   group_by(model, isAdapted) %>%
@@ -1291,35 +1282,25 @@ d_cossim_m_vs_g_sum <- d_cossim_m_vs_g %>%
 
 # similarity between g_max and m_max
 ggplot(d_cossim_m_vs_g, 
-       aes(x = abs(cosSim), fill = model)) +
-  facet_nested("Model" + model ~ "Population adapted" + isAdapted) +
-  geom_density(alpha = 0.2, show.legend = F) +
-  labs(x = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
-       fill = "Model") +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
-  theme_bw() +
-  theme(text = element_text(size = 14),
-        legend.position = "bottom")
-
-ggplot(d_cossim_m_vs_g_sum, 
-       aes(x = model, y = meanCosSim, colour = model)) +
+       aes(x = model, y = abs(cosSim), colour = model)) +
   facet_nested(.~ "Population adapted" + isAdapted) +
-  geom_point(position = position_dodge(0.9)) +
-  geom_errorbar(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
-                    colour = model), show.legend = F,
-                position = position_dodge(0.9)) +
-  labs(x = "Model", 
-       y = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
-       colour = "Model") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
-                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
-                      breaks = model_names) +
+  geom_quasirandom(show.legend = F) +
+  geom_point(data = d_cossim_m_vs_g_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      adapted_title = "Did the population adapt?"),
+             aes(x = model, y = meanCosSim, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  labs(x = "Model", y = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
+       fill = "Model") +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
+ggsave("plt_cossim_gmax_mmax.png", device = png, bg = "white",
+       width = 8, height = 4)
 
 
 # Amount of genetic variance shared along the m_max
