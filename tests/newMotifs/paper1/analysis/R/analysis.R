@@ -11,6 +11,8 @@ library(emmeans)
 library(matrixcalc)
 library(Matrix)
 library(tidymodels)
+library(randomForest)
+library(caret)
 
 # Helper functions
 source("helperFn.R")
@@ -1176,7 +1178,9 @@ d_btgb_Malign_sum <- d_btgb_Malign %>%
   summarise(meanCosSim_Gb = mean(absCS_Gb),
             CICosSim_Gb = CI(absCS_Gb),
             meanCosSim_Mb = mean(absCS_Mb),
-            CICosSim_Mb = CI(absCS_Mb))
+            CICosSim_Mb = CI(absCS_Mb),
+            meanbTGb = mean(bTGb),
+            CIbTGb = CI(bTGb))
 
 ggplot(d_btgb_Malign_sum,
        aes(x = meanCosSim_Mb, y = meanCosSim_Gb, colour = model)) +
@@ -1198,8 +1202,154 @@ ggplot(d_btgb_Malign_sum,
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
-### 
+### cos(theta)M_beta vs bTGb
+ggplot(d_btgb_Malign_sum,
+       aes(x = meanCosSim_Mb, y = meanbTGb, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(ymin = meanbTGb - CIbTGb,
+                    ymax = meanbTGb + CIbTGb)) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("M matrix/selection alignment ($abs(cos(\\theta)_\\beta^{M})$)"), 
+       y = TeX("Evolvability ($\\beta^TG\\beta$)"),
+       colour = "Model") +
+  coord_cartesian(xlim = c(0, 1)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
 
+### Alignment vs Selection probability
+d_isAdapted <- d_h2_trait %>%
+  filter(gen == 50000) %>%
+  select(seed, modelindex, model, r, isAdapted) %>%
+  distinct(.keep_all = T)
+d_isAdapted <- as.data.frame(table(d_isAdapted$model, d_isAdapted$isAdapted))
+d_isAdapted <- d_isAdapted %>%
+  rename(model = Var1,
+         isAdapted = Var2)
+
+# Check we have 208 replicates * 3 r levels = 624 per model
+d_isAdapted %>%
+  group_by(model) %>%
+  summarise(total = sum(Freq))
+
+# join isAdapted counts
+d_btgb_Malign_sum <- left_join(d_btgb_Malign_sum %>% 
+                                 mutate(model = factor(model, levels = model_names),
+                                        isAdapted = factor(isAdapted)),
+                               d_isAdapted,
+                               by = c("model", "isAdapted"))
+
+ggplot(d_btgb_Malign_sum %>% mutate(Freq = Freq / 624),
+       aes(x = meanCosSim_Mb, y = Freq, colour = model)) +
+  facet_nested(.~ "Population adapted" + isAdapted) +
+  #geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("M matrix/selection alignment ($abs(cos(\\theta)_\\beta^{M})$)"), 
+       y = "Proportion of populations",
+       colour = "Model") +
+  coord_flip(xlim = c(0, 1)) + 
+  scale_colour_manual(values = pal,
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
+d_btgb_Malign_adapted <- d_btgb_Malign %>% filter(isAdapted)
+
+gls_btmb_adapt <- gls(bTMb ~ model, data = d_btgb_Malign_adapted,
+                      weights = varIdent(form = ~ 1 | model))
+summary(gls_btmb_adapt)
+em_btgb_adapt <- emmeans(gls_btmb_adapt, ~ model,
+                          type = "response")
+summary(em_btgb_adapt)
+test(em_btgb_adapt)
+emmip(em_btgb_adapt, ~ model, CIs = T) +
+  theme_bw() +
+  labs(x = TeX("Model"), y= TeX("Predicted $\\beta^TM\\beta$")) +
+  theme(text = element_text(size = 12))
+emmeans::contrast(em_btgb_adapt)
+
+
+# Does M/beta alignment predict population adaptedness?
+## use random forest
+d_btgb_Malign_rf <- d_btgb_Malign %>%
+  mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE")),
+         model = factor(model, levels = model_names),
+         timePoint = factor(timePoint, levels = c("Start", "End")),
+         r = factor(log10(r), levels = c(-10, -5, -1))) %>%
+  select(isAdapted, model, timePoint, r, absCS_Mb)
+
+# seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 18799215
+seed <- 18799215
+set.seed(seed)
+idx <- sample(2, nrow(d_btgb_Malign_rf), replace = T, prob = c(0.7, 0.3))
+train_mbeta_adapted <- d_btgb_Malign_rf[idx == 1,]
+test_mbeta_adapted <- d_btgb_Malign_rf[idx == 2,]
+
+rf_mbeta_adapted <- randomForest(formula = isAdapted ~ model * timePoint * r * absCS_Mb,
+                                 data = train_mbeta_adapted,
+                                 ntree = 500,
+                                 proximity = T,
+                                 importance = T,
+                                 type = "classification")
+print(rf_mbeta_adapted)
+
+# Training data
+p_train_mbeta_adapted <- predict(rf_mbeta_adapted, train_mbeta_adapted)
+confusionMatrix(p_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
+
+# Test data
+p_test_mbeta_adapted <- predict(rf_mbeta_adapted, test_mbeta_adapted)
+confusionMatrix(p_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+
+# Plot errors (black line = OOB, red = false positive, green = false negative)
+plot(rf_mbeta_adapted)
+
+# Number of nodes per tree
+hist(treesize(rf_mbeta_adapted),
+     main = "# Nodes for the RF trees",
+     col = "forestgreen")
+
+# variable importance
+varImpPlot(rf_mbeta_adapted,
+           sort = T, type = 1, scale = T)
+importance(rf_mbeta_adapted, type = 1)
+
+# r is not important
+boruta_adapted <- Boruta::Boruta(isAdapted ~ .,
+               data = d_btgb_Malign_rf)
+boruta_adapted
+plot(boruta_adapted)
+
+
+# partial dependence
+partialPlot(x = rf_mbeta_adapted,
+            pred.data = train_mbeta_adapted,
+            x.var = model)
+
+
+MDSplot(rf_mbeta_adapted, train_mbeta_adapted$model,
+        pal = pal)
+legend("topright", legend = model_names_noquote,
+       fill = pal)
+ggsave("plt_rf_mbeta_adapted_mds.png", device = png, 
+       width = 5, height = 5, bg = "white")
+
+
+
+#########################
 
 gls_btgb_malign <- gls(bTGb ~ absCS_Mb * model,
                           data = d_btgb_Malign,
