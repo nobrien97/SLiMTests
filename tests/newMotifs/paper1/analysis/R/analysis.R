@@ -13,20 +13,22 @@ library(Matrix)
 library(tidymodels)
 library(randomForest)
 library(caret)
+library(iml)
 
 # Helper functions
 source("helperFn.R")
 
 # Combos
 COMBO_PATH <- '/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
-#COMBO_PATH <- '/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
+COMBO_PATH <- '/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
 d_combos <- read_delim(COMBO_PATH, 
                        delim = " ", col_names = F)
 names(d_combos) <- c("model", "r")
 
 # Attach quant gen data
 PATH_QG <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
-#PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
+PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
+PATH_QG <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
 
 d_qg <- data.table::fread(PATH_QG, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -60,7 +62,8 @@ d_qg %>%
 ## Eigenstructure of M for each motif
 # Load M
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
-#DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
+DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
 
 d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                           paste0("mean_", 1:4),
@@ -183,6 +186,7 @@ ggsave("plt_pred_vrel.png", device = png, bg = "white",
 ## Can look at covariance of trait M with mol comps?
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
 
 t_mc_combos <- expand.grid(1:11, 1:4)
 
@@ -230,6 +234,7 @@ ggplot(d_m_molcomp_sum,
 
 d_opt <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
 d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -341,6 +346,7 @@ ggplot(d_cossim_m_sum,
 
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
+DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/neutralCorr/slim_qg.csv"
 
 d_qg_traitCor <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex", "meanH", 
                                           paste0("phenomean_", 1:4),
@@ -405,12 +411,12 @@ d_traitCor_sum <- d_qg_traitCor_mdl %>%
   
 # Store as correlation matrices - alphabetical order
 cor_mats <- d_traitCor_sum %>%
-  mutate(model = factor(model, levels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"))) %>%
+  mutate(model = factor(model, levels = model_names_noquote)) %>%
   group_by(model) %>%
   group_map(~ make_matrix(.x))
 
 # label
-names(cor_mats) <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+names(cor_mats) <- model_names_noquote
 
 
 # Table for supplementary
@@ -436,6 +442,7 @@ knitr::kable(cor_mats_table, format = "latex")
 # Read G matrices
 G_DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
+G_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
 
 d_h2_mrr <- read_csv(paste0(G_DATA_PATH, "out_h2_mrr.csv"), col_names = F)
 d_h2_mkr <- read_csv(paste0(G_DATA_PATH, "out_h2_mkr.csv"), col_names = F)
@@ -692,7 +699,7 @@ ggplot(d_ecr %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_cev
 plt_cev
 
@@ -713,7 +720,7 @@ ggplot(d_ecr %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_res
 plt_res
 
@@ -734,7 +741,7 @@ ggplot(d_ecr %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_aut
 plt_aut
 
@@ -755,7 +762,7 @@ ggplot(d_ecr %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         text = element_text(size = 12)) -> plt_ev
 plt_ev
 
@@ -852,6 +859,8 @@ plot_grid(plt_cossim_gmax_R,
           plt_rtgr,
           ncol = 2,
           labels = "AUTO")
+ggsave("plt_cossim_g_rmax.png", device = png, width = 12, height = 5, bg = "white")
+
 
 ####################################
 
@@ -936,6 +945,14 @@ ggplot(d_cossim_m_traitcor_sum,
         legend.position = "bottom") -> plt_rtmr
 plt_rtmr
 
+plot_grid(plt_cossim_mmax_r,
+          plt_rtmr,
+          ncol = 2,
+          labels = "AUTO")
+ggsave("plt_cossim_m_rmax.png", device = png, width = 12, height = 5, bg = "white")
+
+
+
 # Adapted populations look like they have less variation along the trait correlation axis
 ## need to get around the constraint
 ### can we look at how this is affected by the alignment between selection and trait corr?
@@ -983,6 +1000,8 @@ ggplot(d_cossim_corBeta_sum,
         legend.position = "bottom") -> plt_cossim_rmax_beta
 plt_cossim_rmax_beta
 
+ggsave("plt_cossim_rmax_beta.png", device = png, width = 10, height = 5, bg = "white")
+
 ## Increase in alignment of rmax with beta in FFLC1 adapted models corresponds to 
 ## increased conditional evolvability (M matrix) and reduced autonomy
 ## In other words, when trait correlations align with selection, mutational variance
@@ -1007,7 +1026,7 @@ ggplot(d_cossim_corBeta_sum,
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom") -> plt_btrb
-
+plt_btrb
 
 # what is the cosine similarity of maladapted/adapted pops
 
@@ -1245,15 +1264,16 @@ d_btgb_Malign_sum <- left_join(d_btgb_Malign_sum %>%
                                d_isAdapted,
                                by = c("model", "isAdapted"))
 
-ggplot(d_btgb_Malign_sum %>% mutate(Freq = Freq / 624),
+ggplot(d_btgb_Malign_sum %>% 
+         filter(isAdapted == T) %>% 
+         mutate(Freq = Freq / 624),
        aes(x = meanCosSim_Mb, y = Freq, colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
   #geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
   geom_point(shape = 1) +
   geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
                     xmax = meanCosSim_Mb + CICosSim_Mb)) +
   labs(x = TeX("M matrix/selection alignment ($abs(cos(\\theta)_\\beta^{M})$)"), 
-       y = "Proportion of populations",
+       y = "Proportion of populations adapted",
        colour = "Model") +
   coord_flip(xlim = c(0, 1)) + 
   scale_colour_manual(values = pal,
@@ -1262,6 +1282,8 @@ ggplot(d_btgb_Malign_sum %>% mutate(Freq = Freq / 624),
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
+ggsave("plt_Mcossim_probAdapt.png", device = png, width = 6, height = 6, bg = "white")
+
 
 
 d_btgb_Malign_adapted <- d_btgb_Malign %>% filter(isAdapted)
@@ -1322,17 +1344,35 @@ hist(treesize(rf_mbeta_adapted),
      main = "# Nodes for the RF trees",
      col = "forestgreen")
 
-# variable importance
+# variable importance - model and cossim Mb important
 varImpPlot(rf_mbeta_adapted,
-           sort = T, type = 1, scale = T)
-importance(rf_mbeta_adapted, type = 1)
+           sort = T, type = 1, scale = F)
+importance(rf_mbeta_adapted, type = 1, scale = F)
 
-# r is not important
-boruta_adapted <- Boruta::Boruta(isAdapted ~ .,
-               data = d_btgb_Malign_rf)
-boruta_adapted
-plot(boruta_adapted)
 
+predictor <- iml::Predictor$new(rf_mbeta_adapted, 
+                                data = test_mbeta_adapted[, c("model", "timePoint", "r", "absCS_Mb")], 
+                                y = test_mbeta_adapted$isAdapted)
+
+
+imp <- iml::FeatureImp$new(predictor,
+                           loss = "ce",
+                           n.repetitions = 100)
+
+imp$plot() +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+
+ggsave("plt_feat_imp.png", device = png, width = 6, height = 6, bg = "white")
+
+
+interact <- Interaction$new(predictor, feature = "absCS_Mb", grid.size = 15)
+plot(interact)
+
+ale <- FeatureEffect$new(predictor, feature = "model", grid.size = 10)
+ale$plot()
+ale$set.feature("absCS_Mb")
+ale$plot()
 
 # partial dependence
 partialPlot(x = rf_mbeta_adapted,
