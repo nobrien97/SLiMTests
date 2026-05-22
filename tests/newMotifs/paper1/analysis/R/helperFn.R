@@ -163,6 +163,23 @@ GetMatrixIDs <- function(matList) {
   return(matList)
 }
 
+# Above but with the Dataset column
+GetMatrixIDsWithDataset <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(timePoint = x$timePoint, 
+               seed = x$seed, 
+               modelindex = x$modelindex, 
+               isAdapted = x$isAdapted,
+               dataset = x$dataset)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
 
 
 # Calculate evolvability metrics for trait data (Hansen and Houle 2008)
@@ -312,4 +329,49 @@ equal_breaks <- function(n = 3, s = 0.05){
     d <- s * diff(range(x)) / (1+2*s)
     seq(min(x)+d, max(x)-d, length=n)
   }
+}
+
+# https://stackoverflow.com/a/73416408
+process_the_Boruta_data <- function(x, whichShadow=c(TRUE,TRUE,TRUE),
+                                    colCode=c('green','yellow','red','blue'),
+                                    col=NULL) {
+  if(is.null(x$ImpHistory))
+    stop('Importance history was not stored during the Boruta run.')
+  
+  #Removal of -Infs and conversion to a list
+  lz <- lapply(1:ncol(x$ImpHistory),
+               function(i) x$ImpHistory[is.finite(x$ImpHistory[,i]),i])
+  colnames(x$ImpHistory) -> names(lz)
+  
+  #Selection of shadow meta-attributes
+  numShadow <- sum(whichShadow)
+  lz[c(rep(TRUE,length(x$finalDecision)),whichShadow)] -> lz
+  
+  generateCol<-function(x,colCode,col,numShadow){
+    #Checking arguments
+    if(is.null(col) & length(colCode)!=4)
+      stop('colCode should have 4 elements.')
+    #Generating col
+    if(is.null(col)){
+      rep(colCode[4],length(x$finalDecision)+numShadow)->cc
+      cc[c(x$finalDecision=='Confirmed',rep(FALSE,numShadow))]<-colCode[1]
+      cc[c(x$finalDecision=='Tentative',rep(FALSE,numShadow))]<-colCode[2]
+      cc[c(x$finalDecision=='Rejected',rep(FALSE,numShadow))]<-colCode[3]
+      col=cc
+    }
+    return(col)
+  }
+  
+  #Generating color vector
+  col <- generateCol(x, colCode, col, numShadow)
+  
+  #Ordering boxes due to attribute median importance
+  ii<-order(sapply(lz,stats::median))
+  lz[ii] -> lz
+  col <- col[ii]
+  lz_df <- do.call(rbind.data.frame, lz)
+  df <- as.data.frame(t(lz_df))
+  names(df) <- names(lz)
+  rownames(df) <- NULL
+  return(df)
 }

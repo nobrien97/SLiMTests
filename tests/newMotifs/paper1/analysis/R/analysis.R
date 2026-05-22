@@ -14,6 +14,7 @@ library(tidymodels)
 library(randomForest)
 library(caret)
 library(iml)
+library(ranger)
 
 # Helper functions
 source("helperFn.R")
@@ -28,7 +29,7 @@ names(d_combos) <- c("model", "r")
 # Attach quant gen data
 PATH_QG <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
-PATH_QG <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
+PATH_QG <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
 
 d_qg <- data.table::fread(PATH_QG, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -63,7 +64,7 @@ d_qg %>%
 # Load M
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
-DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
 
 d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                           paste0("mean_", 1:4),
@@ -231,10 +232,9 @@ ggplot(d_m_molcomp_sum,
 
 
 # Measure cosine similarity between M matrices and beta
-
 d_opt <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
 d_opt <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_opt.csv", col_names = F)
-d_opt <- read_csv("/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -343,7 +343,6 @@ ggplot(d_cossim_m_sum,
 
 
 ## Neutral trait correlations
-
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/neutralCorr/R/slim_qg.csv"
 DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/neutralCorr/slim_qg.csv"
@@ -442,7 +441,7 @@ knitr::kable(cor_mats_table, format = "latex")
 # Read G matrices
 G_DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
-G_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
+G_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
 
 d_h2_mrr <- read_csv(paste0(G_DATA_PATH, "out_h2_mrr.csv"), col_names = F)
 d_h2_mkr <- read_csv(paste0(G_DATA_PATH, "out_h2_mkr.csv"), col_names = F)
@@ -1029,7 +1028,6 @@ ggplot(d_cossim_corBeta_sum,
 plt_btrb
 
 # what is the cosine similarity of maladapted/adapted pops
-
 gls_cossim_rmax_beta <- gls(absCosSim ~ model * isAdapted,
                            data = d_cossim_corBeta_abs,
                            weights = varIdent(form = ~ 1 | model * isAdapted))
@@ -1309,7 +1307,7 @@ d_btgb_Malign_rf <- d_btgb_Malign %>%
          model = factor(model, levels = model_names),
          timePoint = factor(timePoint, levels = c("Start", "End")),
          r = factor(log10(r), levels = c(-10, -5, -1))) %>%
-  select(isAdapted, model, timePoint, r, absCS_Mb)
+  select(isAdapted, model, r, absCS_Mb, absCS_Gb, bTGb, bTMb)
 
 # seed <- sample(1:.Machine$integer.max, 1)
 # > seed
@@ -1320,64 +1318,194 @@ idx <- sample(2, nrow(d_btgb_Malign_rf), replace = T, prob = c(0.7, 0.3))
 train_mbeta_adapted <- d_btgb_Malign_rf[idx == 1,]
 test_mbeta_adapted <- d_btgb_Malign_rf[idx == 2,]
 
-rf_mbeta_adapted <- randomForest(formula = isAdapted ~ model * timePoint * r * absCS_Mb,
+rf_mbeta_adapted <- randomForest(formula = isAdapted ~ model * r * absCS_Gb * absCS_Mb * bTGb * bTMb,
                                  data = train_mbeta_adapted,
                                  ntree = 500,
                                  proximity = T,
                                  importance = T,
                                  type = "classification")
+
+# Conditional RF
+crf_mbeta_adapted <- partykit::cforest(formula = isAdapted ~ model * r * absCS_Gb * absCS_Mb * bTGb * bTMb,
+                                    data = train_mbeta_adapted,
+                                    ntree = 500
+                                    )
 print(rf_mbeta_adapted)
 
 # Training data
 p_train_mbeta_adapted <- predict(rf_mbeta_adapted, train_mbeta_adapted)
-confusionMatrix(p_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
+caret::confusionMatrix(p_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
 
 # Test data
 p_test_mbeta_adapted <- predict(rf_mbeta_adapted, test_mbeta_adapted)
-confusionMatrix(p_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+caret::confusionMatrix(p_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+
+
+# conditional forest
+p_crf_train_mbeta_adapted <- predict(crf_mbeta_adapted, train_mbeta_adapted)
+caret::confusionMatrix(p_crf_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
+
+
+# conditional forest
+p_crf_test_mbeta_adapted <- predict(crf_mbeta_adapted, test_mbeta_adapted)
+caret::confusionMatrix(p_crf_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+
+
 
 # Plot errors (black line = OOB, red = false positive, green = false negative)
 plot(rf_mbeta_adapted)
+
 
 # Number of nodes per tree
 hist(treesize(rf_mbeta_adapted),
      main = "# Nodes for the RF trees",
      col = "forestgreen")
 
-# variable importance - model and cossim Mb important
+# variable importance - model, btmb, and cossim Mb important
 varImpPlot(rf_mbeta_adapted,
-           sort = T, type = 1, scale = F)
-importance(rf_mbeta_adapted, type = 1, scale = F)
+           sort = T, type = 2, scale = F)
+randomForest::importance(rf_mbeta_adapted, type = 1, scale = F)
 
+# conditional
+iscores_crf <- varimp(crf_mbeta_adapted, conditional = T)
+iscores_crf
+
+saveRDS(iscores_crf, "iscores_crf.RDS")
+# iscores_crf <- readRDS("iscores_crf.RDS")
+
+iscores <- varImp(rf_mbeta_adapted, conditional = T)
+iscores <- iscores %>% tibble::rownames_to_column("feature") 
+iscores$feature <- iscores$feature %>% as.factor()
+iscores <- iscores[,-3]
+colnames(iscores) <- c("feature", "score")
+
+bor_mbeta <- Boruta::Boruta(isAdapted ~ ., data = d_btgb_Malign_rf)
+bor_mbeta
+plot(bor_mbeta)
+
+d_bor_mbeta <- process_the_Boruta_data(bor_mbeta)
+
+feature_names <- c(TeX("Shadow Variable (min)", output = "character"),
+                   TeX("Shadow Variable (mean)", output = "character"),
+                   TeX("Shadow Variable (max)", output = "character"),
+                   TeX("Recombination rate", output = "character"),
+                   TeX("G-selection alignment ($|cos(\\theta)|^G_\\beta$)",
+                       output = "character"),
+                   TeX("Evolvability ($\\beta^TG\\beta$)", output = "character"),
+                   TeX("M-selection alignment ($|cos(\\theta)|^M_\\beta$)",
+                       output = "character"),
+                   TeX("M Evolvability ($\\beta^TM\\beta$)", output = "character"),
+                   TeX("Motif", output = "character"))
+
+
+ggplot(iscores %>%
+         mutate(feature = factor(feature, levels = c("r", "absCS_Gb", "bTGb", 
+                                                     "absCS_Mb", "bTMb", "model"))),
+       aes(x = feature, y = score)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(labels = parse(text = feature_names[4:9]),
+                   guide = guide_axis(n.dodge = 2)) + 
+  theme_bw() +
+  labs(x = "Feature", y = "Importance") +
+  theme(text = element_text(size = 12)) -> plt_rf_perm_imp
+
+
+pal_boruta <- c(rep("#00C0EA", times = 3),
+                rep("#00A000", times = 6))
+
+ggplot(d_bor_mbeta %>% pivot_longer(everything()) %>%
+         mutate(x = fct_reorder(name, value, median)),
+       aes(x = x, y = value, fill = x)) +
+  geom_boxplot(show.legend = F) +
+  theme_bw() +
+  scale_fill_manual(values = pal_boruta) +
+  scale_x_discrete(labels = parse(text = feature_names),
+                   guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Importance") +
+  theme(text = element_text(size = 12)) -> plt_boruta_imp
+plt_boruta_imp
+ggsave("plt_boruta_import.png", device = png, bg = "white",
+       width = 12, height = 8)
 
 predictor <- iml::Predictor$new(rf_mbeta_adapted, 
-                                data = test_mbeta_adapted[, c("model", "timePoint", "r", "absCS_Mb")], 
+                                data = test_mbeta_adapted[, 2:7], 
                                 y = test_mbeta_adapted$isAdapted)
-
 
 imp <- iml::FeatureImp$new(predictor,
                            loss = "ce",
                            n.repetitions = 100)
 
-imp$plot() +
+ggplot(imp$results %>% 
+         mutate(feature = factor(feature, levels = c("r", "absCS_Gb", "bTGb", 
+                                                     "absCS_Mb", "bTMb", "model"))),
+       aes(x = feature, y = importance)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
+                width = 0.2) +
+  scale_x_discrete(labels = parse(text = feature_names[4:9]),
+                   guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Permutation Importance (Loss: CE)") +
   theme_bw() +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 12)) -> plt_perm_imp
+plt_perm_imp
+ggsave("plt_perm_feat_imp.png", device = png, width = 9, height = 5, bg = "white")
 
-ggsave("plt_feat_imp.png", device = png, width = 6, height = 6, bg = "white")
+plot_grid(plt_boruta_imp,
+          plt_perm_imp,
+          nrow = 2,
+          labels = "AUTO",
+          align = "v")
+ggsave("plt_feat_imp.png", device = png, width = 12, height = 9, bg = "white")
 
 
-interact <- Interaction$new(predictor, feature = "absCS_Mb", grid.size = 15)
-plot(interact)
-
-ale <- FeatureEffect$new(predictor, feature = "model", grid.size = 10)
+ale <- FeatureEffects$new(predictor, grid.size = 10)
 ale$plot()
-ale$set.feature("absCS_Mb")
-ale$plot()
+
+ale_plots <- vector(mode = "list", length = 6)
+
+ale_labels <- feature_names[c(9, 4, 7, 5, 6, 8)]
+names(ale_labels) <- names(ale$results)
+
+for (i in seq_along(ale_plots)) {
+  d_ale <- ale$results[[i]]
+  d_ale <- d_ale %>% filter(.class == T)
+  x_label <- ale_labels[d_ale$.feature[1]] 
+  
+  if (d_ale$.feature[1] == "model") {
+    d_ale$.borders <- factor(d_ale$.borders, 
+                             levels = model_names,
+                             labels = model_names_noquote)
+  }
+  
+  if (!is.numeric(d_ale$.borders[1])) {
+    geom_fn <- geom_col
+    scale_fn <- scale_x_discrete
+  } else {
+    geom_fn <- geom_line
+    scale_fn <- scale_x_continuous
+  }
+  ale_plots[[i]] <- ggplot(d_ale,
+         aes(x = .borders, y = .value)) +
+    geom_fn() +
+    scale_fn() +
+    theme_bw() +
+    labs(x = parse(text = x_label), y = "ALE of adaptation probability")
+}
+
+plot_grid(plotlist = ale_plots,
+          labels= "AUTO")
+ggsave("plt_ale.png", device = png, bg = "white",
+       width = 9, height = 6)
+
+
 
 # partial dependence
 partialPlot(x = rf_mbeta_adapted,
             pred.data = train_mbeta_adapted,
             x.var = model)
+partialPlot(x = rf_mbeta_adapted,
+            pred.data = train_mbeta_adapted,
+            x.var = absCS_Mb)
 
 
 MDSplot(rf_mbeta_adapted, train_mbeta_adapted$model,
@@ -1421,6 +1549,1150 @@ ggsave("plt_pred_cossimGbeta_cossimMbeta.png", device = png, bg = "white",
 
 
 # 3) Positive and negative controls confirm developmental bias
+
+# Load in data
+PATH_QG_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
+
+d_qg_orth <- data.table::fread(PATH_QG_ORTH, header = F, 
+                          sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                    rep("numeric", times = 29)), 
+                          col.names = c("gen", "seed", "modelindex", "meanH",
+                                        "trait1_mean", "trait2_mean", "trait3_mean",
+                                        "trait4_mean", "trait1_var", "trait2_var", 
+                                        "trait3_var", "trait4_var", "dist", 
+                                        "dist1", "dist2", "dist3", "dist4", "mean_w",
+                                        "var_w", "deltaPheno", "deltaW", 
+                                        "meanMC1", "meanMC2", "meanMC3", "meanMC4", 
+                                        "meanMC5", "meanMC6", "meanMC7", "meanMC8", 
+                                        "meanMC9", "meanMC10", "meanMC11"), 
+                          fill = T)
+
+# Summarise adapted/maladapted at end of sim
+d_qg_orth <- AddCombosToDF(d_qg_orth) 
+
+d_qg_orth %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(model = factor(model, levels = model_names),
+         modelindex = factor(modelindex, levels = 1:15)) %>%
+  ungroup() -> d_qg_orth
+
+
+PATH_QG_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
+
+d_qg_par <- data.table::fread(PATH_QG_PAR, header = F, 
+                               sep = ",", colClasses = c("integer", "factor", "factor", 
+                                                         rep("numeric", times = 29)), 
+                               col.names = c("gen", "seed", "modelindex", "meanH",
+                                             "trait1_mean", "trait2_mean", "trait3_mean",
+                                             "trait4_mean", "trait1_var", "trait2_var", 
+                                             "trait3_var", "trait4_var", "dist", 
+                                             "dist1", "dist2", "dist3", "dist4", "mean_w",
+                                             "var_w", "deltaPheno", "deltaW", 
+                                             "meanMC1", "meanMC2", "meanMC3", "meanMC4", 
+                                             "meanMC5", "meanMC6", "meanMC7", "meanMC8", 
+                                             "meanMC9", "meanMC10", "meanMC11"), 
+                               fill = T)
+
+# Summarise adapted/maladapted at end of sim
+d_qg_par <- AddCombosToDF(d_qg_par) 
+
+d_qg_par %>%
+  distinct() %>%
+  group_by(seed, modelindex) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(model = factor(model, levels = model_names),
+         modelindex = factor(modelindex, levels = 1:15)) %>%
+  ungroup() -> d_qg_par
+
+
+DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
+DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
+
+d_m_orth <- read_csv(DATA_PATH_ORTH, col_names = c("gen", "seed", "modelindex",
+                                         paste0("mean_", 1:4),
+                                         paste0("var_", 1:4),
+                                         paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m_par <- read_csv(DATA_PATH_PAR, col_names = c("gen", "seed", "modelindex",
+                                                   paste0("mean_", 1:4),
+                                                   paste0("var_", 1:4),
+                                                   paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m_orth <- d_m_orth %>%
+  mutate(model = ModelFromIndexWithR(modelindex))
+
+d_m_par <- d_m_par %>%
+  mutate(model = ModelFromIndexWithR(modelindex))
+
+# get matrices
+# m_matrices_orth <- d_m_orth %>%
+#   rowwise() %>%
+#   group_map(~ row_to_m(.x))
+# 
+# m_matrices_par <- d_m_par %>%
+#   rowwise() %>%
+#   group_map(~ row_to_m(.x))
+
+
+#saveRDS(m_matrices_orth, "m_matrices_orth.RDS")
+#saveRDS(m_matrices_par, "m_matrices_par.RDS")
+
+m_matrices_orth <- readRDS("m_matrices_orth.RDS")
+m_matrices_par <- readRDS("m_matrices_par.RDS")
+
+
+# Get eigenvectors of each M
+e_m_orth <- lapply(m_matrices_orth, eigen)
+saveRDS(e_m_orth, "eigen_randomised_m_orth.RDS")
+
+e_m_par <- lapply(m_matrices_par, eigen)
+saveRDS(e_m_par, "eigen_randomised_m_par.RDS")
+
+e_m_orth <- readRDS("eigen_randomised_m_orth.RDS")
+e_m_par <- readRDS("eigen_randomised_m_par.RDS")
+
+# Calculate relative eigenvalue dispersion
+vrel_m_orth <- unlist(lapply(e_m_orth, function(x) { Vrel(x$values) }))
+vrel_m_par <- unlist(lapply(e_m_par, function(x) { Vrel(x$values) }))
+
+# join with quant gen data
+d_vrel_orth <- left_join(d_m_orth %>% mutate(seed = factor(seed),
+                                   modelindex = factor(modelindex, levels = 1:15),
+                                   r = RFromIndex(modelindex),
+                                   vrel = vrel_m_orth),
+                    d_qg_orth %>% select(gen, seed, modelindex, model, r, isAdapted) %>%
+                      mutate(model = str_remove_all(model, "'")),
+                    by = c("gen", "seed", "modelindex", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = "Orthogonal")
+
+d_vrel_par <- left_join(d_m_par %>% mutate(seed = factor(seed),
+                                             modelindex = factor(modelindex, levels = 1:15),
+                                             r = RFromIndex(modelindex),
+                                             vrel = vrel_m_par),
+                         d_qg_par %>% select(gen, seed, modelindex, model, r, isAdapted) %>%
+                           mutate(model = str_remove_all(model, "'")),
+                         by = c("gen", "seed", "modelindex", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = "Parallel")
+
+d_vrel$dataset <- "Randomised"
+
+d_vrel <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
+
+
+# Plot
+d_vrel_sum <- d_vrel %>%
+  group_by(gen, model, dataset, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+ggplot(d_vrel_sum,
+       aes(x = gen - 50000, y = vrel_mean, colour = model)) +
+  facet_nested("Dataset" + dataset~"Population adapted" + isAdapted) +
+  geom_line() +
+  geom_ribbon(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, fill = model),
+              colour = NA, alpha = 0.2, show.legend = F) +
+  labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+
+
+
+# Stable over time (except FFLC1, mirrors M evolvability), can take average?
+d_vrel_tab <- d_vrel %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+d_vrel_tab
+
+ggplot(d_vrel,
+       aes(x = model, y = vrel, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_boxplot() +
+  geom_point(data = d_vrel_tab, aes(y = vrel_mean), size = 2, stroke = 1,
+             shape = 21,
+             colour = "black", fill = "white") +
+  labs(x = "Model", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_colour_manual(values = pal,
+                      breaks = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+ggsave("plt_vrel_alignment.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+# No real difference in Vrel for M matrices, makes sense given selection not acting
+
+#####################
+# Measure cosine similarity between M matrices and beta
+d_opt_par <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
+d_opt_orth <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
+
+# o = optimum, s = sigma, d = direction (-1, 1)
+colnames(d_opt_par) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
+                     "s_t1", "s_t2", "s_t3", "s_t4", "d_t1", "d_t2", "d_t3",
+                     "d_t4")
+colnames(d_opt_orth) <- colnames(d_opt_par)
+
+# Last value in d_opt_par and _orth is the eigenvalue of eigenvector r_i, we can ignore it
+d_opt_par <- d_opt_par[,-15]
+d_opt_orth <- d_opt_orth[,-15]
+
+d_selvec_m_orth <- d_qg_orth %>%
+  filter(gen >= 50000) %>%
+  select(gen, seed, modelindex, isAdapted, dataset, ends_with("mean"))
+
+d_selvec_m_par <- d_qg_par %>%
+  filter(gen >= 50000) %>%
+  select(gen, seed, modelindex, isAdapted, dataset, ends_with("mean"))
+
+
+d_selvec_m_orth <- left_join(d_selvec_m_orth, d_opt_orth %>% 
+                          select(seed, modelindex, dataset, starts_with("o_")) %>%
+                          mutate(seed = factor(seed),
+                                 modelindex = factor(modelindex)), 
+                        by = c("seed", "modelindex", "dataset"))
+
+d_selvec_m_par <- left_join(d_selvec_m_par, d_opt_par %>% 
+                               select(seed, modelindex, dataset, starts_with("o_")) %>%
+                               mutate(seed = factor(seed),
+                                      modelindex = factor(modelindex)), 
+                             by = c("seed", "modelindex", "dataset"))
+
+
+d_selvec_m_orth <- AddCombosToDF(d_selvec_m_orth)
+d_selvec_m_par <- AddCombosToDF(d_selvec_m_par)
+
+d_selvec_m_orth <- d_selvec_m_orth %>%
+  mutate(modelindex = factor(modelindex, levels = 1:15),
+         seed = as.factor(seed),
+         model = factor(model, levels = model_names)) %>%
+  rename(timePoint = gen)
+
+d_selvec_m_par <- d_selvec_m_par %>%
+  mutate(modelindex = factor(modelindex, levels = 1:15),
+         seed = as.factor(seed),
+         model = factor(model, levels = model_names)) %>%
+  rename(timePoint = gen)
+
+
+
+id_m_orth <- d_m_orth %>% mutate(timePoint = gen) %>% select(timePoint, seed, modelindex)
+id_m_orth$clus <- 1
+id_m_orth$modelindex <- factor(id_m_orth$modelindex, levels = 1:15)
+id_m_orth$seed <- as.factor(id_m_orth$seed)
+
+id_m_orth <- AddCombosToDF(id_m_orth)
+id_m_orth$model <- factor(id_m_orth$model, levels = model_names)
+
+id_m_orth <- inner_join(id_m_orth, d_qg_orth %>% mutate(timePoint = gen) %>% 
+                     select(timePoint, seed, modelindex, isAdapted),
+                   by = c("timePoint", "seed", "modelindex"))
+
+
+id_m_par <- d_m_par %>% mutate(timePoint = gen) %>% select(timePoint, seed, modelindex)
+id_m_par$clus <- 1
+id_m_par$modelindex <- factor(id_m_par$modelindex, levels = 1:15)
+id_m_par$seed <- as.factor(id_m_par$seed)
+
+id_m_par <- AddCombosToDF(id_m_par)
+id_m_par$model <- factor(id_m_par$model, levels = model_names)
+
+id_m_par <- inner_join(id_m_par, d_qg_par %>% mutate(timePoint = gen) %>% 
+                          select(timePoint, seed, modelindex, isAdapted),
+                        by = c("timePoint", "seed", "modelindex"))
+
+
+d_selvec_m_orth <- inner_join(id_m_orth, d_selvec_m_orth, 
+                         by = c("timePoint", "seed", "modelindex", "isAdapted", "model", "r"))
+
+d_selvec_m_orth <- d_selvec_m_orth %>%
+  mutate(t1_dir = o_t1 - trait1_mean,
+         t2_dir = o_t2 - trait2_mean,
+         t3_dir = o_t3 - trait3_mean,
+         t4_dir = o_t4 - trait4_mean,
+         norm = sqrt(rowSums(pick(ends_with("dir"))^2)), # normalise
+         t1_dir = t1_dir / norm,
+         t2_dir = t2_dir / norm,
+         t3_dir = t3_dir / norm,
+         t4_dir = t4_dir / norm) %>%
+  select(timePoint, seed, modelindex, dataset, isAdapted, model, r, norm, ends_with("dir"))
+
+d_selvec_m_par <- inner_join(id_m_par, d_selvec_m_par, 
+                             by = c("timePoint", "seed", "modelindex", "isAdapted", "model", "r"))
+
+d_selvec_m_par <- d_selvec_m_par %>%
+  mutate(t1_dir = o_t1 - trait1_mean,
+         t2_dir = o_t2 - trait2_mean,
+         t3_dir = o_t3 - trait3_mean,
+         t4_dir = o_t4 - trait4_mean,
+         norm = sqrt(rowSums(pick(ends_with("dir"))^2)), # normalise
+         t1_dir = t1_dir / norm,
+         t2_dir = t2_dir / norm,
+         t3_dir = t3_dir / norm,
+         t4_dir = t4_dir / norm) %>%
+  select(timePoint, seed, modelindex, isAdapted, model, r, norm, ends_with("dir"))
+
+
+d_cossim_m_orth <- GetCosineSimilarity(m_matrices_orth, d_selvec_m_orth %>% select(ends_with("dir")), id_m_orth)
+d_cossim_m_par <- GetCosineSimilarity(m_matrices_par, d_selvec_m_par %>% select(ends_with("dir")), id_m_par)
+
+d_cossim_m_orth$dataset <- "Orthogonal"
+d_cossim_m_par$dataset <- "Parallel"
+
+d_cossim_m <- readRDS("d_cossim_m.RDS")
+d_cossim_m$dataset <- "Randomised"
+
+# Combine
+d_cossim_m <- rbind(d_cossim_m, d_cossim_m_orth, d_cossim_m_par)
+saveRDS(d_cossim_m, "d_cossim_m_datasets.RDS")
+d_cossim_m <- readRDS("d_cossim_m_datasets.RDS")
+
+d_cossim_m <- AddCombosToDF(d_cossim_m)
+
+d_cossim_m_sum <- d_cossim_m %>%
+  mutate(timePoint = timePoint - 50000) %>%
+  group_by(timePoint, model, dataset, isAdapted) %>%
+  dplyr::summarise(meanCosSim = mean(sqrt(cosSim^2), na.rm = T),
+                   seCosSim = se(sqrt(cosSim^2), na.rm = T),
+                   meanbTGb = mean(bTMb, na.rm = T),
+                   sebTGb = se(bTMb, na.rm = T))
+d_cossim_m_sum$model <- factor(d_cossim_m_sum$model, levels = model_names)
+
+
+ggplot(d_cossim_m_sum, 
+       aes(x = timePoint, y = meanCosSim, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanCosSim - seCosSim, ymax = meanCosSim + seCosSim,
+                  fill = model), colour = NA, alpha = 0.2, show.legend = F) +
+  labs(x = "Generations post-optimum shift", 
+       y = TeX("Absolute cosine similarity between $m_{max}$ and $\\beta"),
+       colour = "Model") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal, labels = model_names_noquote) +
+  scale_fill_manual(values = pal, labels = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+ggplot(d_cossim_m_sum, 
+       aes(x = timePoint, y = meanbTGb, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted,
+               scales = "free",
+               labeller = labeller(model = model_names_labeller)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = meanbTGb - sebTGb, ymax = meanbTGb + sebTGb,
+                  fill = model), colour = NA, alpha = 0.2, show.legend = F) +
+  labs(x = "Generations post-optimum shift", 
+       y = TeX("Evolvability ($\\beta^T M \\beta$)"),
+       colour = "Model") +
+  scale_colour_manual(values = pal, labels = model_names_noquote) +
+  scale_fill_manual(values = pal, labels = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+## G matrix
+
+G_ORTH_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
+G_PAR_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
+
+d_h2_trait_mkr_orth <- read_csv(paste0(G_ORTH_DATA_PATH, "out_h2_trait_mkr.csv"), col_names = F)
+d_h2_trait_mrr_orth <- read_csv(paste0(G_ORTH_DATA_PATH, "out_h2_trait_mrr.csv"), col_names = F)
+
+d_h2_trait_mkr_par <- read_csv(paste0(G_PAR_DATA_PATH, "out_h2_trait_mkr.csv"), col_names = F)
+d_h2_trait_mrr_par <- read_csv(paste0(G_PAR_DATA_PATH, "out_h2_trait_mrr.csv"), col_names = F)
+
+
+colnames(d_h2_trait_mkr_orth) <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_t1",
+                              "VA_t2", "VA_t3", "VA_t4", "CVA_t1_t2", "CVA_t1_t3",
+                              "CVA_t1_t4", "CVA_t2_t3", "CVA_t2_t4", "CVA_t3_t4",
+                              "h2_t1", "h2_t2", "h2_t3", "h2_t4")
+
+colnames(d_h2_trait_mrr_orth) <- colnames(d_h2_trait_mkr_orth)
+colnames(d_h2_trait_mkr_par) <- colnames(d_h2_trait_mkr_orth)
+colnames(d_h2_trait_mrr_par) <- colnames(d_h2_trait_mkr_orth)
+
+# join
+d_h2_trait_mkr_orth$calcMode <- "mkr"
+d_h2_trait_mrr_orth$calcMode <- "mrr"
+d_h2_trait_mkr_par$calcMode <- "mkr"
+d_h2_trait_mrr_par$calcMode <- "mrr"
+
+d_h2_trait_mkr_orth$dataset <- "Orthogonal"
+d_h2_trait_mrr_orth$dataset <- "Orthogonal"
+d_h2_trait_mkr_par$dataset <- "Parallel"
+d_h2_trait_mrr_par$dataset <- "Parallel"
+d_h2_trait_mkr$dataset <- "Randomised"
+d_h2_trait_mrr$dataset <- "Randomised"
+
+
+d_h2_trait <- rbind(d_h2_trait_mkr, d_h2_trait_mrr, 
+                    d_h2_trait_mkr_orth, d_h2_trait_mrr_orth,
+                    d_h2_trait_mkr_par, d_h2_trait_mrr_par)
+
+d_h2_trait %>% mutate(model = d_combos$model[.$modelindex],
+                      model = factor(model, levels = model_names),
+                      r = d_combos$r[.$modelindex]) -> d_h2_trait
+
+d_h2_trait <- d_h2_trait %>%
+  distinct(gen, seed, modelindex, dataset, calcMode, .keep_all = T) %>%
+  dplyr::mutate(modelindex = as.factor(modelindex),
+                seed = as.factor(seed)) %>%
+  drop_na(VA_w) %>% distinct()
+
+# Join qg together
+d_qg$dataset <- "Randomised"
+d_qg_orth$dataset <- "Orthogonal"
+d_qg_par$dataset <- "Parallel"
+
+d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
+
+d_qg_optPerc <- d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted) %>% filter(gen >= 49500)
+
+# inner join optPerc
+d_h2_trait <- left_join(d_h2_trait, d_qg_optPerc, by = c("gen", "seed", "modelindex", "dataset"))
+
+# Counts for each model type:
+table(d_h2_trait$model, d_h2_trait$isAdapted)
+table(d_h2_trait$model, d_h2_trait$dataset, d_h2_trait$isAdapted)
+
+# table of prop adapted
+
+tab_propadapted_aligned <- d_qg_tot %>%
+  filter(gen == 50000, log10(r) == -1) %>%
+  mutate(model = factor(model, levels = model_names,
+                        labels = model_names_noquote)) %>%
+  group_by(model, dataset) %>%
+  dplyr::summarise(propAdapted = sum(isAdapted) / n())
+
+stargazer::stargazer(as.data.frame(tab_propadapted_aligned),
+                     summary = F, rownames = F)
+
+
+# Discretise generation
+d_h2_trait <- d_h2_trait %>%
+  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+         timePoint = factor(timePoint, levels = c("Start", "End")))
+
+# summarise
+d_h2_trait_sum <- d_h2_trait %>% 
+  group_by(timePoint, model, dataset, r, isAdapted) %>%
+  dplyr::summarise(meanH2w = mean(h2_w, na.rm = T),
+                   seH2w = se(h2_w, na.rm = T),
+                   meanVAw = mean(VA_w, na.rm = T),
+                   seVAw = se(VA_w, na.rm = T))
+d_h2_trait_sum$model <- as.factor(d_h2_trait_sum$model)
+
+# Split h2 into G matrices
+d_h2_trait %>%
+  select(!VA_w) %>%  # Remove fitness (since its a different measurement)
+  filter(!if_all(5:8, is.na)) %>%  # Drop rows with no variance
+  distinct(gen, seed, modelindex, dataset, .keep_all = T) %>%
+  group_by(modelindex, timePoint, dataset, isAdapted) %>%
+  group_split(.) -> split_h2
+
+
+# Separate into model indices
+# each sublist is replicates of a model index
+sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+
+lapply(split_h2, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices
+
+
+# We want to know if certain architectures are more/less important for describing
+# variation between simulations and which components are most important for describing
+# those differences
+
+h2_mat <- unlist(cov_matrices, recursive = F)
+
+# get ids from the matrix
+cov_matrix_modelindex <- GetMatrixIDsWithDataset(split_h2)
+
+id <- data.table::rbindlist(cov_matrix_modelindex, 
+                            fill = T)
+id$label <- as.character(1:nrow(id))
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$model <- factor(id$model, levels = model_names)
+
+# Evolvability metrics
+
+# First convert to nearest positive definite matrix
+h2_pd <- lapply(h2_mat, function(x) {
+  if (!is.positive.definite(x)) {return (as.matrix(nearPD(x)$mat))}
+  return(x)
+})
+
+# Now find cosine similarity between selection vector and leading eigenvector of G
+# Filter selvec to h2_pd matrices
+d_selvec <- d_qg_tot %>%
+  filter(gen == 50000 | gen == 60000) %>%
+  select(gen, seed, modelindex, dataset, ends_with("mean"))
+
+# join opt
+d_opt$dataset <- "Randomised"
+d_opt_orth$dataset <- "Orthogonal"
+d_opt_par$dataset <- "Parallel"
+
+d_opt_tot <- rbind(d_opt, d_opt_orth, d_opt_par)
+
+d_selvec <- left_join(d_selvec, d_opt_tot %>% 
+                        select(seed, modelindex, dataset, starts_with("o_")) %>%
+                        mutate(seed = factor(seed),
+                               modelindex = factor(modelindex)), 
+                      by = c("seed", "modelindex", "dataset"))
+
+d_selvec <- AddCombosToDF(d_selvec)
+
+d_selvec <- d_selvec %>%
+  rowwise() %>%
+  mutate(t1_dir = o_t1 - trait1_mean,
+         t2_dir = o_t2 - trait2_mean,
+         t3_dir = o_t3 - trait3_mean,
+         t4_dir = o_t4 - trait4_mean,
+         norm = sqrt(sum(c_across(ends_with("dir"))^2)), # normalise
+         t1_dir = t1_dir / norm,
+         t2_dir = t2_dir / norm,
+         t3_dir = t3_dir / norm,
+         t4_dir = t4_dir / norm) %>%
+  select(gen, seed, modelindex, dataset, model, r, norm, ends_with("dir"))
+
+
+d_selvec <- d_selvec %>%
+  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+         timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
+  select(-gen)
+
+d_selvec2 <- inner_join(id, d_selvec, 
+                        by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
+
+d_cossim <- GetCosineSimilarity(h2_pd, d_selvec2 %>% select(ends_with("dir")), id)
+
+d_cossim <- AddCombosToDF(d_cossim)
+
+d_cossim$dataset <- d_selvec2$dataset
+
+d_cossim_sum <- d_cossim %>%
+  group_by(timePoint, model, dataset, isAdapted) %>%
+  dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
+                   seCosSim = se(abs(cosSim), na.rm = T),
+                   meanbTGb = mean(bTMb, na.rm = T),
+                   sebTGb = se(bTMb, na.rm = T))
+d_cossim_sum$model <- as.factor(d_cossim_sum$model)
+
+
+ggplot(d_cossim, 
+       aes(x = timePoint, y = sqrt(cosSim^2), colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_cossim_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      adapted_title = "Did the population adapt?"),
+             aes(x = timePoint, y = meanCosSim, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Time point", 
+       y = TeX("Absolute cosine similarity between $g_{max}$ and $\\beta"),
+       colour = "Model") +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+ggplot(d_cossim, 
+       aes(x = timePoint, y = bTMb, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
+  geom_point(data = d_cossim_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)",
+                      adapted_title = "Did the population adapt?"),
+             aes(x = timePoint, y = meanbTGb, group = model), colour = "black",
+             shape = 3, size = 2, position = position_dodge(0.9)) +
+  labs(x = "Time point", 
+       y = TeX("Evolvability ($\\beta^T G \\beta$)"),
+       colour = "Model") +
+  scale_colour_manual(values = pal,
+                      labels = model_names) +
+  #coord_cartesian(ylim = c(0, 1)) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+d_ecr <- CalcECRATrait(h2_pd, id)
+d_ecr <- AddCombosToDF(d_ecr)
+d_ecr$dataset <- d_selvec2$dataset
+
+# Refactor model
+d_ecr <- d_ecr %>%
+  mutate(model = factor(model, levels = model_names))
+
+# Need to calculate cev means separately for the different models
+# K- shouldn't mean over cev_KZ and KXZ
+d_ecr_sum <- d_ecr %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise_if(is.numeric, list(mean = mean, se = se))
+
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = cev, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = cev_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean conditional evolvability (G matrix)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev
+plt_cev
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = res, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = res_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean respondability (G matrix)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_res
+plt_res
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = aut, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = aut_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean autonomy (G matrix)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_aut
+plt_aut
+
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = ev, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = ev_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean evolvability (G matrix)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_ev
+plt_ev
+
+leg <- get_legend(plt_ev)
+
+plt_evol <- plot_grid(plt_ev + theme(legend.position = "none"),
+                      plt_cev + theme(legend.position = "none"),
+                      plt_res + theme(legend.position = "none"),
+                      plt_aut + theme(legend.position = "none"),
+                      ncol = 2, labels = "AUTO", label_size = 12)
+
+plt_evol <- plot_grid(plt_evol,
+                      leg, nrow = 2, rel_heights = c(1, 0.05))
+plt_evol
+ggsave("plt_evol_g_alignment.png", device = png, bg = "white",
+       width = 12, height = 8)
+
+
+## Evolvability against alignment of M with direction of selection
+## Evolvability = bTGb
+
+# Join the evolvability estimates with M alignment
+d_btgb_Malign_tot <- left_join(d_cossim %>% 
+                             select(timePoint, seed, modelindex, dataset, isAdapted,
+                                    model, r, bTMb, cosSim) %>%
+                             rename(bTGb = bTMb) %>%
+                             mutate(absCS_Gb = abs(cosSim)) %>%
+                             select(-cosSim),
+                           d_cossim_m %>%
+                             filter(timePoint == 60000 | timePoint == 50000) %>%
+                             mutate(timePoint = if_else(timePoint == 50000, "Start", "End"),
+                                    timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
+                             select(timePoint, seed, modelindex, dataset, isAdapted,
+                                    model, r, bTMb, cosSim) %>%
+                             mutate(absCS_Mb = abs(cosSim)) %>%
+                             select(-cosSim),
+                           by = c("timePoint", "seed", "modelindex", "dataset", "isAdapted",
+                                  "model", "r"))
+
+
+ggplot(d_btgb_Malign_tot,
+       aes(x = absCS_Mb, y = bTGb, colour = model)) +
+  #  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_point(shape = 1) +
+  labs(x = TeX("Absolute $cos(\\theta)_{M\\beta}$"), 
+       y = TeX("Evolvability ($\\beta^T G \\beta$)"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                    breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+ggplot(d_btgb_Malign_tot,
+       aes(x = absCS_Mb, y = absCS_Gb, colour = model)) +
+  #  facet_nested("Recombination rate (log10)" + log10(r)~ "Population adapted" + isAdapted) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_point(shape = 1) +
+  labs(x = TeX("Alignment of M with $\\beta (abs(cos(\\theta)_\\beta^{M}))$"), 
+       y = TeX("Alignment of G with $\\beta (abs(cos(\\theta)_\\beta^{G}))$"),
+       colour = "Model") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                    labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                    breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+
+
+## Summary
+d_btgb_Malign_sum <- d_btgb_Malign_tot %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise(meanCosSim_Gb = mean(absCS_Gb),
+            CICosSim_Gb = CI(absCS_Gb),
+            meanCosSim_Mb = mean(absCS_Mb),
+            CICosSim_Mb = CI(absCS_Mb),
+            meanbTGb = mean(bTGb),
+            CIbTGb = CI(bTGb))
+
+ggplot(d_btgb_Malign_sum,
+       aes(x = meanCosSim_Mb, y = meanCosSim_Gb, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(ymin = meanCosSim_Gb - CICosSim_Gb,
+                    ymax = meanCosSim_Gb + CICosSim_Gb)) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("Mean $abs(cos(\\theta)_\\beta^{M})$"), 
+       y = TeX("Mean $abs(cos(\\theta)_\\beta^{G})$"),
+       colour = "Model") +
+  coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+### cos(theta)M_beta vs bTGb
+ggplot(d_btgb_Malign_sum,
+       aes(x = meanCosSim_Mb, y = meanbTGb, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(ymin = meanbTGb - CIbTGb,
+                    ymax = meanbTGb + CIbTGb)) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("M matrix/selection alignment ($|(cos(\\theta)|_\\beta^{M}$)"), 
+       y = TeX("Evolvability ($\\beta^TG\\beta$)"),
+       colour = "Model") +
+  coord_cartesian(xlim = c(0, 1)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5, direction = -1),
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+
+### Alignment vs Selection probability
+d_isAdapted <- d_h2_trait %>%
+  filter(gen == 50000) %>%
+  select(seed, modelindex, model, dataset, r, isAdapted) %>%
+  distinct(.keep_all = T)
+d_isAdapted <- as.data.frame(table(d_isAdapted$model, d_isAdapted$isAdapted))
+d_isAdapted <- d_isAdapted %>%
+  rename(model = Var1,
+         isAdapted = Var2)
+
+# Check we have 208 replicates * 3 r levels = 624 per model
+# plus the orth and parallel sets of another 208 replicates = 1040 per model
+d_isAdapted %>%
+  group_by(model) %>%
+  summarise(total = sum(Freq))
+
+# join isAdapted counts
+d_btgb_Malign_sum <- left_join(d_btgb_Malign_sum %>% 
+                                 mutate(model = factor(model, levels = model_names),
+                                        isAdapted = factor(isAdapted)),
+                               d_isAdapted,
+                               by = c("model", "isAdapted"))
+
+ggplot(d_btgb_Malign_sum %>% 
+         filter(isAdapted == T) %>% 
+         mutate(Freq = Freq / 1040),
+       aes(x = meanCosSim_Mb, y = Freq, colour = model)) +
+  #geom_abline(aes(intercept = 0, slope = 1), linetype = "dashed") +
+  facet_nested(.~"Selection/trait correlation alignment" + dataset) +
+  geom_point(shape = 1) +
+  geom_errorbar(aes(xmin = meanCosSim_Mb - CICosSim_Mb, 
+                    xmax = meanCosSim_Mb + CICosSim_Mb)) +
+  labs(x = TeX("M matrix/selection alignment ($abs(cos(\\theta)_\\beta^{M})$)"), 
+       y = "Proportion of populations adapted",
+       colour = "Model") +
+  coord_flip(xlim = c(0, 1)) + 
+  scale_colour_manual(values = pal,
+                      labels = c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH"), 
+                      breaks = model_names) +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        legend.position = "bottom")
+ggsave("plt_Mcossim_probAdapt_align.png", device = png, width = 6, height = 6, bg = "white")
+
+
+
+# Does M/beta alignment predict population adaptedness?
+## use random forest
+d_btgb_Malign_rf <- d_btgb_Malign_tot %>%
+  mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                            labels = c("Adapted", "Maladapted")),
+         model = factor(model, levels = model_names),
+         timePoint = factor(timePoint, levels = c("Start", "End")),
+         dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+         r = factor(log10(r), levels = c(-10, -5, -1))) %>%
+  select(isAdapted, model, dataset, r, absCS_Mb, absCS_Gb, bTGb, bTMb)
+
+# seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 18799215
+seed <- 18799215
+set.seed(seed)
+# Sample per group to avoid unbalanced groups
+adapted_counts <- table(d_btgb_Malign_rf$isAdapted)
+total_counts <- sum(adapted_counts)
+num_responses <- length(adapted_counts)
+adapted_weights <- total_counts / (num_responses * adapted_counts)
+names(adapted_weights) <- levels(d_btgb_Malign_rf$isAdapted)
+
+
+idx <- sample(2, nrow(d_btgb_Malign_rf), replace = T, prob = c(0.7, 0.3))
+train_mbeta_adapted <- d_btgb_Malign_rf[idx == 1,]
+test_mbeta_adapted <- d_btgb_Malign_rf[idx == 2,]
+
+# no balancing
+rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * bTGb * bTMb,
+                                 data = train_mbeta_adapted,
+                                 ntree = 500,
+                                 proximity = T,
+                                 importance = T,
+                                 type = "classification")
+
+print(rf_mbeta_adapted_nobal)
+
+# With balancing (class weights)
+rf_mbeta_adapted <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * bTGb * bTMb,
+                                 data = train_mbeta_adapted,
+                                 strata = train_mbeta_adapted$isAdapted,
+                                classwt = adapted_weights,
+                                 ntree = 500,
+                                 proximity = T,
+                                 importance = T,
+                                 type = "classification")
+
+print(rf_mbeta_adapted)
+
+# Training data
+p_train_mbeta_adapted <- predict(rf_mbeta_adapted, train_mbeta_adapted)
+caret::confusionMatrix(p_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
+
+p_train_mbeta_adapted_nobal <- predict(rf_mbeta_adapted_nobal, train_mbeta_adapted)
+caret::confusionMatrix(p_train_mbeta_adapted_nobal, train_mbeta_adapted$isAdapted)
+
+
+# Test data
+p_test_mbeta_adapted <- predict(rf_mbeta_adapted, test_mbeta_adapted)
+p_test_mbeta_adapted_probs <- predict(rf_mbeta_adapted, test_mbeta_adapted,
+                                      type = "prob")[,1]
+
+caret::confusionMatrix(p_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+
+p_test_mbeta_adapted_nobal <- predict(rf_mbeta_adapted_nobal, test_mbeta_adapted)
+p_test_mbeta_adapted_nobal_probs <- predict(rf_mbeta_adapted_nobal, test_mbeta_adapted,
+                                      type = "prob")[,1]
+
+caret::confusionMatrix(p_test_mbeta_adapted_nobal, test_mbeta_adapted$isAdapted)
+
+
+
+# roc
+d_roc <- roc(response = test_mbeta_adapted$isAdapted,
+    predictor = p_test_mbeta_adapted_probs)
+
+d_roc_nobal <- roc(response = test_mbeta_adapted$isAdapted,
+             predictor = p_test_mbeta_adapted_nobal_probs,
+             levels = rev(levels(test_mbeta_adapted$isAdapted)))
+
+d_rocs <- data.frame(model = c(rep("Weighted", times = length(d_roc$sensitivities)),
+                               rep("Unbalanced", times = length(d_roc_nobal$sensitivities))),
+                     sens = c(d_roc$sensitivities, d_roc_nobal$sensitivities),
+                     spec = c(d_roc$specificities, d_roc_nobal$specificities))
+
+
+roc_aucs <- c(pROC::auc(d_roc_nobal), pROC::auc(d_roc))
+
+
+ggplot(d_rocs,
+       aes(x = 1 - spec, y = sens, colour = model)) +
+  geom_line() + 
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") + 
+  annotate("text", x = c(0.75, 0.75), y = c(0.375, 0.25), 
+           label = paste("AUC:", round(roc_aucs, digits = 3)),
+           colour = pal[1:2]) +
+  theme_bw() +
+  scale_colour_manual(values = pal) +
+  labs(x = "1 - Specificity", y = "Sensitivity", colour = "RF Model") +
+  theme(legend.position = "bottom",
+        text = element_text(size = 12))
+ggsave("plt_RF_ROC.png", device = png, width = 4, height = 4, bg = "white")
+
+## Balancing by class weights (according to freuqency of adapted vs maladapted) 
+## is really a trade off: increases the specificity but decreases sensitivity
+### seems to be reducing overfitting, increases ability to classify maladapted
+### cases at the cost of decreasing classification of adapted pops.
+### ROC decreases though, so doesn't seem worth it?
+
+
+# conditional forest
+p_crf_train_mbeta_adapted <- predict(crf_mbeta_adapted, train_mbeta_adapted)
+caret::confusionMatrix(p_crf_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
+
+
+# conditional forest
+p_crf_test_mbeta_adapted <- predict(crf_mbeta_adapted, test_mbeta_adapted)
+caret::confusionMatrix(p_crf_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
+
+
+
+# Plot errors (black line = OOB, red = false positive, green = false negative)
+plot(rf_mbeta_adapted)
+
+
+# Number of nodes per tree
+hist(treesize(rf_mbeta_adapted),
+     main = "# Nodes for the RF trees",
+     col = "forestgreen")
+
+# variable importance - model, btmb, and cossim Mb important
+varImpPlot(rf_mbeta_adapted,
+           sort = T, type = 1, scale = F)
+randomForest::importance(rf_mbeta_adapted, type = 1, scale = F)
+
+# conditional
+iscores_crf <- varimp(crf_mbeta_adapted, conditional = T)
+iscores_crf
+
+saveRDS(iscores_crf, "iscores_crf.RDS")
+# iscores_crf <- readRDS("iscores_crf.RDS")
+
+iscores <- varImp(rf_mbeta_adapted, conditional = T)
+iscores <- iscores %>% tibble::rownames_to_column("feature") 
+iscores$feature <- iscores$feature %>% as.factor()
+iscores <- iscores[,-3]
+colnames(iscores) <- c("feature", "score")
+
+bor_mbeta <- Boruta::Boruta(isAdapted ~ ., data = d_btgb_Malign_rf)
+bor_mbeta
+plot(bor_mbeta)
+
+d_bor_mbeta <- process_the_Boruta_data(bor_mbeta)
+
+feature_names <- c(TeX("Shadow Variable (min)", output = "character"),
+                   TeX("Shadow Variable (mean)", output = "character"),
+                   TeX("Shadow Variable (max)", output = "character"),
+                   TeX("Recombination rate", output = "character"),
+                   TeX("G-selection alignment ($|cos(\\theta)|^G_\\beta$)",
+                       output = "character"),
+                   TeX("Selection/trait correlation alignment", output = "character"),
+                   TeX("Evolvability ($\\beta^TG\\beta$)", output = "character"),
+                   TeX("M-selection alignment ($|cos(\\theta)|^M_\\beta$)",
+                       output = "character"),
+                   TeX("M Evolvability ($\\beta^TM\\beta$)", output = "character"),
+                   TeX("Motif", output = "character"))
+
+
+ggplot(iscores %>%
+         mutate(feature = factor(feature, levels = c("r", "absCS_Gb", "dataset", "bTGb", 
+                                                     "absCS_Mb", "bTMb", "model"))),
+       aes(x = feature, y = score)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(labels = parse(text = feature_names[4:10]),
+                   guide = guide_axis(n.dodge = 2)) + 
+  theme_bw() +
+  labs(x = "Feature", y = "Importance") +
+  theme(text = element_text(size = 12)) -> plt_rf_perm_imp
+
+
+pal_boruta <- c(rep("#00C0EA", times = 3),
+                rep("#00A000", times = 7))
+
+ggplot(d_bor_mbeta %>% pivot_longer(everything()) %>%
+         mutate(x = fct_reorder(name, value, median)),
+       aes(x = x, y = value, fill = x)) +
+  geom_boxplot(show.legend = F) +
+  theme_bw() +
+  scale_fill_manual(values = pal_boruta) +
+  scale_x_discrete(labels = parse(text = feature_names),
+                   guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Importance") +
+  theme(text = element_text(size = 12)) -> plt_boruta_imp
+plt_boruta_imp
+ggsave("plt_boruta_import_align.png", device = png, bg = "white",
+       width = 12, height = 8)
+
+predictor <- iml::Predictor$new(rf_mbeta_adapted_nobal, 
+                                data = test_mbeta_adapted[, 2:8], 
+                                y = test_mbeta_adapted$isAdapted)
+
+# Need to set the option future globals maxsize
+options(future.globals.maxSize = 3221225472)
+imp <- iml::FeatureImp$new(predictor,
+                           loss = "ce",
+                           n.repetitions = 100)
+
+ggplot(imp$results %>% 
+         mutate(feature = factor(feature, levels = c("r", "absCS_Gb", "dataset", "bTGb", 
+                                                     "absCS_Mb", "bTMb", "model"))),
+       aes(x = feature, y = importance)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
+                width = 0.2) +
+  scale_x_discrete(labels = parse(text = feature_names[4:10]),
+                   guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Permutation Importance (Loss: CE)") +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_perm_imp
+plt_perm_imp
+ggsave("plt_perm_feat_imp_align.png", device = png, width = 9, height = 5, bg = "white")
+
+plot_grid(plt_boruta_imp,
+          plt_perm_imp,
+          nrow = 2,
+          labels = "AUTO",
+          align = "v")
+ggsave("plt_feat_imp_align.png", device = png, width = 12, height = 9, bg = "white")
+
+
+ale <- FeatureEffects$new(predictor, grid.size = 10)
+ale$plot()
+
+ale_plots <- vector(mode = "list", length = 7)
+
+ale_labels <- feature_names[c(10, 6, 4, 8, 5, 7, 9)]
+names(ale_labels) <- names(ale$results)
+
+for (i in seq_along(ale_plots)) {
+  d_ale <- ale$results[[i]]
+  d_ale <- d_ale %>% filter(.class == "Adapted")
+  x_label <- ale_labels[d_ale$.feature[1]] 
+  
+  if (d_ale$.feature[1] == "model") {
+    d_ale$.borders <- factor(d_ale$.borders, 
+                             levels = model_names,
+                             labels = model_names_noquote)
+  }
+  
+  if (!is.numeric(d_ale$.borders[1])) {
+    geom_fn <- geom_point
+    scale_fn <- scale_x_discrete
+  } else {
+    geom_fn <- geom_line
+    scale_fn <- scale_x_continuous
+  }
+  ale_plots[[i]] <- ggplot(d_ale,
+                           aes(x = .borders, y = .value)) +
+    geom_fn() +
+    scale_fn() +
+    theme_bw() +
+    labs(x = parse(text = x_label), y = "ALE of adaptation probability")
+}
+
+plot_grid(plotlist = ale_plots,
+          labels= "AUTO")
+ggsave("plt_ale_align.png", device = png, bg = "white",
+       width = 12, height = 9)
+
+
+
+# partial dependence
+partialPlot(x = rf_mbeta_adapted,
+            pred.data = test_mbeta_adapted,
+            x.var = model)
+partialPlot(x = rf_mbeta_adapted,
+            pred.data = test_mbeta_adapted,
+            x.var = absCS_Mb)
+partialPlot(x = rf_mbeta_adapted,
+            pred.data = test_mbeta_adapted,
+            x.var = dataset)
+
+
+MDSplot(rf_mbeta_adapted, test_mbeta_adapted$model,
+        pal = pal)
+legend("topright", legend = model_names_noquote,
+       fill = pal)
+ggsave("plt_rf_mbeta_adapted_mds_align.png", device = png, 
+       width = 5, height = 5, bg = "white")
+
+
+
+
+
 
 ## Confirm populations evolving toward optima parallel to M adapt faster than random-direction populations (i.e. above)
 
