@@ -14,7 +14,9 @@ library(tidymodels)
 library(randomForest)
 library(caret)
 library(iml)
-library(ranger)
+library(sobolMDA)
+library(ggalt)
+
 
 # Helper functions
 source("helperFn.R")
@@ -388,7 +390,7 @@ r_long <- as.data.frame(t(r_post)) %>%
   bind_cols(d_qg_traitCor_mdl) %>%
   pivot_longer(starts_with("draw_"), names_to = "draw", values_to = "r_post") %>%
   group_by(gen, modelindex, model, traitCombo) %>%
-  summarise(r_post_mean = mean(r_post),
+  dplyr::summarise(r_post_mean = mean(r_post),
             r_post_ci_lower = r_post_mean - CI(r_post),
             r_post_ci_upper = r_post_mean + CI(r_post)) %>%
   filter(!(model == "NAR" & grepl("[3-4]", traitCombo)), # remove invalid trait combinations
@@ -398,7 +400,7 @@ r_long <- as.data.frame(t(r_post)) %>%
 
 d_traitCor_sum <- d_qg_traitCor_mdl %>%
   group_by(gen, modelindex, model, traitCombo) %>%
-  summarise(r_post_mean = mean(cor),
+  dplyr::summarise(r_post_mean = mean(cor),
             r_post_ci = CI(cor),
             r_post_ci_lower = r_post_mean - CI(r_post),
             r_post_ci_upper = r_post_mean + CI(r_post)) %>%
@@ -410,7 +412,7 @@ d_traitCor_sum <- d_qg_traitCor_mdl %>%
   
 # Store as correlation matrices - alphabetical order
 cor_mats <- d_traitCor_sum %>%
-  mutate(model = factor(model, levels = model_names_noquote)) %>%
+  dplyr::mutate(model = factor(model, levels = model_names_noquote)) %>%
   group_by(model) %>%
   group_map(~ make_matrix(.x))
 
@@ -806,9 +808,11 @@ d_cossim_R <- GetCosineSimilarity(h2_cor, d_trait_cor, id)
 
 d_cossim_R <- AddCombosToDF(d_cossim_R)
 d_cossim_R$model <- factor(d_cossim_R$model, levels = model_names)
+d_cossim_R$dataset <- factor(id$dataset, levels = c("Orthogonal", "Parallel", "Randomised"))
+
 
 d_cossim_R_sum <- d_cossim_R %>%
-  group_by(model, isAdapted) %>%
+  group_by(model, dataset, isAdapted) %>%
   dplyr::summarise(meanCosSim = mean(abs(cosSim), na.rm = T),
                    seCosSim = se(abs(cosSim), na.rm = T),
                    meanbTGb = mean(bTMb, na.rm = T),
@@ -817,7 +821,7 @@ d_cossim_R_sum <- d_cossim_R %>%
 
 ggplot(d_cossim_R, 
        aes(x = model, y = abs(cosSim), colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_cossim_R_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -837,7 +841,7 @@ ggplot(d_cossim_R,
 
 ggplot(d_cossim_R, 
        aes(x = model, y = bTMb, colour = model)) +
-  facet_nested(. ~ "Population adapted" + isAdapted) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_cossim_R_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -865,23 +869,23 @@ ggsave("plt_cossim_g_rmax.png", device = png, width = 12, height = 5, bg = "whit
 
 
 # M vs trait correlation
-m_cor <- vector(mode = "list", length(m_matrices))
-for (i in seq_along(m_matrices)) {
-  result <- cov2cor(m_matrices[[i]])
+m_cor <- vector(mode = "list", length(m_matrices_tot))
+for (i in seq_along(m_matrices_tot)) {
+  result <- cov2cor(m_matrices_tot[[i]])
   result[is.nan(result)] <- 0
   m_cor[[i]] <- result
 }
 
 # Add correlation matrix to id: index in cor_mats
-id_m <- id_m %>%
+id_m_tot <- id_m_tot %>%
   mutate(corMatIndex = match(model, model_names))
 
 # Match correlation matrices with M matrix list
 # First eigenvector of trait correlation matrix
-d_m_cor <- as.data.frame(t(as.data.frame(cor_eig[id_m$corMatIndex])))
+d_m_cor <- as.data.frame(t(as.data.frame(cor_eig[id_m_tot$corMatIndex])))
 
 # Measure cosine similarity between M matrix correlations and neutral trait correlations
-#d_cossim_m_traitcor <- GetCosineSimilarity(m_cor, d_m_cor, id_m)
+d_cossim_m_traitcor <- GetCosineSimilarity(m_cor, d_m_cor, id_m_tot)
 
 #saveRDS(d_cossim_m_traitcor, "d_cossim_m_traitcor.RDS")
 
@@ -1461,14 +1465,14 @@ ggsave("plt_feat_imp.png", device = png, width = 12, height = 9, bg = "white")
 ale <- FeatureEffects$new(predictor, grid.size = 10)
 ale$plot()
 
-ale_plots <- vector(mode = "list", length = 6)
+ale_plots <- vector(mode = "list", length = 7)
 
-ale_labels <- feature_names[c(9, 4, 7, 5, 6, 8)]
+ale_labels <- feature_names[c(9, 4, 7, 5, 6, 8, 10)]
 names(ale_labels) <- names(ale$results)
 
 for (i in seq_along(ale_plots)) {
   d_ale <- ale$results[[i]]
-  d_ale <- d_ale %>% filter(.class == T)
+  d_ale <- d_ale %>% filter(.class == "Adapted")
   x_label <- ale_labels[d_ale$.feature[1]] 
   
   if (d_ale$.feature[1] == "model") {
@@ -1478,7 +1482,7 @@ for (i in seq_along(ale_plots)) {
   }
   
   if (!is.numeric(d_ale$.borders[1])) {
-    geom_fn <- geom_col
+    geom_fn <- geom_lollipop
     scale_fn <- scale_x_discrete
   } else {
     geom_fn <- geom_line
@@ -2557,13 +2561,13 @@ feature_names <- c(TeX("Shadow Variable (min)", output = "character"),
                    TeX("Shadow Variable (mean)", output = "character"),
                    TeX("Shadow Variable (max)", output = "character"),
                    TeX("Recombination rate", output = "character"),
-                   TeX("G-selection alignment ($|cos(\\theta)|^G_\\beta$)",
+                   TeX("$G/\\beta$ alignment",
                        output = "character"),
-                   TeX("Selection/trait correlation alignment", output = "character"),
-                   TeX("Evolvability ($\\beta^TG\\beta$)", output = "character"),
-                   TeX("M-selection alignment ($|cos(\\theta)|^M_\\beta$)",
+                   TeX("$R_{max} / \\beta$ alignment", output = "character"),
+                   TeX("G Evolvability", output = "character"),
+                   TeX("$M/\\beta$ alignment",
                        output = "character"),
-                   TeX("M Evolvability ($\\beta^TM\\beta$)", output = "character"),
+                   TeX("M Evolvability", output = "character"),
                    TeX("Motif", output = "character"))
 
 
@@ -2585,12 +2589,12 @@ pal_boruta <- c(rep("#00C0EA", times = 3),
 ggplot(d_bor_mbeta %>% pivot_longer(everything()) %>%
          mutate(x = fct_reorder(name, value, median)),
        aes(x = x, y = value, fill = x)) +
-  geom_boxplot(show.legend = F) +
+  geom_boxplot(show.legend = F, linewidth = 0.25) +
   theme_bw() +
   scale_fill_manual(values = pal_boruta) +
   scale_x_discrete(labels = parse(text = feature_names),
                    guide = guide_axis(n.dodge = 2)) +
-  labs(x = "Feature", y = "Importance") +
+  labs(x = "Feature", y = "Boruta Importance") +
   theme(text = element_text(size = 12)) -> plt_boruta_imp
 plt_boruta_imp
 ggsave("plt_boruta_import_align.png", device = png, bg = "white",
@@ -2615,18 +2619,58 @@ ggplot(imp$results %>%
                 width = 0.2) +
   scale_x_discrete(labels = parse(text = feature_names[4:10]),
                    guide = guide_axis(n.dodge = 2)) +
-  labs(x = "Feature", y = "Permutation Importance (Loss: CE)") +
+  labs(x = "Feature", y = "Permutation Importance") +
   theme_bw() +
   theme(text = element_text(size = 12)) -> plt_perm_imp
 plt_perm_imp
 ggsave("plt_perm_feat_imp_align.png", device = png, width = 9, height = 5, bg = "white")
 
-plot_grid(plt_boruta_imp,
-          plt_perm_imp,
-          nrow = 2,
-          labels = "AUTO",
-          align = "v")
-ggsave("plt_feat_imp_align.png", device = png, width = 12, height = 9, bg = "white")
+# Sobol MDA
+rf_sob_mbeta_adapted <- sobolMDA::ranger(isAdapted ~ .,
+                                         data = train_mbeta_adapted, num.trees = 500, 
+                                         importance = "sobolMDA")
+
+sob_mbeta_adapted <- rf_sob_mbeta_adapted$variable.importance
+d_sob_mbeta_adapted <- data.frame(feature = names(sob_mbeta_adapted),
+                                  sobelMDA = sob_mbeta_adapted)
+
+d_sob_mbeta_adapted$feature <- factor(d_sob_mbeta_adapted$feature,
+                                      levels = c("r",
+                                                 "absCS_Gb",
+                                                 "dataset",
+                                                 "bTGb",
+                                                 "absCS_Mb",
+                                                 "bTMb",
+                                                 "model"))
+
+ggplot(d_sob_mbeta_adapted,
+       aes(x = feature, y = sobelMDA)) +
+  geom_point() +
+  geom_segment(aes(xend = feature, y = 0, yend = sobelMDA),
+               linewidth = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = parse(text = feature_names[4:10]),
+                   guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Sobel MDA") +
+  theme(text = element_text(size = 12)) -> plt_sob_mbeta_adapted
+plt_sob_mbeta_adapted
+
+
+layout <- "
+AAAA
+AAAA
+AAAA
+BBCC
+BBCC
+"
+plt_boruta_imp +
+  plt_perm_imp +
+  plt_sob_mbeta_adapted +
+  plot_layout(design = layout) +
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.tag = element_text(face = "bold"))
+
+ggsave("plt_feat_imp_align.png", device = png, width = 12, height = 10, bg = "white")
 
 
 ale <- FeatureEffects$new(predictor, grid.size = 10)
@@ -2649,7 +2693,7 @@ for (i in seq_along(ale_plots)) {
   }
   
   if (!is.numeric(d_ale$.borders[1])) {
-    geom_fn <- geom_point
+    geom_fn <- geom_lollipop
     scale_fn <- scale_x_discrete
   } else {
     geom_fn <- geom_line
@@ -2681,16 +2725,12 @@ partialPlot(x = rf_mbeta_adapted,
             pred.data = test_mbeta_adapted,
             x.var = dataset)
 
-
 MDSplot(rf_mbeta_adapted, test_mbeta_adapted$model,
         pal = pal)
 legend("topright", legend = model_names_noquote,
        fill = pal)
 ggsave("plt_rf_mbeta_adapted_mds_align.png", device = png, 
        width = 5, height = 5, bg = "white")
-
-
-
 
 
 
@@ -2705,24 +2745,29 @@ ggsave("plt_rf_mbeta_adapted_mds_align.png", device = png,
 
 # Measure cosine similarity between M matrix correlations and G matrix correlations
 ## Match G matrix rows to M matrix rows
-id_m_for_g_match <- id_m %>%
+id_m$dataset <- "Randomised"
+id_m_orth$dataset <- "Orthogonal"
+id_m_par$dataset <- "Parallel"
+
+
+id_m_for_g_match <- id_m_tot %>%
   mutate(m_idx = row_number()) %>%
   filter(timePoint == 50000 | timePoint == 60000) %>%
   mutate(timePoint = if_else(timePoint == 50000, "Start", "End"))
 
 id_m_g_matched <- left_join(id %>%
                               select(timePoint, seed, modelindex,
-                                     isAdapted), 
+                                     dataset, isAdapted), 
                             id_m_for_g_match %>%
                               select(timePoint, seed, modelindex,
-                                     isAdapted, m_idx),
-                            by = c("timePoint", "seed", "modelindex",
+                                     dataset, isAdapted, m_idx),
+                            by = c("timePoint", "seed", "modelindex", "dataset",
                                    "isAdapted"))
 
 id_m_g_matched <- AddCombosToDF(id_m_g_matched)
 
 # covariance instead of correlation matrices
-m_cov_for_g_match <- m_matrices[id_m_g_matched$m_idx]
+m_cov_for_g_match <- m_matrices_tot[id_m_g_matched$m_idx]
 
 m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
   result <- matrix(0, 4, 4)
@@ -2730,10 +2775,15 @@ m_cov_for_g_match <- lapply(m_cov_for_g_match, function(x) {
   return(result)
 })
 
+
+
 ## Angle between leading eigenvectors of M and G
 d_cossim_m_vs_g <- GetCosineSimilarityTwoMats(h2_pd, m_cov_for_g_match, id_m_g_matched)
 d_cossim_m_vs_g <- AddCombosToDF(d_cossim_m_vs_g)
 d_cossim_m_vs_g$model <- factor(d_cossim_m_vs_g$model, levels = model_names)
+d_cossim_m_vs_g$dataset <- factor(id_m_g_matched$dataset, levels = c("Orthogonal",
+                                                                     "Parallel",
+                                                                     "Randomised"))
                                     
 d_cossim_m_vs_g_sum <- d_cossim_m_vs_g %>%
   group_by(model, isAdapted) %>%
@@ -2745,15 +2795,15 @@ d_cossim_m_vs_g_sum <- d_cossim_m_vs_g %>%
 # similarity between g_max and m_max
 ggplot(d_cossim_m_vs_g, 
        aes(x = model, y = abs(cosSim), colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested(. ~ "Population adapted" + isAdapted) +
   geom_quasirandom(show.legend = F) +
   geom_point(data = d_cossim_m_vs_g_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
                       adapted_title = "Did the population adapt?"),
              aes(x = model, y = meanCosSim, group = model), colour = "black",
              fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
-  labs(x = "Model", y = TeX("abs($cos(\\theta)$) between $g_{max}$ and $m_{max}$"),
-       fill = "Model") +
+  labs(x = "Model", y = TeX("$G_{max}/M_{max}$ alignment ($|cos(\\theta)|^M_G$)"),
+       colour = "Model") +
   scale_x_discrete(labels = model_names_noquote) +
   scale_colour_manual(values = pal,
                       labels = model_names_noquote) +
@@ -2761,7 +2811,7 @@ ggplot(d_cossim_m_vs_g,
   theme(text = element_text(size = 14),
         legend.position = "bottom")
 
-ggsave("plt_cossim_gmax_mmax.png", device = png, bg = "white",
+ggsave("plt_cossim_gmax_mmax_tot.png", device = png, bg = "white",
        width = 8, height = 4)
 
 
@@ -2786,17 +2836,22 @@ ggplot(d_cossim_m_vs_g_sum,
 
 ## expect G = M under drift
 
+m_matrices_tot <- c(m_matrices, m_matrices_orth, m_matrices_par)
+id_m_tot <- rbind(id_m %>% select(-corMatIndex), id_m_orth, id_m_par)
 
 # 5) Evolvability, autonomy and V_A through M
-d_ecr_m <- CalcECRATrait(m_matrices, id_m)
+d_ecr_m <- CalcECRATrait(m_matrices_tot, id_m_tot)
 d_ecr_m <- AddCombosToDF(d_ecr_m)
 
+
 saveRDS(d_ecr_m, "d_ecr_m.RDS")
-#d_ecr_m <- readRDS("d_ecr_m.RDS")
+d_ecr_m <- readRDS("d_ecr_m.RDS")
 
 # Refactor model
 d_ecr_m <- d_ecr_m %>%
   mutate(model = factor(model, levels = model_names))
+
+d_ecr_m$dataset <- id_m_tot$dataset
 
 # d_ecr_m_plt <- d_ecr_m %>%
 #   filter(timePoint == 50000 | timePoint == 60000) %>%
@@ -2830,7 +2885,7 @@ ggplot(d_ecr_m_sum %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         panel.spacing.y = unit(1, "lines"),
         text = element_text(size = 10)) -> plt_cev_m
 plt_cev_m
@@ -2853,9 +2908,10 @@ ggplot(d_ecr_m_sum %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         panel.spacing.y = unit(1, "lines"),
         text = element_text(size = 10)) -> plt_res_m
+plt_res_m
 
 ggplot(d_ecr_m_sum %>%
          mutate(r_title = "Recombination rate (log10)"), 
@@ -2875,7 +2931,7 @@ ggplot(d_ecr_m_sum %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         panel.spacing.y = unit(1, "lines"),
         text = element_text(size = 10)) -> plt_aut_m
 plt_aut_m
@@ -2899,7 +2955,7 @@ ggplot(d_ecr_m_sum %>%
   theme_bw() +
   theme(legend.position = "bottom", 
         legend.box = "vertical", 
-        legend.margin = margin(-5, 0, 0, 0),
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
         panel.spacing.y = unit(1, "lines"),
         text = element_text(size = 10)) -> plt_ev_m
 
