@@ -280,12 +280,11 @@ d_selvec_m <- inner_join(id_m, d_selvec_m,
 
 
 d_selvec_m <- d_selvec_m %>%
-  rowwise() %>%
   mutate(t1_dir = o_t1 - trait1_mean,
          t2_dir = o_t2 - trait2_mean,
          t3_dir = o_t3 - trait3_mean,
          t4_dir = o_t4 - trait4_mean,
-         norm = sqrt(sum(c_across(ends_with("dir"))^2)), # normalise
+         norm = sqrt(rowSums(pick(ends_with("dir"))^2)), # normalise
          t1_dir = t1_dir / norm,
          t2_dir = t2_dir / norm,
          t3_dir = t3_dir / norm,
@@ -598,17 +597,16 @@ d_selvec <- left_join(d_selvec, d_opt %>%
 d_selvec <- AddCombosToDF(d_selvec)
 
 d_selvec <- d_selvec %>%
-  rowwise() %>%
   mutate(t1_dir = o_t1 - trait1_mean,
          t2_dir = o_t2 - trait2_mean,
          t3_dir = o_t3 - trait3_mean,
          t4_dir = o_t4 - trait4_mean,
-         norm = sqrt(sum(c_across(ends_with("dir"))^2)), # normalise
+         norm = sqrt(rowSums(pick(ends_with("dir"))^2)), # normalise
          t1_dir = t1_dir / norm,
          t2_dir = t2_dir / norm,
          t3_dir = t3_dir / norm,
          t4_dir = t4_dir / norm) %>%
-  select(gen, seed, modelindex, model, r, norm, ends_with("dir"))
+  select(timePoint, seed, modelindex, dataset, isAdapted, model, r, norm, ends_with("dir"))
 
 
 d_selvec <- d_selvec %>%
@@ -1631,13 +1629,13 @@ d_m_par <- d_m_par %>%
   mutate(model = ModelFromIndexWithR(modelindex))
 
 # get matrices
-# m_matrices_orth <- d_m_orth %>%
-#   rowwise() %>%
-#   group_map(~ row_to_m(.x))
+m_matrices_orth <- d_m_orth %>%
+  rowwise() %>%
+  group_map(~ row_to_m(.x))
 # 
-# m_matrices_par <- d_m_par %>%
-#   rowwise() %>%
-#   group_map(~ row_to_m(.x))
+m_matrices_par <- d_m_par %>%
+  rowwise() %>%
+  group_map(~ row_to_m(.x))
 
 
 #saveRDS(m_matrices_orth, "m_matrices_orth.RDS")
@@ -1684,7 +1682,7 @@ d_vrel_par <- left_join(d_m_par %>% mutate(seed = factor(seed),
 
 d_vrel$dataset <- "Randomised"
 
-d_vrel <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
+d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
 
 
 # Plot
@@ -2412,6 +2410,8 @@ d_btgb_Malign_rf <- d_btgb_Malign_tot %>%
          dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
          r = factor(log10(r), levels = c(-10, -5, -1))) %>%
   select(isAdapted, model, dataset, r, absCS_Mb, absCS_Gb, bTGb, bTMb)
+
+# TODO: ADD VREL
 
 # seed <- sample(1:.Machine$integer.max, 1)
 # > seed

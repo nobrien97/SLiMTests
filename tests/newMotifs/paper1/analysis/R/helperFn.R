@@ -10,7 +10,12 @@ model_names_labeller <- c("'NAR'" = "NAR",
                           "'FFLI1'" = "FFLI1", 
                           "'FFBH'" = "FFBH")
 
-pal <- paletteer_d("nationalparkcolors::Everglades", 5)[c(1:2, 4, 3, 5)]
+
+mutate <- dplyr::mutate
+select <- dplyr::select
+summarise <- dplyr::summarise
+
+pal <- paletteer_d("nationalparkcolors::Everglades", 5)
 
 # Adds the parameter combination to a dataframe
 AddCombosToDF <- function(df) {
