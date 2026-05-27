@@ -1327,11 +1327,6 @@ rf_mbeta_adapted <- randomForest(formula = isAdapted ~ model * r * absCS_Gb * ab
                                  importance = T,
                                  type = "classification")
 
-# Conditional RF
-crf_mbeta_adapted <- partykit::cforest(formula = isAdapted ~ model * r * absCS_Gb * absCS_Mb * bTGb * bTMb,
-                                    data = train_mbeta_adapted,
-                                    ntree = 500
-                                    )
 print(rf_mbeta_adapted)
 
 # Training data
@@ -1341,17 +1336,6 @@ caret::confusionMatrix(p_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
 # Test data
 p_test_mbeta_adapted <- predict(rf_mbeta_adapted, test_mbeta_adapted)
 caret::confusionMatrix(p_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
-
-
-# conditional forest
-p_crf_train_mbeta_adapted <- predict(crf_mbeta_adapted, train_mbeta_adapted)
-caret::confusionMatrix(p_crf_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
-
-
-# conditional forest
-p_crf_test_mbeta_adapted <- predict(crf_mbeta_adapted, test_mbeta_adapted)
-caret::confusionMatrix(p_crf_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
-
 
 
 # Plot errors (black line = OOB, red = false positive, green = false negative)
@@ -2511,17 +2495,6 @@ ggsave("plt_RF_ROC.png", device = png, width = 4, height = 4, bg = "white")
 ### seems to be reducing overfitting, increases ability to classify maladapted
 ### cases at the cost of decreasing classification of adapted pops.
 ### ROC decreases though, so doesn't seem worth it?
-
-
-# conditional forest
-p_crf_train_mbeta_adapted <- predict(crf_mbeta_adapted, train_mbeta_adapted)
-caret::confusionMatrix(p_crf_train_mbeta_adapted, train_mbeta_adapted$isAdapted)
-
-
-# conditional forest
-p_crf_test_mbeta_adapted <- predict(crf_mbeta_adapted, test_mbeta_adapted)
-caret::confusionMatrix(p_crf_test_mbeta_adapted, test_mbeta_adapted$isAdapted)
-
 
 
 # Plot errors (black line = OOB, red = false positive, green = false negative)
