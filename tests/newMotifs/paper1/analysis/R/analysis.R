@@ -1670,7 +1670,7 @@ d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
 
 
 # Plot
-d_vrel_sum <- d_vrel %>%
+d_vrel_sum <- d_vrel_tot %>%
   group_by(gen, model, dataset, isAdapted) %>%
   summarise(vrel_mean = mean(vrel),
             vrel_CI = CI(vrel))
@@ -1692,13 +1692,13 @@ ggplot(d_vrel_sum,
 
 
 # Stable over time (except FFLC1, mirrors M evolvability), can take average?
-d_vrel_tab <- d_vrel %>%
+d_vrel_tab <- d_vrel_tot %>%
   group_by(model, dataset, isAdapted) %>%
   summarise(vrel_mean = mean(vrel),
             vrel_CI = CI(vrel))
 d_vrel_tab
 
-ggplot(d_vrel,
+ggplot(d_vrel_tot,
        aes(x = model, y = vrel, colour = model)) +
   facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
   geom_boxplot() +
@@ -1710,8 +1710,9 @@ ggplot(d_vrel,
                       breaks = model_names_noquote) +
   theme_bw() +
   theme(text = element_text(size = 12),
-        legend.position = "bottom")
-ggsave("plt_vrel_alignment.png", device = png, bg = "white",
+        legend.position = "bottom") -> plt_vrel_m
+plt_vrel_m
+ggsave("plt_vrel_m_alignment.png", device = png, bg = "white",
        width = 8, height = 6)
 
 # No real difference in Vrel for M matrices, makes sense given selection not acting
@@ -2972,5 +2973,78 @@ ggsave("plt_evol_m.png", device = png, bg = "white",
 
 ## Conditional evolvability in the direction of selection predicts adaptive success
 
+# G matrix Vrel
+e_g <- lapply(h2_pd, eigen)
+saveRDS(e_g, "eigen_randomised_g_tot.RDS")
+
+vrel_g <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
+
+# join with quant gen data
+d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
+                                   modelindex = factor(modelindex),
+                                   r = RFromIndex(modelindex),
+                                   vrel = vrel_g) %>%
+                        select(-label),
+                    d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted, model, r) %>%
+                      filter(gen == 50000 | gen == 60000) %>%
+                      mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+                             timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
+                      select(-gen),
+                    by = c("timePoint", "seed", "modelindex", "dataset", "isAdapted", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names,
+                        labels = model_names_noquote))
+
+# Plot
+d_vrel_sum <- d_vrel_g %>%
+  group_by(timePoint, model, dataset, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+ggplot(d_vrel_sum,
+       aes(x = timePoint, y = vrel_mean, colour = model)) +
+  facet_nested("Dataset" + dataset~"Population adapted" + isAdapted) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI, colour = model),
+              show.legend = F, position = position_dodge(0.9)) +
+  labs(x = "Generations post-optimum shift", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") 
 
 
+
+# Stable over time (except FFLC1, mirrors M evolvability), can take average?
+d_vrel_g_tab <- d_vrel_g %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+d_vrel_g_tab
+
+ggplot(d_vrel_g,
+       aes(x = model, y = vrel, colour = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_boxplot() +
+  geom_point(data = d_vrel_g_tab, aes(y = vrel_mean), size = 2, stroke = 1,
+             shape = 21,
+             colour = "black", fill = "white") +
+  labs(x = "Model", y = TeX("$V_{rel}$"), colour = "Model") +
+  scale_colour_manual(values = pal,
+                      breaks = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom") -> plt_vrel_g
+plt_vrel_g
+
+ggsave("plt_vrel_g_alignment.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+# Combine with M matrix version
+
+plot_grid(plt_vrel_g + labs(y = TeX("$V_{rel}$ (G)")),
+          plt_vrel_m + labs(y = TeX("$V_{rel}$ (M)")),
+          labels = "AUTO",
+          nrow = 2)
+ggsave("plt_vrel_alignment.png", device = png, bg = "white",
+       width = 8, height = 10)

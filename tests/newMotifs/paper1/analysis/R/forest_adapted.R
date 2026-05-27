@@ -207,7 +207,6 @@ e_m_orth <- readRDS("eigen_randomised_m_orth.RDS")
 e_m_par <- readRDS("eigen_randomised_m_par.RDS")
 
 # Calculate relative eigenvalue dispersion
-# Calculate relative eigenvalue dispersion
 vrel_m <- unlist(lapply(e_m, function(x) { Vrel(x$values) }))
 vrel_m_orth <- unlist(lapply(e_m_orth, function(x) { Vrel(x$values) }))
 vrel_m_par <- unlist(lapply(e_m_par, function(x) { Vrel(x$values) }))
@@ -247,6 +246,30 @@ d_vrel$dataset <- "Randomised"
 
 # Combine
 d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
+
+
+# Now the same for G matrices
+# G matrix Vrel
+e_g <- lapply(h2_pd, eigen)
+saveRDS(e_g, "eigen_randomised_g_tot.RDS")
+
+vrel_g <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
+
+d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
+                                    modelindex = factor(modelindex),
+                                    r = RFromIndex(modelindex),
+                                    vrel = vrel_g) %>%
+                        select(-label),
+                      d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted, model, r) %>%
+                        filter(gen == 50000 | gen == 60000) %>%
+                        mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+                               timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
+                        select(-gen),
+                      by = c("timePoint", "seed", "modelindex", "dataset", "isAdapted", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names,
+                        labels = model_names_noquote))
+
+
 
 ######################################################################
 # Load optima
@@ -648,9 +671,25 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot %>%
                                     by = c("timePoint", "seed", "modelindex",
                                            "model", "dataset", "isAdapted", "r"))
 
+# Add vrel for G matrix
+d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel %>%
+                                      rename(vrel_m = vrel),
+                                    d_vrel_g %>%
+                                      rename(vrel_g = vrel) %>%
+                                      mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                                                labels = c("Adapted", "Maladapted")),
+                                             dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                                             r = factor(log10(r), levels = c(-10, -5, -1))) %>%
+                                      select(timePoint, seed, modelindex, model, dataset, isAdapted, r,
+                                             vrel_g),
+                                    by = c("timePoint", "seed", "modelindex",
+                                           "model", "dataset", "isAdapted", "r"))
+
+
+
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>%
-  select(isAdapted, model, dataset, r, absCS_Mb, absCS_Gb, bTGb, bTMb, vrel)
+  select(isAdapted, model, dataset, r, absCS_Mb, absCS_Gb, bTGb, bTMb, vrel_g, vrel_m)
 
 saveRDS(d_btgb_Malign_rf, "d_btgb_Malign_rf.RDS")
 
@@ -674,7 +713,8 @@ train_mbeta_adapted <- d_btgb_Malign_rf[idx == 1,]
 test_mbeta_adapted <- d_btgb_Malign_rf[idx == 2,]
 
 # no balancing
-rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * bTGb * bTMb * vrel,
+rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * 
+                                         bTGb * bTMb * vrel_g * vrel_m,
                                        data = train_mbeta_adapted,
                                        ntree = 500,
                                        proximity = T,
@@ -684,7 +724,8 @@ rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r
 print(rf_mbeta_adapted_nobal)
 
 # With balancing (class weights)
-rf_mbeta_adapted_bal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * bTGb * bTMb * vrel,
+rf_mbeta_adapted_bal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * 
+                                       bTGb * bTMb * vrel_g * vrel_m,
                                  data = train_mbeta_adapted,
                                  strata = train_mbeta_adapted$isAdapted,
                                  classwt = adapted_weights,
@@ -780,19 +821,20 @@ feature_names <- c(TeX("Shadow Variable (min)", output = "character"),
                    TeX("Shadow Variable (mean)", output = "character"),
                    TeX("Shadow Variable (max)", output = "character"),
                    TeX("Recombination rate", output = "character"),
+                   TeX("$V_{rel}$ (G)", output = "character"),
                    TeX("$G/\\beta$ alignment",
                        output = "character"),
                    TeX("$R_{max} / \\beta$ alignment", output = "character"),
                    TeX("G Evolvability", output = "character"),
                    TeX("$M/\\beta$ alignment",
                        output = "character"),
-                   TeX("M $V_{rel}$", output = "character"),
+                   TeX("$V_{rel}$ (M)", output = "character"),
                    TeX("M Evolvability", output = "character"),
                    TeX("Motif", output = "character"))
 
 
 pal_boruta <- c(rep("#00C0EA", times = 3),
-                rep("#00A000", times = 8))
+                rep("#00A000", times = 9))
 
 ggplot(d_bor_mbeta %>% pivot_longer(everything()) %>%
          mutate(x = fct_reorder(name, value, median)),
@@ -811,7 +853,7 @@ ggsave("plt_boruta_import_align.png", device = png, bg = "white",
 
 # Permutation
 predictor <- iml::Predictor$new(rf_mbeta_adapted_nobal, 
-                                data = test_mbeta_adapted[, 2:9], 
+                                data = test_mbeta_adapted[, 2:10], 
                                 y = test_mbeta_adapted$isAdapted)
 
 # Need to set the option future globals maxsize
@@ -821,13 +863,13 @@ imp <- iml::FeatureImp$new(predictor,
                            n.repetitions = 100)
 
 ggplot(imp$results %>% 
-         mutate(feature = factor(feature, levels = c("r", "absCS_Gb", "dataset", "bTGb", 
-                                                     "absCS_Mb", "vrel", "bTMb", "model"))),
+         mutate(feature = factor(feature, levels = c("r", "vrel_g", "absCS_Gb", "dataset", "bTGb", 
+                                                     "absCS_Mb", "vrel_m", "bTMb", "model"))),
        aes(x = feature, y = importance)) +
   geom_point() +
   geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
                 width = 0.2) +
-  scale_x_discrete(labels = parse(text = feature_names[4:11]),
+  scale_x_discrete(labels = parse(text = feature_names[4:12]),
                    guide = guide_axis(n.dodge = 2)) +
   labs(x = "Feature", y = "Permutation Importance") +
   theme_bw() +
@@ -846,11 +888,12 @@ d_sob_mbeta_adapted <- data.frame(feature = names(sob_mbeta_adapted),
 
 d_sob_mbeta_adapted$feature <- factor(d_sob_mbeta_adapted$feature,
                                       levels = c("r",
+                                                 "vrel_g",
                                                  "absCS_Gb",
                                                  "dataset",
                                                  "bTGb",
                                                  "absCS_Mb",
-                                                 "vrel",
+                                                 "vrel_m",
                                                  "bTMb",
                                                  "model"))
 
@@ -860,7 +903,7 @@ ggplot(d_sob_mbeta_adapted,
   geom_segment(aes(xend = feature, y = 0, yend = sobelMDA),
                linewidth = 0.5) +
   theme_bw() +
-  scale_x_discrete(labels = parse(text = feature_names[4:10]),
+  scale_x_discrete(labels = parse(text = feature_names[4:12]),
                    guide = guide_axis(n.dodge = 2)) +
   labs(x = "Feature", y = "Sobel MDA") +
   theme(text = element_text(size = 12)) -> plt_sob_mbeta_adapted
@@ -888,9 +931,9 @@ ggsave("plt_feat_imp_align.png", device = png, width = 12, height = 10, bg = "wh
 ale <- FeatureEffects$new(predictor, grid.size = 10)
 ale$plot()
 
-ale_plots <- vector(mode = "list", length = 8)
+ale_plots <- vector(mode = "list", length = 9)
 
-ale_labels <- feature_names[c(11, 6, 4, 8, 5, 7, 10, 9)]
+ale_labels <- feature_names[c(12, 7, 4, 9, 6, 8, 11, 5, 10)]
 names(ale_labels) <- names(ale$results)
 
 for (i in seq_along(ale_plots)) {

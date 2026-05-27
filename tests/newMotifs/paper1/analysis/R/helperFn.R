@@ -14,6 +14,7 @@ model_names_labeller <- c("'NAR'" = "NAR",
 mutate <- dplyr::mutate
 select <- dplyr::select
 summarise <- dplyr::summarise
+rename <- dplyr::rename
 
 pal <- paletteer_d("nationalparkcolors::Everglades", 5)
 
