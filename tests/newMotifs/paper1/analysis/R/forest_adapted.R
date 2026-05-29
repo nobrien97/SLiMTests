@@ -247,35 +247,11 @@ d_vrel$dataset <- "Randomised"
 # Combine
 d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
 
-
-# Now the same for G matrices
-# G matrix Vrel
-e_g <- lapply(h2_pd, eigen)
-saveRDS(e_g, "eigen_randomised_g_tot.RDS")
-
-vrel_g <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
-
-d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
-                                    modelindex = factor(modelindex),
-                                    r = RFromIndex(modelindex),
-                                    vrel = vrel_g) %>%
-                        select(-label),
-                      d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted, model, r) %>%
-                        filter(gen == 50000 | gen == 60000) %>%
-                        mutate(timePoint = if_else(gen == 50000, "Start", "End"),
-                               timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
-                        select(-gen),
-                      by = c("timePoint", "seed", "modelindex", "dataset", "isAdapted", "model", "r")) %>%
-  mutate(model = factor(model, levels = model_names,
-                        labels = model_names_noquote))
-
-
-
 ######################################################################
 # Load optima
-d_opt <- read_csv("/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
-d_opt_par <- read_csv("/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
-d_opt_orth <- read_csv("/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
+d_opt_par <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
+d_opt_orth <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -504,6 +480,27 @@ d_cossim_sum <- d_cossim %>%
                    sebTGb = se(bTMb, na.rm = T))
 d_cossim_sum$model <- as.factor(d_cossim_sum$model)
 
+# Vrel for G matrices
+# Now the same for G matrices
+# G matrix Vrel
+e_g <- lapply(h2_pd, eigen)
+saveRDS(e_g, "eigen_randomised_g_tot.RDS")
+
+vrel_g <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
+
+d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
+                                    modelindex = factor(modelindex),
+                                    r = RFromIndex(modelindex),
+                                    vrel = vrel_g) %>%
+                        select(-label),
+                      d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted, model, r) %>%
+                        filter(gen == 50000 | gen == 60000) %>%
+                        mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+                               timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
+                        select(-gen),
+                      by = c("timePoint", "seed", "modelindex", "dataset", "isAdapted", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names,
+                        labels = model_names_noquote))
 
 ###########################################################################
 # M matrix
@@ -685,15 +682,50 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel %>%
                                     by = c("timePoint", "seed", "modelindex",
                                            "model", "dataset", "isAdapted", "r"))
 
+# Add on conditional evolvability
+d_cev <- left_join(d_ecr %>%
+                     select(timePoint, seed, modelindex, isAdapted, model, r, dataset, cev) %>%
+                     rename(cev_g = cev) %>%
+                     mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                               labels = c("Adapted", "Maladapted")),
+                            dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                            r = factor(log10(r), levels = c(-10, -5, -1))),
+                   d_ecr_m %>% filter(timePoint == 50000 | timePoint == 60000) %>%
+                     mutate(timePoint = if_else(timePoint == 50000, "Start", "End"),
+                            isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                               labels = c("Adapted", "Maladapted")),
+                            model = factor(model, levels = model_names,
+                                           labels = model_names_noquote),
+                            timePoint = factor(timePoint, levels = c("Start", "End")),
+                            dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                            r = factor(log10(r), levels = c(-10, -5, -1))
+                            ) %>%
+                     select(timePoint, seed, modelindex, isAdapted, model, r, dataset, cev) %>%
+                     rename(cev_m = cev),
+                   by = c("timePoint", "seed", "modelindex", "isAdapted", "model", "r",
+                          "dataset")
+                   )
+
+
+
+d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
+                                    d_cev,
+                                    by = c("timePoint", "seed", "modelindex", "isAdapted", "model", "r",
+                                           "dataset"))
 
 
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>%
-  select(isAdapted, model, dataset, r, absCS_Mb, absCS_Gb, bTGb, bTMb, vrel_g, vrel_m)
+  select(isAdapted, model, dataset, r, absCS_Mb, 
+         absCS_Gb, bTGb, bTMb, vrel_g, vrel_m,
+         cev_g, cev_m)
 
 saveRDS(d_btgb_Malign_rf, "d_btgb_Malign_rf.RDS")
 
 
+# Filter out r < 0.1, makes analysis simpler
+d_btgb_Malign_rf_nor <- d_btgb_Malign_rf %>% filter(r == -1) %>%
+  select(-r)
 
 # seed <- sample(1:.Machine$integer.max, 1)
 # > seed
@@ -701,20 +733,20 @@ saveRDS(d_btgb_Malign_rf, "d_btgb_Malign_rf.RDS")
 seed <- 18799215
 set.seed(seed)
 # Sample per group to avoid unbalanced groups
-adapted_counts <- table(d_btgb_Malign_rf$isAdapted)
+adapted_counts <- table(d_btgb_Malign_rf_nor$isAdapted)
 total_counts <- sum(adapted_counts)
 num_responses <- length(adapted_counts)
 adapted_weights <- total_counts / (num_responses * adapted_counts)
-names(adapted_weights) <- levels(d_btgb_Malign_rf$isAdapted)
+names(adapted_weights) <- levels(d_btgb_Malign_rf_nor$isAdapted)
 
 
-idx <- sample(2, nrow(d_btgb_Malign_rf), replace = T, prob = c(0.7, 0.3))
-train_mbeta_adapted <- d_btgb_Malign_rf[idx == 1,]
-test_mbeta_adapted <- d_btgb_Malign_rf[idx == 2,]
+idx <- sample(2, nrow(d_btgb_Malign_rf_nor), replace = T, prob = c(0.7, 0.3))
+train_mbeta_adapted <- d_btgb_Malign_rf_nor[idx == 1,]
+test_mbeta_adapted <- d_btgb_Malign_rf_nor[idx == 2,]
 
 # no balancing
-rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * 
-                                         bTGb * bTMb * vrel_g * vrel_m,
+rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * absCS_Gb * absCS_Mb * 
+                                         bTGb * bTMb * vrel_g * vrel_m * cev_g * cev_m,
                                        data = train_mbeta_adapted,
                                        ntree = 500,
                                        proximity = T,
@@ -724,8 +756,8 @@ rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * r
 print(rf_mbeta_adapted_nobal)
 
 # With balancing (class weights)
-rf_mbeta_adapted_bal <- randomForest(formula = isAdapted ~ model * dataset * r * absCS_Gb * absCS_Mb * 
-                                       bTGb * bTMb * vrel_g * vrel_m,
+rf_mbeta_adapted_bal <- randomForest(formula = isAdapted ~ model * dataset * absCS_Gb * absCS_Mb * 
+                                       bTGb * bTMb * vrel_g * vrel_m * cev_g * cev_m,
                                  data = train_mbeta_adapted,
                                  strata = train_mbeta_adapted$isAdapted,
                                  classwt = adapted_weights,
@@ -763,6 +795,10 @@ caret::confusionMatrix(p_test_mbeta_adapted_nobal, test_mbeta_adapted$isAdapted)
 d_roc_bal <- roc(response = test_mbeta_adapted$isAdapted,
              predictor = p_test_mbeta_adapted_bal_probs)
 
+# Tune the threshold
+best_threshold <- pROC::coords(d_roc_bal, "best", best.method = "youden")
+
+
 d_roc_nobal <- roc(response = test_mbeta_adapted$isAdapted,
                    predictor = p_test_mbeta_adapted_nobal_probs,
                    levels = rev(levels(test_mbeta_adapted$isAdapted)))
@@ -797,6 +833,7 @@ ggsave("plt_RF_ROC.png", device = png, width = 4, height = 4, bg = "white")
 ### ROC decreases though, so doesn't seem worth it?
 
 
+
 # Plot errors (black line = OOB, red = false positive, green = false negative)
 plot(rf_mbeta_adapted_bal)
 plot(rf_mbeta_adapted_nobal)
@@ -811,7 +848,7 @@ hist(treesize(rf_mbeta_adapted_nobal),
 # Importance measures
 ## Boruta, permutation importance, sobol MDA
 
-bor_mbeta <- Boruta::Boruta(isAdapted ~ ., data = d_btgb_Malign_rf)
+bor_mbeta <- Boruta::Boruta(isAdapted ~ ., data = d_btgb_Malign_rf_nor)
 bor_mbeta
 plot(bor_mbeta)
 
@@ -820,21 +857,22 @@ d_bor_mbeta <- process_the_Boruta_data(bor_mbeta)
 feature_names <- c(TeX("Shadow Variable (min)", output = "character"),
                    TeX("Shadow Variable (mean)", output = "character"),
                    TeX("Shadow Variable (max)", output = "character"),
-                   TeX("Recombination rate", output = "character"),
-                   TeX("$V_{rel}$ (G)", output = "character"),
                    TeX("$G/\\beta$ alignment",
                        output = "character"),
+                   TeX("$e_\\beta^G (\\beta^TG\\beta)$", output = "character"),
+                   TeX("$V_{rel}$ (G)", output = "character"),
                    TeX("$R_{max} / \\beta$ alignment", output = "character"),
-                   TeX("G Evolvability", output = "character"),
+                   TeX("$e_{c}^G$", output = "character"),
                    TeX("$M/\\beta$ alignment",
                        output = "character"),
+                   TeX("$e_\\beta^M (\\beta^TM\\beta)$", output = "character"),
+                   TeX("$e_{c}^M$", output = "character"),
                    TeX("$V_{rel}$ (M)", output = "character"),
-                   TeX("M Evolvability", output = "character"),
                    TeX("Motif", output = "character"))
 
 
 pal_boruta <- c(rep("#00C0EA", times = 3),
-                rep("#00A000", times = 9))
+                rep("#00A000", times = 10))
 
 ggplot(d_bor_mbeta %>% pivot_longer(everything()) %>%
          mutate(x = fct_reorder(name, value, median)),
@@ -853,8 +891,9 @@ ggsave("plt_boruta_import_align.png", device = png, bg = "white",
 
 # Permutation
 predictor <- iml::Predictor$new(rf_mbeta_adapted_nobal, 
-                                data = test_mbeta_adapted[, 2:10], 
-                                y = test_mbeta_adapted$isAdapted)
+                                data = test_mbeta_adapted[, 2:11], 
+                                y = test_mbeta_adapted$isAdapted,
+                                type = "prob")
 
 # Need to set the option future globals maxsize
 options(future.globals.maxSize = 3221225472)
@@ -863,13 +902,14 @@ imp <- iml::FeatureImp$new(predictor,
                            n.repetitions = 100)
 
 ggplot(imp$results %>% 
-         mutate(feature = factor(feature, levels = c("r", "vrel_g", "absCS_Gb", "dataset", "bTGb", 
-                                                     "absCS_Mb", "vrel_m", "bTMb", "model"))),
+         mutate(feature = factor(feature, levels = c("absCS_Gb", "bTGb", "vrel_g", "dataset",  
+                                                     "cev_g", "absCS_Mb", "bTMb", "cev_m", 
+                                                     "vrel_m",  "model"))),
        aes(x = feature, y = importance)) +
   geom_point() +
   geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
                 width = 0.2) +
-  scale_x_discrete(labels = parse(text = feature_names[4:12]),
+  scale_x_discrete(labels = parse(text = feature_names[4:13]),
                    guide = guide_axis(n.dodge = 2)) +
   labs(x = "Feature", y = "Permutation Importance") +
   theme_bw() +
@@ -881,20 +921,20 @@ ggsave("plt_perm_feat_imp_align.png", device = png, width = 9, height = 5, bg = 
 rf_sob_mbeta_adapted <- sobolMDA::ranger(isAdapted ~ .,
                                          data = train_mbeta_adapted, num.trees = 500, 
                                          importance = "sobolMDA")
-
 sob_mbeta_adapted <- rf_sob_mbeta_adapted$variable.importance
 d_sob_mbeta_adapted <- data.frame(feature = names(sob_mbeta_adapted),
                                   sobelMDA = sob_mbeta_adapted)
 
 d_sob_mbeta_adapted$feature <- factor(d_sob_mbeta_adapted$feature,
-                                      levels = c("r",
-                                                 "vrel_g",
-                                                 "absCS_Gb",
-                                                 "dataset",
+                                      levels = c("absCS_Gb",
                                                  "bTGb",
+                                                 "vrel_g",
+                                                 "dataset",
+                                                 "cev_g",
                                                  "absCS_Mb",
-                                                 "vrel_m",
                                                  "bTMb",
+                                                 "cev_m",
+                                                 "vrel_m",
                                                  "model"))
 
 ggplot(d_sob_mbeta_adapted,
@@ -903,7 +943,7 @@ ggplot(d_sob_mbeta_adapted,
   geom_segment(aes(xend = feature, y = 0, yend = sobelMDA),
                linewidth = 0.5) +
   theme_bw() +
-  scale_x_discrete(labels = parse(text = feature_names[4:12]),
+  scale_x_discrete(labels = parse(text = feature_names[4:13]),
                    guide = guide_axis(n.dodge = 2)) +
   labs(x = "Feature", y = "Sobel MDA") +
   theme(text = element_text(size = 12)) -> plt_sob_mbeta_adapted
@@ -931,9 +971,9 @@ ggsave("plt_feat_imp_align.png", device = png, width = 12, height = 10, bg = "wh
 ale <- FeatureEffects$new(predictor, grid.size = 10)
 ale$plot()
 
-ale_plots <- vector(mode = "list", length = 9)
+ale_plots <- vector(mode = "list", length = 10)
 
-ale_labels <- feature_names[c(12, 7, 4, 9, 6, 8, 11, 5, 10)]
+ale_labels <- feature_names[c(13, 7, 9, 4, 5, 10, 6, 12, 8, 11)]
 names(ale_labels) <- names(ale$results)
 
 for (i in seq_along(ale_plots)) {
@@ -953,6 +993,8 @@ for (i in seq_along(ale_plots)) {
   } else {
     geom_fn <- geom_line
     scale_fn <- scale_x_continuous
+    # Remove outliers
+    d_ale <- d_ale %>% filter(.borders < 1000)
   }
   ale_plots[[i]] <- ggplot(d_ale,
                            aes(x = .borders, y = .value)) +
