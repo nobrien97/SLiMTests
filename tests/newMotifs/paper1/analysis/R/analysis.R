@@ -490,19 +490,21 @@ d_h2_trait <- d_h2_trait %>%
 
 # summarise
 d_h2_trait_sum <- d_h2_trait %>% 
-  group_by(timePoint, model, r, isAdapted) %>%
+  group_by(timePoint, model, dataset, isAdapted) %>%
   dplyr::summarise(meanH2w = mean(h2_w, na.rm = T),
                    seH2w = se(h2_w, na.rm = T),
                    meanVAw = mean(VA_w, na.rm = T),
                    seVAw = se(VA_w, na.rm = T))
-d_h2_trait_sum$model <- as.factor(d_h2_trait_sum$model)
+d_h2_trait_sum$model <- factor(d_h2_trait_sum$model,
+                               levels = model_names,
+                               labels = model_names_noquote)
 
 # Heritability distribution
 ggplot(d_h2_trait %>% 
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
        aes(x = timePoint, y = h2_w, colour = model)) +
-  facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
+  facet_nested("Trait/selection alignment" + dataset ~ adapted_title + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_trait_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -523,8 +525,8 @@ ggplot(d_h2_trait %>%
 ggplot(d_h2_trait %>%
          mutate(r_title = "Recombination rate (log10)",
                 adapted_title = "Did the population adapt?"),
-       aes(x = timePoint, y = VA_w, colour = model)) +
-  facet_nested(r_title + log10(r) ~ adapted_title + isAdapted) +
+       aes(x = timePoint, y = (VA_w), colour = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ adapted_title + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F) +
   geom_point(data = d_h2_trait_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)",
@@ -536,7 +538,7 @@ ggplot(d_h2_trait %>%
        colour = "Model") +
   scale_colour_manual(values = pal,
                       labels = model_names) +
-  coord_cartesian(ylim = c(0, 1)) +
+  #coord_cartesian(ylim = c(0, 1)) +
   theme_bw() +
   theme(text = element_text(size = 14),
         legend.position = "bottom")
@@ -670,21 +672,24 @@ ggplot(d_cossim,
 d_ecr <- CalcECRATrait(h2_pd, id)
 d_ecr <- AddCombosToDF(d_ecr)
 
+# Add dataset info
+d_ecr$dataset <- id$dataset
+
 # Refactor model
 d_ecr <- d_ecr %>%
-  mutate(model = factor(model, levels = model_names))
+  mutate(model = factor(model, levels = model_names, labels = model_names_noquote))
 
 # Need to calculate cev means separately for the different models
 # K- shouldn't mean over cev_KZ and KXZ
 d_ecr_sum <- d_ecr %>%
-  group_by(model, isAdapted) %>%
+  group_by(model, dataset, isAdapted) %>%
   summarise_if(is.numeric, list(mean = mean, se = se))
 
 
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = cev, colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
@@ -705,7 +710,7 @@ plt_cev
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = res, colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
@@ -726,7 +731,7 @@ plt_res
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = aut, colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
@@ -747,7 +752,7 @@ plt_aut
 ggplot(d_ecr %>%
          mutate(r_title = "Recombination rate (log10)"), 
        aes(x = model, y = ev, colour = model)) +
-  facet_nested(.~ "Population adapted" + isAdapted) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
   geom_quasirandom(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
   geom_point(data = d_ecr_sum %>% ungroup() %>%
                mutate(r_title = "Recombination rate (log10)"),
@@ -1943,6 +1948,86 @@ d_qg_par$dataset <- "Parallel"
 
 d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 
+# Plot adaptation outcomes
+BOOT_SAMPLES <- 10000
+n <- length(levels(d_qg_tot$model)) * length(unique(d_qg_tot$dataset))
+d_pAdapted_bs <- data.frame(bootsample = rep(1:BOOT_SAMPLES, each = n),
+                            model = character(BOOT_SAMPLES * n),
+                            dataset = character(BOOT_SAMPLES * n),
+                            pAdapted = numeric(BOOT_SAMPLES * n))
+d_qg_bs <- d_qg_tot %>%
+  filter(gen == 60000, log10(r) == -1)
+
+# seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 163357380
+seed <- 163357380
+set.seed(seed)
+pb <- progress::progress_bar$new(
+  format = "  Running [:bar] :percent in :elapsedfull",
+  total = BOOT_SAMPLES, clear = FALSE, width = 60)
+
+for (i in seq_len(BOOT_SAMPLES)) {
+  pb$tick()
+  # Sample m rows
+  d_bs_sample <- d_qg_bs %>%
+    group_by(model, dataset) %>%
+    slice_sample(prop = 1, replace = T) %>%
+    summarise(pAdapted = sum(isAdapted)/n(), .groups = "drop_last") %>%
+    mutate(bootsample = i,
+           model = as.character(model)) %>%
+    select(bootsample, model, dataset, pAdapted)
+  
+  # Fill results
+  d_pAdapted_bs[d_pAdapted_bs$bootsample == i,] <- d_bs_sample
+}
+
+# Save result
+saveRDS(d_pAdapted_bs, "d_pAdapted_bs.RDS")
+
+
+# Look at distribution of samples
+ggplot(d_pAdapted_bs,
+       aes(x = pAdapted)) +
+  facet_nested(dataset~model) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  labs(x = "Proportion adapted") +
+  theme(text = element_text(size = 12))
+  
+# Get averages and CIs
+d_pAdapted <- d_pAdapted_bs %>%
+  mutate(dataset = factor(dataset, levels = c("Orthogonal", "Parallel", "Randomised")),
+         model = factor(model, levels = model_names, labels = model_names_noquote)) %>%
+  group_by(dataset, model) %>%
+  summarise(pAdapted_mean = mean(pAdapted),
+            pAdapted_l.ci = quantile(pAdapted, 0.025),
+            pAdapted_u.ci = quantile(pAdapted, 0.975))
+  
+  
+# Plot with CIs
+ggplot(d_pAdapted,
+       aes(x = model, y = pAdapted_mean, fill = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ .) +
+  geom_col() +
+  geom_errorbar(aes(ymin = pAdapted_l.ci, ymax = pAdapted_u.ci),
+                width = 0.2) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    guide = "none") +
+  labs(x = "Model", y = "Proportion of adapted populations", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg
+plt_adapt_avg
+ggsave("plt_pAdapted.png", width = 6, height = 10, device = png)
+
+
+
+
+
+
 d_qg_optPerc <- d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted) %>% filter(gen >= 49500)
 
 # inner join optPerc
@@ -2296,7 +2381,9 @@ d_btgb_Malign_sum <- d_btgb_Malign_tot %>%
             meanCosSim_Mb = mean(absCS_Mb),
             CICosSim_Mb = CI(absCS_Mb),
             meanbTGb = mean(bTGb),
-            CIbTGb = CI(bTGb))
+            CIbTGb = CI(bTGb),
+            meanbTMb = mean(bTMb),
+            CIbTMb = CI(bTMb))
 
 ggplot(d_btgb_Malign_sum,
        aes(x = meanCosSim_Mb, y = meanCosSim_Gb, colour = model)) +
@@ -3025,7 +3112,7 @@ d_vrel_g_tab
 ggplot(d_vrel_g,
        aes(x = model, y = vrel, colour = model)) +
   facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
-  geom_boxplot() +
+  geom_boxplot(show.legend = F) +
   geom_point(data = d_vrel_g_tab, aes(y = vrel_mean), size = 2, stroke = 1,
              shape = 21,
              colour = "black", fill = "white") +
@@ -3041,10 +3128,377 @@ ggsave("plt_vrel_g_alignment.png", device = png, bg = "white",
        width = 8, height = 6)
 
 # Combine with M matrix version
-
 plot_grid(plt_vrel_g + labs(y = TeX("$V_{rel}$ (G)")),
           plt_vrel_m + labs(y = TeX("$V_{rel}$ (M)")),
           labels = "AUTO",
           nrow = 2)
 ggsave("plt_vrel_alignment.png", device = png, bg = "white",
        width = 8, height = 10)
+
+# Table comparison of mean G vs M
+d_vrel_g %>%
+  group_by(model, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+d_vrel %>%
+  group_by(model, isAdapted) %>%
+  summarise(vrel_mean = mean(vrel),
+            vrel_CI = CI(vrel))
+
+d_vrel_gm <- left_join(d_vrel_g %>%
+                         rename(vrel_g = vrel) %>%
+                         mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                                   labels = c("Adapted", "Maladapted")),
+                                timePoint = factor(timePoint, levels = c("Start", "End")),
+                                dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                                r = factor(log10(r), levels = c(-10, -5, -1))),
+                       d_vrel_tot %>%
+                         filter(gen == 50000 | gen == 60000) %>%
+                         mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+                                timePoint = factor(timePoint, levels = c("Start", "End")),
+                                isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                                   labels = c("Adapted", "Maladapted")),
+                                dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                                r = factor(log10(r), levels = c(-10, -5, -1))) %>%
+                         rename(vrel_m = vrel) %>%
+                         select(timePoint, seed, modelindex, model, r, isAdapted, dataset, vrel_m),
+                       by = c("timePoint", "seed", "modelindex", 
+                              "model", "r", "isAdapted", "dataset"))
+
+d_vrel_gm_sum <- d_vrel_gm %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise(meanVrelG = mean(vrel_g),
+            CIVrelG = CI(vrel_g),
+            meanVrelM = mean(vrel_m),
+            CIVrelM = CI(vrel_m))
+d_vrel_gm_sum
+
+
+d_vrel_stat <- d_vrel_gm %>%
+  pivot_longer(cols = c(vrel_g, vrel_m), names_to = "matrix", names_prefix = "vrel_", 
+               values_to = "vrel")
+
+gls_vrel <- gls(vrel ~ matrix * model, 
+                      weights = varIdent(form = ~ 1 | model),
+                      data = d_vrel_stat)
+plot(gls_vrel)
+qqnorm(gls_vrel, abline = c(0,1))
+summary(gls_vrel)
+
+em_gls_vrel <- emmeans::emmeans(gls_vrel, ~ matrix + model)
+emmeans::emmip(em_gls_vrel, ~ matrix + model, CIs = T)
+pairs(em_gls_vrel, simple = "matrix")
+plot(em_gls_vrel, comparisons = T)
+emmeans::test(em_gls_vrel, adjust = "sidak")
+
+emmeans::joint_tests(em_gls_vrel)
+emmeans::joint_tests(em_gls_vrel, by = "model")
+
+emmeans::pwpp(em_gls_vrel)
+emmeans::eff_size(em_gls_vrel, sigma = sigma(gls_vrel),
+                  edf = 16114)
+
+
+ggplot(d_vrel_gm,
+       aes(x = vrel_g, y = vrel_m, colour = model)) +
+  facet_nested("Trait/selection alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_point() +
+  labs(x = TeX("$V_{rel}^G$"), y = TeX("$V_{rel}^M$"),
+       colour = "Model") +
+  theme_bw() +
+  coord_cartesian(xlim = 0:1, ylim = 0:1) +
+  scale_colour_manual(values = pal) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+
+ggplot(d_vrel_gm_sum,
+       aes(x = meanVrelG, y = meanVrelM, colour = model)) +
+  facet_nested("Trait/selection alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_point() +
+  geom_abline(aes(slope = 1, intercept = 0), linetype = "dashed") +
+  geom_errorbar(aes(xmin = meanVrelG - CIVrelG, xmax = meanVrelG + CIVrelG),
+                width = 0.05) +
+  geom_errorbar(aes(ymin = meanVrelM - CIVrelM, ymax = meanVrelM + CIVrelM),
+                width = 0.05) +
+  labs(x = TeX("$V_{rel}^G$"), y = TeX("$V_{rel}^M$"),
+       colour = "Model") +
+  theme_bw() +
+  coord_cartesian(xlim = 0:1, ylim = 0:1) +
+  scale_colour_manual(values = pal) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+
+
+# Vrel is much smaller in G than M, less constrained
+## Weak developmental constraint in the incoming mutational variance
+## but over time these get relaxed by drift/selection
+
+
+# Plot additive variance
+ggplot(d_ecr %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = cev, colour = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_boxplot(shape = 1, dodge.width = 0.9, na.rm = F, show.legend = F) +
+  geom_point(data = d_ecr_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = cev_mean, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = "Mean conditional evolvability (G)",
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev
+
+ggplot(d_btgb_Malign_tot %>%
+         mutate(isAdapted = factor(isAdapted),
+                model = factor(model, levels = model_names)) %>%
+         mutate(r_title = "Recombination rate (log10)"), 
+       aes(x = model, y = bTGb, colour = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_boxplot(shape = 1, na.rm = F, show.legend = F) +
+  geom_point(data = d_btgb_Malign_sum %>% ungroup() %>%
+               mutate(r_title = "Recombination rate (log10)"),
+             aes(x = model, y = meanbTGb, group = model), colour = "black",
+             fill = "white", shape = 21, size = 2, stroke = 1, position = position_dodge(0.9)) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  labs(x = "Model", y = TeX("Mean evolvability ($\\beta^TG\\beta$)"),
+       colour = "Model") +
+  theme_bw() +
+  theme(legend.position = "none", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_btgb
+
+# cev
+plt_cev
+
+# vrel_g
+plt_vrel_g
+
+# btgb
+plt_btgb
+
+plot_grid(plt_cev + labs(y = "Conditional evolvability (G)"),
+          plt_btgb + labs(y = TeX("Directional evolvability $(\\beta^TG\\beta)$")),
+          plt_vrel_g + labs(y = TeX("$V_{rel}^G$")),
+          nrow = 3,
+          labels = "AUTO")
+ggsave("plt_g_variance.png", device = png, bg = "white",
+       width = 7, height = 11)
+
+# Means instead of box plots
+ggplot(d_ecr_sum %>%
+         mutate(r_title = "Recombination rate (log10)",
+                cev_CI = cev_se * qnorm(0.975)), 
+       aes(x = model, y = cev_mean, fill = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_col(position = position_dodge(0.9), show.legend = F) +
+  geom_errorbar(aes(ymin = cev_mean - cev_CI, ymax = cev_mean + cev_CI),
+                width = 0.2) + 
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                      labels = model_names_noquote) +
+  
+  labs(x = "Model", y = "Mean conditional evolvability (G)",
+       fill = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev
+plt_cev
+
+ggplot(d_btgb_Malign_sum, 
+       aes(x = model, y = meanbTGb, fill = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_col(position = position_dodge(0.9), show.legend = F) +
+  geom_errorbar(aes(ymin = meanbTGb - CIbTGb, ymax = meanbTGb + CIbTGb),
+                width = 0.2) + 
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                      labels = model_names_noquote) +
+  
+  labs(x = "Model", y = TeX("Mean evolvability ($\\beta^TG\\beta$)"),
+       fill = "Model") +
+  theme_bw() +
+  theme(legend.position = "none", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_btgb
+plt_btgb
+
+ggplot(d_vrel_g_tab,
+       aes(x = model, y = vrel_mean, fill = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_col(show.legend = F) +
+  geom_errorbar(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI),
+                width = 0.2) + 
+  labs(x = "Model", y = TeX("$V_{rel}^G$"), fill = "Model") +
+  scale_fill_manual(values = pal,
+                      breaks = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "none") -> plt_vrel_g
+plt_vrel_g
+
+
+plot_grid(plt_cev + labs(y = "Conditional evolvability (G)"),
+          plt_btgb + labs(y = TeX("Directional evolvability $(\\beta^TG\\beta)$")),
+          plt_vrel_g + labs(y = TeX("$V_{rel}^G$")),
+          nrow = 3,
+          labels = "AUTO")
+ggsave("plt_g_variance.png", device = png, bg = "white",
+       width = 7, height = 11)
+
+# table
+d_ecr_m_sum_no_transform <- d_ecr_m %>%
+  filter(!is.nan(cev)) %>%
+  mutate(timePoint = timePoint - 50000) %>%
+  select(cev, model, dataset, isAdapted) %>%
+  group_by(model, dataset, isAdapted) %>%
+  summarise(cev_mean = mean(cev), 
+            cev_se = se(cev))
+
+
+d_var_stats <- left_join(d_ecr_sum %>%
+                           select(model, dataset, isAdapted, cev_mean, cev_se) %>%
+                           rename(cev_g_mean = cev_mean,
+                                  cev_g_se = cev_se),
+                         d_btgb_Malign_sum %>%
+                           mutate(model = factor(model, levels = model_names,
+                                                 labels = model_names_noquote)) %>%
+                           select(model, dataset, isAdapted, meanbTMb, CIbTMb,
+                                  meanbTGb, CIbTGb),
+                         by = c("model", "dataset", "isAdapted"))
+
+d_var_stats <- left_join(d_var_stats,
+                         d_ecr_m_sum_no_transform %>%
+                           mutate(model = factor(model, levels = model_names,
+                                                 labels = model_names_noquote)) %>%
+                           rename(cev_m_mean = cev_mean,
+                                  cev_m_se = cev_se),
+                         by = c("model", "dataset", "isAdapted")
+)
+
+d_var_stats <- left_join(d_var_stats,
+                         d_vrel_g_tab %>%
+                           rename(vrel_g_mean = vrel_mean,
+                                  vrel_g_CI = vrel_CI),
+                         by = c("model", "dataset", "isAdapted")
+)
+
+d_var_stats <- left_join(d_var_stats,
+                         d_vrel_g_tab %>%
+                           rename(vrel_g_mean = vrel_mean,
+                                  vrel_g_CI = vrel_CI),
+                         by = c("model", "dataset", "isAdapted")
+)
+
+
+
+
+kableExtra::kable(d_ecr_sum %>%
+                    
+  mutate(cev_CI = cev_se * qnorm(0.975),
+         isAdapted = factor(isAdapted, levels = c(TRUE, FALSE),
+                            labels = c("Adapted", "Maladapted")),
+         result_cev = paste("aaa", round(cev_mean, 3), "pm", round(cev_CI, 3), "aaa"),
+         result_ = paste("aaa", round(cev_mean, 3), "pm", round(cev_CI, 3), "aaa")) %>%
+  select(model, dataset, isAdapted, result_cev), format = "latex",
+  digits = 3)
+
+
+
+
+#######################
+# Now for M matrices
+d_ecr_m <- readRDS("d_ecr_m.RDS")
+
+# Refactor model
+d_ecr_m <- d_ecr_m %>%
+  mutate(model = factor(model, levels = model_names))
+
+d_ecr_m$dataset <- id_m_tot$dataset
+
+d_ecr_m_sum <- d_ecr_m %>%
+  filter(!is.nan(cev)) %>%
+  mutate(timePoint = timePoint - 50000) %>%
+  select(cev, model, dataset, isAdapted) %>%
+  group_by(model, dataset, isAdapted) %>%
+  mutate(cev = log10(cev + 1e-8)) %>%
+  summarise(cev_mean = mean(cev), 
+            cev_se = se(cev))
+
+
+ggplot(d_ecr_m_sum %>%
+         mutate(r_title = "Recombination rate (log10)",
+                cev_CI = cev_se * qnorm(0.975)), 
+       aes(x = model, y = cev_mean, fill = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_col(position = position_dodge(0.9), show.legend = F) +
+  geom_errorbar(aes(ymin = cev_mean - cev_CI, ymax = cev_mean + cev_CI),
+                width = 0.2) + 
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
+  labs(x = "Model", y = TeX("Mean $log_{10}$ conditional evolvability (M)"),
+       fill = "Model") +
+  theme_bw() +
+  theme(legend.position = "bottom", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_cev_m
+plt_cev_m
+
+ggplot(d_btgb_Malign_tot %>%
+         mutate(model = factor(model, levels = model_names)) %>%
+         group_by(model, dataset, isAdapted) %>%
+         summarise(meanbTMb = mean(log10(bTMb)),
+                   CIbTMb = CI(log10(bTMb))), 
+       aes(x = model, y = meanbTMb, fill = model)) +
+  facet_nested("Trait/selection alignment" + dataset ~ "Population adapted" + isAdapted) +
+  geom_col(position = position_dodge(0.9), show.legend = F) +
+  geom_errorbar(aes(ymin = meanbTMb - CIbTMb, ymax = meanbTMb + CIbTMb),
+                width = 0.2) + 
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
+  labs(x = "Model", y = TeX("Mean evolvability ($log_{10}(\\beta^TM\\beta$))"),
+       fill = "Model") +
+  theme_bw() +
+  theme(legend.position = "none", 
+        legend.box = "vertical", 
+        legend.margin = ggplot2::margin(-5, 0, 0, 0),
+        text = element_text(size = 12)) -> plt_btmb
+plt_btmb
+
+ggplot(d_vrel_tab,
+       aes(x = model, y = vrel_mean, fill = model)) +
+  facet_nested("Selection/trait correlation alignment" + dataset~"Population adapted" + isAdapted) +
+  geom_col(show.legend = F) +
+  geom_errorbar(aes(ymin = vrel_mean - vrel_CI, ymax = vrel_mean + vrel_CI),
+                width = 0.2) + 
+  labs(x = "Model", y = TeX("$V_{rel}^M$"), fill = "Model") +
+  scale_fill_manual(values = pal,
+                    breaks = model_names_noquote) +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "none") -> plt_vrel_m
+plt_vrel_m
+
+plot_grid(plt_cev_m + labs(y = "Conditional evolvability (M)"),
+          plt_btmb + labs(y = TeX("Directional evolvability $(\\beta^TM\\beta)$")),
+          plt_vrel_m + labs(y = TeX("$V_{rel}^M$")),
+          nrow = 3,
+          labels = "AUTO")
+ggsave("plt_m_variance.png", device = png, bg = "white",
+       width = 7, height = 11)
