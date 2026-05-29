@@ -238,7 +238,13 @@ CalcECRATrait <- function(matList, id) {
     PCAdata$cev[i] <- Hx(pca$values) * (1 + (2*Ix(1/pca$values)) / (k+2) ) #c
     PCAdata$res[i] <- sqrt(mean(pca$values^2)) * (1 - (Ix(pca$values^2) / (4*k+2) ) ) #r
     PCAdata$aut[i] <- (Hx(pca$values) / mean(pca$values)) * (1 + 2 * (Ix(pca$values) + Ix(1/pca$values) - 1 + Hx(pca$values)/mean(pca$values) + 2 * Ix(pca$values) * Ix(1/pca$values)/(k+2))/(k+2)) #a
-  }
+  
+    # cev and aut can be NaN if Ix(pca$values^2) gives an infinity (really small/0 eigenvalue)
+    # in that case, set cev to 0
+    if (is.nan(PCAdata$cev[i]))
+      PCAdata$cev[i] <- 0.0
+      PCAdata$aut[i] <- 0.0
+    }
   
   return(PCAdata)
 }
