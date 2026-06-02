@@ -126,15 +126,15 @@ d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 ## Can look at covariance of trait M with mol comps?
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
-DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
 
 DATA_PATH_ORTH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/orthSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_ORTH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/orthSel/R/slim_mutvar_percomp.csv"
-DATA_PATH_ORTH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar_percomp.csv"
+DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar_percomp.csv"
 
 DATA_PATH_PAR <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_PAR <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/R/slim_mutvar_percomp.csv"
-DATA_PATH_PAR <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar_percomp.csv"
+DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar_percomp.csv"
 
 
 t_mc_combos <- expand.grid(1:11, 1:4)
@@ -143,10 +143,13 @@ d_m_molcomp <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                                  paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)))
 
 d_m_molcomp <- d_m_molcomp %>%
-  mutate(model = ModelFromIndexWithR(modelindex))
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex),
+         dataset = "Randomised"
+  )
 
 # Split cov_ wider
-d_m_molcomp <- d_m_molcomp %>% filter(gen == 60000) %>%
+d_m_molcomp_long <- d_m_molcomp %>% filter(gen == 60000) %>%
   pivot_longer(cols = starts_with("cov"),
                names_to = c("misc", "trait", "component"),
                names_sep = "_",
@@ -155,14 +158,22 @@ d_m_molcomp <- d_m_molcomp %>% filter(gen == 60000) %>%
   mutate(dataset = "Randomised")
 
 # orthogonal set
-d_m_molcomp_orth <- read_csv(DATA_PATH_ORTH, col_names = c("gen", "seed", "modelindex",
-                                                 paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)))
+d_m_molcomp_orth <- data.table::fread(DATA_PATH_ORTH, header = F, sep = ",",
+                               col.names = c("gen", "seed", "modelindex",
+                                                 paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)),
+                             colClasses = c("integer", "character", "integer",
+                                            rep("numeric", times = 44)), fill = 47)
+
+data.table::setnafill(d_m_molcomp_orth, type = "const", fill = 0, cols = 4:47)
 
 d_m_molcomp_orth <- d_m_molcomp_orth %>%
-  mutate(model = ModelFromIndexWithR(modelindex))
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex),
+         dataset = "Orthogonal"
+  ) 
 
 # Split cov_ wider
-d_m_molcomp_orth <- d_m_molcomp_orth %>% filter(gen == 60000) %>%
+d_m_molcomp_orth_long <- d_m_molcomp_orth %>% filter(gen == 60000) %>%
   pivot_longer(cols = starts_with("cov"),
                names_to = c("misc", "trait", "component"),
                names_sep = "_",
@@ -171,14 +182,23 @@ d_m_molcomp_orth <- d_m_molcomp_orth %>% filter(gen == 60000) %>%
   mutate(dataset = "Orthogonal")
 
 # Parallel set
-d_m_molcomp_par <- read_csv(DATA_PATH_PAR, col_names = c("gen", "seed", "modelindex",
-                                                 paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)))
+d_m_molcomp_par <- data.table::fread(DATA_PATH_PAR,  header = F, sep = ",",
+                                     fill = 47,
+                                     col.names = c("gen", "seed", "modelindex",
+                                                 paste0("cov_", t_mc_combos$Var2, "_", t_mc_combos$Var1)),
+                                     colClasses = c("integer", "character", "integer",
+                                                    rep("numeric", times = 44)))
+
+data.table::setnafill(d_m_molcomp_par, type = "const", fill = 0, cols = 4:47)
 
 d_m_molcomp_par <- d_m_molcomp_par %>%
-  mutate(model = ModelFromIndexWithR(modelindex))
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex),
+         dataset = "Parallel"
+)
 
 # Split cov_ wider
-d_m_molcomp_par <- d_m_molcomp_par %>% filter(gen == 60000) %>%
+d_m_molcomp_par_long <- d_m_molcomp_par %>% filter(gen == 60000) %>%
   pivot_longer(cols = starts_with("cov"),
                names_to = c("misc", "trait", "component"),
                names_sep = "_",
@@ -187,25 +207,37 @@ d_m_molcomp_par <- d_m_molcomp_par %>% filter(gen == 60000) %>%
   mutate(dataset = "Parallel")
 
 # bind
+d_m_molcomp_long_tot <- rbind(d_m_molcomp_long, d_m_molcomp_orth_long, d_m_molcomp_par_long)
 d_m_molcomp_tot <- rbind(d_m_molcomp, d_m_molcomp_orth, d_m_molcomp_par)
 
 
-d_m_molcomp_tot <- left_join(d_m_molcomp_tot %>% mutate(seed = factor(seed),
+d_m_molcomp_long_tot <- left_join(d_m_molcomp_long_tot %>% mutate(seed = factor(seed),
                                                 modelindex = factor(modelindex),
                                                 r = RFromIndex(modelindex)),
                          d_qg_tot %>% select(gen, seed, modelindex, model, dataset, r, isAdapted) %>%
                            mutate(model = str_remove_all(model, "'")),
-                         by = c("gen", "seed", "modelindex", "dataset", "isAdapted", "model", "r")) %>%
+                         by = c("gen", "seed", "modelindex", "dataset", "model", "r")) %>%
   mutate(model = factor(model, levels = model_names_noquote))
 
 
-d_m_molcomp_sum <- d_m_molcomp_tot %>%
+d_m_molcomp_tot <- left_join(d_m_molcomp_tot %>% mutate(seed = factor(seed),
+                                                                  modelindex = factor(modelindex),
+                                                                  r = RFromIndex(modelindex)),
+                                  d_qg_tot %>% select(gen, seed, modelindex, model, dataset, r, isAdapted) %>%
+                                    mutate(model = str_remove_all(model, "'")),
+                                  by = c("gen", "seed", "modelindex", "dataset", "model", "r")) %>%
+  mutate(model = factor(model, levels = model_names_noquote))
+
+
+
+d_m_molcomp_long_sum <- d_m_molcomp_long_tot %>%
+  filter(abs(cov) < 1e2) %>%
   group_by(model, isAdapted, trait, component) %>%
   summarise(meanCov = mean(abs(cov)),
             SECov = se(abs(cov)))
 
 # Plot covariances as heatmap
-ggplot(d_m_molcomp_sum, 
+ggplot(d_m_molcomp_long_sum, 
        aes(x = trait, y = component, fill = meanCov)) +
   facet_nested("Model" + model ~ "Population adapted" + isAdapted) +
   geom_tile() +
@@ -214,31 +246,79 @@ ggplot(d_m_molcomp_sum,
 
 
 # Random forest for each motif
+d_m_molcomp_rf <- d_m_molcomp_tot %>%
+  filter(log10(r) == -1) %>%
+  select(-r, -seed, -gen, -modelindex) %>%
+  mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                            labels = c("Adapted", "Maladapted")),
+         dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")))
+
+# Model
+mc_permodel <- list("NAR" = t_mc_combos[(t_mc_combos$Var1 < 8) & !(t_mc_combos$Var2 %in% c(3,4)),],
+                    "PAR" = t_mc_combos[(t_mc_combos$Var1 < 8) & !(t_mc_combos$Var2 %in% c(3,4)),],
+                    "FFLC1" = t_mc_combos[(t_mc_combos$Var1 < 10) & !(t_mc_combos$Var2 %in% c(4)),],
+                    "FFLI1" = t_mc_combos[(t_mc_combos$Var1 < 10) & !(t_mc_combos$Var2 %in% c(4)),],
+                    "FFBH" = t_mc_combos)
+
+
+d_m_molcomp_sbst <- d_m_molcomp_rf %>% filter(model == "FFLC1") %>% 
+  mutate(isAdapted = as.integer(isAdapted) - 1)
+
+x <- model.matrix(as.formula(paste0("isAdapted ~ dataset +", 
+                                    paste("cov_", mc_permodel[["FFLC1"]]$Var2, "_", mc_permodel[["FFLC1"]]$Var1, 
+                                          sep="", collapse = "+"))),
+                  d_m_molcomp_sbst
+                  )
+y <- d_m_molcomp_sbst$isAdapted
+
+
+# Plot ROC for the different GLM models 
+lm.molcomp <- cv.glmnet(x, y,
+                  family = "binomial", type.measure = "auc",
+                  keep = T)
+lm.molcomp
+plot(lm.molcomp)
+lm.molcomp$lambda.min
+coef(lm.molcomp, s = "lambda.min")
+best <- lm.molcomp$index["min",]
+rocs <- roc.glmnet(lm.molcomp$fit.preval, newy = y)
+plot(rocs[[best]], type = "l")
+invisible(sapply(rocs, lines, col = "grey"))
+lines(rocs[[best]], lwd = 2, col = "red")
+
+# Confusion matrix
+cnf <- confusion.glmnet(lm.molcomp, newx = x, newy = y)
+print(cnf)
+
+seed <- 123
+dataset <- d_m_molcomp_rf
+train.test = c(0.7, 0.3)
+motifs <- levels(dataset$model)
+motif <- motifs[1]
 RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
   if (is.null(seed)) {
     seed <- sample(1:.Machine$integer.max, 1)
   }
   
   motifs <- levels(dataset$model)
-  
   result <- vector(mode = "list")
   
   for (motif in motifs) {
     set.seed(seed)
-    d_m_molcomp_rf <- dataset %>%
-      filter(model == motif, log10(r) == -1) %>%
-      select(-r)
+    d_rf <- dataset %>%
+      filter(model == motif) %>%
+      select(-model)
     
-    adapted_counts <- table(d_m_molcomp_rf$isAdapted)
+    adapted_counts <- table(d_rf$isAdapted)
     total_counts <- sum(adapted_counts)
     num_responses <- length(adapted_counts)
     adapted_weights <- total_counts / (num_responses * adapted_counts)
-    names(adapted_weights) <- levels(d_m_molcomp_rf$isAdapted)
+    names(adapted_weights) <- levels(d_rf$isAdapted)
     
     
-    idx <- sample(2, nrow(d_m_molcomp_rf), replace = T, prob = train.test)
-    train <- d_m_molcomp_rf[idx == 1,]
-    test <- d_m_molcomp_rf[idx == 2,]
+    idx <- sample(2, nrow(d_rf), replace = T, prob = train.test)
+    train <- d_rf[idx == 1,]
+    test <- d_rf[idx == 2,]
     
     
     # no balancing
@@ -249,7 +329,7 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
                                  importance = T,
                                  type = "classification")
     
-    print(rf_nar)
+    print(rf_nobal)
     
     # With balancing (class weights)
     rf_bal <- randomForest(formula = isAdapted ~ .,
@@ -276,7 +356,9 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     p_test_bal_probs <- predict(rf_bal, test,
                                             type = "prob")[,1]
     
-    caret::confusionMatrix(p_test_bal, test$isAdapted)
+    
+    
+    result[[motif]][["cMat"]] <- caret::confusionMatrix(p_test_bal, test$isAdapted)
     
     p_test_nobal <- predict(rf_nobal, test)
     p_test_nobal_probs <- predict(rf_nobal, test,
@@ -321,7 +403,7 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     
     # Importance measures
     ## Boruta, permutation importance, sobol MDA
-    bor <- Boruta::Boruta(isAdapted ~ ., data = d_m_molcomp_rf)
+    bor <- Boruta::Boruta(isAdapted ~ ., data = d_rf)
     bor
     plot(bor)
     
@@ -330,35 +412,93 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     result[[motif]][["bor"]] <- d_bor
     
     # Permutation
-    predictor_nar <- iml::Predictor$new(rf_nar_bal, 
-                                        data = test_nar[, 2:9], 
-                                        y = test_nar$isAdapted,
+    predictor <- iml::Predictor$new(rf_bal, 
+                                        data = test[, 1:4], 
+                                        y = test$isAdapted,
                                         type = "prob")
     
     # Need to set the option future globals maxsize
     options(future.globals.maxSize = 3221225472)
-    imp_nar <- iml::FeatureImp$new(predictor_nar,
+    imp <- iml::FeatureImp$new(predictor,
                                    loss = "ce",
                                    n.repetitions = 100)
     
-    ggplot(imp_nar$results %>% 
-             mutate(feature = factor(feature, levels = c("absCS_Gb", "bTGb", "vrel_g", "dataset",  
-                                                         "absCS_Mb", "vrel_m", "bTMb", "model"))),
+    result[[motif]][["FeatImp"]] <- imp
+    
+      ggplot(imp$results,
            aes(x = feature, y = importance)) +
       geom_point() +
       geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
                     width = 0.2) +
-      scale_x_discrete(labels = parse(text = feature_names[4:11]),
+      scale_x_discrete(
                        guide = guide_axis(n.dodge = 2)) +
       labs(x = "Feature", y = "Permutation Importance") +
       theme_bw() +
-      theme(text = element_text(size = 12)) -> plt_perm_imp_nar
-    plt_perm_imp_nar
-    ggsave("plt_perm_feat_imp_align.png", device = png, width = 9, height = 5, bg = "white")
+      theme(text = element_text(size = 12)) -> plt_perm_imp
+    plt_perm_imp
+    ggsave(paste0("plt_perm_feat_imp_align_", motif,".png"), 
+           device = png, width = 9, height = 5, bg = "white")
+    
+    # Sobol MDA
+    rf_sob <- sobolMDA::ranger(isAdapted ~ .,
+                                             data = train, num.trees = 500, 
+                                             importance = "sobolMDA")
+    sob <- rf_sob$variable.importance
+    d_sob <- data.frame(feature = names(sob),
+                                      sobelMDA = sob)
+    
+    d_sob$feature <- factor(d_sob$feature)
+    
+    ggplot(d_sob,
+           aes(x = feature, y = sobelMDA)) +
+      geom_point() +
+      geom_segment(aes(xend = feature, y = 0, yend = sobelMDA),
+                   linewidth = 0.5) +
+      theme_bw() +
+      scale_x_discrete(
+                       guide = guide_axis(n.dodge = 2)) +
+      labs(x = "Feature", y = "Sobel MDA") +
+      theme(text = element_text(size = 12)) -> plt_sob
+    plt_sob
+    
+    
+    layout <- "
+    AAAA
+    AAAA
+    AAAA
+    BBCC
+    BBCC
+    "
+    # plt_featimp <- plt_boruta_imp +
+    #   plt_perm_imp +
+    #   plt_sob +
+    #   plot_layout(design = layout) +
+    #   plot_annotation(tag_levels = 'A') &
+    #   theme(plot.tag = element_text(face = "bold"))
+    
+    result[[motif]][["sob"]] <- d_sob
+
+    # ggsave(paste0("plt_feat_imp_align", motif, ".png"), 
+    #        device = png, width = 12, height = 10, bg = "white")
+    
+    
+    # Accumulated local effects
+    ale <- FeatureEffects$new(predictor, grid.size = 10)
+    ale$plot()
+    
+    result[[motif]][["ale"]] <- ale
   }
   
+  return(result)
 }
 
+
+seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 538108254
+seed <- 538108254
+
+rf_mc <- RunRandomForestMolCompPerMotif(d_m_molcomp_tot, seed)
 
 
 d_m_molcomp_NAR_rf <- d_m_molcomp_tot %>%

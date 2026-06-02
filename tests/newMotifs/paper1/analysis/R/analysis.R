@@ -2004,6 +2004,11 @@ d_pAdapted <- d_pAdapted_bs %>%
             pAdapted_l.ci = quantile(pAdapted, 0.025),
             pAdapted_u.ci = quantile(pAdapted, 0.975))
   
+# Table
+stargazer::stargazer(as.data.frame(d_pAdapted %>%
+                                     relocate(model)), summary = F,
+                     rownames = F)
+
   
 # Plot with CIs
 ggplot(d_pAdapted,
@@ -2021,7 +2026,7 @@ ggplot(d_pAdapted,
   theme(text = element_text(size = 14),
         panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg
 plt_adapt_avg
-ggsave("plt_pAdapted.png", width = 6, height = 10, device = png)
+ggsave("plt_pAdapted.png", width = 11, height = 6, device = png)
 
 
 
