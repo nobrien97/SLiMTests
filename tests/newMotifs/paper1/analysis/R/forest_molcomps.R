@@ -10,6 +10,7 @@ library(pROC)
 library(patchwork)
 library(ggalt)
 library(cowplot)
+library(glmnet)
 
 source("helperFn.R")
 
@@ -26,7 +27,7 @@ names(d_combos) <- c("model", "r")
 PATH_QG <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 PATH_QG <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
-PATH_QG <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
+PATH_QG <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
 
 d_qg <- data.table::fread(PATH_QG, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -57,7 +58,7 @@ d_qg %>%
 
 # Load in data
 PATH_QG_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
-PATH_QG_ORTH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
+PATH_QG_ORTH <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
 
 d_qg_orth <- data.table::fread(PATH_QG_ORTH, header = F, 
                                sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -86,7 +87,7 @@ d_qg_orth %>%
 
 
 PATH_QG_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
-PATH_QG_PAR <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
+PATH_QG_PAR <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
 
 d_qg_par <- data.table::fread(PATH_QG_PAR, header = F, 
                               sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -127,14 +128,17 @@ d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
+DATA_PATH <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
 
 DATA_PATH_ORTH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/orthSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_ORTH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/orthSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar_percomp.csv"
+DATA_PATH_ORTH <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar_percomp.csv"
 
 DATA_PATH_PAR <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_PAR <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/R/slim_mutvar_percomp.csv"
 DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar_percomp.csv"
+DATA_PATH_PAR <- "/mnt/h/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar_percomp.csv"
 
 
 t_mc_combos <- expand.grid(1:11, 1:4)
@@ -261,34 +265,165 @@ mc_permodel <- list("NAR" = t_mc_combos[(t_mc_combos$Var1 < 8) & !(t_mc_combos$V
                     "FFBH" = t_mc_combos)
 
 
-d_m_molcomp_sbst <- d_m_molcomp_rf %>% filter(model == "FFLC1") %>% 
-  mutate(isAdapted = as.integer(isAdapted) - 1)
+d_m_molcomp_sbst <- d_m_molcomp_rf %>% filter(model == "FFLC1") %>%
+  select(dataset, isAdapted, paste0("cov_", mc_permodel[["FFLC1"]]$Var2, "_", mc_permodel[["FFLC1"]]$Var1)) %>%
+  mutate(across(starts_with("cov"), function(i) as.vector(scale(i)))) # Scale by std dev
+
+idx <- sample(2, nrow(d_m_molcomp_sbst), replace = T, prob = c(0.7, 0.3))
+train_molcomp <- d_m_molcomp_sbst[idx == 1,]
+test_molcomp <- d_m_molcomp_sbst[idx == 2,]
+
 
 x <- model.matrix(as.formula(paste0("isAdapted ~ dataset +", 
                                     paste("cov_", mc_permodel[["FFLC1"]]$Var2, "_", mc_permodel[["FFLC1"]]$Var1, 
                                           sep="", collapse = "+"))),
-                  d_m_molcomp_sbst
-                  )
-y <- d_m_molcomp_sbst$isAdapted
+                  train_molcomp
+                  )[,-1]
 
 
-# Plot ROC for the different GLM models 
-lm.molcomp <- cv.glmnet(x, y,
+y <- train_molcomp$isAdapted
+
+test_x <- model.matrix(as.formula(paste0("isAdapted ~ dataset +", 
+                                              paste("cov_", mc_permodel[["FFLC1"]]$Var2, "_", mc_permodel[["FFLC1"]]$Var1, 
+                                                    sep="", collapse = "+"))),
+                            test_molcomp
+)[,-1]
+
+test_y <- test_molcomp$isAdapted
+
+
+# Plot ROC for the different GLM models - ridge logistic regression
+lambda <- cv.glmnet(x, y, alpha = 0,
                   family = "binomial", type.measure = "auc",
                   keep = T)
-lm.molcomp
-plot(lm.molcomp)
-lm.molcomp$lambda.min
-coef(lm.molcomp, s = "lambda.min")
-best <- lm.molcomp$index["min",]
-rocs <- roc.glmnet(lm.molcomp$fit.preval, newy = y)
+lambda
+plot(lambda)
+coef(lambda, s = "lambda.1se")
+best <- lambda$index["1se",]
+rocs <- roc.glmnet(lambda$fit.preval, newy = y)
 plot(rocs[[best]], type = "l")
 invisible(sapply(rocs, lines, col = "grey"))
 lines(rocs[[best]], lwd = 2, col = "red")
-
 # Confusion matrix
-cnf <- confusion.glmnet(lm.molcomp, newx = x, newy = y)
+cnf <- confusion.glmnet(lambda, newx = test_x, newy = test_y)
 print(cnf)
+
+# Plot model with best lambda
+lm.molcomp <- glmnet(x, y, family = "binomial", alpha = 0, 
+                     lambda = lambda$lambda.1se)
+
+# Coefs are betas for going from adapted -> maladapted,
+# times -1 for maladapted -> adapted
+coefs <- coef(lm.molcomp, s = lambda$lambda.1se)[-1,] * -1
+coefs[order(abs(coefs), decreasing = T)]
+
+# Convert from log odds to percentage change in odds
+((exp(coefs) - 1) * 100)[order(abs(coefs), decreasing = T)]
+
+# change in probability
+p_hat <- predict(lm.molcomp, x, type = "response")
+marginal_effects <- coefs * mean(p_hat * (1 - p_hat))
+marginal_effects[order(abs(coefs), decreasing = T)]
+
+# Most important features are 
+
+#  TODO: Repeat for all motifs
+#  collapse covariances between traits and mol comps to covariances for mol comps
+#  effects of mol comps on isAdapted regardless of trait mutational variance
+
+d_m_molcomp_only <- d_m_molcomp_tot %>%
+  pivot_longer(
+    cols = starts_with("cov_"),
+    names_to = c("i", "j"),
+    names_pattern = "cov_(\\d+)_(\\d+)",
+    values_to = "value"
+  ) %>%
+  mutate(j = paste0("cov_", j)) %>%
+  pivot_wider(
+    names_from = j,
+    values_from = value
+  )
+
+d_m_molcomp_sbst <- d_m_molcomp_only %>% filter(model == "FFLC1") %>%
+  select(dataset, isAdapted, paste0("cov_", mc_permodel[["FFLC1"]]$Var1)) %>%
+  mutate(across(starts_with("cov"), function(i) as.vector(scale(i)))) # Scale by std dev
+
+idx <- sample(2, nrow(d_m_molcomp_sbst), replace = T, prob = c(0.7, 0.3))
+train_molcomp <- d_m_molcomp_sbst[idx == 1,]
+test_molcomp <- d_m_molcomp_sbst[idx == 2,]
+
+
+
+x <- model.matrix(as.formula(paste0("isAdapted ~ dataset +", 
+                                    paste("cov_", mc_permodel[["FFLC1"]]$Var1, 
+                                          sep="", collapse = "+"))),
+                  train_molcomp
+)[,-1]
+
+
+y <- train_molcomp$isAdapted
+
+test_x <- model.matrix(as.formula(paste0("isAdapted ~ dataset +", 
+                                         paste("cov_", mc_permodel[["FFLC1"]]$Var1, 
+                                               sep="", collapse = "+"))),
+                       test_molcomp
+)[,-1]
+
+test_y <- test_molcomp$isAdapted
+
+
+# Plot ROC for the different GLM models - ridge logistic regression
+lambda <- cv.glmnet(x, y, alpha = 0,
+                    family = "binomial", type.measure = "auc",
+                    keep = T)
+lambda
+plot(lambda)
+coef(lambda, s = "lambda.1se")
+best <- lambda$index["1se",]
+rocs <- roc.glmnet(lambda$fit.preval, newy = y)
+plot(rocs[[best]], type = "l")
+invisible(sapply(rocs, lines, col = "grey"))
+lines(rocs[[best]], lwd = 2, col = "red")
+# Confusion matrix
+cnf <- confusion.glmnet(lambda, newx = test_x, newy = test_y)
+print(cnf)
+
+# Plot model with best lambda
+lm.molcomp <- glmnet(x, y, family = "binomial", alpha = 0, 
+                     lambda = lambda$lambda.1se)
+
+# Coefs are betas for going from adapted -> maladapted,
+# times -1 for maladapted -> adapted
+coefs <- coef(lm.molcomp, s = lambda$lambda.1se)[-1,]
+coefs[order(abs(coefs), decreasing = T)]
+
+# Convert from log odds to percentage change in odds
+((exp(coefs) - 1) * 100)[order(abs(coefs), decreasing = T)]
+
+# change in probability
+p_hat <- predict(lm.molcomp, x, type = "response")
+marginal_effects <- coefs * mean(p_hat * (1 - p_hat))
+marginal_effects[order(abs(coefs), decreasing = T)]
+
+
+
+caret::varImp(lm.molcomp, lambda = lambda$lambda.1se)
+
+
+# Estimates
+
+
+# Boruta importance
+bor <- Boruta::Boruta(isAdapted ~ ., data = d_m_molcomp_sbst)
+plot(bor)
+
+# Average most important
+meanImps <- as.data.frame(bor$ImpHistory) %>%
+  summarise_all(mean)
+
+sort(unlist(as.vector(meanImps), recursive = F))
+
+
 
 seed <- 123
 dataset <- d_m_molcomp_rf
