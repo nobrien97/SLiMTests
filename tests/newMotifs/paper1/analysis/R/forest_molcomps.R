@@ -344,8 +344,9 @@ d_m_molcomp_only <- d_m_molcomp_tot %>%
     values_from = value
   )
 
-d_m_molcomp_sbst <- d_m_molcomp_only %>% filter(model == "FFLC1") %>%
-  select(dataset, isAdapted, paste0("cov_", mc_permodel[["FFLC1"]]$Var1)) %>%
+d_m_molcomp_sbst <- d_m_molcomp_only %>%
+  filter(gen == 60000) %>%
+  select(dataset, model, isAdapted, starts_with("cov")) #paste0("cov_", mc_permodel[["FFLC1"]]$Var1)) 
   mutate(across(starts_with("cov"), function(i) as.vector(scale(i)))) # Scale by std dev
 
 idx <- sample(2, nrow(d_m_molcomp_sbst), replace = T, prob = c(0.7, 0.3))
@@ -384,13 +385,14 @@ rocs <- roc.glmnet(lambda$fit.preval, newy = y)
 plot(rocs[[best]], type = "l")
 invisible(sapply(rocs, lines, col = "grey"))
 lines(rocs[[best]], lwd = 2, col = "red")
-# Confusion matrix
-cnf <- confusion.glmnet(lambda, newx = test_x, newy = test_y)
-print(cnf)
 
 # Plot model with best lambda
 lm.molcomp <- glmnet(x, y, family = "binomial", alpha = 0, 
                      lambda = lambda$lambda.1se)
+
+# Confusion matrix
+cnf <- confusion.glmnet(lm.molcomp, newx = test_x, newy = test_y)
+print(cnf)
 
 # Coefs are betas for going from adapted -> maladapted,
 # times -1 for maladapted -> adapted
@@ -406,30 +408,16 @@ marginal_effects <- coefs * mean(p_hat * (1 - p_hat))
 marginal_effects[order(abs(coefs), decreasing = T)]
 
 
-
-caret::varImp(lm.molcomp, lambda = lambda$lambda.1se)
-
-
-# Estimates
-
-
 # Boruta importance
 bor <- Boruta::Boruta(isAdapted ~ ., data = d_m_molcomp_sbst)
 plot(bor)
 
-# Average most important
-meanImps <- as.data.frame(bor$ImpHistory) %>%
-  summarise_all(mean)
-
-sort(unlist(as.vector(meanImps), recursive = F))
-
-
 
 seed <- 123
-dataset <- d_m_molcomp_rf
+dataset <- d_m_molcomp_sbst
 train.test = c(0.7, 0.3)
 motifs <- levels(dataset$model)
-motif <- motifs[1]
+motif <- motifs[3]
 RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
   if (is.null(seed)) {
     seed <- sample(1:.Machine$integer.max, 1)
@@ -442,7 +430,10 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     set.seed(seed)
     d_rf <- dataset %>%
       filter(model == motif) %>%
-      select(-model)
+      mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"),
+                                labels = c("Adapted", "Maladapted")),
+             dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised"))) %>%
+      select(isAdapted, dataset, paste0("cov_", unique(mc_permodel[[motif]]$Var1)))
     
     adapted_counts <- table(d_rf$isAdapted)
     total_counts <- sum(adapted_counts)
@@ -548,7 +539,7 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     
     # Permutation
     predictor <- iml::Predictor$new(rf_bal, 
-                                        data = test[, 1:4], 
+                                        data = test[, 2:9], 
                                         y = test$isAdapted,
                                         type = "prob")
     
