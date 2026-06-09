@@ -1123,9 +1123,9 @@ d_bor_tot %>%
   pivot_longer(cols = -c(model, rowNum), names_to = "feature", values_to = "boruta") %>%
   filter(feature != "dataset", !grepl("shadow", feature)) %>% # Exclude trait/selection alignment and shadow vars
   #filter(interaction(model, feature) %in% d_bor_top$mod.feat) %>%
-  mutate(boruta = if_else(is.na(boruta), 0, boruta)) %>% # Fill na values
+  #mutate(boruta = if_else(is.na(boruta), 0, boruta)) %>% # Fill na values
   group_by(rowNum) %>%
-  mutate(boruta = boruta / sum(boruta)) %>% # Normalise so max importance is 1
+  mutate(boruta = (boruta / sum(boruta, na.rm = T))) %>% # Normalise so it sums to one
   ungroup() %>%
   select(-rowNum) %>%
   mutate(model = factor(model, levels = model_names_noquote),
@@ -1145,10 +1145,10 @@ ggplot(d_bor_plt_sum,
               shape = 21, size = 1.5) +
   theme_bw() +
   scale_y_discrete(labels = function(l) parse(text = l), limits = rev) +
-  scale_fill_paletteer_c("viridis::viridis") +
+  scale_fill_paletteer_c("viridis::viridis", na.value = "#444", limits = c(0.0, 0.27)) +
   guides(fill = guide_colourbar(theme = theme(legend.key.width = unit(dev.size()[1] / 2, "inches")),
                                 title.vjust = 0.8)) +
-  labs(x = "Model", y = "Feature", fill = "Normalised Boruta Importance") +
+  labs(x = "Model", y = "Molecular component", fill = "Normalised Boruta Importance") +
   theme(legend.position = "bottom",
         legend.title.align = 1,
         text = element_text(size = 12)) -> plt_model_molcomp_imp
@@ -1211,6 +1211,102 @@ plt_ale_pres <- ggplot(d_ale %>% filter(column_label == "aZ" | column_label == "
 plt_ale_pres
 ggsave("plt_ale_molcomp_pres.png", plt_ale_pres, device = png, bg = "white",
        width = 10, height = 5)
+
+
+# Full ALE
+plt_ale_molcomp <- ggplot(d_ale,
+                       aes(x = .borders, y = .value, colour = model, group = model)) +
+  facet_nested("Molecular~component" + .feature~model,
+               labeller = label_parsed, scales = "free", independent = "x") +
+  geom_line() +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  scale_colour_manual(values = pal) +
+  theme_bw() +
+  labs(x = "Molecular component value", y = "Effect on adaptedness (ALE)",
+       colour = "Model") +
+  theme(legend.position = "bottom", text = element_text(size = 12))
+plt_ale_molcomp
+ggsave("plt_ale_molcomp.png", plt_ale_molcomp, device = png, bg = "white",
+       width = 7.5, height = 12)
+
+# Average ALE across all molcomps
+d_ale %>% filter(.class == "Adapted") %>%
+  group_by(model) %>%
+  summarise(meanALE = mean(.value),
+            CILE = CI(.value))
+
+# Interactions
+rf_molcomps_result[["NAR"]]$ia$plot()
+rf_molcomps_result[["PAR"]]$ia$plot()
+rf_molcomps_result[["FFLC1"]]$ia$plot()
+rf_molcomps_result[["FFLI1"]]$ia$plot()
+rf_molcomps_result[["FFBH"]]$ia$plot()
+
+# Combine ALEs across motifs
+d_int <- lapply(rf_molcomps_result, function(x) {
+  x$ia$results %>% filter(.feature != "dataset", .class == "Adapted")
+})
+
+d_int <- bind_rows(d_int, .id = "model")
+d_int$feat_math <- c(all_molcomps,
+                    "dataset" = TeX("Trait/selection alignment", output = "character"))[d_int$.feature]
+
+# Setup model
+d_int <- d_int %>%
+  mutate(model = factor(model, levels = model_names_noquote))
+
+plt_int_pres <- ggplot(d_int %>% filter(.feature == "aZ" | .feature == "bZ" | .feature == "h"),
+                       aes(x = .interaction, y = model, colour = model)) +
+  facet_nested("Molecular component"+feat_math~., labeller = labeller(feat_math = label_parsed)) +
+  geom_lollipop(horizontal = T, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_y_discrete(limits = rev) +
+  theme_bw() +
+  labs(x = "Overall interaction strength", y = "Molecular component",
+       colour = "Model") +
+  theme(legend.position = "bottom", text = element_text(size = 12))
+plt_int_pres
+ggsave("plt_int_molcomp_pres.png", plt_int_pres, device = png, bg = "white",
+       width = 4, height = 8)
+
+
+# Full interactions plot
+plt_int <- ggplot(d_int,
+                       aes(x = .interaction, y = model, colour = model)) +
+  facet_nested("Molecular component"+feat_math~., labeller = labeller(feat_math = label_parsed)) +
+  geom_lollipop(horizontal = T, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  scale_y_discrete(limits = rev) +
+  theme_bw() +
+  labs(x = "Overall interaction strength", y = "Molecular component",
+       colour = "Model") +
+  theme(legend.position = "bottom", text = element_text(size = 12))
+plt_int
+ggsave("plt_int_molcomp.png", plt_int, device = png, bg = "white",
+       width = 4, height = 10)
+
+d_int %>%
+  group_by(model) %>%
+  summarise(mean(.interaction, na.rm = T))
+
+# Plot interactions for alpha/beta/h with everything else
+i_alpha <- lapply(rf_molcomps_result, function(x) {
+  Interaction$new(x[["pred"]], feature = "aZ")
+})
+plot(i_alpha[["NAR"]])
+
+# Plot ALE of important interactions alpha/beta/h
+
+
+
+
+
+
+
+
+
+
+
 
 
 

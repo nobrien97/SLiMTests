@@ -565,6 +565,11 @@ RunRandomForestMolCompPerMotif <- function(dataset, seed = NULL, train.test = c(
     ggsave(paste0("plt_perm_feat_imp_align_", motif,".png"), 
            device = png, width = 9, height = 5, bg = "white")
     
+    # Interaction strengths
+    ia <- Interaction$new(predictor)
+    
+    result[[motif]][["ia"]] <- ia
+    
     # Sobol MDA
     rf_sob <- sobolMDA::ranger(isAdapted ~ .,
                                              data = train, num.trees = 500, 
