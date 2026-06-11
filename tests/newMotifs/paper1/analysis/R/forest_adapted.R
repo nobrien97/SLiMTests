@@ -1231,9 +1231,29 @@ ggsave("plt_ale_molcomp.png", plt_ale_molcomp, device = png, bg = "white",
 
 # Average ALE across all molcomps
 d_ale %>% filter(.class == "Adapted") %>%
-  group_by(model) %>%
+  group_by(model, .feature) %>%
   summarise(meanALE = mean(.value),
-            CILE = CI(.value))
+            CIALE = CI(.value)) -> d_ale_molcomp_sum
+
+ggplot(d_ale_molcomp_sum,
+       aes(x = model, y = meanALE, colour = model, group = model)) +
+  facet_nested("Molecular~component" + .feature~.,
+               labeller = label_parsed) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanALE - CIALE, ymax = meanALE + CIALE),
+                width = 0.2) +
+  scale_colour_manual(values = pal) +
+  theme_bw() +
+  labs(x = "Model", y = "Effect on adaptedness (ALE)",
+       colour = "Model") +
+  theme(legend.position = "bottom", text = element_text(size = 12)) -> plt_ale_molcomp_sum
+plt_ale_molcomp_sum
+
+kableExtra::kable(d_ale_molcomp_sum, "latex")
+
+
+
 
 # Interactions
 rf_molcomps_result[["NAR"]]$ia$plot()
@@ -1294,8 +1314,28 @@ i_alpha <- lapply(rf_molcomps_result, function(x) {
   Interaction$new(x[["pred"]], feature = "aZ")
 })
 plot(i_alpha[["NAR"]])
+plot(i_alpha[["PAR"]])
+plot(i_alpha[["FFLC1"]])
+plot(i_alpha[["FFLI1"]])
+plot(i_alpha[["FFBH"]])
 
-# Plot ALE of important interactions alpha/beta/h
+i_beta <- lapply(rf_molcomps_result, function(x) {
+  Interaction$new(x[["pred"]], feature = "bZ")
+})
+plot(i_beta[["NAR"]])
+plot(i_beta[["PAR"]])
+plot(i_beta[["FFLC1"]])
+plot(i_beta[["FFLI1"]])
+plot(i_beta[["FFBH"]])
+
+i_h <- lapply(rf_molcomps_result, function(x) {
+  Interaction$new(x[["pred"]], feature = "h")
+})
+plot(i_h[["NAR"]])
+plot(i_h[["PAR"]])
+plot(i_h[["FFLC1"]])
+plot(i_h[["FFLI1"]])
+plot(i_h[["FFBH"]])
 
 
 

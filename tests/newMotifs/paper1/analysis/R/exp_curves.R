@@ -17,7 +17,7 @@ colX   <- "#44546A"
 colXOutline <- "#222A35"
 
 
-pal_change <- c("#222", "#B00", "#0BB")
+pal_change <- paletteer_c("ggthemes::Classic Gray", n = 3)
 
 # ODE system for feedback autoregulation:
 ODEs_FBA <- function(t, state, parameters) {
@@ -162,6 +162,33 @@ plotNAR_h <- ggplot(solution_nar, aes(x = time, y = Z, colour = treatment)) +
   theme(legend.position = "bottom")
 plotNAR_h
 
+# NAR with 2 values for pres
+params_h2 <- list(
+  c(Xstart = 1, Xstop = 6, 
+    aX = 1, KZX = 1, KZ = 1,
+    aY = 1, bY = 1, KY = 1, KXZ = 1,
+    aZ = 1, bZ = 1, h = 4, XMult = 1, base = 0.0),
+  c(Xstart = 1, Xstop = 6, 
+    aX = 1, KZX = 1, KZ = 1,
+    aY = 1, bY = 1, KY = 1, KXZ = 1,
+    aZ = 1, bZ = 1, h = 2, XMult = 1, base = 0.0)
+)
+
+
+solution_nar2 <- solveODE(ODEs_FBA, params_h2, c(Z = 0), param_treatment = "h")
+
+plotNAR_h2 <- ggplot(solution_nar2, aes(x = time, y = Z, colour = treatment)) +
+  annotate("rect", xmin = 1, xmax = 6, ymin = 0, ymax = max(solution_nar$Z),
+           alpha = .3, fill = "#0075BD") +
+  geom_line(linewidth = 1.5) +
+  scale_colour_manual(values = pal_change, labels = function(l) parse(text = l)) +
+  labs(x = "Time", y = "Z expression", colour = "Treatment") +
+  theme_bw(base_size = 16) +
+  theme(legend.position = "bottom")
+plotNAR_h2
+
+
+
 
 params_h_par <- list(
   c(Xstart = 1, Xstop = 6, 
@@ -283,7 +310,7 @@ free(plotNAR_h + ggtitle("NAR")) +
   plotFFLC1_h + ggtitle("FFLC1") +
   plotFFLI1_h + ggtitle("FFLI1") +
   plotFFBH_h + ggtitle("FFBH") +
-  plot_layout(design = layout, guides = "collect") & theme(legend.position = "bottom")
+  plot_layout(design = layout, guides = "collect") & theme(legend.position = "none")
 
 ggsave("plt_h_eg.png", device = png, bg = "white", width = 12, height = 7)
 
@@ -399,7 +426,7 @@ free(plotNAR_b + ggtitle("NAR")) +
   plotFFLC1_b + ggtitle("FFLC1") +
   plotFFLI1_b + ggtitle("FFLI1") +
   plotFFBH_b + ggtitle("FFBH") +
-  plot_layout(design = layout, guides = "collect") & theme(legend.position = "bottom")
+  plot_layout(design = layout, guides = "collect") & theme(legend.position = "none")
 
 ggsave("plt_b_eg.png", device = png, bg = "white", width = 12, height = 7)
 
@@ -514,6 +541,7 @@ free(plotNAR_a + ggtitle("NAR")) +
   plotFFLC1_a + ggtitle("FFLC1") +
   plotFFLI1_a + ggtitle("FFLI1") +
   plotFFBH_a + ggtitle("FFBH") +
-  plot_layout(design = layout, guides = "collect") & theme(legend.position = "bottom")
+  plot_layout(design = layout, guides = "collect") & theme(legend.position = "none")
 
 ggsave("plt_a_eg.png", device = png, bg = "white", width = 12, height = 7)
+
