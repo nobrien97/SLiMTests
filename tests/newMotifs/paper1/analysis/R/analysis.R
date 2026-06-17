@@ -1984,6 +1984,7 @@ for (i in seq_len(BOOT_SAMPLES)) {
 
 # Save result
 saveRDS(d_pAdapted_bs, "d_pAdapted_bs.RDS")
+d_pAdapted_bs <- readRDS("d_pAdapted_bs.RDS")
 
 
 # Look at distribution of samples
@@ -2028,6 +2029,31 @@ ggplot(d_pAdapted,
 plt_adapt_avg
 ggsave("plt_pAdapted.png", width = 11, height = 6, device = png)
 
+
+# Presentation figure
+d_pAdapted_pres <- d_pAdapted_bs %>%
+  mutate(dataset = factor(dataset, levels = c("Orthogonal", "Parallel", "Randomised")),
+         model = factor(model, levels = model_names, labels = model_names_noquote)) %>%
+  group_by(model) %>%
+  summarise(pAdapted_mean = mean(pAdapted),
+            pAdapted_l.ci = quantile(pAdapted, 0.025),
+            pAdapted_u.ci = quantile(pAdapted, 0.975))
+
+ggplot(d_pAdapted_pres,
+       aes(x = model, y = pAdapted_mean, fill = model)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = pAdapted_l.ci, ymax = pAdapted_u.ci),
+                width = 0.2) +
+  scale_x_discrete(labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    guide = "none") +
+  labs(x = "Model", y = "Proportion of adapted populations", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg_pres
+plt_adapt_avg_pres
+ggsave("plt_pAdapted_pres.png", width = 8, height = 6, device = png)
 
 
 
