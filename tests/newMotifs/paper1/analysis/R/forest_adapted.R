@@ -26,7 +26,7 @@ names(d_combos) <- c("model", "r")
 PATH_QG <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 PATH_QG <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_qg.csv"
 PATH_QG <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
-PATH_QG <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
+PATH_QG <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_qg.csv"
 
 d_qg <- data.table::fread(PATH_QG, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -57,7 +57,7 @@ d_qg %>%
 
 # Load in data
 PATH_QG_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
-PATH_QG_ORTH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
+PATH_QG_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
 
 d_qg_orth <- data.table::fread(PATH_QG_ORTH, header = F, 
                                sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -86,7 +86,7 @@ d_qg_orth %>%
 
 
 PATH_QG_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
-PATH_QG_PAR <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
+PATH_QG_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
 
 d_qg_par <- data.table::fread(PATH_QG_PAR, header = F, 
                               sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -774,6 +774,7 @@ d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>%
          cev_g, cev_m)
 
 saveRDS(d_btgb_Malign_rf, "d_btgb_Malign_rf.RDS")
+d_btgb_Malign_rf <- readRDS("d_btgb_Malign_rf.RDS")
 
 
 # Filter out r < 0.1, makes analysis simpler
@@ -1062,6 +1063,28 @@ plot_grid(plotlist = ale_plots,
 ggsave("plt_ale_align.png", device = png, bg = "white",
        width = 12, height = 9)
 
+#########################################################
+# Per model
+#seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 18799215
+seed <- 18799215
+
+rf_result <- RunRandomForestPerMotif(d_btgb_Malign_rf_nor, seed)
+saveRDS(rf_result, "rf_result.RDS")
+rf_result <- readRDS("rf_result.RDS")
+
+rf_result[["NAR"]]
+
+
+
+
+
+
+
+
+
+
 #############################################################
 # Per model comparisons for effects of molecular components
 # Add on mean molecular component values
@@ -1087,6 +1110,9 @@ d_rf_molcomp <-  d_qg_tot %>% rename(timePoint = gen) %>%
 seed <- 18799215
 
 rf_molcomps_result <- RunRandomForestMolCompPerMotif(d_rf_molcomp, seed)
+saveRDS(rf_molcomps_result, "rf_molcomps_result.RDS")
+rf_molcomps_result <- readRDS("rf_molcomps_result.RDS")
+
 
 rf_molcomps_result[["NAR"]]$plt_featimp
 rf_molcomps_result[["PAR"]]$plt_featimp
@@ -1129,7 +1155,7 @@ d_bor_tot %>%
   ungroup() %>%
   select(-rowNum) %>%
   mutate(model = factor(model, levels = model_names_noquote),
-         math_feat = c(all_molcomps,
+         math_feat = c(all_molcomp_features,
                        "dataset" = TeX("Trait/selection alignment", output = "character"))[feature]) -> d_bor_plt
 d_bor_plt %>%
   group_by(model, math_feat) %>%
@@ -1157,12 +1183,14 @@ ggsave("plt_model_molcomp_imp.png", plt_model_molcomp_imp, device = png,
        bg = "white", width = 7, height = 9)
 
 # Reduce fig for presentation
-ggplot(d_bor_plt_sum %>% filter(math_feat %in% c("alpha[Z]", "h", "beta[Z]")),
+ggplot(d_bor_plt_sum %>% filter(math_feat %in% c("alpha[Z]", "beta[Z]")),
        aes(x = model, y = math_feat, fill = meanBoruta)) +
   geom_tile() +
   theme_bw() +
   scale_y_discrete(labels = function(l) parse(text = l), limits = rev) +
-  scale_fill_paletteer_c("viridis::viridis") +
+  scale_fill_paletteer_c("viridis::viridis",
+                         breaks = seq(0, 0.25, length.out = 7),
+                         labels = round(seq(0, 0.25, length.out = 7), digits = 2)) +
   guides(fill = guide_colourbar(theme = theme(legend.key.width = unit(dev.size()[1] / 4, "inches")),
                                 title.vjust = 0.8)) +
   labs(x = "Model", y = "Molecular component", fill = "Importance") +
@@ -1171,7 +1199,7 @@ ggplot(d_bor_plt_sum %>% filter(math_feat %in% c("alpha[Z]", "h", "beta[Z]")),
         text = element_text(size = 12)) -> plt_model_molcomp_imp_pres
 plt_model_molcomp_imp_pres
 ggsave("plt_model_molcomp_imp_pres.png", plt_model_molcomp_imp_pres, device = png, 
-       bg = "white", width = 6.5, height = 5)
+       bg = "white", width = 8, height = 5)
 
 
 ###############
@@ -1189,7 +1217,7 @@ d_ale <- lapply(rf_molcomps_result, function(x) {
 })
 
 d_ale <- bind_rows(d_ale, .id = "model")
-d_ale$.feature <- c(all_molcomps,
+d_ale$.feature <- c(all_molcomp_features,
                     "dataset" = TeX("Trait/selection alignment", output = "character"))[d_ale$.feature]
 
 # Remove outliers
@@ -1197,7 +1225,7 @@ d_ale <- d_ale %>% filter(.borders < 1000, .class == "Adapted") %>%
   mutate(model = factor(model, levels = model_names_noquote))
 
 
-plt_ale_pres <- ggplot(d_ale %>% filter(column_label == "aZ" | column_label == "bZ" | column_label == "h"),
+plt_ale_pres <- ggplot(d_ale %>% filter(column_label == "aZ" | column_label == "bZ"),
   aes(x = .borders, y = .value, colour = model, group = model)) +
   facet_nested("Molecular~component" + .feature~model,
                labeller = label_parsed, scales = "free", independent = "x") +
@@ -1268,7 +1296,7 @@ d_int <- lapply(rf_molcomps_result, function(x) {
 })
 
 d_int <- bind_rows(d_int, .id = "model")
-d_int$feat_math <- c(all_molcomps,
+d_int$feat_math <- c(all_molcomp_features,
                     "dataset" = TeX("Trait/selection alignment", output = "character"))[d_int$.feature]
 
 # Setup model

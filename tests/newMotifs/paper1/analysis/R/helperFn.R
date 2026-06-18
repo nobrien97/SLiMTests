@@ -836,3 +836,283 @@ BBCC
   return(result)
 }
 
+RunRandomForestPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
+  if (is.null(seed)) {
+    seed <- sample(1:.Machine$integer.max, 1)
+  }
+  
+  motifs <- levels(dataset$model)
+  result <- vector(mode = "list")
+  
+  for (motif in motifs) {
+    set.seed(seed)
+    d_rf <- dataset %>%
+      filter(model == motif) %>%
+      select(-model)
+    
+    adapted_counts <- table(d_rf$isAdapted)
+    total_counts <- sum(adapted_counts)
+    num_responses <- length(adapted_counts)
+    adapted_weights <- total_counts / (num_responses * adapted_counts)
+    names(adapted_weights) <- levels(d_rf$isAdapted)
+    
+    
+    idx <- sample(2, nrow(d_rf), replace = T, prob = train.test)
+    train <- d_rf[idx == 1,]
+    test <- d_rf[idx == 2,]
+    
+    
+    # no balancing
+    rf_nobal <- randomForest(formula = isAdapted ~ .,
+                             data = train,
+                             ntree = 500,
+                             proximity = T,
+                             importance = T,
+                             type = "classification")
+    
+    print(rf_nobal)
+    
+    # With balancing (class weights)
+    rf_bal <- randomForest(formula = isAdapted ~ .,
+                           data = train,
+                           strata = train$isAdapted,
+                           classwt = adapted_weights,
+                           ntree = 500,
+                           proximity = T,
+                           importance = T,
+                           type = "classification")
+    
+    print(rf_bal)
+    
+    # Training data
+    p_train_bal <- predict(rf_bal, train)
+    caret::confusionMatrix(p_train_bal, train$isAdapted)
+    
+    p_train_nobal <- predict(rf_nobal, train)
+    caret::confusionMatrix(p_train_nobal, train$isAdapted)
+    
+    
+    # Test data
+    p_test_bal <- predict(rf_bal, test)
+    p_test_bal_probs <- predict(rf_bal, test,
+                                type = "prob")[,1]
+    
+    
+    
+    result[[motif]][["cMat_bal"]] <- caret::confusionMatrix(p_test_bal, test$isAdapted)
+    caret::confusionMatrix(p_test_bal, test$isAdapted)
+    
+    p_test_nobal <- predict(rf_nobal, test)
+    p_test_nobal_probs <- predict(rf_nobal, test,
+                                  type = "prob")[,1]
+    
+    result[[motif]][["cMat_nobal"]] <- caret::confusionMatrix(p_test_nobal, test$isAdapted)
+    caret::confusionMatrix(p_test_nobal, test$isAdapted)
+    
+    
+    # roc
+    d_roc_bal <- roc(response = test$isAdapted,
+                     predictor = p_test_bal_probs)
+    
+    d_roc_nobal <- roc(response = test$isAdapted,
+                       predictor = p_test_nobal_probs,
+                       levels = rev(levels(test$isAdapted)))
+    
+    d_rocs <- data.frame(model = c(rep("Weighted", times = length(d_roc_bal$sensitivities)),
+                                   rep("Unbalanced", times = length(d_roc_nobal$sensitivities))),
+                         sens = c(d_roc_bal$sensitivities, d_roc_nobal$sensitivities),
+                         spec = c(d_roc_bal$specificities, d_roc_nobal$specificities))
+    
+    
+    roc_aucs <- c(pROC::auc(d_roc_nobal), pROC::auc(d_roc_bal))
+    
+    
+    ggplot(d_rocs,
+           aes(x = 1 - spec, y = sens, colour = model)) +
+      geom_line() + 
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed") + 
+      annotate("text", x = c(0.75, 0.75), y = c(0.375, 0.25), 
+               label = paste("AUC:", round(roc_aucs, digits = 3)),
+               colour = pal[1:2]) +
+      theme_bw() +
+      scale_colour_manual(values = pal) +
+      ggtitle(motif) +
+      labs(x = "1 - Specificity", y = "Sensitivity", colour = "RF Model") +
+      theme(legend.position = "bottom",
+            text = element_text(size = 12)) -> plt_roc
+    ggsave(paste0("plt_RF_ROC_permod_", motif, ".png"), plt_roc,
+           device = png, width = 4, height = 4, bg = "white")
+    
+    result[[motif]][["d_roc"]] <- d_rocs
+    result[[motif]][["pltROC"]] <- plt_roc
+    
+    # Importance measures
+    ## Boruta, permutation importance, sobol MDA
+    bor <- Boruta::Boruta(isAdapted ~ ., data = d_rf)
+    bor
+    plot(bor)
+    
+    d_bor <- process_the_Boruta_data(bor)
+    
+    result[[motif]][["bor"]] <- d_bor
+    
+    shadow_names <- c("shadowMin" = TeX("Shadow Variable (min)", output = "character"),
+                      "shadowMean" = TeX("Shadow Variable (mean)", output = "character"),
+                      "shadowMax" = TeX("Shadow Variable (max)", output = "character"))
+    
+    # Sort variables by Boruta median for all other importance plots
+    bor_order <- names(sort(unlist(d_bor %>%
+                                     summarise_all(median))))
+    
+    # Axis labels
+    # motif_labels <- c(molComp_labels[[motif]], 
+    #                   "dataset" = TeX("Trait/selection alignment", output = "character"), 
+    #                   shadow_names)[bor_order]
+    
+    pal_boruta <- generateCol(bor, colCode=c("#00A000","#EECC00","#DD0000","#00C0EA"),
+                              col = NULL)
+    
+    ggplot(d_bor %>% pivot_longer(everything()) %>%
+             mutate(x = fct_reorder(name, value, median)),
+           aes(x = x, y = value, fill = x)) +
+      geom_boxplot(show.legend = F, linewidth = 0.25) +
+      theme_bw() +
+      scale_fill_manual(values = pal_boruta) +
+      scale_x_discrete(#labels = parse(text = motif_labels),
+                       guide = guide_axis(n.dodge = 2)) +
+      labs(x = "Feature", y = "Boruta Importance") +
+      theme(text = element_text(size = 12)) -> plt_boruta_imp
+    plt_boruta_imp
+    ggsave(paste0("plt_boruta_permod_", motif, ".png"), plt_boruta_imp, 
+           device = png, bg = "white",
+           width = 12, height = 8)
+    
+    
+    # Permutation
+    predictor <- iml::Predictor$new(rf_bal, 
+                                    data = test[, 2:(ncol(test))], 
+                                    y = test$isAdapted,
+                                    type = "prob")
+    
+    # Need to set the option future globals maxsize
+    options(future.globals.maxSize = 3221225472)
+    imp <- iml::FeatureImp$new(predictor,
+                               loss = "ce",
+                               n.repetitions = 100)
+    
+    result[[motif]][["FeatImp"]] <- imp
+    
+    
+    #motif_labels_noshadow <- motif_labels[names(motif_labels) %in% c(molComp_names[[motif]], "dataset")]
+    
+    ggplot(imp$results #%>%
+             #mutate(feature = factor(feature, levels = names(motif_labels_noshadow)))
+           ,
+           aes(x = feature, y = importance)) +
+      geom_point() +
+      geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
+                    width = 0.2) +
+      scale_x_discrete(#labels = parse(text=motif_labels_noshadow),
+                       guide = guide_axis(n.dodge = 2)) +
+      labs(x = "Feature", y = "Permutation Importance") +
+      theme_bw() +
+      theme(text = element_text(size = 12)) -> plt_perm_imp
+    plt_perm_imp
+    ggsave(paste0("plt_perm_permod_", motif,".png"), 
+           device = png, width = 9, height = 5, bg = "white")
+    
+    # Interaction strengths
+    ia <- Interaction$new(predictor)
+    
+    result[[motif]][["pred"]] <- predictor
+    result[[motif]][["ia"]] <- ia
+    
+    
+    # Sobol MDA
+    rf_sob <- sobolMDA::ranger(isAdapted ~ .,
+                               data = train, num.trees = 500, 
+                               importance = "sobolMDA")
+    sob <- rf_sob$variable.importance
+    d_sob <- data.frame(feature = names(sob),
+                        sobelMDA = sob)
+    
+    #d_sob$feature <- factor(d_sob$feature, levels = names(motif_labels_noshadow))
+    
+    ggplot(d_sob,
+           aes(x = feature, y = sobelMDA)) +
+      geom_point() +
+      geom_segment(aes(xend = feature, y = 0, yend = sobelMDA),
+                   linewidth = 0.5) +
+      theme_bw() +
+      scale_x_discrete(#labels = parse(text = motif_labels_noshadow),
+                       guide = guide_axis(n.dodge = 2)) +
+      labs(x = "Feature", y = "Sobel MDA") +
+      theme(text = element_text(size = 12)) -> plt_sob
+    plt_sob
+    result[[motif]][["d_sob"]] <- d_sob
+    
+    layout <- "
+AAAA
+AAAA
+AAAA
+BBCC
+BBCC
+"
+    plt_featimp <- plt_boruta_imp +
+      plt_perm_imp +
+      plt_sob +
+      plot_layout(design = layout) +
+      plot_annotation(tag_levels = 'A',
+                      title = paste("Feature importance for", motif, "motif")) &
+      theme(plot.tag = element_text(face = "bold"))
+    plt_featimp
+    result[[motif]][["plt_featimp"]] <- plt_featimp
+    
+    ggsave(paste0("plt_featimp_permod_", motif, ".png"), plt_featimp, 
+           device = png, width = 12, height = 10, bg = "white")
+    
+    
+    # Accumulated local effects
+    ale <- FeatureEffects$new(predictor, grid.size = 10)
+    ale$plot()
+    
+    result[[motif]][["ale"]] <- ale
+    
+    ale_plots <- vector(mode = "list", length = length(ale$features))
+    
+    #ale_labels <- motif_labels[names(ale$results)]
+    
+    for (i in seq_along(ale_plots)) {
+      d_ale <- ale$results[[i]]
+      d_ale <- d_ale %>% filter(.class == "Adapted")
+      x_label <- ale$features[i] 
+      
+      if (!is.numeric(d_ale$.borders[1])) {
+        geom_fn <- geom_lollipop
+        scale_fn <- scale_x_discrete
+      } else {
+        geom_fn <- geom_line
+        scale_fn <- scale_x_continuous
+        # Remove outliers
+        d_ale <- d_ale %>% filter(.borders < 1000)
+      }
+      ale_plots[[i]] <- ggplot(d_ale,
+                               aes(x = .borders, y = .value)) +
+        geom_fn() +
+        scale_fn() +
+        theme_bw() +
+        labs(x = x_label, #parse(text = x_label), 
+             y = "ALE of adaptation probability")
+    }
+    
+    alePlot <- plot_grid(plotlist = ale_plots,
+                         labels= "AUTO")
+    ggsave(paste0("plt_ale_permod_", motif, ".png"), alePlot, device = png, bg = "white",
+           width = 12, height = 9)
+    
+    result[[motif]][["alePlot"]] <- alePlot
+    
+  }
+  
+  return(result)
+}
