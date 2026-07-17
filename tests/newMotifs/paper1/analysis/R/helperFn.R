@@ -836,7 +836,7 @@ BBCC
   return(result)
 }
 
-RunRandomForestPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
+RunRandomForestPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3), type = "classification") {
   if (is.null(seed)) {
     seed <- sample(1:.Machine$integer.max, 1)
   }
@@ -868,7 +868,7 @@ RunRandomForestPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.
                              ntree = 500,
                              proximity = T,
                              importance = T,
-                             type = "classification")
+                             type = type)
     
     print(rf_nobal)
     
@@ -880,7 +880,7 @@ RunRandomForestPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.
                            ntree = 500,
                            proximity = T,
                            importance = T,
-                           type = "classification")
+                           type = type)
     
     print(rf_bal)
     
@@ -1116,3 +1116,141 @@ BBCC
   
   return(result)
 }
+
+RunRandomForestPerMotifTimeToAdapt <- function(dataset, seed = NULL, train.test = c(0.7, 0.3), type = "regression") {
+  if (is.null(seed)) {
+    seed <- sample(1:.Machine$integer.max, 1)
+  }
+  
+  motifs <- levels(dataset$model)
+  result <- vector(mode = "list")
+  
+  for (motif in motifs) {
+    set.seed(seed)
+    d_rf <- dataset %>%
+      filter(model == motif) %>%
+      select(-model)
+    
+    idx <- sample(2, nrow(d_rf), replace = T, prob = train.test)
+    train <- d_rf[idx == 1,]
+    test <- d_rf[idx == 2,]
+    
+    
+    # no balancing
+    rf_nobal <- randomForest(formula = timeToAdapt ~ .,
+                             data = train,
+                             ntree = 500,
+                             proximity = T,
+                             importance = T,
+                             type = type)
+    
+    print(rf_nobal)
+    
+    result[[motif]][["rf"]] <- rf_nobal
+    
+    # Test data
+    p_test_nobal <- predict(rf_nobal, test)
+
+    result[[motif]][["prediction_plot"]] <- plot(test$timeToAdapt, p_test_nobal)
+
+    # Importance measures
+    ## Boruta, permutation importance, sobol MDA
+    bor <- Boruta::Boruta(timeToAdapt ~ ., data = d_rf)
+    bor
+    plot(bor)
+    
+    d_bor <- process_the_Boruta_data(bor)
+    
+    result[[motif]][["bor"]] <- d_bor
+    
+    shadow_names <- c("shadowMin" = TeX("Shadow Variable (min)", output = "character"),
+                      "shadowMean" = TeX("Shadow Variable (mean)", output = "character"),
+                      "shadowMax" = TeX("Shadow Variable (max)", output = "character"))
+    
+    # Sort variables by Boruta median for all other importance plots
+    bor_order <- names(sort(unlist(d_bor %>%
+                                     summarise_all(median))))
+    
+    # Axis labels
+    # motif_labels <- c(molComp_labels[[motif]], 
+    #                   "dataset" = TeX("Trait/selection alignment", output = "character"), 
+    #                   shadow_names)[bor_order]
+    
+    pal_boruta <- generateCol(bor, colCode=c("#00A000","#EECC00","#DD0000","#00C0EA"),
+                              col = NULL)
+    
+    ggplot(d_bor %>% pivot_longer(everything()) %>%
+             mutate(x = fct_reorder(name, value, median)),
+           aes(x = x, y = value, fill = x)) +
+      geom_boxplot(show.legend = F, linewidth = 0.25) +
+      theme_bw() +
+      scale_fill_manual(values = pal_boruta) +
+      scale_x_discrete(#labels = parse(text = motif_labels),
+        guide = guide_axis(n.dodge = 2)) +
+      labs(x = "Feature", y = "Boruta Importance") +
+      theme(text = element_text(size = 12)) -> plt_boruta_imp
+    plt_boruta_imp
+    ggsave(paste0("plt_boruta_permod_tta_", motif, ".png"), plt_boruta_imp, 
+           device = png, bg = "white",
+           width = 12, height = 8)
+    
+    
+    # Permutation
+    predictor <- iml::Predictor$new(rf_nobal, 
+                                    data = test[which(names(test) != "timeToAdapt")], 
+                                    y = test$timeToAdapt)
+    
+    # Need to set the option future globals maxsize
+    options(future.globals.maxSize = 3221225472)
+
+    # Interaction strengths
+    ia <- Interaction$new(predictor)
+    
+    result[[motif]][["pred"]] <- predictor
+    result[[motif]][["ia"]] <- ia
+    
+    
+    # Accumulated local effects
+    ale <- FeatureEffects$new(predictor, grid.size = 10)
+    ale$plot()
+    
+    result[[motif]][["ale"]] <- ale
+    
+    ale_plots <- vector(mode = "list", length = length(ale$features))
+    
+    #ale_labels <- motif_labels[names(ale$results)]
+    
+    for (i in seq_along(ale_plots)) {
+      d_ale <- ale$results[[i]]
+      x_label <- ale$features[i] 
+      
+      if (!is.numeric(d_ale$.borders[1])) {
+        geom_fn <- geom_lollipop
+        scale_fn <- scale_x_discrete
+      } else {
+        geom_fn <- geom_line
+        scale_fn <- scale_x_continuous
+        # Remove outliers
+        d_ale <- d_ale %>% filter(.borders < 1000)
+      }
+      ale_plots[[i]] <- ggplot(d_ale,
+                               aes(x = .borders, y = .value)) +
+        geom_fn() +
+        scale_fn() +
+        theme_bw() +
+        labs(x = x_label, #parse(text = x_label), 
+             y = "ALE of adaptation probability")
+    }
+    
+    alePlot <- plot_grid(plotlist = ale_plots,
+                         labels= "AUTO")
+    ggsave(paste0("plt_ale_permod_tta_", motif, ".png"), alePlot, device = png, bg = "white",
+           width = 12, height = 9)
+    
+    result[[motif]][["alePlot"]] <- alePlot
+    
+  }
+  
+  return(result)
+}
+

@@ -48,7 +48,8 @@ d_qg <- AddCombosToDF(d_qg)
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names)) %>%
   ungroup() -> d_qg
 
@@ -79,7 +80,8 @@ d_qg_orth <- AddCombosToDF(d_qg_orth)
 d_qg_orth %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names),
          modelindex = factor(modelindex, levels = 1:15)) %>%
   ungroup() -> d_qg_orth
@@ -108,7 +110,8 @@ d_qg_par <- AddCombosToDF(d_qg_par)
 d_qg_par %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names),
          modelindex = factor(modelindex, levels = 1:15)) %>%
   ungroup() -> d_qg_par
@@ -151,8 +154,8 @@ e_m <- readRDS("eigen_randomised_m.RDS")
 DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
 DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
 
-DATA_PATH_ORTH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
-DATA_PATH_PAR <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
+DATA_PATH_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
+DATA_PATH_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
 
 
 d_m_orth <- read_csv(DATA_PATH_ORTH, col_names = c("gen", "seed", "modelindex",
@@ -250,9 +253,9 @@ d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
 
 ######################################################################
 # Load optima
-d_opt <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
-d_opt_par <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
-d_opt_orth <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
+d_opt_par <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
+d_opt_orth <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -273,7 +276,7 @@ d_opt_orth <- d_opt_orth[,-15]
 G_DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
-G_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
+G_DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
 
 
 d_h2_mrr <- read_csv(paste0(G_DATA_PATH, "out_h2_mrr.csv"), col_names = F)
@@ -303,8 +306,8 @@ d_h2_mrr$calcMode <- "mrr"
 
 G_ORTH_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
 G_PAR_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
-G_ORTH_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
-G_PAR_DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
+G_ORTH_DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
+G_PAR_DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
 
 
 d_h2_mkr_orth <- read_csv(paste0(G_ORTH_DATA_PATH, "out_h2_mkr.csv"), col_names = F)
@@ -766,10 +769,24 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
                                     by = c("timePoint", "seed", "modelindex", "isAdapted", "model", "r",
                                            "dataset"))
 
+# Add time to adaptation
+d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
+                                    d_qg_tot %>% filter(gen == 50000 | gen == 60000) %>%
+                                      mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+                                             isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
+                                                                labels = c("Adapted", "Maladapted")),
+                                             model = factor(model, levels = model_names,
+                                                            labels = model_names_noquote),
+                                             timePoint = factor(timePoint, levels = c("Start", "End")),
+                                             dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
+                                             r = factor(log10(r), levels = c(-10, -5, -1))
+                                      ) %>% select(timePoint, seed, modelindex, dataset, timeToAdapt),
+                                    by = c("timePoint", "seed", "modelindex", "dataset"))
+
 
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>%
-  select(isAdapted, model, dataset, r, absCS_Mb, 
+  select(isAdapted, model, dataset, timeToAdapt, r, absCS_Mb, 
          absCS_Gb, bTGb, bTMb, vrel_g, vrel_m,
          cev_g, cev_m)
 
@@ -1076,6 +1093,11 @@ rf_result <- readRDS("rf_result.RDS")
 
 rf_result[["NAR"]]
 
+rf_result[["NAR"]]$cMat_bal
+rf_result[["PAR"]]$cMat_bal
+rf_result[["FFLC1"]]$cMat_bal
+rf_result[["FFLI1"]]$cMat_bal
+rf_result[["FFBH"]]$cMat_bal
 
 
 

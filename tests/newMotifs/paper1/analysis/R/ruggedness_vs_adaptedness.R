@@ -2,6 +2,13 @@ library(tidyverse)
 library(paletteer)
 library(ggbeeswarm)
 library(xtable)
+library(latex2exp)
+library(randomForest)
+library(pROC)
+library(patchwork)
+library(ggalt)
+library(cowplot)
+library(ggbeeswarm)
 
 se <- function(x, na.rm = F) {
   if (na.rm)
@@ -13,6 +20,9 @@ se <- function(x, na.rm = F) {
 CI <- function(x, quantile = 0.975, na.rm = F) {
   return(qnorm(quantile) * se(x, na.rm))
 }
+
+source("helperFn.R")
+
 
 model_levels <- c("NAR", "PAR", "FFLC1", 
                   "FFLI1", "FFBH")
@@ -143,16 +153,8 @@ pltlst_bor_rug <- lapply(bor_rug, function(x) {
   plot(x)
 })
 
-plot_grid(plotlist = pltlst_bor_rug)
-
-
-summary(lm(meanRuggedness ~ model, d_btgb_Malign_rf))
-
-cor(d_btgb_Malign_rf$meanRuggedness, d_btgb_Malign_rf$model)
-
-
 seed <- 538108254
 
 rf_mc_rug <- RunRandomForestPerMotif(d_btgb_Malign_rf, seed)
 saveRDS(rf_mc, "rf_mc_rug.RDS")
-rf_result <- readRDS("rf_result.RDS")
+rf_mc <- readRDS("rf_mc.RDS")

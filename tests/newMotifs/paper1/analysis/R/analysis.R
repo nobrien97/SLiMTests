@@ -53,10 +53,10 @@ d_qg <- AddCombosToDF(d_qg)
 d_qg %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names)) %>%
   ungroup() -> d_qg
-
 
 
 
@@ -66,7 +66,7 @@ d_qg %>%
 # Load M
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar.csv"
-DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
+DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
 
 d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                           paste0("mean_", 1:4),
@@ -189,7 +189,7 @@ ggsave("plt_pred_vrel.png", device = png, bg = "white",
 ## Can look at covariance of trait M with mol comps?
 DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
 DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/R/slim_mutvar_percomp.csv"
-DATA_PATH <- "/mnt/j/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
+DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar_percomp.csv"
 
 t_mc_combos <- expand.grid(1:11, 1:4)
 
@@ -1542,7 +1542,7 @@ ggsave("plt_pred_cossimGbeta_cossimMbeta.png", device = png, bg = "white",
 # 3) Positive and negative controls confirm developmental bias
 
 # Load in data
-PATH_QG_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
+PATH_QG_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_qg.csv"
 
 d_qg_orth <- data.table::fread(PATH_QG_ORTH, header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -1564,13 +1564,14 @@ d_qg_orth <- AddCombosToDF(d_qg_orth)
 d_qg_orth %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names),
          modelindex = factor(modelindex, levels = 1:15)) %>%
   ungroup() -> d_qg_orth
 
 
-PATH_QG_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
+PATH_QG_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_qg.csv"
 
 d_qg_par <- data.table::fread(PATH_QG_PAR, header = F, 
                                sep = ",", colClasses = c("integer", "factor", "factor", 
@@ -1592,7 +1593,8 @@ d_qg_par <- AddCombosToDF(d_qg_par)
 d_qg_par %>%
   distinct() %>%
   group_by(seed, modelindex) %>%
-  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98)) %>%
+  mutate(isAdapted = any(gen >= 59800 & mean_w > 0.98),
+         timeToAdapt = first(gen[gen > 50000 & mean_w > 0.98]) - 50000) %>%
   mutate(model = factor(model, levels = model_names),
          modelindex = factor(modelindex, levels = 1:15)) %>%
   ungroup() -> d_qg_par
