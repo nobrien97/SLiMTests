@@ -251,11 +251,13 @@ d_vrel$dataset <- "Randomised"
 # Combine
 d_vrel_tot <- rbind(d_vrel, d_vrel_orth, d_vrel_par)
 
+
+
 ######################################################################
 # Load optima
-d_opt <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
-d_opt_par <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
-d_opt_orth <- read_csv("/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
+d_opt <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_opt.csv", col_names = F)
+d_opt_par <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_opt.csv", col_names = F)
+d_opt_orth <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_opt.csv", col_names = F)
 
 # o = optimum, s = sigma, d = direction (-1, 1)
 colnames(d_opt) <- c("seed", "modelindex", "o_t1", "o_t2", "o_t3", "o_t4", 
@@ -558,6 +560,16 @@ d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
   mutate(model = factor(model, levels = model_names,
                         labels = model_names_noquote))
 
+d_ecr <- CalcECRATrait(h2_pd, id)
+d_ecr <- AddCombosToDF(d_ecr)
+d_ecr$dataset <- d_selvec2$dataset
+
+# Refactor model
+d_ecr <- d_ecr %>%
+  mutate(model = factor(model, levels = model_names))
+
+
+
 ###########################################################################
 # M matrix
 d_selvec_m_tot <- d_qg_tot %>%
@@ -616,6 +628,21 @@ saveRDS(d_cossim_m_tot, "d_cossim_m_datasets.RDS")
 d_cossim_m_tot <- readRDS("d_cossim_m_datasets.RDS")
 
 d_cossim_m_tot <- AddCombosToDF(d_cossim_m_tot)
+
+# 5) Evolvability, autonomy and V_A through M
+d_ecr_m <- CalcECRATrait(m_matrices_tot, id_m_tot)
+d_ecr_m <- AddCombosToDF(d_ecr_m)
+
+
+saveRDS(d_ecr_m, "d_ecr_m.RDS")
+d_ecr_m <- readRDS("d_ecr_m.RDS")
+
+# Refactor model
+d_ecr_m <- d_ecr_m %>%
+  mutate(model = factor(model, levels = model_names))
+
+d_ecr_m$dataset <- id_m_tot$dataset
+
 
 
 ## Evolvability against alignment of M with direction of selection
@@ -745,7 +772,9 @@ d_cev <- left_join(d_ecr %>%
                      mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
                                                labels = c("Adapted", "Maladapted")),
                             dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
-                            r = factor(log10(r), levels = c(-10, -5, -1))),
+                            r = factor(log10(r), levels = c(-10, -5, -1)),
+                            model = factor(model, levels = model_names,
+                                           labels = model_names_noquote)),
                    d_ecr_m %>% filter(timePoint == 50000 | timePoint == 60000) %>%
                      mutate(timePoint = if_else(timePoint == 50000, "Start", "End"),
                             isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
@@ -783,9 +812,12 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
                                       ) %>% select(timePoint, seed, modelindex, dataset, timeToAdapt),
                                     by = c("timePoint", "seed", "modelindex", "dataset"))
 
+# Save
+saveRDS(d_btgb_Malign_tot_vrel, "d_btgb_Malign_tot_vrel.RDS")
+
 
 ## use random forest
-d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>%
+d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>% filter(timePoint == "End") %>%
   select(isAdapted, model, dataset, timeToAdapt, r, absCS_Mb, 
          absCS_Gb, bTGb, bTMb, vrel_g, vrel_m,
          cev_g, cev_m)

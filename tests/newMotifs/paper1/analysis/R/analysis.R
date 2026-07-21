@@ -2015,21 +2015,175 @@ stargazer::stargazer(as.data.frame(d_pAdapted %>%
   
 # Plot with CIs
 ggplot(d_pAdapted,
-       aes(x = model, y = pAdapted_mean, fill = model)) +
-  facet_nested("Trait/selection alignment" + dataset ~ .) +
+       aes(x = dataset, y = pAdapted_mean, fill = model)) +
+#  facet_nested("Trait/selection alignment" + dataset ~ .) +
+  facet_nested(. ~ "Model" + model) +
   geom_col() +
   geom_errorbar(aes(ymin = pAdapted_l.ci, ymax = pAdapted_u.ci),
                 width = 0.2) +
-  scale_x_discrete(labels = model_names_noquote) +
-  scale_fill_manual(values = pal,
-                    guide = "none") +
-  labs(x = "Model", y = "Proportion of adapted populations", 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  scale_fill_manual(values = pal) +
+  labs(x = "Trait/selection alignment", y = "Proportion of adapted populations", 
        fill = "Model") +
   theme_bw() +
   theme(text = element_text(size = 14),
-        panel.spacing = unit(0.75, "lines")) -> plt_adapt_avg
+        panel.spacing = unit(0.75, "lines"),
+        legend.position = "bottom") -> plt_adapt_avg
 plt_adapt_avg
-ggsave("plt_pAdapted.png", width = 11, height = 6, device = png)
+ggsave("plt_pAdapted.png", width = 12, height = 4, device = png)
+
+# Time to adaptation - similar bootstrap method
+d_tta_bs <- data.frame(bootsample = rep(1:BOOT_SAMPLES, each = n),
+                            model = character(BOOT_SAMPLES * n),
+                            dataset = character(BOOT_SAMPLES * n),
+                            timeToAdaptation = numeric(BOOT_SAMPLES * n))
+
+# Only use adapted pops
+d_qg_bs_adapted <- d_qg_bs %>%
+  filter(isAdapted == T)
+
+# seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 1657520366
+seed <- 1657520366
+set.seed(seed)
+pb <- progress::progress_bar$new(
+  format = "  Running [:bar] :percent in :elapsedfull",
+  total = BOOT_SAMPLES, clear = FALSE, width = 60)
+
+for (i in seq_len(BOOT_SAMPLES)) {
+  pb$tick()
+  # Sample m rows
+  d_bs_sample <- d_qg_bs_adapted %>%
+    group_by(model, dataset) %>%
+    slice_sample(prop = 1, replace = T) %>%
+    summarise(timeToAdaptation = mean(timeToAdapt), .groups = "drop_last") %>%
+    mutate(bootsample = i,
+           model = as.character(model)) %>%
+    select(bootsample, model, dataset, timeToAdaptation)
+  
+  # Fill results
+  d_tta_bs[d_tta_bs$bootsample == i,] <- d_bs_sample
+}
+
+# Save result
+saveRDS(d_tta_bs, "d_tta_bs.RDS")
+d_tta_bs <- readRDS("d_tta_bs.RDS")
+
+# Look at distribution of samples
+ggplot(d_tta_bs,
+       aes(x = timeToAdaptation)) +
+  facet_nested(dataset~model) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  labs(x = "Time to adaptation (generations)") +
+  theme(text = element_text(size = 12))
+
+
+# Get averages and CIs
+d_tta <- d_tta_bs %>%
+  mutate(dataset = factor(dataset, levels = c("Orthogonal", "Parallel", "Randomised")),
+         model = factor(model, levels = model_names, labels = model_names_noquote)) %>%
+  group_by(dataset, model) %>%
+  summarise(tta_mean = mean(timeToAdaptation),
+            tta_l.ci = quantile(timeToAdaptation, 0.025),
+            tta_u.ci = quantile(timeToAdaptation, 0.975))
+
+# Table
+stargazer::stargazer(as.data.frame(d_tta %>%
+                                     relocate(model)), summary = F,
+                     rownames = F, digits = 0, digit.separator = "")
+
+
+# Plot with CIs
+ggplot(d_tta,
+       aes(x = dataset, y = tta_mean, fill = model)) +
+ # facet_nested("Trait/selection alignment" + dataset ~ .) +
+  facet_nested(. ~ "Model" + model) +
+  geom_col() +
+  geom_errorbar(aes(ymin = tta_l.ci, ymax = tta_u.ci),
+                width = 0.2) +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual(values = pal) +
+  labs(x = "Trait/selection alignment", y = "Mean time to adaptation (generations)", 
+       fill = "Model") +
+  theme_bw() +
+  theme(text = element_text(size = 14),
+        panel.spacing = unit(0.75, "lines"),
+        legend.position = "bottom") -> plt_tta_avg
+plt_tta_avg
+ggsave("plt_tta.png", width = 12, height = 4, device = png)
+
+# legend
+leg <- get_legend(plt_adapt_avg)
+
+# Combine
+plt_adapt_tta <- plot_grid(plt_adapt_avg + theme(legend.position = "none"), 
+                           plt_tta_avg + theme(legend.position = "none"),
+                           nrow = 2, labels = "AUTO")
+
+plot_grid(plt_adapt_tta, leg, nrow = 2, rel_heights = c(1, 0.1))
+ggsave("plt_adapt_tta.png", device = png, bg = "white",
+       width = 12, height = 8.5)
+
+# plot prop adapted vs time to adaptation
+d_tta_pAdapt <- d_qg_bs %>%
+  group_by(model, dataset) %>%
+  summarise(tta = mean(timeToAdapt, na.rm = T),
+            pAdapt = sum(isAdapted) / n())
+
+# Bootstrap resample the time to adapt and proportion adapted linear model
+d_tta_pAdapt_cov_bs <- data.frame(bootsample = rep(1:BOOT_SAMPLES, each = n),
+                                  model = character(BOOT_SAMPLES * n),
+                                  dataset = character(BOOT_SAMPLES * n),
+                                  tta = numeric(BOOT_SAMPLES * n),
+                                  pAdapt = numeric(BOOT_SAMPLES * n))
+
+# seed <- sample(1:.Machine$integer.max, 1)
+# > seed
+# [1] 726037519
+seed <- 726037519
+set.seed(seed)
+pb <- progress::progress_bar$new(
+  format = "  Running [:bar] :percent in :elapsedfull eta: :eta",
+  total = BOOT_SAMPLES, clear = FALSE, width = 60)
+
+for (i in seq_len(BOOT_SAMPLES)) {
+  pb$tick()
+  # Sample m rows
+  d_bs_sample <- d_qg_bs %>%
+    group_by(model, dataset) %>%
+    slice_sample(prop = 1, replace = T) %>%
+    summarise(tta = mean(timeToAdapt, na.rm = T), 
+              pAdapt = sum(isAdapted) / n(),
+              .groups = "drop_last") %>%
+    mutate(bootsample = i) %>%
+    select(bootsample, model, dataset, tta, pAdapt)
+  
+  # Fill results
+  d_tta_pAdapt_cov_bs[d_tta_pAdapt_cov_bs$bootsample == i,] <- d_bs_sample
+}
+
+# Save result
+saveRDS(d_tta_pAdapt_cov_bs, "d_tta_pAdapt_cov_bs.RDS")
+d_tta_pAdapt_cov_bs <- readRDS("d_tta_pAdapt_cov_bs.RDS")
+
+
+ggplot(d_tta_pAdapt_cov_bs,
+       aes(x = tta, y = pAdapt)) +
+  #facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
+  geom_point(size = 0.5, shape = 1, alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(x = "Time to adaptation (generations)", y = "Proportion of adapted populations") +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+
+# Measure covariance/slope
+lm.tta.pAdapt <- betareg(pAdapt ~ tta, d_tta_pAdapt_cov_bs)
+summary(lm.tta.pAdapt)
+plot(lm.tta.pAdapt)
+cov(d_tta_pAdapt_cov_bs[]$tta, d_tta_pAdapt_cov_bs$pAdapt)
 
 
 # Presentation figure

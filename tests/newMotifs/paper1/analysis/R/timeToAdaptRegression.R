@@ -9,6 +9,8 @@ library(patchwork)
 library(ggalt)
 library(cowplot)
 library(ggbeeswarm)
+library(iml)
+library(emmeans)
 
 source("helperFn.R")
 
@@ -24,18 +26,10 @@ d_btgb_Malign_rf_nor <- d_btgb_Malign_rf %>% filter(r == -1, isAdapted == "Adapt
 # [1] 18799215
 seed <- 18799215
 set.seed(seed)
-# Sample per group to avoid unbalanced groups
-adapted_counts <- table(d_btgb_Malign_rf_nor$isAdapted)
-total_counts <- sum(adapted_counts)
-num_responses <- length(adapted_counts)
-adapted_weights <- total_counts / (num_responses * adapted_counts)
-names(adapted_weights) <- levels(d_btgb_Malign_rf_nor$isAdapted)
-
 
 idx <- sample(2, nrow(d_btgb_Malign_rf_nor), replace = T, prob = c(0.7, 0.3))
 train_mbeta_adapted <- d_btgb_Malign_rf_nor[idx == 1,]
 test_mbeta_adapted <- d_btgb_Malign_rf_nor[idx == 2,]
-
 
 d_timeToAdapt <- d_btgb_Malign_rf_nor %>%
   group_split(model)
@@ -66,4 +60,28 @@ saveRDS(rf_result_tta, "rf_result_tta.RDS")
 rf_result_tta <- readRDS("rf_result_tta.RDS")
 
 rf_result_tta[["NAR"]]
+
+
+# Try a linear model
+lm_tta <- lm(log(timeToAdapt) ~ model * dataset + ., data = d_btgb_Malign_rf_nor[-1707,])
+summary(lm_tta)
+plot(lm_tta)
+
+em_tta <- emmeans(lm_tta, ~ model * dataset, type = "response")
+test(em_tta)
+pwpp(em_tta, by = "model")
+
+prop_adapted <- d_btgb_Malign_rf %>%
+  group_by(model, dataset) %>%
+  summarise(sum(isAdapted == "Adapted") / n())
+
+emmip(em_tta, model ~ dataset, CIs = T) +
+  theme_bw() +
+  labs(x = "Model", y= TeX("Predicted adaptation time (generations)"),
+       colour = "Model") +
+  scale_colour_manual(values = pal) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+ggsave("plt_pred_tta.png", device = png, bg = "white",
+       width = 8, height = 6)
 
