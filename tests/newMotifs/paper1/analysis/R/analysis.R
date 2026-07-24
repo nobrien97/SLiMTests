@@ -2179,11 +2179,62 @@ ggplot(d_tta_pAdapt_cov_bs,
   theme_bw() +
   theme(text = element_text(size = 12))
 
+# Want to see if treatments with low pAdapt tend to also have adapted populations with long
+# time to adaptation
+# Problem is that the bootstrap samples aren't independent, so if we want to fit this 
+# line, we need to fit it on the mean values, leaving us with ~15 data points
+
+
 # Measure covariance/slope
-lm.tta.pAdapt <- betareg(pAdapt ~ tta, d_tta_pAdapt_cov_bs)
+d_tta_pAdapt_cov <- d_tta_pAdapt_cov_bs %>%
+  mutate(model = factor(model, levels = as.character(1:5), 
+                        labels = model_names_noquote),
+         n = 208,
+         k = pAdapt * n) %>%
+  filter(!is.nan(tta)) %>%
+  group_by(model, dataset) %>%
+  summarise(pAdapted_mean = mean(pAdapt),
+            pAdapted_l.ci = quantile(pAdapt, 0.025),
+            pAdapted_u.ci = quantile(pAdapt, 0.975),
+            tta_mean = mean(tta),
+            tta_l.ci = quantile(tta, 0.025),
+            tta_u.ci = quantile(tta, 0.975),
+            mean_k = mean(k))
+
+glm.tta.pAdapt.simple  <- glm(cbind(k, k_low) ~ tta_mean, 
+                                    data = d_tta_pAdapt_cov %>%
+                                      mutate(k = as.integer(round(mean_k)),
+                                             k_low = as.integer(208 - k)),
+                              family = "binomial")
+summary(glm.tta.pAdapt.simple)
+plot(glm.tta.pAdapt.simple)
+report::report(glm.tta.pAdapt.simple)
+
+pred.glm.tta.pAdapt.simple <- data.frame(tta_mean = d_tta_pAdapt_cov$tta_mean)
+pred.glm.tta.pAdapt.simple$pred_pAdapt <- predict(glm.tta.pAdapt.simple, 
+                                                  pred.glm.tta.pAdapt.simple)
+# Transform back to response scale
+pred.glm.tta.pAdapt.simple$pred_pAdapt <- exp(pred.glm.tta.pAdapt.simple$pred_pAdapt)/
+  (1 + exp(pred.glm.tta.pAdapt.simple$pred_pAdapt))
+
+# Predicted vs observed
+pred.glm.tta.pAdapt.simple$obs_pAdapt <- d_tta_pAdapt_cov$pAdapted_mean
+
+ggplot(pred.glm.tta.pAdapt.simple,
+       aes(x = obs_pAdapt, y = pred_pAdapt)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  theme_bw() +
+  labs(x = "Observed adapted populations",
+       y = "Predicted adapted populations")
+
+
+br.tta.pAdapt <- betareg(pAdapt ~ tta + as.factor(model) + dataset, d_tta_pAdapt_cov_bs)
 summary(lm.tta.pAdapt)
 plot(lm.tta.pAdapt)
-cov(d_tta_pAdapt_cov_bs[]$tta, d_tta_pAdapt_cov_bs$pAdapt)
+cov(d_tta_pAdapt_cov_bs[!is.nan(d_tta_pAdapt_cov_bs$tta),]$tta, 
+    d_tta_pAdapt_cov_bs[!is.nan(d_tta_pAdapt_cov_bs$tta),]$pAdapt) / 
+  var(d_tta_pAdapt_cov_bs[!is.nan(d_tta_pAdapt_cov_bs$tta),]$tta)
 
 
 # Presentation figure

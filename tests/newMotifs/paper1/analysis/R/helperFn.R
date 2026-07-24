@@ -1254,3 +1254,145 @@ RunRandomForestPerMotifTimeToAdapt <- function(dataset, seed = NULL, train.test 
   return(result)
 }
 
+RunXGBPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
+  if (is.null(seed)) {
+    seed <- sample(1:.Machine$integer.max, 1)
+  }
+  
+  motifs <- levels(dataset$model)
+  result <- vector(mode = "list")
+  
+  for (motif in motifs) {
+    set.seed(seed)
+    d_rf <- dataset %>%
+      filter(model == motif) %>%
+      select(-model)
+    
+    idx <- sample(2, nrow(d_rf), replace = T, prob = train.test)
+    train <- d_rf[idx == 1,]
+    test <- d_rf[idx == 2,]
+    
+    # convert to proper format
+    train_matrix <- as.data.frame(train %>% mutate(across(where(~is.factor(.)),
+                                               ~as.numeric(.))))
+    train_matrix <- xgb.DMatrix(data = as.matrix(train_matrix %>% select(-isAdapted)),
+                                label = train_matrix$isAdapted) 
+    
+    test_matrix <- as.data.frame(test %>% mutate(across(where(~is.factor(.)),
+                                                         ~as.numeric(.))))
+    
+    # Tune XGB  hyperparameters
+    opt_weight <- sum(train$isAdapted == "Maladapted") / sum(train$isAdapted == "Adapted")
+    
+    hyper_grid <- expand.grid(
+      eta = c(0.3, 0.1, 0.05),
+      max_depth = 3,
+      min_child_weight = 3,
+      scale_pos_weight = c(1, opt_weight, 100, 1000),
+      subsample = 0.5,
+      colsample_bytree = 0.5,
+      gamma = c(0.0, 1, 10),
+      lambda = c(0.01, 0.1, 1),
+      alpha = c(0.01, 0.1, 1),
+      RMSE = NA,
+      trees = NA
+      )
+    
+    if (weight == Inf) {
+      message(paste("No maladapted populations for motif", motif))
+      next
+    }
+    
+    pb <- progress::progress_bar$new(
+      format = "  Running [:bar] :percent in :elapsedfull",
+      total = nrow(hyper_grid), clear = FALSE, width = 60)
+    
+    for (i in seq_len(nrow(hyper_grid))) {
+      seed <- 416155406
+    
+      xgb_model <- xgb.cv(data = train_matrix,
+                    nrounds = 1000,
+                    early_stopping_rounds = 50,
+                    nfold = 10,
+                    verbose = 0,
+                    params = list(
+                      objective = "reg:squarederror",
+                      scale_pos_weight = hyper_grid$scale_pos_weight[i],
+                      eta = hyper_grid$eta[i],
+                      max_depth = hyper_grid$max_depth[i],
+                      min_child_weight = hyper_grid$min_child_weight[i],
+                      subsample = hyper_grid$subsample[i],
+                      colsample_bytree = hyper_grid$colsample_bytree[i],
+                      gamma = hyper_grid$gamma[i],
+                      lambda = hyper_grid$lambda[i],
+                      alpha = hyper_grid$alpha[i]
+                      )
+                    )
+    
+    
+    hyper_grid$RMSE[i] <- min(xgb_model$evaluation_log$test_rmse_mean)
+    hyper_grid$trees[i] <- xgb_model$early_stop$best_iteration
+
+    pb$tick()
+    }
+    
+    # Pick the best learning rate to continue with
+    hyper_grid %>%
+      filter(RMSE > 0) %>%
+      arrange(RMSE) %>%
+      glimpse()
+    
+    best_params <- as.list(dplyr::arrange(hyper_grid, RMSE)[1,] %>% 
+                             select(-c(trees, RMSE)))
+    best_params[["objective"]] <- "reg:squarederror"
+    best_params[["scale_pos_weight"]] <- 0.0001
+    best_nrounds <- dplyr::arrange(hyper_grid, RMSE)[1, "trees"]
+    
+    xgb_model_final <- xgb.train(
+      params = best_params,
+      data = train_matrix,
+      nrounds = best_nrounds,
+      verbose = 0
+    )
+    
+    # Confusion matrix w/ test set
+    pred <- predict(xgb_model_final, as.matrix(test_matrix %>% select(-isAdapted)))
+    pred <- as.numeric(pred > 0.5)
+    
+    xgb_confusion <- careWt::confusionMatrix(factor(pred), factor(test_matrix$isAdapted))
+    xgb_confusion
+    
+    # Save output model
+    result[[motif]][["XGB_model"]] <- xgb_model_final
+    result[[motif]][["xgb_confusion"]] <- xgb_confusion
+    
+    # Look at feature importance
+    bor <- Boruta::Boruta(isAdapted ~ .,
+                   data = d_rf)
+    result[[motif]][["boruta"]] <- bor
+    
+    # Accumulated local effects
+    predictor <- iml::Predictor$new(xgb_model_final, 
+                                    data = test[which(names(test) != "isAdapted")], 
+                                    y = test$isAdapted)
+    
+    # Need to set the option future globals maxsize
+    options(future.globals.maxSize = 3221225472)
+    
+    # Interaction strengths
+    ia <- Interaction$new(predictor)
+    
+    result[[motif]][["pred"]] <- predictor
+    result[[motif]][["ia"]] <- ia
+    
+    
+    # Accumulated local effects
+    ale <- FeatureEffects$new(predictor, grid.size = 10)
+    ale$plot()
+    
+    result[[motif]][["ale"]] <- ale
+    
+    
+  }
+  return(result)
+}

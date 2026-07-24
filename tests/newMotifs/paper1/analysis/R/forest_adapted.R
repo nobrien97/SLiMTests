@@ -10,6 +10,8 @@ library(patchwork)
 library(ggalt)
 library(cowplot)
 library(ggbeeswarm)
+library(xgboost)
+
 
 source("helperFn.R")
 
@@ -1703,3 +1705,131 @@ plot_grid(plotlist = ale_plots,
           labels= "AUTO")
 ggsave("plt_ale_align.png", device = png, bg = "white",
        width = 12, height = 9)
+
+
+# xgboost
+## What is it about the models that predicts adaptedness?
+## Why are NAR vs PAR more adapted than others
+## Two parts: 
+### 1) a model that across all datasets shows relationship between
+### variation features and adaptedness
+### 2) a model which shows differences in those features between models
+
+## 1) Use xgboost without dataset, model, only the features and outcome
+
+d_xgb <- d_btgb_Malign_rf_nor %>% select(-c(dataset, model, timeToAdapt))
+set.seed(seed)
+train.test = c(0.7, 0.3)
+idx_xgb <- sample(2, nrow(d_xgb), replace = T, prob = train.test)
+train_xgb <- d_xgb[idx_xgb == 1,]
+test_xgb <- d_xgb[idx_xgb == 2,]
+
+# convert to proper format
+train_matrix <- as.data.frame(train_xgb %>% mutate(across(where(~is.factor(.)),
+                                                      ~as.numeric(.))))
+train_matrix <- xgb.DMatrix(data = as.matrix(train_matrix %>% select(-isAdapted)),
+                            label = train_matrix$isAdapted) 
+
+test_matrix <- as.data.frame(test_xgb %>% mutate(across(where(~is.factor(.)),
+                                                    ~as.numeric(.))))
+
+# Tune XGB  hyperparameters
+opt_weight <- sum(train_xgb$isAdapted == "Maladapted") / sum(train_xgb$isAdapted == "Adapted")
+
+hyper_grid <- expand.grid(
+  eta = c(0.3, 0.1, 0.05),
+  max_depth = 3,
+  min_child_weight = 3,
+  scale_pos_weight = c(opt_weight, 1000),
+  subsample = 0.5,
+  colsample_bytree = 0.5,
+  gamma = c(0.0, 1, 10),
+  lambda = c(0.01, 0.1, 1),
+  alpha = c(0.01, 0.1, 1),
+  RMSE = NA,
+  trees = NA
+)
+
+pb <- progress::progress_bar$new(
+  format = "  Running [:bar] :percent in :elapsedfull",
+  total = nrow(hyper_grid), clear = FALSE, width = 60)
+
+for (i in seq_len(nrow(hyper_grid))) {
+  set.seed(seed)
+  xgb_model <- xgb.cv(data = train_matrix,
+                      nrounds = 1000,
+                      early_stopping_rounds = 50,
+                      nfold = 10,
+                      verbose = 0,
+                      params = list(
+                        objective = "reg:squarederror",
+                        scale_pos_weight = hyper_grid$scale_pos_weight[i],
+                        eta = hyper_grid$eta[i],
+                        max_depth = hyper_grid$max_depth[i],
+                        min_child_weight = hyper_grid$min_child_weight[i],
+                        subsample = hyper_grid$subsample[i],
+                        colsample_bytree = hyper_grid$colsample_bytree[i],
+                        gamma = hyper_grid$gamma[i],
+                        lambda = hyper_grid$lambda[i],
+                        alpha = hyper_grid$alpha[i]
+                      )
+  )
+  
+  
+  hyper_grid$RMSE[i] <- min(xgb_model$evaluation_log$test_rmse_mean)
+  hyper_grid$trees[i] <- xgb_model$early_stop$best_iteration
+  
+  pb$tick()
+}
+
+# Pick the best learning rate to continue with
+hyper_grid %>%
+  filter(RMSE > 0) %>%
+  arrange(RMSE) %>%
+  glimpse()
+
+best_params <- as.list(dplyr::arrange(hyper_grid, RMSE)[1,] %>% 
+                         select(-c(trees, RMSE)))
+best_params[["objective"]] <- "reg:squarederror"
+best_params[["scale_pos_weight"]] <- 0.0001
+best_nrounds <- dplyr::arrange(hyper_grid, RMSE)[1, "trees"]
+
+xgb_model_final <- xgb.train(
+  params = best_params,
+  data = train_matrix,
+  nrounds = best_nrounds,
+  verbose = 0
+)
+
+# Confusion matrix w/ test set
+pred <- predict(xgb_model_final, as.matrix(test_matrix %>% select(-isAdapted)))
+pred <- as.numeric(pred > 0.5)
+
+xgb_confusion <- caret::confusionMatrix(factor(pred, labels = c("Adapted", "Maladapted")), 
+                                         factor(test_matrix$isAdapted,
+                                                labels = c("Adapted", "Maladapted")))
+xgb_confusion
+
+# Feature importance - SHAP values
+shap_values <- predict(xgb_model_final, as.matrix(test_matrix %>% select(-isAdapted)),
+                       predcontrib = T)
+d_shap_xgb <- as_tibble(shap_values) %>% select(-BIAS) %>%
+  pivot_longer(cols = everything(), names_to = "feature", values_to = "shap") %>%
+  group_by(feature) %>%
+  summarise(mean_abs_shap = mean(abs(shap))) %>%
+  ungroup() %>%
+  mutate(scaled_imp = mean_abs_shap / max(mean_abs_shap))
+
+ggplot(d_shap_xgb,
+       aes(x = reorder(feature, scaled_imp), y = scaled_imp)) +
+  geom_lollipop()  +
+  coord_flip() +
+  labs(x = "Feature", y = "Normalised Shapley importance") +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+
+
+# 2) Most important features for predicting adaptation across all datasets/models
+# were bTMb and Vrel(M). Now how do the model * dataset combos vary in these elements?
+
+gls()
