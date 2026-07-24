@@ -11,6 +11,7 @@ library(ggalt)
 library(cowplot)
 library(ggbeeswarm)
 library(xgboost)
+library(caret)
 
 
 source("helperFn.R")
@@ -1737,13 +1738,13 @@ test_matrix <- as.data.frame(test_xgb %>% mutate(across(where(~is.factor(.)),
 opt_weight <- sum(train_xgb$isAdapted == "Maladapted") / sum(train_xgb$isAdapted == "Adapted")
 
 hyper_grid <- expand.grid(
-  eta = c(0.3, 0.1, 0.05),
+  eta = 0.05,
   max_depth = 3,
   min_child_weight = 3,
-  scale_pos_weight = c(opt_weight, 1000),
+  scale_pos_weight = c(opt_weight, 0.0001, 0.000001),
   subsample = 0.5,
   colsample_bytree = 0.5,
-  gamma = c(0.0, 1, 10),
+  gamma = 0.0,
   lambda = c(0.01, 0.1, 1),
   alpha = c(0.01, 0.1, 1),
   RMSE = NA,
@@ -1791,7 +1792,6 @@ hyper_grid %>%
 best_params <- as.list(dplyr::arrange(hyper_grid, RMSE)[1,] %>% 
                          select(-c(trees, RMSE)))
 best_params[["objective"]] <- "reg:squarederror"
-best_params[["scale_pos_weight"]] <- 0.0001
 best_nrounds <- dplyr::arrange(hyper_grid, RMSE)[1, "trees"]
 
 xgb_model_final <- xgb.train(
@@ -1829,7 +1829,84 @@ ggplot(d_shap_xgb,
   theme(text = element_text(size = 12))
 
 
+## XGB having a lot of trouble with false positives, try random forest
+table(train_xgb$isAdapted)
+
+ctrl <- trainControl(method = "cv",
+                    classProbs = T,
+                    summaryFunction = twoClassSummary)
+nmin <- sum(train_xgb$isAdapted == "Maladapted")
+
+set.seed(seed)
+rf_model <- train(isAdapted ~ .,
+                  data = train_xgb,
+                  method = "rf",
+                  ntree = 1500,
+                  tuneLength = 5,
+                  metric = "ROC",
+                  trControl = ctrl,
+                  strata = train_xgb$isAdapted,
+                  sampsize = rep(nmin, 2))
+rf_model
+confusionMatrix(rf_model)
+
+set.seed(seed)
+rf_model_unbal <- train(isAdapted ~ .,
+                        data = train_xgb,
+                        method = "rf",
+                        ntree = 1500,
+                        tuneLength = 5,
+                        metric = "ROC",
+                        trControl = ctrl)
+confusionMatrix(rf_model_unbal)
+
+
+rf_probs <- predict(rf_model, test_xgb, type = "prob")[,1]
+rf_unbal_probs <- predict(rf_model_unbal, test_xgb, type = "prob")[,1]
+rf_roc <- roc(response = test_xgb$isAdapted,
+              predictor = rf_probs,
+              levels = rev(levels(test_xgb$isAdapted)))
+rf_unbal_roc <- roc(response = test_xgb$isAdapted,
+              predictor = rf_unbal_probs,
+              levels = rev(levels(test_xgb$isAdapted)))
+
+plot(rf_roc, col = rgb(1, 0, 0, 0.5), lwd = 2)
+plot(rf_unbal_roc, col = rgb(0, 0, 1, 0.5), lwd = 2, add = T)
+
+ggplot(d_xgb,
+       aes(x = isAdapted)) +
+  geom_bar(stat = "count") +
+  theme_bw()
+
+# logistic regression model
+log_mod <- lme4::glmer(isAdapted ~ bTMb + bTGb + absCS_Mb + absCS_Gb + 
+                         vrel_g + vrel_m + cev_g + cev_m +
+                         (1 | model) + (1 | dataset), 
+                       data = d_btgb_Malign_rf_nor, family = "binomial") 
+summary(log_mod)
+plot(log_mod)
+
+# Confusion matrix
+pred_logmod <- factor(as.numeric(predict(log_mod, type = "response") > 0.5) + 1,
+                      labels = c("Adapted", "Maladapted"))
+cm_logmod <- as.data.frame(table(pred_logmod, d_btgb_Malign_rf_nor$isAdapted)) %>%
+  rename(pred = pred_logmod,
+         obs = Var2) %>%
+  mutate(Freq = Freq / sum(Freq))
+
+ggplot(cm_logmod,
+       aes(x = obs, y = pred, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = round(Freq, digits = 3), colour = Freq), size = 6) +
+  labs(x = "Observed", y = "Predicted", fill = "Frequency") +
+  scale_fill_viridis_c() +
+  scale_colour_viridis_c(direction = -1, guide = "none") +
+  theme_bw() +
+  guides(fill = guide_colourbar(barwidth=15)) +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+
 # 2) Most important features for predicting adaptation across all datasets/models
-# were bTMb and Vrel(M). Now how do the model * dataset combos vary in these elements?
+# were absCS_Mb and Vrel(M). Now how do the model * dataset combos vary in these elements?
 
 gls()
