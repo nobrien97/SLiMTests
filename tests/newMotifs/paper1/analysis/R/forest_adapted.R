@@ -2004,11 +2004,23 @@ em.vrelm.model <- emmeans(beta.vrelm.model, spec = ~ model * dataset, type = "re
 test(em.cs.model)
 pwpp(em.cs.model, by = "model")
 
-plt_em_cs <- emmip(em.cs.model, ~ model | dataset, CIs = T) +
+d_em.cs.model <- emmip(em.cs.model, ~ model | dataset, CIs = T, plotit = F)
+
+
+plt_em_cs <- ggplot(  d_em.cs.model,
+  aes(x = model, y = yvar, colour = dataset, group = dataset)) +
   theme_bw() +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
+              colour = NA, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
-  labs(x = "Model", y= TeX("Predicted $\\cos(\\theta)^M_\\beta$")) +
-  theme(text = element_text(size = 12))
+  scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
+  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
+  labs(x = "Model", y= TeX("Predicted $\\cos(\\theta)^M_\\beta$"),
+       colour = "Trait/selection alignment") +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
 plt_em_cs
 ggsave("plt_pred_cs.png", plt_em_cs, device = png, bg = "white",
        width = 8, height = 6)
@@ -2016,11 +2028,23 @@ ggsave("plt_pred_cs.png", plt_em_cs, device = png, bg = "white",
 test(em.vrelg.model)
 pwpp(em.vrelg.model, by = "model")
 
-plt_em_vrelg <- emmip(em.vrelg.model, ~ model | dataset, CIs = T) +
+d_em.vrelg.model <- emmip(em.vrelg.model, ~ model | dataset, CIs = T, plotit = F)
+
+
+plt_em_vrelg <- ggplot(d_em.vrelg.model,
+  aes(x = model, y = yvar, colour = dataset, group = dataset)) +
   theme_bw() +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
+              colour = NA, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
-  labs(x = "Model", y= TeX("Predicted $V_{rel}^G$")) +
-  theme(text = element_text(size = 12))
+  scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
+  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
+  theme_bw() +
+  labs(x = "Model", y= TeX("Predicted $V_{rel}^G$"), colour = "Trait/selection alignment") +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
 plt_em_vrelg
 ggsave("plt_pred_vrelg.png", plt_em_vrelg, device = png, bg = "white",
        width = 8, height = 6)
@@ -2031,26 +2055,36 @@ pwpp(em.vrelm.model, by = "model")
 d_em.vrelm.model <- emmip(em.vrelm.model, ~ model | dataset, CIs = T, plotit = F)
 
 plt_em_vrelm <- ggplot(d_em.vrelm.model,
-                       aes(x = model, y = yvar, colour = dataset)) +
+                       aes(x = model, y = yvar, colour = dataset, group = dataset)) +
   theme_bw() +
   geom_point() +
   geom_line() +
+  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
+              colour = NA, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
+  scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
+  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
   labs(x = "Model", y= TeX("Predicted $V_{rel}^M$"), 
-       colour = "Selection/trait correlation") +
+       colour = "Trait/selection alignment") +
   theme(text = element_text(size = 12),
         legend.position = "bottom")
 plt_em_vrelm
 ggsave("plt_pred_vrelm.png", plt_em_vrelm, device = png, bg = "white",
        width = 8, height = 6)
 
-plot_grid(plt_em_cs,
-          plt_em_vrelg,
-          plt_em_vrelm,
+leg <- get_legend(plt_em_vrelm)
+
+plt_em <- plot_grid(plt_em_cs + theme(legend.position = "none"),
+          plt_em_vrelg + theme(legend.position = "none"),
+          plt_em_vrelm + theme(legend.position = "none"),
           labels = "AUTO",
-          nrow = 3)
+          ncol = 3)
+
+plot_grid(plt_em, leg, nrow = 2,
+          rel_heights = c(1, 0.1))
+
 ggsave("plt_pred_vrel_cs.png", device = png, bg = "white",
-       width = 8, height = 6)
+       width = 12, height = 4)
 
 summary(em.cs.model)
 summary(em.vrelg.model)
