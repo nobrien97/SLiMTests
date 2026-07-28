@@ -12,7 +12,8 @@ library(cowplot)
 library(ggbeeswarm)
 library(xgboost)
 library(caret)
-
+library(nlme)
+library(emmeans)
 
 source("helperFn.R")
 
@@ -1708,6 +1709,9 @@ ggsave("plt_ale_align.png", device = png, bg = "white",
        width = 12, height = 9)
 
 
+
+
+
 # xgboost
 ## What is it about the models that predicts adaptedness?
 ## Why are NAR vs PAR more adapted than others
@@ -1717,7 +1721,6 @@ ggsave("plt_ale_align.png", device = png, bg = "white",
 ### 2) a model which shows differences in those features between models
 
 ## 1) Use xgboost without dataset, model, only the features and outcome
-
 d_xgb <- d_btgb_Malign_rf_nor %>% select(-c(dataset, model, timeToAdapt))
 set.seed(seed)
 train.test = c(0.7, 0.3)
@@ -1878,35 +1881,189 @@ ggplot(d_xgb,
   geom_bar(stat = "count") +
   theme_bw()
 
+
+# Boruta for most important predictors
+bor_adapted <- Boruta::Boruta(isAdapted ~ ., d_btgb_Malign_rf %>% select(-timeToAdapt))
+plot(bor_adapted)
+
+# Most important predictors are the M parameters
+
+
 # logistic regression model
-log_mod <- lme4::glmer(isAdapted ~ bTMb + bTGb + absCS_Mb + absCS_Gb + 
+log_mod_all <- lme4::glmer(isAdapted ~ bTMb + bTGb + absCS_Mb + absCS_Gb +
                          vrel_g + vrel_m + cev_g + cev_m +
-                         (1 | model) + (1 | dataset), 
-                       data = d_btgb_Malign_rf_nor, family = "binomial") 
-summary(log_mod)
-plot(log_mod)
+                         (1 | model) + (1 | dataset) + (1 | r),
+                       data = d_btgb_Malign_rf, family = "binomial")
+log_mod <- lme4::glmer(isAdapted ~ bTMb + absCS_Mb + 
+                         vrel_m + cev_m +
+                         (1 | model) + (1 | dataset) + (1 | r), 
+                       data = d_btgb_Malign_rf, family = "binomial") 
+
+performance::compare_performance(log_mod_all, log_mod, rank = T)
+performance::check_collinearity(log_mod_all)
+
+summary(log_mod_all)
+plot(log_mod_all)
+# odds-ratio scale coefficients
+exp(log_mod_all@beta)
+ci.wald <- confint(log_mod_all, method = "Wald")
+exp(ci.wald)
+report::report(log_mod_all)
+
+# Significant effects on adaptation - cossim M vs beta, vrel(G) and vrel(M)
 
 # Confusion matrix
-pred_logmod <- factor(as.numeric(predict(log_mod, type = "response") > 0.5) + 1,
+pred_logmod_all <- factor(as.numeric(predict(log_mod_all, type = "response") > 0.5) + 1,
                       labels = c("Adapted", "Maladapted"))
-cm_logmod <- as.data.frame(table(pred_logmod, d_btgb_Malign_rf_nor$isAdapted)) %>%
-  rename(pred = pred_logmod,
+cm_logmod <- as.data.frame(table(pred_logmod_all, d_btgb_Malign_rf$isAdapted)) %>%
+  rename(pred = pred_logmod_all,
          obs = Var2) %>%
+  group_by(obs) %>%
   mutate(Freq = Freq / sum(Freq))
 
 ggplot(cm_logmod,
        aes(x = obs, y = pred, fill = Freq)) +
   geom_tile() +
   geom_text(aes(label = round(Freq, digits = 3), colour = Freq), size = 6) +
-  labs(x = "Observed", y = "Predicted", fill = "Frequency") +
+  labs(x = "Observed outcome", y = "Predicted outcome", fill = "Frequency") +
   scale_fill_viridis_c() +
-  scale_colour_viridis_c(direction = -1, guide = "none") +
+  scale_colour_gradientn(colours = c("#FDE725FF", "#5DC863FF", "#21908CFF",
+                                     "#3B528BFF", "#440154FF"),
+                         values = scales::rescale(c(0, 0.49, 0.5, 0.51 ,1)),
+                         guide = "none") +
+  scale_y_discrete(limits = rev) +
   theme_bw() +
   guides(fill = guide_colourbar(barwidth=15)) +
   theme(text = element_text(size = 12),
         legend.position = "bottom")
+ggsave("plt_gls_pred_adaptedness.png", width = 6, height = 5, bg = "white",
+       device = png)
+
+caret::confusionMatrix(pred_logmod, reference = d_btgb_Malign_rf$isAdapted)
+
 
 # 2) Most important features for predicting adaptation across all datasets/models
-# were absCS_Mb and Vrel(M). Now how do the model * dataset combos vary in these elements?
+# were absCS_Mb, Vrel(G), and Vrel(M). Now how do the model * dataset combos vary in these elements?
+# in adapted populations only?
+d_btgb_adapted <- d_btgb_Malign_rf %>%
+  filter(isAdapted == "Adapted") %>%
+  select(model, dataset, absCS_Mb, vrel_g, vrel_m)
 
-gls()
+gls.CS.model <- gls(absCS_Mb ~ model * dataset, data = d_btgb_adapted,
+                    weights = varComb(varIdent(form=~1|model),
+                                      varIdent(form=~1|dataset)))
+summary(gls.CS.model)
+plot(gls.CS.model)
+# predict
+gls.cs.pred <- predict(gls.CS.model)
+plot(d_btgb_adapted$absCS_Mb, gls.cs.pred)
+performance::check_distribution(gls.CS.model)
+
+# Beta regression
+beta.cs.model <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted)
+summary(beta.cs.model)
+plot(beta.cs.model)
+# predict
+beta.cs.pred <- predict(beta.cs.model, type = "response")
+plot(d_btgb_adapted$absCS_Mb, beta.cs.pred)
+performance::model_performance(beta.cs.model)
+
+# Beta mixed effects model - control for the other variables
+glmmbeta.cs.model <- GLMMadaptive::mixed_model(fixed = absCS_Mb ~ model * dataset,
+                                               random = ~1|vrel_m + 1|vrel_g, 
+                                               family = GLMMadaptive::beta.fam(),
+                                      data = d_btgb_adapted)
+summary(glmmbeta.cs.model)
+performance::compare_performance(beta.cs.model, glmmbeta.cs.model, rank = T)
+
+# Use beta model
+beta.vrelg.model <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted)
+summary(beta.vrelg.model)
+plot(beta.vrelg.model)
+# predict
+beta.vrelg.pred <- predict(beta.vrelg.model, type = "response")
+plot(d_btgb_adapted$vrel_g, beta.vrelg.pred)
+performance::model_performance(beta.vrelg.model)
+
+beta.vrelm.model <- betareg::betareg(vrel_m ~ model * dataset, data = d_btgb_adapted)
+summary(beta.vrelm.model)
+plot(beta.vrelm.model)
+
+# predict
+beta.vrelm.pred <- predict(beta.vrelm.model, type = "response")
+plot(d_btgb_adapted$vrel_m, beta.vrelm.pred)
+performance::model_performance(beta.vrelm.model)
+
+
+
+# Emmeans for per-model differences
+em.cs.model <- emmeans(beta.cs.model, spec = ~ model * dataset, type = "response")
+em.vrelg.model <- emmeans(beta.vrelg.model, spec = ~ model * dataset, type = "response")
+em.vrelm.model <- emmeans(beta.vrelm.model, spec = ~ model * dataset, type = "response")
+
+test(em.cs.model)
+pwpp(em.cs.model, by = "model")
+
+plt_em_cs <- emmip(em.cs.model, ~ model | dataset, CIs = T) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Model", y= TeX("Predicted $\\cos(\\theta)^M_\\beta$")) +
+  theme(text = element_text(size = 12))
+plt_em_cs
+ggsave("plt_pred_cs.png", plt_em_cs, device = png, bg = "white",
+       width = 8, height = 6)
+
+test(em.vrelg.model)
+pwpp(em.vrelg.model, by = "model")
+
+plt_em_vrelg <- emmip(em.vrelg.model, ~ model | dataset, CIs = T) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Model", y= TeX("Predicted $V_{rel}^G$")) +
+  theme(text = element_text(size = 12))
+plt_em_vrelg
+ggsave("plt_pred_vrelg.png", plt_em_vrelg, device = png, bg = "white",
+       width = 8, height = 6)
+
+test(em.vrelm.model)
+pwpp(em.vrelm.model, by = "model")
+
+d_em.vrelm.model <- emmip(em.vrelm.model, ~ model | dataset, CIs = T, plotit = F)
+
+plt_em_vrelm <- ggplot(d_em.vrelm.model,
+                       aes(x = model, y = yvar, colour = dataset)) +
+  theme_bw() +
+  geom_point() +
+  geom_line() +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Model", y= TeX("Predicted $V_{rel}^M$"), 
+       colour = "Selection/trait correlation") +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom")
+plt_em_vrelm
+ggsave("plt_pred_vrelm.png", plt_em_vrelm, device = png, bg = "white",
+       width = 8, height = 6)
+
+plot_grid(plt_em_cs,
+          plt_em_vrelg,
+          plt_em_vrelm,
+          labels = "AUTO",
+          nrow = 3)
+ggsave("plt_pred_vrel_cs.png", device = png, bg = "white",
+       width = 8, height = 6)
+
+summary(em.cs.model)
+summary(em.vrelg.model)
+summary(em.vrelm.model)
+
+pairs(em.cs.model, by = "model")
+plot(em.cs.model, comparisons = F)
+
+pairs(em.vrelg.model, by = "model")
+plot(em.vrelg.model, comparisons = F)
+
+pairs(em.vrelm.model, by = "model")
+plot(em.vrelm.model, comparisons = F)
+
+library(memisc)
+write.mtable(mtable(beta.cs.model), format = "LaTeX")
