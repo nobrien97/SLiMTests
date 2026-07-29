@@ -1722,6 +1722,9 @@ ggsave("plt_ale_align.png", device = png, bg = "white",
 
 ## 1) Use xgboost without dataset, model, only the features and outcome
 d_xgb <- d_btgb_Malign_rf_nor %>% select(-c(dataset, model, timeToAdapt))
+#seed <- sample(1:.Machine$integer.max, 1)
+#793952135
+seed <- 793952135
 set.seed(seed)
 train.test = c(0.7, 0.3)
 idx_xgb <- sample(2, nrow(d_xgb), replace = T, prob = train.test)
@@ -1837,6 +1840,7 @@ table(train_xgb$isAdapted)
 
 ctrl <- trainControl(method = "cv",
                     classProbs = T,
+                    savePredictions = "final",
                     summaryFunction = twoClassSummary)
 nmin <- sum(train_xgb$isAdapted == "Maladapted")
 
@@ -1850,8 +1854,10 @@ rf_model <- train(isAdapted ~ .,
                   trControl = ctrl,
                   strata = train_xgb$isAdapted,
                   sampsize = rep(nmin, 2))
-rf_model
-confusionMatrix(rf_model)
+
+rf_prediction <- predict(rf_model, test_xgb)
+
+confusionMatrix(rf_prediction, reference = test_xgb$isAdapted)
 
 set.seed(seed)
 rf_model_unbal <- train(isAdapted ~ .,
@@ -1862,6 +1868,10 @@ rf_model_unbal <- train(isAdapted ~ .,
                         metric = "ROC",
                         trControl = ctrl)
 confusionMatrix(rf_model_unbal)
+
+rf_unbal_prediction <- predict(rf_model_unbal, test_xgb)
+
+confusionMatrix(rf_unbal_prediction, reference = test_xgb$isAdapted)
 
 
 rf_probs <- predict(rf_model, test_xgb, type = "prob")[,1]
@@ -1886,6 +1896,48 @@ ggplot(d_xgb,
 bor_adapted <- Boruta::Boruta(isAdapted ~ ., d_btgb_Malign_rf %>% select(-timeToAdapt))
 plot(bor_adapted)
 
+d_bor <- process_the_Boruta_data(bor_adapted)
+
+shadow_names <- c("shadowMin" = TeX("Shadow Variable (min)", output = "character"),
+                  "shadowMean" = TeX("Shadow Variable (mean)", output = "character"),
+                  "shadowMax" = TeX("Shadow Variable (max)", output = "character"))
+
+# Sort variables by Boruta median for all other importance plots
+bor_order <- names(sort(unlist(d_bor %>%
+                                 summarise_all(median))))
+
+# Axis labels
+motif_labels <- c("r" = TeX("Recombination rate", output = "character"),
+                  "cev_g" = TeX("$e_c^G$", output = "character"),             
+                  "dataset" = TeX("Trait/selection alignment", output = "character"),
+                  "bTGb" = TeX("$\\beta^TG\\beta$", output = "character"),
+                  "vrel_g" = TeX("$V_{rel}(G)$"), output = "character",
+                  "absCS_Gb" = TeX("$|cos(\\theta)_\\beta^G|$", output = "character"),
+                  "absCS_Mb" = TeX("$|cos(\\theta)_\\beta^M|$", output = "character"),
+                  "vrel_m" = TeX("$V_{rel}(M)$"), output = "character",
+                  "bTMb" = TeX("$\\beta^TM\\beta$", output = "character"),
+                  "cev_m" = TeX("$e_c^M$", output = "character"),             
+                  "model" = TeX("Motif", output = "character"),             
+                  
+                  shadow_names)[bor_order]
+
+pal_boruta <- generateCol(bor_adapted, colCode=c("#00A000","#EECC00","#DD0000","#00C0EA"),
+                          col = NULL)
+
+ggplot(d_bor %>% pivot_longer(everything()) %>%
+         mutate(x = fct_reorder(name, value, median)),
+       aes(x = x, y = value, fill = x)) +
+  geom_boxplot(show.legend = F, linewidth = 0.25) +
+  theme_bw() +
+  scale_fill_manual(values = pal_boruta) +
+  scale_x_discrete(labels = parse(text = motif_labels),
+    guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Boruta Importance") +
+  theme(text = element_text(size = 12)) -> plt_boruta_imp
+plt_boruta_imp
+ggsave("plt_boruta_adapt_pred.png", plt_boruta_imp, 
+       device = png, bg = "white",
+       width = 12, height = 6)
 # Most important predictors are the M parameters
 
 
@@ -1909,6 +1961,10 @@ exp(log_mod_all@beta)
 ci.wald <- confint(log_mod_all, method = "Wald")
 exp(ci.wald)
 report::report(log_mod_all)
+
+# Export GLM table to latex
+stargazer::stargazer(log_mod_all)
+texreg::texreg(log_mod_all)
 
 # Significant effects on adaptation - cossim M vs beta, vrel(G) and vrel(M)
 
@@ -1939,7 +1995,7 @@ ggplot(cm_logmod,
 ggsave("plt_gls_pred_adaptedness.png", width = 6, height = 5, bg = "white",
        device = png)
 
-caret::confusionMatrix(pred_logmod, reference = d_btgb_Malign_rf$isAdapted)
+caret::confusionMatrix(pred_logmod_all, reference = d_btgb_Malign_rf$isAdapted)
 
 
 # 2) Most important features for predicting adaptation across all datasets/models
@@ -1959,8 +2015,13 @@ gls.cs.pred <- predict(gls.CS.model)
 plot(d_btgb_adapted$absCS_Mb, gls.cs.pred)
 performance::check_distribution(gls.CS.model)
 
-# Beta regression
-beta.cs.model <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted)
+# Beta regression: ml type is best
+beta.cs.model_ml <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "ML")
+beta.cs.model_bc <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BC")
+beta.cs.model_br <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BR")
+performance::compare_performance(beta.cs.model_ml, beta.cs.model_bc, beta.cs.model_br)
+
+beta.cs.model <- beta.cs.model_ml
 summary(beta.cs.model)
 plot(beta.cs.model)
 # predict
@@ -1976,8 +2037,13 @@ glmmbeta.cs.model <- GLMMadaptive::mixed_model(fixed = absCS_Mb ~ model * datase
 summary(glmmbeta.cs.model)
 performance::compare_performance(beta.cs.model, glmmbeta.cs.model, rank = T)
 
-# Use beta model
-beta.vrelg.model <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted)
+# Use beta model - again ML is best
+beta.vrelg.model_ml <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "ML")
+beta.vrelg.model_bc <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "BC")
+beta.vrelg.model_br <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "BR")
+performance::compare_performance(beta.vrelg.model_ml, beta.vrelg.model_ml, beta.vrelg.model_br)
+
+beta.vrelg.model <- beta.vrelg.model_ml
 summary(beta.vrelg.model)
 plot(beta.vrelg.model)
 # predict
@@ -1985,7 +2051,13 @@ beta.vrelg.pred <- predict(beta.vrelg.model, type = "response")
 plot(d_btgb_adapted$vrel_g, beta.vrelg.pred)
 performance::model_performance(beta.vrelg.model)
 
-beta.vrelm.model <- betareg::betareg(vrel_m ~ model * dataset, data = d_btgb_adapted)
+# ML is best again
+beta.vrelm.model_ml <- betareg::betareg(vrel_m ~ model * dataset, data = d_btgb_adapted, type = "ML")
+beta.vrelm.model_bc <- betareg::betareg(vrel_m ~ model * dataset, data = d_btgb_adapted, type = "BC")
+beta.vrelm.model_br <- betareg::betareg(vrel_m ~ model * dataset, data = d_btgb_adapted, type = "BR")
+performance::compare_performance(beta.vrelm.model_ml, beta.vrelm.model_ml, beta.vrelm.model_br)
+
+beta.vrelm.model <- beta.vrelm.model_ml
 summary(beta.vrelm.model)
 plot(beta.vrelm.model)
 
@@ -1995,6 +2067,8 @@ plot(d_btgb_adapted$vrel_m, beta.vrelm.pred)
 performance::model_performance(beta.vrelm.model)
 
 
+texreg::texreg(list(beta.cs.model, beta.vrelg.model, beta.vrelm.model))
+
 
 # Emmeans for per-model differences
 em.cs.model <- emmeans(beta.cs.model, spec = ~ model * dataset, type = "response")
@@ -2002,6 +2076,7 @@ em.vrelg.model <- emmeans(beta.vrelg.model, spec = ~ model * dataset, type = "re
 em.vrelm.model <- emmeans(beta.vrelm.model, spec = ~ model * dataset, type = "response")
 
 test(em.cs.model)
+
 pwpp(em.cs.model, by = "model")
 
 d_em.cs.model <- emmip(em.cs.model, ~ model | dataset, CIs = T, plotit = F)
@@ -2012,11 +2087,10 @@ plt_em_cs <- ggplot(  d_em.cs.model,
   theme_bw() +
   geom_point() +
   geom_line() +
-  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
-              colour = NA, show.legend = F) +
+  geom_errorbar(aes(ymin = LCL, ymax = UCL, colour = dataset), width = 0.2,
+                alpha = 0.5, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
   scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
-  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
   labs(x = "Model", y= TeX("Predicted $\\cos(\\theta)^M_\\beta$"),
        colour = "Trait/selection alignment") +
   theme(text = element_text(size = 12),
@@ -2036,11 +2110,10 @@ plt_em_vrelg <- ggplot(d_em.vrelg.model,
   theme_bw() +
   geom_point() +
   geom_line() +
-  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
-              colour = NA, show.legend = F) +
+  geom_errorbar(aes(ymin = LCL, ymax = UCL, colour = dataset), width = 0.2,
+                alpha = 0.5, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
   scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
-  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
   theme_bw() +
   labs(x = "Model", y= TeX("Predicted $V_{rel}^G$"), colour = "Trait/selection alignment") +
   theme(text = element_text(size = 12),
@@ -2059,11 +2132,10 @@ plt_em_vrelm <- ggplot(d_em.vrelm.model,
   theme_bw() +
   geom_point() +
   geom_line() +
-  geom_ribbon(aes(ymin = LCL, ymax = UCL, fill = dataset), alpha = 0.2,
-              colour = NA, show.legend = F) +
+  geom_errorbar(aes(ymin = LCL, ymax = UCL, colour = dataset), width = 0.2,
+                alpha = 0.5, show.legend = F) +
   coord_cartesian(ylim = c(0, 1)) +
   scale_colour_paletteer_d("nationalparkcolors::Denali", direction = -1) +
-  scale_fill_paletteer_d("nationalparkcolors::Denali", direction = -1) +
   labs(x = "Model", y= TeX("Predicted $V_{rel}^M$"), 
        colour = "Trait/selection alignment") +
   theme(text = element_text(size = 12),
@@ -2086,18 +2158,42 @@ plot_grid(plt_em, leg, nrow = 2,
 ggsave("plt_pred_vrel_cs.png", device = png, bg = "white",
        width = 12, height = 4)
 
-summary(em.cs.model)
-summary(em.vrelg.model)
-summary(em.vrelm.model)
+d_em_cs <- as.data.frame(summary(em.cs.model))[,-c(4,5)]
+d_em_vrelg <- as.data.frame(summary(em.vrelg.model))[,-c(4,5)]
+d_em_vrelm <- as.data.frame(summary(em.vrelm.model))[,-c(4,5)]
+
+# Make tables
+kableExtra::kable(rbind(d_em_cs, d_em_vrelg, d_em_vrelm), format = "latex")
+
 
 pairs(em.cs.model, by = "model")
+pairs(em.cs.model, by = "dataset")
 plot(em.cs.model, comparisons = F)
 
 pairs(em.vrelg.model, by = "model")
+pairs(em.vrelg.model, by = "dataset")
 plot(em.vrelg.model, comparisons = F)
 
 pairs(em.vrelm.model, by = "model")
+pairs(em.vrelm.model, by = "dataset")
 plot(em.vrelm.model, comparisons = F)
 
-library(memisc)
-write.mtable(mtable(beta.cs.model), format = "LaTeX")
+## Average CS over dataset for model average effects
+summary(em.cs.model.mod_only <- emmeans(beta.cs.model, spec = ~ model, type = "response"))
+
+## Average vrel_g over models for dataset average effects
+summary(em.vrelg.model.dat_only <- emmeans(em.vrelg.model, spec = ~ dataset, type = "response"))
+pairs(em.vrelg.model.dat_only)
+
+## Average vrel_g over dataset for model average effects
+summary(em.vrelg.model.mod_only <- emmeans(em.vrelg.model, spec = ~ model, type = "response"))
+pairs(em.vrelg.model.mod_only)
+contrast(em.vrelg.model.mod_only)
+
+## Average over everything for vrel_g mean estimate
+summary(em.vrelg.model.everything <- emmeans(em.vrelg.model, spec = ~ 1, type = "response"))
+
+## Average over everything for vrel_m mean estimate
+summary(em.vrelm.model.everything <- emmeans(em.vrelm.model, spec = ~ 1, type = "response"))
+
+         
