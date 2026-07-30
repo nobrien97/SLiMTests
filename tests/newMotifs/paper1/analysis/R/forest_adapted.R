@@ -406,6 +406,8 @@ d_qg_par$dataset <- "Parallel"
 
 d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 
+saveRDS(d_qg_tot, "d_qg_tot.RDS")
+
 d_qg_optPerc <- d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted) %>% filter(gen >= 49500)
 
 # inner join optPerc
@@ -818,7 +820,7 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
 
 # Save
 saveRDS(d_btgb_Malign_tot_vrel, "d_btgb_Malign_tot_vrel.RDS")
-
+d_btgb_Malign_tot_vrel <- readRDS("d_btgb_Malign_tot_vrel.RDS")
 
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>% filter(timePoint == "End") %>%
@@ -2196,4 +2198,280 @@ summary(em.vrelg.model.everything <- emmeans(em.vrelg.model, spec = ~ 1, type = 
 ## Average over everything for vrel_m mean estimate
 summary(em.vrelm.model.everything <- emmeans(em.vrelm.model, spec = ~ 1, type = "response"))
 
-         
+## Average vrel_m over dataset for model average effects
+summary(em.vrelm.model.mod_only <- emmeans(em.vrelg.model, spec = ~ model, type = "response"))
+pairs(em.vrelm.model.mod_only)
+contrast(em.vrelm.model.mod_only)
+
+
+
+# How do molecular components produce this genetic/mutational variance?
+beta.cs.model_ml <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "ML")
+beta.cs.model_bc <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BC")
+beta.cs.model_br <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BR")
+performance::compare_performance(beta.cs.model_ml, beta.cs.model_bc, beta.cs.model_br)
+
+beta.cs.model <- beta.cs.model_ml
+summary(beta.cs.model)
+plot(beta.cs.model)
+# predict
+beta.cs.pred <- predict(beta.cs.model, type = "response")
+plot(d_btgb_adapted$absCS_Mb, beta.cs.pred)
+performance::model_performance(beta.cs.model)
+
+PMmat_test <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_PMmat_.csv",
+                       col_names = F)
+
+colnames(PMmat_test)[1:3] <- c("gen", "seed", "modelindex")
+PMmat_test$gen <- as.integer(PMmat_test$gen)
+PMmat_test$seed <- factor(PMmat_test$seed)
+PMmat_test$modelindex <- factor(PMmat_test$modelindex)
+
+PMmat_test <- AddCombosToDF(PMmat_test)
+
+PMmat_test$model <- factor(PMmat_test$model,
+                           levels = model_names,
+                           labels = model_names_noquote)
+
+
+test_var <- diag(readMCMatrix(PMmat_test[1,] %>% select(-c(gen, seed, modelindex, r, model)), 
+             as.character(unlist(PMmat_test[1,"model"]))))
+
+d_var_test <- getMCVar(PMmat_test)
+
+# Load up actual data
+PMmat_par <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_PMmat.csv",
+                       col_names = F)
+PMmat_orth <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_PMmat.csv",
+                      col_names = F)
+PMmat_rand <- read_csv("/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_PMmat.csv",
+                      col_names = F)
+
+PMmat_par$dataset <- "Parallel"
+PMmat_orth$dataset <- "Orthogonal"
+PMmat_rand$dataset <- "Randomised"
+
+PMmat <- rbind(PMmat_par, PMmat_orth, PMmat_rand)
+colnames(PMmat)[1:3] <- c("gen", "seed", "modelindex")
+PMmat$gen <- as.integer(PMmat$gen)
+PMmat$seed <- factor(PMmat$seed)
+PMmat$modelindex <- factor(PMmat$modelindex)
+PMmat <- AddCombosToDF(PMmat)
+PMmat$model <- factor(PMmat$model,
+                           levels = model_names,
+                           labels = model_names_noquote)
+
+# Get variances
+PMmat <- PMmat %>%
+  filter(gen == 60000)
+
+# Get mean component values
+d_mc_means <- d_qg_tot %>%
+  filter(gen == 60000) %>%
+  select(seed, model, r, dataset, starts_with("meanMC"))
+
+d_mc_means$model <- factor(d_mc_means$model,
+                      levels = model_names,
+                      labels = model_names_noquote)
+
+
+d_mc_var <- getMCVar(PMmat, d_mc_means)
+
+# Select rows matching the d_btgb_Malign dataset
+d_mc_var_btgb <- left_join(d_btgb_Malign_tot_vrel %>% filter(timePoint == "End"), 
+                           d_mc_var %>% select(-c(gen)) %>%
+                             mutate(r = factor(log10(r))),
+                           by = c("seed", "modelindex", "dataset", "model", "r"))
+
+# Remove unnecessary columns
+d_mc_var_btgb <- d_mc_var_btgb %>%
+  select(-c(timePoint, modelindex, timeToAdapt))
+
+d_mc_var_btgb$dataset <- factor(d_mc_var_btgb$dataset,
+                                levels = c("Orthogonal", "Parallel", "Randomised")) 
+
+# Very large values -> set an upper bound
+MAX_VAL <- 1000
+d_mc_var_btgb_filtered <- d_mc_var_btgb %>%
+  mutate(across(starts_with("var"),
+                ~if_else(.x > MAX_VAL, MAX_VAL, .x))) %>%
+  filter(if_any(starts_with("var"), ~ .x >= MAX_VAL))
+
+
+## How well does variance in each molecular component contribute to the important adaptation
+## traits?
+## more beta regressions
+## This time per motif
+d_mc_var_nar <- d_mc_var_btgb_filtered %>% filter(model == "NAR") %>%
+  select(absCS_Mb, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+
+beta.cs.mc.nar_ml <- betareg::betareg(absCS_Mb ~ ., 
+                                  data = d_mc_var_nar, type = "ML")
+
+beta.cs.mc.nar_bc <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_nar, type = "BC")
+beta.cs.mc.nar_br <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_nar, type = "BR")
+performance::compare_performance(beta.cs.mc.nar_ml, beta.cs.mc.nar_bc, beta.cs.mc.nar_br)
+
+beta.cs.mc.nar <- beta.cs.mc.nar_ml
+summary(beta.cs.mc.nar)
+plot(beta.cs.mc.nar)
+# predict
+beta.cs.mc.nar.pred <- predict(beta.cs.mc.nar, type = "response")
+plot(d_mc_var_nar$absCS_Mb, beta.cs.mc.nar.pred)
+performance::model_performance(beta.cs.mc.nar)
+
+
+# beta regression sucks, try a Boruta?
+bor_nar_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_nar)
+plot(bor_nar_mc)
+## It identifies beta, the only significant component in the regression, but still unsure
+
+# Now try randomForest
+#seed <- sample(1:.Machine$integer.max, 1)
+#793952135
+seed <- 793952135
+set.seed(seed)
+train.test = c(0.7, 0.3)
+idx_nar <- sample(2, nrow(d_mc_var_nar), replace = T, prob = train.test)
+train_nar <- d_mc_var_nar[idx_nar == 1,]
+test_nar <- d_mc_var_nar[idx_nar == 2,]
+
+#nmin <- sum(train_nar$isAdapted == "Maladapted")
+ctrl <- trainControl(method = "cv",
+                     savePredictions = "final")
+
+
+set.seed(seed)
+rf_mc_nar <- train(absCS_Mb ~ .,
+                  data = train_nar,
+                  method = "rf",
+                  ntree = 500,
+                  tuneLength = 5,
+                  metric = "RMSE",
+                  trControl = ctrl)
+
+rf_nar_prediction <- predict(rf_mc_nar, test_nar)
+plot(test_nar$absCS_Mb, rf_nar_prediction, ylim = c(0, 1))
+
+rf_mc_nar$finalModel
+plot(rf_mc_nar$finalModel)
+
+# the random forest is even worse somehow
+## the beta regression model is still significant, there is just a lot of 
+## unexplained variation within models
+
+# keep on going with betareg and boruta I guess?
+d_mc_var_par <- d_mc_var_btgb_filtered %>% filter(model == "PAR") %>%
+  select(absCS_Mb, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+beta.cs.mc.par_ml <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_par, type = "ML")
+beta.cs.mc.par_bc <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_par, type = "BC")
+beta.cs.mc.par_br <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_par, type = "BR")
+
+## These models don't even run, not enough variance?
+
+performance::compare_performance(beta.cs.mc.par_ml, beta.cs.mc.par_bc, beta.cs.mc.par_br)
+
+beta.cs.mc.par <- beta.cs.mc.par_ml
+summary(beta.cs.mc.par)
+plot(beta.cs.model)
+
+
+bor_par_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_par)
+plot(bor_par_mc)
+
+
+# FFLC1
+d_mc_var_fflc1 <- d_mc_var_btgb_filtered %>% filter(model == "FFLC1") %>%
+  select(absCS_Mb, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+beta.cs.mc.fflc1_ml <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_fflc1, type = "ML")
+beta.cs.mc.fflc1_bc <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_fflc1, type = "BC")
+beta.cs.mc.fflc1_br <- betareg::betareg(absCS_Mb ~ ., 
+                                      data = d_mc_var_fflc1, type = "BR")
+
+performance::compare_performance(beta.cs.mc.fflc1_ml, beta.cs.mc.fflc1_bc, beta.cs.mc.fflc1_br,
+                                 rank = T)
+
+beta.cs.mc.fflc1 <- beta.cs.mc.fflc1_ml
+summary(beta.cs.mc.fflc1)
+plot(beta.cs.mc.fflc1)
+
+
+bor_fflc1_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_fflc1)
+plot(bor_fflc1_mc)
+
+# FFLI1
+d_mc_var_ffli1 <- d_mc_var_btgb_filtered %>% filter(model == "FFLI1") %>%
+  select(absCS_Mb, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+beta.cs.mc.ffli1_ml <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffli1, type = "ML")
+beta.cs.mc.ffli1_bc <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffli1, type = "BC")
+beta.cs.mc.ffli1_br <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffli1, type = "BR")
+
+performance::compare_performance(beta.cs.mc.ffli1_ml, beta.cs.mc.ffli1_bc, beta.cs.mc.ffli1_br,
+                                 rank = T)
+
+beta.cs.mc.ffli1 <- beta.cs.mc.ffli1_ml
+summary(beta.cs.mc.ffli1)
+plot(beta.cs.mc.ffli1)
+
+
+bor_ffli1_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_ffli1)
+plot(bor_ffli1_mc)
+
+# FFLI1
+d_mc_var_ffbh <- d_mc_var_btgb_filtered %>% filter(model == "FFBH") %>%
+  select(absCS_Mb, starts_with("var"), dataset) #%>%
+  #select(where(~!any(is.na(.))))
+
+beta.cs.mc.ffbh_ml <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffbh, type = "ML")
+beta.cs.mc.ffbh_bc <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffbh, type = "BC")
+beta.cs.mc.ffbh_br <- betareg::betareg(absCS_Mb ~ ., 
+                                        data = d_mc_var_ffbh, type = "BR")
+
+performance::compare_performance(beta.cs.mc.ffbh_ml, beta.cs.mc.ffbh_bc, beta.cs.mc.ffbh_br,
+                                 rank = T)
+
+beta.cs.mc.ffbh <- beta.cs.mc.ffbh_ml
+summary(beta.cs.mc.ffbh)
+plot(beta.cs.mc.ffbh)
+
+
+bor_ffbh_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_ffbh)
+plot(bor_ffbh_mc)
+
+
+## Another option is to do PCASim to look at variability in usage of molecular components
+## Or to run eigentensor decomposition to look at most important components amongst all
+## simulations -> along with PCASim as a measure of how frequently these are used?
+### This might be the best option
+### Gather list of all motif matrices
+### find the average scaled variance per trait across all matrices -> 
+### if this is high, relative to others it is an important source of variance
+### Eigendecompose the tensor of matrices and find the smallest eigentensor: this 
+### describes the trait-space direction in which variation is most stable across
+### simulations
+### If a component has high mean relative variance and a large contribution to the
+### smallest PC, it is a repeated contributor to the adapted populations
+##
+## would need to bootstrap this method and compare to a null distribution taken from
+## maladapted populations
+

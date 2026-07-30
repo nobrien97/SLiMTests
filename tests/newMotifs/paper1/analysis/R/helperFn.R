@@ -1396,3 +1396,60 @@ RunXGBPerMotif <- function(dataset, seed = NULL, train.test = c(0.7, 0.3)) {
   }
   return(result)
 }
+
+triNumber <- function(n) {
+  return (as.integer((n * (n + 1)) / 2))
+}
+
+# Read in phenotypic molecular component variance/covariance matrix
+getMCVar <- function(x, means) {
+  x_id <- x %>% select(c(gen, seed, modelindex, dataset, model, r))
+  x <- x %>% select(-c(gen, seed, modelindex, dataset, model, r))
+  
+  columnsToAdd <- paste0("var_", unique(unlist(molComp_names)))
+  result <- x_id
+  result[,columnsToAdd] <- NA
+  
+  for (i in seq_len(nrow(result))) {
+    x_i <- as.numeric(unlist(x[i,]))
+    x_id_i <- x_id[i,]
+    means_i <- as.numeric(unlist(means[i,] %>% select(starts_with("meanMC"))))
+    motif <- as.character(unlist(x_id_i %>% select(model)) )
+    n <- length(molComp_labels[[motif]])
+    covMat <- matrix(numeric(n * n), nrow = n)
+    
+    # Output is stored as a triangular number, decode
+    tri.n <- triNumber(n)
+    
+    # x is encoded in rowwise order 
+    covMat[lower.tri(covMat, T)] <- x_i[1:tri.n]
+    covMat <- t(covMat)
+#    covMat[lower.tri(covMat, F)] <- t(covMat)[lower.tri(covMat, F)]
+    
+    relevantColumns <- paste0("var_", molComp_names[[motif]]) 
+    
+    # divide by means for scaled variance
+    result[i, relevantColumns] <- as.list(diag(covMat) / means_i[1:n])
+    
+  }
+  
+  return(result)
+}
+
+readMCMatrix <- function(x, motif) {
+  if (is.list(x)) {
+    x <- unlist(x)
+  }
+  
+  n <- length(molComp_labels[[motif]])
+  result <- matrix(numeric(n * n), nrow = n)
+  
+  # Output is stored as a triangular number, decode
+  tri.n <- triNumber(n)
+  
+  # x is encoded in rowwise order 
+  result[lower.tri(result, T)] <- x[1:tri.n]
+  result <- t(result)
+  result[lower.tri(result, F)] <- t(result)[lower.tri(result, F)]
+  return(result)
+}
