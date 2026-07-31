@@ -1436,6 +1436,41 @@ getMCVar <- function(x, means) {
   return(result)
 }
 
+getMCCov <- function(x) {
+  x_id <- x %>% select(c(gen, seed, modelindex, dataset, model, r))
+  x <- x %>% select(-c(gen, seed, modelindex, dataset, model, r))
+  
+  result <- vector(mode = "list", length = nrow(x_id))
+  pb <- progress::progress_bar$new(
+    format = "  Running [:bar] :percent in :elapsedfull eta: :eta",
+    total = nrow(x), clear = FALSE, width = 60)
+  
+  for (i in seq_len(nrow(x))) {
+    pb$tick()
+    x_i <- as.numeric(unlist(x[i,]))
+    x_id_i <- x_id[i,]
+    motif <- as.character(unlist(x_id_i %>% select(model)) )
+    n <- length(molComp_labels[[motif]])
+    covMat <- matrix(numeric(n * n), nrow = n)
+    
+    # Output is stored as a triangular number, decode
+    tri.n <- triNumber(n)
+    
+    # x is encoded in rowwise order 
+    covMat[lower.tri(covMat, T)] <- x_i[1:tri.n]
+    covMat <- t(covMat)
+    covMat[lower.tri(covMat, F)] <- t(covMat)[lower.tri(covMat, F)]
+
+    if (!matrixcalc::is.positive.definite(covMat)) {
+      covMat <- as.matrix(Matrix::nearPD(covMat)$mat)
+    }
+    covMat <- (covMat + t(covMat)) / 2
+    result[[i]] <- covMat
+  }
+  
+  return(result)
+}
+
 readMCMatrix <- function(x, motif) {
   if (is.list(x)) {
     x <- unlist(x)

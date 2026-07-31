@@ -1721,6 +1721,8 @@ ggsave("plt_ale_align.png", device = png, bg = "white",
 ### 1) a model that across all datasets shows relationship between
 ### variation features and adaptedness
 ### 2) a model which shows differences in those features between models
+### 3) a model that shows how variability in the molecular components contributes
+###### to those features on a per-model basis
 
 ## 1) Use xgboost without dataset, model, only the features and outcome
 d_xgb <- d_btgb_Malign_rf_nor %>% select(-c(dataset, model, timeToAdapt))
@@ -2262,13 +2264,43 @@ PMmat$model <- factor(PMmat$model,
                            labels = model_names_noquote)
 
 # Get variances
+## Look at molecular component mutational variance as the difference between
+## gen 60000 and 59950 / 50
+
+## Many very large values
+## Some molecular components reach a saturation point, where any more variation
+## is effectively neutral
+## because of multiplicative scaling, this results in very large parameter values
+## How do we deal with this?
+## Can we scale the molecular components according to their effect on the phenotype?
+## Could get the inds.ODEPars values sampled in  slim_sampled_moltrait.csv
+## Then for each parameter transform according to their maximum value, which should be
+## 1 / K^h
+
+# PMmat <- PMmat %>%
+#   filter(gen == 60000 | gen == 59950)
+# 
+# PMmat %>%
+#   arrange(gen) %>% # 59950 first
+#   group_by(seed, modelindex, dataset) %>% 
+#   mutate(across(starts_with("X"), ~ .x - lag(.x))) %>% View(.)
+  
 PMmat <- PMmat %>%
   filter(gen == 60000)
+
 
 # Get mean component values
 d_mc_means <- d_qg_tot %>%
   filter(gen == 60000) %>%
   select(seed, model, r, dataset, starts_with("meanMC"))
+
+# Align PMmat with d_mc_means
+d_mc_means <- d_mc_means %>%
+  arrange(seed, model, r, dataset)
+
+PMmat <- PMmat %>%
+  arrange(seed, model, r, dataset)
+
 
 d_mc_means$model <- factor(d_mc_means$model,
                       levels = model_names,
@@ -2291,6 +2323,9 @@ d_mc_var_btgb$dataset <- factor(d_mc_var_btgb$dataset,
                                 levels = c("Orthogonal", "Parallel", "Randomised")) 
 
 # Very large values -> set an upper bound
+## TODO: redo on data from slim_sampled_moltrait.csv, transformed to correspond
+## to phenotypic change
+## map ODEPar value to sigmoidal curve
 MAX_VAL <- 1000
 d_mc_var_btgb_filtered <- d_mc_var_btgb %>%
   mutate(across(starts_with("var"),
@@ -2458,6 +2493,57 @@ plot(beta.cs.mc.ffbh)
 bor_ffbh_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_ffbh)
 plot(bor_ffbh_mc)
 
+# next is vrel_g
+d_mc_var_vrelg_nar <- d_mc_var_btgb_filtered %>% filter(model == "NAR") %>%
+  select(vrel_g, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+
+beta.vrelg.mc.nar_ml <- betareg::betareg(vrel_g ~ ., 
+                                      data = d_mc_var_vrelg_nar, type = "ML")
+
+beta.vrelg.mc.nar_bc <- betareg::betareg(vrel_g ~ ., 
+                                      data = d_mc_var_vrelg_nar, type = "BC")
+beta.vrelg.mc.nar_br <- betareg::betareg(vrel_g ~ ., 
+                                      data = d_mc_var_vrelg_nar, type = "BR")
+performance::compare_performance(beta.vrelg.mc.nar_ml, beta.vrelg.mc.nar_bc, beta.vrelg.mc.nar_br)
+
+beta.vrelg.mc.nar <- beta.vrelg.mc.nar_ml
+summary(beta.vrelg.mc.nar)
+plot(beta.vrelg.mc.nar)
+# predict
+beta.vrelg.mc.nar.pred <- predict(beta.vrelg.mc.nar, type = "response")
+plot(d_mc_var_vrelg_nar$vrel_g, beta.vrelg.mc.nar.pred)
+performance::model_performance(beta.vrelg.mc.nar)
+
+# vrel_m
+d_mc_var_vrelm_nar <- d_mc_var_btgb_filtered %>% filter(model == "NAR") %>%
+  select(vrel_m, starts_with("var"), dataset) %>%
+  select(where(~!any(is.na(.))))
+
+
+beta.vrelm.mc.nar_ml <- betareg::betareg(vrel_m ~ ., 
+                                         data = d_mc_var_vrelm_nar, type = "ML")
+
+beta.vrelm.mc.nar_bc <- betareg::betareg(vrel_m ~ ., 
+                                         data = d_mc_var_vrelm_nar, type = "BC")
+beta.vrelm.mc.nar_br <- betareg::betareg(vrel_m ~ ., 
+                                         data = d_mc_var_vrelm_nar, type = "BR")
+performance::compare_performance(beta.vrelm.mc.nar_ml, beta.vrelm.mc.nar_bc, beta.vrelm.mc.nar_br)
+
+beta.vrelm.mc.nar <- beta.vrelm.mc.nar_ml
+summary(beta.vrelm.mc.nar)
+plot(beta.vrelm.mc.nar)
+# predict
+beta.vrelm.mc.nar.pred <- predict(beta.vrelm.mc.nar, type = "response")
+plot(d_mc_var_vrelm_nar$vrel_m, beta.vrelm.mc.nar.pred)
+performance::model_performance(beta.vrelm.mc.nar)
+
+
+
+
+
+
 
 ## Another option is to do PCASim to look at variability in usage of molecular components
 ## Or to run eigentensor decomposition to look at most important components amongst all
@@ -2466,7 +2552,7 @@ plot(bor_ffbh_mc)
 ### Gather list of all motif matrices
 ### find the average scaled variance per trait across all matrices -> 
 ### if this is high, relative to others it is an important source of variance
-### Eigendecompose the tensor of matrices and find the smallest eigentensor: this 
+### decompose the tensor of matrices and find the smallest eigentensor: this 
 ### describes the trait-space direction in which variation is most stable across
 ### simulations
 ### If a component has high mean relative variance and a large contribution to the
@@ -2474,4 +2560,79 @@ plot(bor_ffbh_mc)
 ##
 ## would need to bootstrap this method and compare to a null distribution taken from
 ## maladapted populations
+
+indices <- d_mc_means %>%
+  mutate(rownum = row_number())
+
+indices_nar <- indices %>%  
+  filter(model == "NAR") %>%
+  select(rownum) %>%
+  unlist(.)
+  
+mc_var <- getMCCov(PMmat)
+mc_var_nar <- mc_var[indices_nar]
+mc_var_nar <- abind::abind(mc_var_nar, along = 3)
+
+# Row wise relative contribution
+d_mc_means_rel <- d_mc_means %>%
+  mutate(meanSum = rowSums(across(starts_with("meanMC"))),
+         across(starts_with("meanMC"), ~ .x / meanSum))
+
+# verify all relative sums = 1
+head(d_mc_means_rel) %>%
+  reframe(rowSums(across(starts_with("meanMC"))))
+
+# eigendecomposition of NAR
+## Convert to correlation matrices
+mc_cor_nar <- apply(mc_var_nar, 3, cov2cor)
+dim(mc_cor_nar) <- dim(mc_var_nar)
+etd_nar <- evolqg::EigenTensorDecomposition(mc_cor_nar)
+n_et <- dim(etd_nar$matrices)[3]
+
+# Smallest 6 eigentensors (n_et-6 -> n_et) contain just one trait
+eigen(etd_nar$matrices[,,n_et])
+
+# 7th smallest eigentensor is the mix
+eigen(etd_nar$matrices[,,n_et-7])
+factoextra::fviz_eig(princomp(covmat = etd_nar$matrices[,,n_et-7]))
+
+## try with covariance matrices, but with all values > 1000 quantised
+mc_cov_quant_nar <- mc_var_nar
+mc_cov_quant_nar[abs(mc_cov_quant_nar) > MAX_VAL] <- MAX_VAL * sign(mc_cov_quant_nar[abs(mc_cov_quant_nar) > MAX_VAL])
+mc_cov_quant_nar <- apply(mc_cov_quant_nar, 3, function(x) {
+  as.matrix(Matrix::nearPD(x)$mat)
+})
+dim(mc_cov_quant_nar) <- dim(mc_var_nar)
+
+etd_quant_nar <- tensorA::svd.tensor(mc_cov_quant_nar, dim(mc_cov_quant_nar))
+
+etd_quant_nar <- evolqg::EigenTensorDecomposition(mc_cov_quant_nar[,,1:3])
+
+
+
+etd_nar <- rTensor::tucker(as.tensor(mc_var_nar), ranks = c(7, 7, 2))
+plot(etd_nar$all_resids)
+
+# instead of eigendecomposition, mode-k unfolding, along 3rd mode of array
+mc_var_nar_unfold <- k_unfold(as.tensor(mc_var_nar), 3)
+
+# Scale and center
+mc_var_nar_unfold <- scale(mc_var_nar_unfold@data)
+
+# Get covariance matrix across all populations
+mc_var_nar_cov <- cov(mc_var_nar_unfold)
+e_mc_nar <- eigen(mc_var_nar_cov)
+
+# Reshape into a tensor
+e_mc_nar_etmin <- matrix(e_mc_nar$vectors[,7*7], nrow = 7, ncol = 7)
+
+# Find the traits explaining this eigentensor
+eigen(e_mc_nar_etmin)
+
+
+# relative mean variance for NAR
+d_mc_means_rel_nar <- d_mc_means_rel %>%
+  filter(model == "NAR") %>%
+  summarise(across(starts_with("meanMC"), list(mean = ~ mean(.x, na.rm = T),
+                                               se = ~ se(.x, na.rm = T))))
 
