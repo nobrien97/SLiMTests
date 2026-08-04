@@ -1488,3 +1488,46 @@ readMCMatrix <- function(x, motif) {
   result[lower.tri(result, F)] <- t(result)[lower.tri(result, F)]
   return(result)
 }
+
+EigenTensorExperiment <- function(g_list, ids, n = 10000, seed = 123) {
+  pb <- progress::progress_bar$new(
+    format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
+  
+  set.seed(seed)
+  
+  result <- data.frame(bootstrap = 1:n,
+                       id_1 = 1:n,
+                       id_2 = 1:n,
+                       id_3 = 1:n,
+                       mc_1 = character(n),
+                       mc_2 = character(n),
+                       mc_3 = character(n),
+                       )
+  
+  # Sample a matrix from each treatment, compare them all
+  # Dataset - parallel/orthogonal/randomised
+  samples <- ids %>%
+    slice_sample(n = n, by = "dataset", replace = T)
+  samples$label <- as.numeric(samples$label)
+  
+  # Split so we have n groups
+  samples <- split(samples, rep(1:n, times = ceiling(nrow(samples) / n),
+                                length.out = nrow(samples)))
+  
+  # Iterate through samples
+  for (i in seq_len(nrow(samples))) {
+    labels <- samples[[i]]$label
+    et <- EigenTensorDecomposition(g_list[labels])
+    
+    # Look for smallest ET, what MCs describe the smallest divergence between
+    # populations
+    eg <- eigen(et$matrices[,,dim(et$matrices)[3]])
+    rownames(eg$vectors) <- rownames(et$matrices[,,1])
+    top3 <- sort(abs(eg$vectors[,1]), decreasing = T)[1:3]
+    
+    
+    result[i,] <- c(i, labels,
+                    names(top3))
+  }
+  
+}

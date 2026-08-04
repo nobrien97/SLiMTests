@@ -2541,6 +2541,175 @@ performance::model_performance(beta.vrelm.mc.nar)
 
 
 
+#####################################################################################
+# Read in M_C G matrix
+H2_DATA_PATH_RAND <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
+H2_DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
+H2_DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
+
+max_molComps = length(all_molcomp_features)
+CV_names <- combn(names(all_molcomp_features), 2)
+CV_names <- paste("CVA", CV_names[1,], CV_names[2,], sep = "_") 
+
+
+d_h2_rand_mrr <- read_csv(paste0(H2_DATA_PATH_RAND, "out_h2_mrr.csv"), col_names = F)
+d_h2_rand_mkr <- read_csv(paste0(H2_DATA_PATH_RAND, "out_h2_mkr.csv"), col_names = F)
+
+
+colnames(d_h2_rand_mkr) <- c("gen", "seed", "modelindex", "VA_W", "h2_W",
+                             paste0("VA_", names(all_molcomp_features)), CV_names,
+                             paste0("h2_", names(all_molcomp_features)))
+colnames(d_h2_rand_mrr) <- colnames(d_h2_rand_mkr)
+
+d_h2_rand_mkr$calcMode <- "mkr"
+d_h2_rand_mrr$calcMode <- "mrr"
+
+d_h2_mc_rand <- rbind(d_h2_rand_mkr, d_h2_rand_mrr)
+
+d_h2_mc_rand$modelindex <- factor(d_h2_mc_rand$modelindex)
+d_h2_mc_rand$seed <- factor(d_h2_mc_rand$seed)
+
+d_h2_mc_rand <- AddCombosToDF(d_h2_mc_rand)
+d_h2_mc_rand$dataset <- "Randomised" 
+
+
+d_h2_orth_mrr <- read_csv(paste0(H2_DATA_PATH_ORTH, "out_h2_mrr.csv"), col_names = F)
+d_h2_orth_mkr <- read_csv(paste0(H2_DATA_PATH_ORTH, "out_h2_mkr.csv"), col_names = F)
+
+
+colnames(d_h2_orth_mkr) <- c("gen", "seed", "modelindex", "VA_W", "h2_W",
+                             paste0("VA_", names(all_molcomp_features)), CV_names,
+                             paste0("h2_", names(all_molcomp_features)))
+colnames(d_h2_orth_mrr) <- colnames(d_h2_orth_mkr)
+
+d_h2_orth_mkr$calcMode <- "mkr"
+d_h2_orth_mrr$calcMode <- "mrr"
+
+d_h2_mc_orth <- rbind(d_h2_orth_mkr, d_h2_orth_mrr)
+
+d_h2_mc_orth$modelindex <- factor(d_h2_mc_orth$modelindex)
+d_h2_mc_orth$seed <- factor(d_h2_mc_orth$seed)
+
+d_h2_mc_orth <- AddCombosToDF(d_h2_mc_orth)
+d_h2_mc_orth$dataset <- "Orthogonal" 
+
+
+d_h2_par_mrr <- read_csv(paste0(H2_DATA_PATH_PAR, "out_h2_mrr.csv"), col_names = F)
+d_h2_par_mkr <- read_csv(paste0(H2_DATA_PATH_PAR, "out_h2_mkr.csv"), col_names = F)
+
+
+colnames(d_h2_par_mkr) <- c("gen", "seed", "modelindex", "VA_W", "h2_W",
+                            paste0("VA_", names(all_molcomp_features)), CV_names,
+                            paste0("h2_", names(all_molcomp_features)))
+colnames(d_h2_par_mrr) <- colnames(d_h2_par_mkr)
+
+d_h2_par_mkr$calcMode <- "mkr"
+d_h2_par_mrr$calcMode <- "mrr"
+
+d_h2_mc_par <- rbind(d_h2_par_mkr, d_h2_par_mrr)
+
+d_h2_mc_par$modelindex <- factor(d_h2_mc_par$modelindex)
+d_h2_mc_par$seed <- factor(d_h2_mc_par$seed)
+
+d_h2_mc_par <- AddCombosToDF(d_h2_mc_par)
+d_h2_mc_par$dataset <- "Parallel" 
+
+d_h2_mc <- rbind(d_h2_mc_rand, d_h2_mc_orth, d_h2_mc_par)
+
+d_h2_mc$model <- factor(d_h2_mc$model, 
+                        levels = model_names,
+                        labels = model_names_noquote)
+
+# Discretise generation
+d_h2_mc <- d_h2_mc %>%
+  mutate(timePoint = if_else(gen == 50000, "Start", "End"),
+         timePoint = factor(timePoint, levels = c("Start", "End")))
+
+
+# Construct G matrices from rows
+# inner join optPerc
+d_h2_mc_adapt <- left_join(d_btgb_Malign_tot_vrel %>% select(timePoint, seed, modelindex,
+                                                             dataset, isAdapted), 
+                           d_h2_mc %>% select(-gen), 
+                           by = c("timePoint", "seed", "modelindex", "dataset"))
+
+# Counts for each model type:
+table(d_h2_mc_adapt$model, d_h2_mc_adapt$isAdapted)
+
+# Split h2 into G matrices
+d_h2_mc_adapt %>%
+  select(!VA_W) %>%  # Remove fitness (since its a different measurement)
+  filter(!if_all(8:19, is.na), timePoint == "End") %>%  # Drop rows with no variance
+  distinct(timePoint, seed, modelindex, dataset, .keep_all = T) %>%
+  group_by(modelindex, dataset, timePoint, isAdapted) %>%
+  group_split(.) -> split_h2_mc
+
+
+# Separate into model indices
+# each sublist is replicates of a model index
+sourceCpp("/mnt/c/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+sourceCpp("/mnt/e/Documents/GitHub/SLiMTests/tests/standingVar/getH2/R/getCovarianceMatrices.cpp")
+
+lapply(split_h2_mc, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_mc
+
+# Select rows and columns by motif type
+h2_mat <- unlist(cov_matrices_mc, recursive = F)
+
+# get ids from the matrix
+cov_matrix_modelindex <- GetMatrixIDsWithDataset(split_h2_mc)
+
+h2_mat_motif <- h2_mat
+
+for (i in seq_len(length(h2_mat))) {
+  x <- h2_mat[[i]]
+  id <- cov_matrix_modelindex[[i]]
+  model <- as.character(d_combos$model[as.numeric(levels(id$modelindex))[id$modelindex]])
+  model <- str_replace_all(model, "'", "")
+  mcs <- unlist(molComp_names[model])
+
+  h2_mat_motif[[i]] <- x[mcs,mcs]  
+}
+
+id <- data.table::rbindlist(cov_matrix_modelindex, 
+                            fill = T)
+id$label <- 1:nrow(id)
+id$modelindex <- as.factor(id$modelindex)
+id <- AddCombosToDF(id)
+id$model <- factor(id$model, levels = model_names, labels = model_names_noquote)
+
+# First convert to nearest positive definite matrix
+h2_pd <- lapply(h2_mat_motif, function(x) {
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(nearPD(x)$mat))}
+  return(x)
+})
+
+# Split per model
+id %>%
+  group_by(model) %>%
+  group_split() -> id_permotif
+
+# We want to know if certain architectures are more/less important for describing
+# variation between simulations and which components are most important for describing
+# those differences
+
+g_mc_nar <- h2_pd[as.integer(id_permotif[[1]]$label)]
+g_mc_par <- h2_pd[as.integer(id_permotif[[2]]$label)]
+g_mc_fflc1 <- h2_pd[as.integer(id_permotif[[3]]$label)]
+g_mc_ffli1 <- h2_pd[as.integer(id_permotif[[4]]$label)]
+g_mc_ffbh <- h2_pd[as.integer(id_permotif[[5]]$label)]
+
+# Eigentensors
+# TODO: Bootstrap estimate
+# Sample matrix pairs from within/between treatments
+# Look at similarity/shared components and eigenvalues
+# Return list of traits and percent inclusion per model
+# null distribution across all treatments
+
+# per motif labels
+id_nar <- id_permotif[[1]]
+id_nar$label <- 1:nrow(id_nar)
+
+etd_nar <- evolqg::EigenTensorDecomposition(g_mc_nar, id_nar)
 
 
 
