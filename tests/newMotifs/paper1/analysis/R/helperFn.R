@@ -1489,6 +1489,7 @@ readMCMatrix <- function(x, motif) {
   return(result)
 }
 
+# Finds the most common
 EigenTensorExperiment <- function(g_list, ids, n = 10000, seed = 123) {
   pb <- progress::progress_bar$new(
     format = "[:bar] :current/:total (:percent eta: :eta)", total = n)
@@ -1501,7 +1502,7 @@ EigenTensorExperiment <- function(g_list, ids, n = 10000, seed = 123) {
                        id_3 = 1:n,
                        mc_1 = character(n),
                        mc_2 = character(n),
-                       mc_3 = character(n),
+                       mc_3 = character(n)
                        )
   
   # Sample a matrix from each treatment, compare them all
@@ -1515,9 +1516,11 @@ EigenTensorExperiment <- function(g_list, ids, n = 10000, seed = 123) {
                                 length.out = nrow(samples)))
   
   # Iterate through samples
-  for (i in seq_len(nrow(samples))) {
+  for (i in seq_len(n)) {
+    pb$tick()
     labels <- samples[[i]]$label
-    et <- EigenTensorDecomposition(g_list[labels])
+    x <- g_list[labels]
+    et <- EigenTensorDecomposition(x)
     
     # Look for smallest ET, what MCs describe the smallest divergence between
     # populations
@@ -1529,5 +1532,39 @@ EigenTensorExperiment <- function(g_list, ids, n = 10000, seed = 123) {
     result[i,] <- c(i, labels,
                     names(top3))
   }
+  return(result)
+}
+
+cEvolPerTrait <- function(G) {
+  n <- nrow(G)
+
+  result <- numeric(n)
+  names(result) <- colnames(G)
+
+    for (i in seq_len(n)) {
+      Gy <- diag(G)[i]
+      Gx <- G[-i, -i]
+      Gyx <- matrix(G[i,-i], nrow = 1)
+      Gxy <- t(Gyx)
+      
+      result[i] <- Gy - (Gyx %*% solve(Gx) %*% Gxy)
+    }
   
+  return(result)
+}
+
+ConditionalEvolvabilityExperiment <- function(G_list, id) {
+  n <- length(G_list)
+  
+  result <- data.frame(seed = id$seed,
+                       modelindex = id$modelindex,
+                       dataset = id$dataset)
+  
+  result[, paste0("cev_", names(all_molcomp_features))] <- NA
+  
+  for (i in seq_len(n)) {
+    cev <- cEvolPerTrait(G_list[[i]])
+    result[i, paste0("cev_", names(cev))] <- cev
+  }
+  return(result)
 }

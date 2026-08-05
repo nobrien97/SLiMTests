@@ -501,6 +501,7 @@ d_opt_orth$dataset <- "Orthogonal"
 d_opt_par$dataset <- "Parallel"
 
 d_opt_tot <- rbind(d_opt, d_opt_orth, d_opt_par)
+#saveRDS(d_opt_tot, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_opt_tot.RDS")
 
 d_selvec <- left_join(d_selvec, d_opt_tot %>% 
                         select(seed, modelindex, dataset, starts_with("o_")) %>%
@@ -526,6 +527,8 @@ d_selvec <- d_selvec %>%
   mutate(timePoint = if_else(gen == 50000, "Start", "End"),
          timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
   select(-gen)
+
+#saveRDS(d_selvec, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
 
 d_selvec2 <- inner_join(id, d_selvec, 
                         by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
@@ -821,6 +824,7 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel,
 # Save
 saveRDS(d_btgb_Malign_tot_vrel, "d_btgb_Malign_tot_vrel.RDS")
 d_btgb_Malign_tot_vrel <- readRDS("d_btgb_Malign_tot_vrel.RDS")
+d_btgb_Malign_tot_vrel <- readRDS("/mnt/i/SLiMTests/tests/newMotifs/paper1/d_btgb_Malign_tot_vrel.RDS")
 
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>% filter(timePoint == "End") %>%
@@ -2543,11 +2547,11 @@ performance::model_performance(beta.vrelm.mc.nar)
 
 #####################################################################################
 # Read in M_C G matrix
-H2_DATA_PATH_RAND <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
-H2_DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
-H2_DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
+H2_DATA_PATH_RAND <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
+H2_DATA_PATH_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/getH2/"
+H2_DATA_PATH_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/"
 
-max_molComps = length(all_molcomp_features)
+max_molComps <- length(all_molcomp_features)
 CV_names <- combn(names(all_molcomp_features), 2)
 CV_names <- paste("CVA", CV_names[1,], CV_names[2,], sep = "_") 
 
@@ -2639,7 +2643,7 @@ table(d_h2_mc_adapt$model, d_h2_mc_adapt$isAdapted)
 # Split h2 into G matrices
 d_h2_mc_adapt %>%
   select(!VA_W) %>%  # Remove fitness (since its a different measurement)
-  filter(!if_all(8:19, is.na), timePoint == "End") %>%  # Drop rows with no variance
+  filter(!if_all(8:19, is.na), timePoint == "End", isAdapted == "Adapted") %>%  # Drop rows with no variance
   distinct(timePoint, seed, modelindex, dataset, .keep_all = T) %>%
   group_by(modelindex, dataset, timePoint, isAdapted) %>%
   group_split(.) -> split_h2_mc
@@ -2679,7 +2683,7 @@ id$model <- factor(id$model, levels = model_names, labels = model_names_noquote)
 
 # First convert to nearest positive definite matrix
 h2_pd <- lapply(h2_mat_motif, function(x) {
-  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(nearPD(x)$mat))}
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
   return(x)
 })
 
@@ -2709,9 +2713,7 @@ g_mc_ffbh <- h2_pd[as.integer(id_permotif[[5]]$label)]
 id_nar <- id_permotif[[1]]
 id_nar$label <- 1:nrow(id_nar)
 
-etd_nar <- evolqg::EigenTensorDecomposition(g_mc_nar, id_nar)
-
-
+etd_nar <- EigenTensorExperiment(g_mc_nar, id_nar, n = 100)
 
 
 ## Another option is to do PCASim to look at variability in usage of molecular components
@@ -2730,78 +2732,20 @@ etd_nar <- evolqg::EigenTensorDecomposition(g_mc_nar, id_nar)
 ## would need to bootstrap this method and compare to a null distribution taken from
 ## maladapted populations
 
-indices <- d_mc_means %>%
-  mutate(rownum = row_number())
-
-indices_nar <- indices %>%  
-  filter(model == "NAR") %>%
-  select(rownum) %>%
-  unlist(.)
-  
-mc_var <- getMCCov(PMmat)
-mc_var_nar <- mc_var[indices_nar]
-mc_var_nar <- abind::abind(mc_var_nar, along = 3)
-
-# Row wise relative contribution
-d_mc_means_rel <- d_mc_means %>%
-  mutate(meanSum = rowSums(across(starts_with("meanMC"))),
-         across(starts_with("meanMC"), ~ .x / meanSum))
-
-# verify all relative sums = 1
-head(d_mc_means_rel) %>%
-  reframe(rowSums(across(starts_with("meanMC"))))
-
-# eigendecomposition of NAR
-## Convert to correlation matrices
-mc_cor_nar <- apply(mc_var_nar, 3, cov2cor)
-dim(mc_cor_nar) <- dim(mc_var_nar)
-etd_nar <- evolqg::EigenTensorDecomposition(mc_cor_nar)
-n_et <- dim(etd_nar$matrices)[3]
-
-# Smallest 6 eigentensors (n_et-6 -> n_et) contain just one trait
-eigen(etd_nar$matrices[,,n_et])
-
-# 7th smallest eigentensor is the mix
-eigen(etd_nar$matrices[,,n_et-7])
-factoextra::fviz_eig(princomp(covmat = etd_nar$matrices[,,n_et-7]))
-
-## try with covariance matrices, but with all values > 1000 quantised
-mc_cov_quant_nar <- mc_var_nar
-mc_cov_quant_nar[abs(mc_cov_quant_nar) > MAX_VAL] <- MAX_VAL * sign(mc_cov_quant_nar[abs(mc_cov_quant_nar) > MAX_VAL])
-mc_cov_quant_nar <- apply(mc_cov_quant_nar, 3, function(x) {
-  as.matrix(Matrix::nearPD(x)$mat)
-})
-dim(mc_cov_quant_nar) <- dim(mc_var_nar)
-
-etd_quant_nar <- tensorA::svd.tensor(mc_cov_quant_nar, dim(mc_cov_quant_nar))
-
-etd_quant_nar <- evolqg::EigenTensorDecomposition(mc_cov_quant_nar[,,1:3])
+## Eigentensors take forever, too much data :(
+## Look at model of conditional evolvability of each matrix
+### Problem is that the molecular components aren't the direct targets of selection, 
+### would need to estimate the strength of selection on each. Unless we do an average
+### estimate across all selection gradients, mean conditional evolvability?
 
 
 
-etd_nar <- rTensor::tucker(as.tensor(mc_var_nar), ranks = c(7, 7, 2))
-plot(etd_nar$all_resids)
+# Run conditional evolvability
+test_g_cevol <- cEvolPerTrait(g_mc_nar[[1]])
+cevol_nar <- ConditionalEvolvabilityExperiment(g_mc_nar, id_nar)
 
-# instead of eigendecomposition, mode-k unfolding, along 3rd mode of array
-mc_var_nar_unfold <- k_unfold(as.tensor(mc_var_nar), 3)
+# Join with V_rel dataset
 
-# Scale and center
-mc_var_nar_unfold <- scale(mc_var_nar_unfold@data)
+# Run betareg of conditional evolvability vs V_rel etc. per model
 
-# Get covariance matrix across all populations
-mc_var_nar_cov <- cov(mc_var_nar_unfold)
-e_mc_nar <- eigen(mc_var_nar_cov)
-
-# Reshape into a tensor
-e_mc_nar_etmin <- matrix(e_mc_nar$vectors[,7*7], nrow = 7, ncol = 7)
-
-# Find the traits explaining this eigentensor
-eigen(e_mc_nar_etmin)
-
-
-# relative mean variance for NAR
-d_mc_means_rel_nar <- d_mc_means_rel %>%
-  filter(model == "NAR") %>%
-  summarise(across(starts_with("meanMC"), list(mean = ~ mean(.x, na.rm = T),
-                                               se = ~ se(.x, na.rm = T))))
 
