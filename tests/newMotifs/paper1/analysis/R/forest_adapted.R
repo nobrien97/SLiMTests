@@ -2742,10 +2742,237 @@ etd_nar <- EigenTensorExperiment(g_mc_nar, id_nar, n = 100)
 
 # Run conditional evolvability
 test_g_cevol <- cEvolPerTrait(g_mc_nar[[1]])
-cevol_nar <- ConditionalEvolvabilityExperiment(g_mc_nar, id_nar)
+cevol_mc <- ConditionalEvolvabilityExperiment(h2_pd, id)
 
 # Join with V_rel dataset
+d_btgb_cev_mc <- inner_join(d_btgb_Malign_tot_vrel %>%
+                             filter(timePoint == "End") %>%
+                             select(seed, modelindex, dataset, isAdapted,
+                                    model, r, absCS_Mb, vrel_g, vrel_m),
+                           cevol_mc,
+                           by = c("seed", "modelindex", "dataset"))
+saveRDS(d_btgb_cev_mc, "/mnt/d/SLiMTests/tests/newMotifs/paper1/d_btgb_cev_mc.RDS")
+
+d_btgb_cev_mc_split <- d_btgb_cev_mc %>%
+  filter(isAdapted == "Adapted") %>%
+  group_by(model) %>%
+  group_split()
 
 # Run betareg of conditional evolvability vs V_rel etc. per model
+beta.cs.mc.nar <- betareg::betareg(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                   cev_zZ * cev_h * cev_gX, 
+                                   train_cs.mc.nar)
+summary(beta.cs.mc.nar)
+plot(beta.cs.mc.nar)
+
+#seed <- sample(1:.Machine$integer.max, 1)
+# seed
+# [1] 162176257
+seed <- 162176257
+
+MCEffects_NAR <- CalculateMCEffects(d_btgb_cev_mc_split[[1]], 
+                   list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                     cev_zZ * cev_h * cev_gX),
+                     as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                  cev_zZ * cev_h * cev_gX),
+                     as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                  cev_zZ * cev_h * cev_gX)
+                     ),
+                   seed)
+
+summary(MCEffects_NAR$vrel_g$beta_model)
+MCEffects_NAR$vrel_g$beta_model_lrtest
+MCEffects_NAR$vrel_g$shapley
+MCEffects_NAR$vrel_g$lmg
+
+(MCEffects_NAR$vrel_g$rf)
+MCEffects_NAR$vrel_g$interact$plot()
+MCEffects_NAR$vrel_g$imp$plot()
+MCEffects_NAR$vrel_g$ale$plot()
+
+MCEffects_PAR <- CalculateMCEffects(d_btgb_cev_mc_split[[2]], 
+                                    list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX),
+                                         as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX),
+                                         as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX)
+                                    ),
+                                    seed)
+
+summary(MCEffects_PAR$vrel_g$beta_model)
+MCEffects_PAR$vrel_g$beta_model_lrtest
+MCEffects_PAR$vrel_g$shapley
+MCEffects_PAR$vrel_g$lmg
+
+(MCEffects_PAR$vrel_g$rf)
+MCEffects_PAR$vrel_g$interact$plot()
+MCEffects_PAR$vrel_g$imp$plot()
+MCEffects_PAR$vrel_g$ale$plot()
 
 
+
+MCEffects_FFLC1 <- CalculateMCEffects(d_btgb_cev_mc_split[[3]], 
+                                    list(as.formula(absCS_Mb ~ cev_aY * cev_bY * cev_KY * 
+                                                      cev_aZ * cev_bZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX),
+                                         as.formula(vrel_g ~ cev_aY * cev_bY * cev_KY * 
+                                                      cev_aZ * cev_bZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX),
+                                         as.formula(vrel_m ~ cev_aY * cev_bY * cev_KY * 
+                                                      cev_aZ * cev_bZ * cev_KXZ *
+                                                      cev_zZ * cev_h * cev_gX)
+                                    ),
+                                    seed)
+
+summary(MCEffects_FFLC1$vrel_g$beta_model)
+MCEffects_FFLC1$vrel_g$beta_model_lrtest
+MCEffects_FFLC1$vrel_g$shapley
+MCEffects_FFLC1$vrel_g$lmg
+
+(MCEffects_FFLC1$vrel_g$rf)
+MCEffects_FFLC1$vrel_g$interact$plot()
+MCEffects_FFLC1$vrel_g$imp$plot()
+MCEffects_FFLC1$vrel_g$ale$plot()
+
+
+
+MCEffects_FFLI1 <- CalculateMCEffects(d_btgb_cev_mc_split[[4]], 
+                                      list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX),
+                                           as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX),
+                                           as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX)
+                                      ),
+                                      seed)
+
+MCEffects_FFBH <- CalculateMCEffects(d_btgb_cev_mc_split[[5]], 
+                                      list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX),
+                                           as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX),
+                                           as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                                        cev_zZ * cev_h * cev_gX)
+                                      ),
+                                      seed)
+
+
+# No clear correlation between conditional evolvabilities and the cosine similarity
+# between M and beta - maybe to be expected?
+lmtest::lrtest(beta.cs.mc.nar)
+
+# Try a randomForest?
+seed <- 18799215
+set.seed(seed)
+
+idx <- sample(2, nrow(d_btgb_cev_mc_split[[1]]), replace = T, prob = c(0.7, 0.3))
+train_cs.mc.nar <- d_btgb_cev_mc_split[[1]][idx == 1,]
+test_cs.mc.nar <- d_btgb_cev_mc_split[[1]][idx == 2,]
+
+rf_cs.mc.nar <- randomForest(formula = absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                               cev_zZ * cev_h * cev_gX,
+                                       data = train_cs.mc.nar,
+                                       ntree = 500,
+                                       proximity = T,
+                                       importance = T,
+                                       type = "regression")
+
+plot(rf_cs.mc.nar)
+rf_cs.mc.nar
+# negative R2 -> again, no clear effect
+
+
+p_test_rf_cs.mc.nar <- predict(rf_cs.mc.nar, test_cs.mc.nar)
+p_test_beta_cs.mc.nar <- predict(beta.cs.mc.nar, test_cs.mc.nar)
+
+plot(test_cs.mc.nar$absCS_Mb, p_test_rf_cs.mc.nar, ylab = "Predicted cosine similarity",
+     xlab = "Observed cosine similarity", main = "Random forest prediction", ylim = c(0, 1))
+
+plot(test_cs.mc.nar$absCS_Mb, p_test_beta_cs.mc.nar, ylab = "Predicted cosine similarity",
+     xlab = "Observed cosine similarity", main = "Beta regression prediction", ylim = c(0, 1))
+# Comparable predictions, bad
+
+
+# Shapley value regression to find relative importance of each feature
+sv.cs.mc.nar <- ShapleyValue::shapleyvalue(d_btgb_cev_mc_split[[1]]$absCS_Mb,
+                                           as.data.frame(d_btgb_cev_mc_split[[1]][,15:21]))
+sv.cs.mc.nar
+
+# LMG R2 decomposition
+lmg.cs.mc.nar <- sensitivity::lmg(as.data.frame(d_btgb_cev_mc_split[[1]][,15:21]),
+                                  d_btgb_cev_mc_split[[1]]$absCS_Mb)
+lmg.cs.mc.nar
+
+# Variable importance
+predictor <- iml::Predictor$new(rf_cs.mc.nar, 
+                                data = test_cs.mc.nar[, 15:21], 
+                                y = test_cs.mc.nar$absCS_Mb)
+
+# Need to set the option future globals maxsize
+options(future.globals.maxSize = 3221225472)
+imp <- iml::FeatureImp$new(predictor,
+                           loss = "mae",
+                           n.repetitions = 100)
+
+ggplot(imp$results,
+       aes(x = feature, y = importance)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
+                width = 0.2) +
+  # scale_x_discrete(labels = parse(text = feature_names[4:13]),
+  #                  guide = guide_axis(n.dodge = 2)) +
+  labs(x = "Feature", y = "Permutation Importance") +
+  theme_bw() +
+  theme(text = element_text(size = 12)) -> plt_perm_imp
+plt_perm_imp
+ggsave("plt_perm_feat_imp_cs_nar.png", device = png, width = 9, height = 5, bg = "white")
+
+ale <- FeatureEffects$new(predictor, method = "ale", grid.size = 10)
+ale$plot()
+
+interact <- Interaction$new(predictor, grid.size = 10)
+interact$plot()
+
+shapley <- Shapley$new(predictor, x.interest = test_cs.mc.nar[, 15:21], sample.size = 50)
+shapley$plot()
+
+
+beta.vrelg.mc.nar <- betareg::betareg(vrel_g ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
+                                     cev_zZ + cev_h + cev_gX, 
+                                   d_btgb_cev_mc_split[[1]])
+summary(beta.vrelg.mc.nar)
+
+beta.vrelm.mc.nar <- betareg::betareg(vrel_m ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
+                                        cev_zZ + cev_h + cev_gX, 
+                                      d_btgb_cev_mc_split[[1]])
+summary(beta.vrelm.mc.nar)
+
+
+beta.cs.mc.par <- betareg::betareg(absCS_Mb ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
+                                     cev_zZ + cev_h + cev_gX, 
+                                   d_btgb_cev_mc_split[[2]])
+summary(beta.cs.mc.par)
+plot(beta.cs.mc.par)
+
+beta.cs.mc.fflc1 <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
+                                       cev_aZ + cev_bZ + cev_KY * cev_KXZ *
+                                     cev_zZ * cev_h * cev_gX, 
+                                   d_btgb_cev_mc_split[[3]])
+summary(beta.cs.mc.fflc1)
+plot(beta.cs.mc.fflc1)
+
+beta.cs.mc.ffli1 <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
+                                       cev_aZ + cev_bZ + cev_KY + cev_KXZ +
+                                       cev_zZ + cev_h + cev_gX, 
+                                     d_btgb_cev_mc_split[[4]])
+summary(beta.cs.mc.ffli1)
+plot(beta.cs.mc.ffli1)
+
+beta.cs.mc.ffbh <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
+                                       cev_aZ + cev_bZ + cev_aX + cev_KZX + 
+                                      cev_KY + cev_KXZ +
+                                       cev_zZ + cev_h + cev_gX, 
+                                     d_btgb_cev_mc_split[[5]])
+summary(beta.cs.mc.ffbh)
+plot(beta.cs.mc.ffbh)

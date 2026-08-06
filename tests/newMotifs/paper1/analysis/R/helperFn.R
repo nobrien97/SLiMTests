@@ -1568,3 +1568,79 @@ ConditionalEvolvabilityExperiment <- function(G_list, id) {
   }
   return(result)
 }
+
+CalculateMCEffects <- function(dataset, formula_list, seed = 123) {
+  result <- list()
+  
+  pb <- progress::progress_bar$new(
+    format = "[:bar] :current/:total (:percent eta: :eta)", total = length(formula_list),
+    show_after = 0)
+  
+  pb$tick(0)
+  
+  for (formula in formula_list) {
+    response <- all.vars(formula)[1]
+    predictors <- all.vars(formula)[-1]
+    # Start with beta regression
+    tryCatch({
+      beta_model <- betareg::betareg(formula, dataset)
+      null_model <- betareg::betareg(paste(response, "~ 1"), dataset)
+    },
+    error = function(e) {
+      beta_model <- NA
+      null_model <- NA
+    },
+    finally = {
+      if (!is.na(beta_model)) {
+        result[[response]][["beta_model"]] <- beta_model
+        result[[response]][["beta_model_lrtest"]]  <- lmtest::lrtest(beta_model, null_model)
+      }
+    })
+    
+    # Shapley value regression to find relative importance of each feature
+    sv <- ShapleyValue::shapleyvalue(unlist(dataset[,response]),
+                                        as.data.frame(dataset[,predictors]))
+    result[[response]][["shapley"]] <- sv
+    
+    # LMG R2 decomposition
+    lmg <- sensitivity::lmg(as.data.frame(dataset[,predictors]),
+                            unlist(dataset[,response]))
+    result[[response]][["lmg"]] <- lmg
+    
+    # Random forest
+    set.seed(seed)
+    
+    idx <- sample(2, nrow(dataset), replace = T, prob = c(0.7, 0.3))
+    train <- dataset[idx == 1,]
+    test <- dataset[idx == 2,]
+    
+    rf <- randomForest(formula = formula,
+                                 data = train,
+                                 ntree = 500,
+                                 proximity = T,
+                                 importance = T,
+                                 type = "regression")
+    result[[response]][["rf"]] <- rf
+    
+    # Variable importance
+    predictor <- iml::Predictor$new(rf, 
+                                    data = test[, predictors], 
+                                    y = test[,response])
+    result[[response]][["predictor"]] <- predictor
+    
+    # Need to set the option future globals maxsize
+    options(future.globals.maxSize = 3221225472)
+    imp <- iml::FeatureImp$new(predictor,
+                               loss = "mae",
+                               n.repetitions = 100)
+    result[[response]][["imp"]] <- imp
+    
+    ale <- FeatureEffects$new(predictor, method = "ale", grid.size = 10)
+    result[[response]][["ale"]] <- ale
+    interact <- Interaction$new(predictor, grid.size = 10)
+    result[[response]][["interact"]] <- interact
+    pb$tick()
+  }
+  
+  return(result)
+}
