@@ -1553,7 +1553,15 @@ cEvolPerTrait <- function(G) {
   return(result)
 }
 
-ConditionalEvolvabilityExperiment <- function(G_list, id) {
+autPerTrait <- function(G) {
+  n <- nrow(G)
+  Ginv <- solve(G)
+  result <- 1 / (diag(Ginv) * diag(G))
+  
+  return(result)
+}
+
+ConditionalEvolvabilityExperiment <- function(G_list, id, beta_list) {
   n <- length(G_list)
   
   result <- data.frame(seed = id$seed,
@@ -1561,16 +1569,20 @@ ConditionalEvolvabilityExperiment <- function(G_list, id) {
                        dataset = id$dataset)
   
   result[, paste0("cev_", names(all_molcomp_features))] <- NA
+  result[, paste0("aut_", names(all_molcomp_features))] <- NA
+  
   
   for (i in seq_len(n)) {
     cev <- cEvolPerTrait(G_list[[i]])
+    aut <- autPerTrait(G_list[[i]])
     result[i, paste0("cev_", names(cev))] <- cev
+    result[i, paste0("aut_", names(cev))] <- aut
   }
   return(result)
 }
 
 CalculateMCEffects <- function(dataset, formula_list, seed = 123) {
-  result <- list()
+  out <- list()
   
   pb <- progress::progress_bar$new(
     format = "[:bar] :current/:total (:percent eta: :eta)", total = length(formula_list),
@@ -1581,38 +1593,67 @@ CalculateMCEffects <- function(dataset, formula_list, seed = 123) {
   for (formula in formula_list) {
     response <- all.vars(formula)[1]
     predictors <- all.vars(formula)[-1]
+    
+    bor <- Boruta::Boruta(as.formula(paste0(response, "~",
+                                            paste(predictors, collapse = "+"))), 
+                          dataset)
+    
+    # Choose top three most important predictors, use these for the beta regression
+    bor_sorted <- colMeans(bor$ImpHistory)
+    bor_sorted <- bor_sorted[!str_detect(names(bor_sorted), "shadow")]
+    bor_sorted <- bor_sorted[!is.infinite(bor_sorted)]
+    bor_sorted <- sort(bor_sorted, decreasing = T)[1:3]
+    top_predictors <- names(bor_sorted)
+    
+    out[[response]][["boruta"]] <- bor
+    
+    #browser()
+    beta_model <- NA
+    null_model <- NA
     # Start with beta regression
-    tryCatch({
-      beta_model <- betareg::betareg(formula, dataset)
-      null_model <- betareg::betareg(paste(response, "~ 1"), dataset)
-    },
-    error = function(e) {
-      beta_model <- NA
-      null_model <- NA
-    },
-    finally = {
-      if (!is.na(beta_model)) {
-        result[[response]][["beta_model"]] <- beta_model
-        result[[response]][["beta_model_lrtest"]]  <- lmtest::lrtest(beta_model, null_model)
-      }
-    })
+    beta_model <- betareg::betareg(as.formula(paste(response, "~", 
+                                                    paste(top_predictors, collapse = "*"))), dataset)
+    null_model <- betareg::betareg(paste(response, "~ 1"), dataset)
+    out[[response]][["beta_model"]] <- beta_model
+    out[[response]][["beta_model_lrtest"]]  <- lmtest::lrtest(beta_model, null_model)
+    
+    # tryCatch({
+    #   beta_model <- betareg::betareg(as.formula(paste(response, "~", 
+    #                                        paste(top_predictors, collapse = "*"))), dataset)
+    #   null_model <- betareg::betareg(paste(response, "~ 1"), dataset)
+    # },
+    # error = function(e) {
+    #   print(paste0("Error: ", e))
+    #   #beta_model <- NA
+    #   #null_model <- NA
+    # },
+    # warning = function(w) {
+    #   #beta_model <- NA
+    # },
+    # finally = {
+    #   #browser()
+    #   if (!all(is.na(beta_model))) {
+    #     out[[response]][["beta_model"]] <- beta_model
+    #     out[[response]][["beta_model_lrtest"]]  <- lmtest::lrtest(beta_model, null_model)
+    #   }
+    # })
     
     # Shapley value regression to find relative importance of each feature
     sv <- ShapleyValue::shapleyvalue(unlist(dataset[,response]),
                                         as.data.frame(dataset[,predictors]))
-    result[[response]][["shapley"]] <- sv
+    out[[response]][["shapley"]] <- sv
     
     # LMG R2 decomposition
     lmg <- sensitivity::lmg(as.data.frame(dataset[,predictors]),
                             unlist(dataset[,response]))
-    result[[response]][["lmg"]] <- lmg
+    out[[response]][["lmg"]] <- lmg
     
     # Random forest
     set.seed(seed)
     
     idx <- sample(2, nrow(dataset), replace = T, prob = c(0.7, 0.3))
-    train <- dataset[idx == 1,]
-    test <- dataset[idx == 2,]
+    train <- dataset[idx == 1,c(response, predictors)]
+    test <- dataset[idx == 2,c(response, predictors)]
     
     rf <- randomForest(formula = formula,
                                  data = train,
@@ -1620,27 +1661,33 @@ CalculateMCEffects <- function(dataset, formula_list, seed = 123) {
                                  proximity = T,
                                  importance = T,
                                  type = "regression")
-    result[[response]][["rf"]] <- rf
+    out[[response]][["rf"]] <- rf
+    
+    # Test prediction accuracy
+    prediction <- predict(rf, test)
+    pred_dat <- data.frame(obs = unlist(test[,response]),
+                           pred = prediction)
+    out[[response]][["rf_rmse"]] <- caret::defaultSummary(pred_dat)
     
     # Variable importance
     predictor <- iml::Predictor$new(rf, 
                                     data = test[, predictors], 
                                     y = test[,response])
-    result[[response]][["predictor"]] <- predictor
+    out[[response]][["predictor"]] <- predictor
     
     # Need to set the option future globals maxsize
     options(future.globals.maxSize = 3221225472)
     imp <- iml::FeatureImp$new(predictor,
                                loss = "mae",
                                n.repetitions = 100)
-    result[[response]][["imp"]] <- imp
+    out[[response]][["imp"]] <- imp
     
     ale <- FeatureEffects$new(predictor, method = "ale", grid.size = 10)
-    result[[response]][["ale"]] <- ale
+    out[[response]][["ale"]] <- ale
     interact <- Interaction$new(predictor, grid.size = 10)
-    result[[response]][["interact"]] <- interact
+    out[[response]][["interact"]] <- interact
     pb$tick()
   }
   
-  return(result)
+  return(out)
 }

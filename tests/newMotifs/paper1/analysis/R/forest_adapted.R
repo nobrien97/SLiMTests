@@ -553,12 +553,12 @@ d_cossim_sum$model <- as.factor(d_cossim_sum$model)
 e_g <- lapply(h2_pd, eigen)
 saveRDS(e_g, "eigen_randomised_g_tot.RDS")
 
-vrel_g <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
+absCS_Mb <- unlist(lapply(e_g, function(x) { Vrel(x$values) }))
 
-d_vrel_g <- left_join(id %>% mutate(seed = factor(seed),
+d_absCS_Mb <- left_join(id %>% mutate(seed = factor(seed),
                                     modelindex = factor(modelindex),
                                     r = RFromIndex(modelindex),
-                                    vrel = vrel_g) %>%
+                                    vrel = absCS_Mb) %>%
                         select(-label),
                       d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted, model, r) %>%
                         filter(gen == 50000 | gen == 60000) %>%
@@ -763,14 +763,14 @@ d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot %>%
 # Add vrel for G matrix
 d_btgb_Malign_tot_vrel <- left_join(d_btgb_Malign_tot_vrel %>%
                                       rename(vrel_m = vrel),
-                                    d_vrel_g %>%
-                                      rename(vrel_g = vrel) %>%
+                                    d_absCS_Mb %>%
+                                      rename(absCS_Mb = vrel) %>%
                                       mutate(isAdapted = factor(isAdapted, levels = c("TRUE", "FALSE"), 
                                                                 labels = c("Adapted", "Maladapted")),
                                              dataset = factor(dataset, levels = c("Parallel", "Orthogonal", "Randomised")),
                                              r = factor(log10(r), levels = c(-10, -5, -1))) %>%
                                       select(timePoint, seed, modelindex, model, dataset, isAdapted, r,
-                                             vrel_g),
+                                             absCS_Mb),
                                     by = c("timePoint", "seed", "modelindex",
                                            "model", "dataset", "isAdapted", "r"))
 
@@ -829,7 +829,7 @@ d_btgb_Malign_tot_vrel <- readRDS("/mnt/i/SLiMTests/tests/newMotifs/paper1/d_btg
 ## use random forest
 d_btgb_Malign_rf <- d_btgb_Malign_tot_vrel %>% filter(timePoint == "End") %>%
   select(isAdapted, model, dataset, timeToAdapt, r, absCS_Mb, 
-         absCS_Gb, bTGb, bTMb, vrel_g, vrel_m,
+         absCS_Gb, bTGb, bTMb, absCS_Mb, vrel_m,
          cev_g, cev_m)
 
 saveRDS(d_btgb_Malign_rf, "d_btgb_Malign_rf.RDS")
@@ -859,7 +859,7 @@ test_mbeta_adapted <- d_btgb_Malign_rf_nor[idx == 2,]
 
 # no balancing
 rf_mbeta_adapted_nobal <- randomForest(formula = isAdapted ~ model * dataset * absCS_Gb * absCS_Mb * 
-                                         bTGb * bTMb * vrel_g * vrel_m * cev_g * cev_m,
+                                         bTGb * bTMb * absCS_Mb * vrel_m * cev_g * cev_m,
                                        data = train_mbeta_adapted,
                                        ntree = 500,
                                        proximity = T,
@@ -870,7 +870,7 @@ print(rf_mbeta_adapted_nobal)
 
 # With balancing (class weights)
 rf_mbeta_adapted_bal <- randomForest(formula = isAdapted ~ model * dataset * absCS_Gb * absCS_Mb * 
-                                       bTGb * bTMb * vrel_g * vrel_m * cev_g * cev_m,
+                                       bTGb * bTMb * absCS_Mb * vrel_m * cev_g * cev_m,
                                  data = train_mbeta_adapted,
                                  strata = train_mbeta_adapted$isAdapted,
                                  classwt = adapted_weights,
@@ -1015,7 +1015,7 @@ imp <- iml::FeatureImp$new(predictor,
                            n.repetitions = 100)
 
 ggplot(imp$results %>% 
-         mutate(feature = factor(feature, levels = c("absCS_Gb", "bTGb", "vrel_g", "dataset",  
+         mutate(feature = factor(feature, levels = c("absCS_Gb", "bTGb", "absCS_Mb", "dataset",  
                                                      "cev_g", "absCS_Mb", "bTMb", "cev_m", 
                                                      "vrel_m",  "model"))),
        aes(x = feature, y = importance)) +
@@ -1041,7 +1041,7 @@ d_sob_mbeta_adapted <- data.frame(feature = names(sob_mbeta_adapted),
 d_sob_mbeta_adapted$feature <- factor(d_sob_mbeta_adapted$feature,
                                       levels = c("absCS_Gb",
                                                  "bTGb",
-                                                 "vrel_g",
+                                                 "absCS_Mb",
                                                  "dataset",
                                                  "cev_g",
                                                  "absCS_Mb",
@@ -1633,7 +1633,7 @@ d_sob_mbeta_adapted <- data.frame(feature = names(sob_mbeta_adapted),
 d_sob_mbeta_adapted$feature <- factor(d_sob_mbeta_adapted$feature,
                                       levels = c("absCS_Gb",
                                                  "bTGb",
-                                                 "vrel_g",
+                                                 "absCS_Mb",
                                                  "dataset",
                                                  "cev_g",
                                                  "absCS_Mb",
@@ -1919,7 +1919,7 @@ motif_labels <- c("r" = TeX("Recombination rate", output = "character"),
                   "cev_g" = TeX("$e_c^G$", output = "character"),             
                   "dataset" = TeX("Trait/selection alignment", output = "character"),
                   "bTGb" = TeX("$\\beta^TG\\beta$", output = "character"),
-                  "vrel_g" = TeX("$V_{rel}(G)$"), output = "character",
+                  "absCS_Mb" = TeX("$V_{rel}(G)$"), output = "character",
                   "absCS_Gb" = TeX("$|cos(\\theta)_\\beta^G|$", output = "character"),
                   "absCS_Mb" = TeX("$|cos(\\theta)_\\beta^M|$", output = "character"),
                   "vrel_m" = TeX("$V_{rel}(M)$"), output = "character",
@@ -1951,7 +1951,7 @@ ggsave("plt_boruta_adapt_pred.png", plt_boruta_imp,
 
 # logistic regression model
 log_mod_all <- lme4::glmer(isAdapted ~ bTMb + bTGb + absCS_Mb + absCS_Gb +
-                         vrel_g + vrel_m + cev_g + cev_m +
+                         absCS_Mb + vrel_m + cev_g + cev_m +
                          (1 | model) + (1 | dataset) + (1 | r),
                        data = d_btgb_Malign_rf, family = "binomial")
 log_mod <- lme4::glmer(isAdapted ~ bTMb + absCS_Mb + 
@@ -2011,7 +2011,7 @@ caret::confusionMatrix(pred_logmod_all, reference = d_btgb_Malign_rf$isAdapted)
 # in adapted populations only?
 d_btgb_adapted <- d_btgb_Malign_rf %>%
   filter(isAdapted == "Adapted") %>%
-  select(model, dataset, absCS_Mb, vrel_g, vrel_m)
+  select(model, dataset, absCS_Mb, absCS_Mb, vrel_m)
 
 gls.CS.model <- gls(absCS_Mb ~ model * dataset, data = d_btgb_adapted,
                     weights = varComb(varIdent(form=~1|model),
@@ -2039,16 +2039,16 @@ performance::model_performance(beta.cs.model)
 
 # Beta mixed effects model - control for the other variables
 glmmbeta.cs.model <- GLMMadaptive::mixed_model(fixed = absCS_Mb ~ model * dataset,
-                                               random = ~1|vrel_m + 1|vrel_g, 
+                                               random = ~1|vrel_m + 1|absCS_Mb, 
                                                family = GLMMadaptive::beta.fam(),
                                       data = d_btgb_adapted)
 summary(glmmbeta.cs.model)
 performance::compare_performance(beta.cs.model, glmmbeta.cs.model, rank = T)
 
 # Use beta model - again ML is best
-beta.vrelg.model_ml <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "ML")
-beta.vrelg.model_bc <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "BC")
-beta.vrelg.model_br <- betareg::betareg(vrel_g ~ model * dataset, data = d_btgb_adapted, type = "BR")
+beta.vrelg.model_ml <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "ML")
+beta.vrelg.model_bc <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BC")
+beta.vrelg.model_br <- betareg::betareg(absCS_Mb ~ model * dataset, data = d_btgb_adapted, type = "BR")
 performance::compare_performance(beta.vrelg.model_ml, beta.vrelg.model_ml, beta.vrelg.model_br)
 
 beta.vrelg.model <- beta.vrelg.model_ml
@@ -2056,7 +2056,7 @@ summary(beta.vrelg.model)
 plot(beta.vrelg.model)
 # predict
 beta.vrelg.pred <- predict(beta.vrelg.model, type = "response")
-plot(d_btgb_adapted$vrel_g, beta.vrelg.pred)
+plot(d_btgb_adapted$absCS_Mb, beta.vrelg.pred)
 performance::model_performance(beta.vrelg.model)
 
 # ML is best again
@@ -2189,16 +2189,16 @@ plot(em.vrelm.model, comparisons = F)
 ## Average CS over dataset for model average effects
 summary(em.cs.model.mod_only <- emmeans(beta.cs.model, spec = ~ model, type = "response"))
 
-## Average vrel_g over models for dataset average effects
+## Average absCS_Mb over models for dataset average effects
 summary(em.vrelg.model.dat_only <- emmeans(em.vrelg.model, spec = ~ dataset, type = "response"))
 pairs(em.vrelg.model.dat_only)
 
-## Average vrel_g over dataset for model average effects
+## Average absCS_Mb over dataset for model average effects
 summary(em.vrelg.model.mod_only <- emmeans(em.vrelg.model, spec = ~ model, type = "response"))
 pairs(em.vrelg.model.mod_only)
 contrast(em.vrelg.model.mod_only)
 
-## Average over everything for vrel_g mean estimate
+## Average over everything for absCS_Mb mean estimate
 summary(em.vrelg.model.everything <- emmeans(em.vrelg.model, spec = ~ 1, type = "response"))
 
 ## Average over everything for vrel_m mean estimate
@@ -2497,18 +2497,18 @@ plot(beta.cs.mc.ffbh)
 bor_ffbh_mc <- Boruta::Boruta(absCS_Mb ~ ., d_mc_var_ffbh)
 plot(bor_ffbh_mc)
 
-# next is vrel_g
+# next is absCS_Mb
 d_mc_var_vrelg_nar <- d_mc_var_btgb_filtered %>% filter(model == "NAR") %>%
-  select(vrel_g, starts_with("var"), dataset) %>%
+  select(absCS_Mb, starts_with("var"), dataset) %>%
   select(where(~!any(is.na(.))))
 
 
-beta.vrelg.mc.nar_ml <- betareg::betareg(vrel_g ~ ., 
+beta.vrelg.mc.nar_ml <- betareg::betareg(absCS_Mb ~ ., 
                                       data = d_mc_var_vrelg_nar, type = "ML")
 
-beta.vrelg.mc.nar_bc <- betareg::betareg(vrel_g ~ ., 
+beta.vrelg.mc.nar_bc <- betareg::betareg(absCS_Mb ~ ., 
                                       data = d_mc_var_vrelg_nar, type = "BC")
-beta.vrelg.mc.nar_br <- betareg::betareg(vrel_g ~ ., 
+beta.vrelg.mc.nar_br <- betareg::betareg(absCS_Mb ~ ., 
                                       data = d_mc_var_vrelg_nar, type = "BR")
 performance::compare_performance(beta.vrelg.mc.nar_ml, beta.vrelg.mc.nar_bc, beta.vrelg.mc.nar_br)
 
@@ -2517,7 +2517,7 @@ summary(beta.vrelg.mc.nar)
 plot(beta.vrelg.mc.nar)
 # predict
 beta.vrelg.mc.nar.pred <- predict(beta.vrelg.mc.nar, type = "response")
-plot(d_mc_var_vrelg_nar$vrel_g, beta.vrelg.mc.nar.pred)
+plot(d_mc_var_vrelg_nar$absCS_Mb, beta.vrelg.mc.nar.pred)
 performance::model_performance(beta.vrelg.mc.nar)
 
 # vrel_m
@@ -2748,15 +2748,212 @@ cevol_mc <- ConditionalEvolvabilityExperiment(h2_pd, id)
 d_btgb_cev_mc <- inner_join(d_btgb_Malign_tot_vrel %>%
                              filter(timePoint == "End") %>%
                              select(seed, modelindex, dataset, isAdapted,
-                                    model, r, absCS_Mb, vrel_g, vrel_m),
+                                    model, r, absCS_Mb, absCS_Mb, vrel_m),
                            cevol_mc,
                            by = c("seed", "modelindex", "dataset"))
 saveRDS(d_btgb_cev_mc, "/mnt/d/SLiMTests/tests/newMotifs/paper1/d_btgb_cev_mc.RDS")
 
-d_btgb_cev_mc_split <- d_btgb_cev_mc %>%
+# Summary statistics for each model
+d_btgb_cev_mc %>%
+  rename_with(~sub("^(cev|aut)", "values\\1", .)) %>%
+  pivot_longer(cols = starts_with(("values")), 
+               names_pattern = "(.*)(cev|aut)_(.*)",
+               names_to = c(".value", "names", "molComp")) %>%
+  pivot_wider(names_from = names,
+              values_from = values) -> d_mc_cev
+
+d_mc_cev_nar <- d_mc_cev %>% filter(model == "NAR") %>% drop_na() %>%
+  mutate(molComp = factor(molComp))
+# Does integration differ between molecular components in each model?
+beta.int.mc.nar <- betareg::betareg(1 - aut ~ molComp * dataset,
+                                    data = d_mc_cev_nar)
+summary(beta.int.mc.nar)
+
+rlm.cev.mc.nar <- MASS::rlm(cev ~ molComp * dataset,
+                                    data = d_mc_cev_nar)
+plot(rlm.cev.mc.nar)
+summary(rlm.cev.mc.nar)
+
+pred.rlm.cev.nar <- predict(rlm.cev.mc.nar, d_mc_cev_nar$cev)
+
+em.rlm.cev.mc.nar <- emmeans(rlm.cev.mc.nar, ~ molComp + dataset + r)
+summary(em.rlm.cev.mc.nar)
+pairs(em.rlm.cev.mc.nar, by = "molComp")
+
+# Recombination has a strong effect on conditional evolvability - larger values mean
+# more conditional evolvability
+
+report::report(rlm.cev.mc.nar)
+  
+d_mc_cev_sum <- d_mc_cev %>%
+  group_by(model, dataset, isAdapted, molComp) %>%
+  summarise(meanCEV = mean(cev),
+            CICEV = CI(cev),
+            meanAut = mean(aut),
+            CIAut = CI(aut),
+            meanInt = mean(1 - aut),
+            CIInt = CI(1 - aut))
+
+ggplot(d_mc_cev_sum %>% filter(isAdapted == "Adapted"),
+       aes(x = molComp, y = meanCEV, colour = model)) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Motif" + model) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanCEV - CICEV, ymax = meanCEV + CICEV)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5)) +
+  scale_x_discrete(labels = function(x) parse(text = all_molcomp_features[x])) +
+  labs(x = "Molecular component", y = "Mean conditional evolvability") +
+  guides(colour = guide_none()) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_mean_cev_molcomp
+plt_mean_cev_molcomp
+
+
+ggplot(d_mc_cev_sum %>% filter(isAdapted == "Adapted"),
+       aes(x = molComp, y = meanInt, colour = model)) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Motif" + model) +
+  geom_point() +
+  geom_errorbar(aes(ymin = meanInt - CIInt, ymax = meanInt + CIInt)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5)) +
+  scale_x_discrete(labels = function(x) parse(text = all_molcomp_features[x])) +
+  labs(x = "Molecular component", y = "Mean integration") +
+  guides(colour = guide_none()) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom") -> plt_mean_int_molcomp
+plt_mean_int_molcomp
+
+
+ggplot(d_mc_cev %>% filter(isAdapted == "Adapted", seed == "750019483", r == -1),
+       aes(x = molComp, y = 1 - aut, colour = model)) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Motif" + model) +
+  geom_point() +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5)) +
+  scale_x_discrete(labels = function(x) parse(text = all_molcomp_features[x])) +
+  labs(x = "Molecular component", y = "Integration") +
+  guides(colour = guide_none()) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
+
+# Plot distribution of contribution to total integration?
+## If it is very high, that component contributes a lot to constraint
+## Want a measure of which molComps covary most often and which ones don't
+## Cooccurrence betwork? Measure how often integration values are similar
+## split up range of integration values into a factor 0, 1, 2, 3, 4, with each
+# capturing a fifth of the total space (0 = [0, 0.2), 1 = [0.2, 0.4), 2 = [0.4, 0.6),
+# 3 = [0.6, 0.8), 4 = [0.8, 1.0])
+# count matrix of each, build cooccurence matrix across all simulations
+# Use coocure
+library(cooccure)
+# Requires one row per entry
+d_coocure <- d_btgb_cev_mc %>%
   filter(isAdapted == "Adapted") %>%
-  group_by(model) %>%
-  group_split()
+  select(model, dataset, 21:32)
+  
+names(d_coocure)[3:14] <- sub('aut_', '', names(d_coocure)[3:14])
+
+d_coocure <- d_coocure %>%
+  mutate(across(3:14, ~ 1 - .x,
+                .names = "int_{.col}")) %>%
+  select(1:2, starts_with("int")) %>%
+  mutate(across(starts_with("int"), ~ cut(.x, breaks = seq(from = 0.0, to = 1.0, by = 0.2))),
+       id = interaction(model, dataset)) %>%
+  select(-c(1:2))
+
+d_coocure <- d_mc_cev %>%
+  filter(isAdapted == "Adapted") %>%
+  select(seed, model, dataset, molComp, aut) %>%
+  mutate(int = (1 - aut),#, breaks = seq(from = 0.0, to = 1.0, by = 0.2)),
+         id = interaction(seed, model, dataset),
+         model.dataset = interaction(model, dataset)) %>%
+  select(-aut)
+d_coocure$int[is.na(d_coocure$int)] <- 0.0
+
+co_all <- cooccurrence(d_coocure, group = "model.dataset",
+                       field = "molComp", by = "id",
+                       weight_by = "int",
+                       similarity = "association")
+
+library(ggraph)
+library(tidygraph)
+co_all_graph <- co_all %>%
+  separate_wider_delim(group, ".", names = c("model", "dataset"))
+co_all_graph <- as_tbl_graph(co_all_graph)
+
+
+nodes <- co_all_graph %>% select(5:6)
+edges <- co_all_graph %>% select(1:4) %>%
+  mutate(from = as.numeric(factor(from, levels = names(all_molcomp_features))),
+         to = as.numeric(factor(to, levels = names(all_molcomp_features))))
+
+co_all_graph <- 
+  tbl_graph(nodes = nodes,
+            edges = edges) %>%
+  activate("edges") %>%
+  mutate(from_c = all_molcomp_features[from],
+         to_c = all_molcomp_features[to]) 
+  
+co_all_graph <- co_all_graph  %>%
+  activate("edges") %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = factor(dataset, levels = c("Parallel",
+                                            "Orthogonal",
+                                            "Randomised"))) %>%
+  activate("nodes") %>%
+  mutate(name = all_molcomp_features[name],
+         degree = centrality_degree(),
+         betweenness = centrality_betweenness())
+
+ggraph(co_all_graph) +
+  geom_edge_parallel(aes(colour = log(weight)),  start_cap = circle(0.2),
+                     end_cap = circle(0.2),
+                     arrow = arrow(length = unit(0.5, "lines")),
+                                   sep = unit(1, "lines")) +
+  geom_node_point(shape = 21, aes(size = degree, fill = betweenness)) +
+  geom_node_text(aes(label = name), parse = T) +
+  scale_fill_gradient(low = "#8E8FEE", high = "#CD2626") +
+  scale_size(range = c(6, 12)) +
+  scale_edge_colour_gradient(low = "#0066DD", high = "#33BBAA") +
+  facet_edges(dataset~model, nrow = 3) +
+  labs(fill = "Betweenness", size = "Degree centrality") +
+  theme_graph() +
+  theme(legend.position = "bottom")
+  
+
+
+d_int_cooccurrence <- d_mc_cev %>%
+  group_by(seed, modelindex, dataset) %>%
+  mutate(int = 1 - aut,
+         int_fac = cut(int, breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+                       right = F)) %>%
+  ungroup() %>%
+  filter(isAdapted == "Adapted")
+
+net_cmx <- crossprod(table(d_int_cooccurrence %>% select(dataset, model, molComp, int_fac)))
+
+
+d_mc_int_sum <- d_mc_cev %>%
+  group_by(seed, modelindex, dataset) %>%
+  mutate(total = sum(1 - aut, na.rm = T),
+         contribution = (1 - aut) / total) %>%
+  ungroup()
+  # group_by(model, dataset, isAdapted, molComp) %>%
+  # summarise(meanInt = mean(1 - aut),
+  #           CIInt = CI(1 - aut),
+  #           meanContrib = mean(contribution),
+  #           CIContrib = CI(contribution))
+
+
+
+ggplot(d_mc_int_sum %>% filter(isAdapted == "Adapted"),
+       aes(x = molComp, y = contribution, colour = model)) +
+  facet_nested("Selection/trait alignment" + dataset ~ "Motif" + model) +
+  geom_boxplot() +
+  #geom_errorbar(aes(ymin = meanContrib - CIContrib, ymax = meanContrib + CIContrib)) +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5)) +
+  scale_x_discrete(labels = function(x) parse(text = all_molcomp_features[x])) +
+  labs(x = "Molecular component", y = "Contribution to integration") +
+  guides(colour = guide_none()) +
+  theme_bw() +
+  theme(text = element_text(size = 12), legend.position = "bottom")
 
 # Run betareg of conditional evolvability vs V_rel etc. per model
 beta.cs.mc.nar <- betareg::betareg(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
@@ -2770,6 +2967,8 @@ plot(beta.cs.mc.nar)
 # [1] 162176257
 seed <- 162176257
 
+
+### NAR
 MCEffects_NAR <- CalculateMCEffects(d_btgb_cev_mc_split[[1]], 
                    list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
                      cev_zZ * cev_h * cev_gX),
@@ -2780,16 +2979,52 @@ MCEffects_NAR <- CalculateMCEffects(d_btgb_cev_mc_split[[1]],
                      ),
                    seed)
 
+## Cos similarity
+# Beta model no different to a null model
+summary(MCEffects_NAR$absCS_Mb$beta_model)
+MCEffects_NAR$absCS_Mb$beta_model_lrtest
+
+# Random forest isn't good either
+MCEffects_NAR$absCS_Mb$rf
+MCEffects_NAR$absCS_Mb$rf_rmse
+
+plot(MCEffects_NAR$absCS_Mb$boruta)
+
+## Vrel_G
+# Significant beta model
 summary(MCEffects_NAR$vrel_g$beta_model)
 MCEffects_NAR$vrel_g$beta_model_lrtest
 MCEffects_NAR$vrel_g$shapley
 MCEffects_NAR$vrel_g$lmg
 
+# Much worse random forest
 (MCEffects_NAR$vrel_g$rf)
+# Test prediction accuracy
+MCEffects_NAR$vrel_g$rf_rmse
+
+plot(MCEffects_NAR$vrel_g$boruta)
+
 MCEffects_NAR$vrel_g$interact$plot()
 MCEffects_NAR$vrel_g$imp$plot()
 MCEffects_NAR$vrel_g$ale$plot()
 
+## Vrel_M
+# Bad beta model
+summary(MCEffects_NAR$vrel_m$beta_model)
+MCEffects_NAR$vrel_m$beta_model_lrtest
+MCEffects_NAR$vrel_m$shapley
+MCEffects_NAR$vrel_m$lmg
+
+plot(MCEffects_NAR$vrel_m$boruta)
+
+
+# Similarly bad random forest
+(MCEffects_NAR$vrel_m$rf)
+MCEffects_NAR$vrel_m$interact$plot()
+MCEffects_NAR$vrel_m$imp$plot()
+MCEffects_NAR$vrel_m$ale$plot()
+
+### PAR
 MCEffects_PAR <- CalculateMCEffects(d_btgb_cev_mc_split[[2]], 
                                     list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
                                                       cev_zZ * cev_h * cev_gX),
@@ -2800,18 +3035,54 @@ MCEffects_PAR <- CalculateMCEffects(d_btgb_cev_mc_split[[2]],
                                     ),
                                     seed)
 
+# Bad beta model
+summary(MCEffects_PAR$absCS_Mb$beta_model)
+MCEffects_PAR$absCS_Mb$beta_model_lrtest
+MCEffects_PAR$absCS_Mb$shapley
+MCEffects_PAR$absCS_Mb$lmg
+
+# Poor RF model as well
+(MCEffects_PAR$absCS_Mb$rf)
+MCEffects_PAR$absCS_Mb$rf_rmse
+plot(MCEffects_PAR$absCS_Mb$boruta)
+
+MCEffects_PAR$absCS_Mb$interact$plot()
+MCEffects_PAR$absCS_Mb$imp$plot()
+MCEffects_PAR$absCS_Mb$ale$plot()
+
+# Significant beta model
 summary(MCEffects_PAR$vrel_g$beta_model)
 MCEffects_PAR$vrel_g$beta_model_lrtest
 MCEffects_PAR$vrel_g$shapley
 MCEffects_PAR$vrel_g$lmg
 
+# Good RF model
 (MCEffects_PAR$vrel_g$rf)
+MCEffects_PAR$vrel_g$rf_rmse
+
+plot(MCEffects_PAR$vrel_g$boruta)
+
 MCEffects_PAR$vrel_g$interact$plot()
 MCEffects_PAR$vrel_g$imp$plot()
 MCEffects_PAR$vrel_g$ale$plot()
 
+# Bad beta model
+summary(MCEffects_PAR$vrel_m$beta_model)
+MCEffects_PAR$vrel_m$beta_model_lrtest
+MCEffects_PAR$vrel_m$shapley
+MCEffects_PAR$vrel_m$lmg
+
+# Bad RF model
+(MCEffects_PAR$vrel_m$rf)
+(MCEffects_PAR$vrel_m$rf_rmse)
+
+plot(MCEffects_PAR$vrel_m$boruta)
+MCEffects_PAR$vrel_m$interact$plot()
+MCEffects_PAR$vrel_m$imp$plot()
+MCEffects_PAR$vrel_m$ale$plot()
 
 
+## FFLC1
 MCEffects_FFLC1 <- CalculateMCEffects(d_btgb_cev_mc_split[[3]], 
                                     list(as.formula(absCS_Mb ~ cev_aY * cev_bY * cev_KY * 
                                                       cev_aZ * cev_bZ * cev_KXZ *
@@ -2825,154 +3096,181 @@ MCEffects_FFLC1 <- CalculateMCEffects(d_btgb_cev_mc_split[[3]],
                                     ),
                                     seed)
 
+ # Beta model could not be built (too few adapted pops?)
+summary(MCEffects_FFLC1$absCS_Mb$beta_model)
+MCEffects_FFLC1$absCS_Mb$beta_model_lrtest
+MCEffects_FFLC1$absCS_Mb$shapley
+MCEffects_FFLC1$absCS_Mb$lmg
+
+# Poor RF model
+(MCEffects_FFLC1$absCS_Mb$rf)
+MCEffects_FFLC1$absCS_Mb$rf_rmse
+plot(MCEffects_FFLC1$absCS_Mb$boruta)
+
+
+
+# Beta could not be fit
 summary(MCEffects_FFLC1$vrel_g$beta_model)
 MCEffects_FFLC1$vrel_g$beta_model_lrtest
 MCEffects_FFLC1$vrel_g$shapley
 MCEffects_FFLC1$vrel_g$lmg
 
+# Bad RF model
 (MCEffects_FFLC1$vrel_g$rf)
+MCEffects_FFLC1$vrel_g$rf_rmse
+plot(MCEffects_FFLC1$vrel_g$boruta)
+
 MCEffects_FFLC1$vrel_g$interact$plot()
 MCEffects_FFLC1$vrel_g$imp$plot()
 MCEffects_FFLC1$vrel_g$ale$plot()
 
+# Could not be fit
+summary(MCEffects_FFLC1$vrel_m$beta_model)
+MCEffects_FFLC1$vrel_m$beta_model_lrtest
+MCEffects_FFLC1$vrel_m$shapley
+MCEffects_FFLC1$vrel_m$lmg
+
+# Bad RF
+(MCEffects_FFLC1$vrel_m$rf)
+MCEffects_FFLC1$vrel_m$rf_rmse
+plot(MCEffects_FFLC1$vrel_m$boruta)
+MCEffects_FFLC1$vrel_m$interact$plot()
+MCEffects_FFLC1$vrel_m$imp$plot()
+MCEffects_FFLC1$vrel_m$ale$plot()
 
 
 MCEffects_FFLI1 <- CalculateMCEffects(d_btgb_cev_mc_split[[4]], 
-                                      list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                      list(as.formula(absCS_Mb ~ cev_aY * cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX),
-                                           as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                           as.formula(vrel_g ~ cev_aY * cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX),
-                                           as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                           as.formula(vrel_m ~ cev_aY * cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX)
                                       ),
                                       seed)
 
+# Could not be fit
+summary(MCEffects_FFLI1$absCS_Mb$beta_model)
+MCEffects_FFLI1$absCS_Mb$beta_model_lrtest
+MCEffects_FFLI1$absCS_Mb$shapley
+MCEffects_FFLI1$absCS_Mb$lmg
+
+# Poor RF fit
+(MCEffects_FFLI1$absCS_Mb$rf)
+MCEffects_FFLI1$absCS_Mb$rf_rmse
+plot(MCEffects_FFLI1$absCS_Mb$boruta)
+
+MCEffects_FFLI1$absCS_Mb$interact$plot()
+MCEffects_FFLI1$absCS_Mb$imp$plot()
+MCEffects_FFLI1$absCS_Mb$ale$plot()
+
+# Could not be fit
+summary(MCEffects_FFLI1$vrel_g$beta_model)
+MCEffects_FFLI1$vrel_g$beta_model_lrtest
+MCEffects_FFLI1$vrel_g$shapley
+MCEffects_FFLI1$vrel_g$lmg
+
+# Reasonable RF fit
+(MCEffects_FFLI1$vrel_g$rf)
+MCEffects_FFLI1$vrel_g$rf_rmse
+plot(MCEffects_FFLI1$vrel_g$boruta)
+MCEffects_FFLI1$vrel_g$interact$plot()
+MCEffects_FFLI1$vrel_g$imp$plot()
+MCEffects_FFLI1$vrel_g$ale$plot()
+
+# Could not be fit
+summary(MCEffects_FFLI1$vrel_m$beta_model)
+MCEffects_FFLI1$vrel_m$beta_model_lrtest
+MCEffects_FFLI1$vrel_m$shapley
+MCEffects_FFLI1$vrel_m$lmg
+
+# Poor RF fit
+(MCEffects_FFLI1$vrel_m$rf)
+MCEffects_FFLI1$vrel_m$rf_rmse
+plot(MCEffects_FFLI1$vrel_m$boruta)
+MCEffects_FFLI1$vrel_m$interact$plot()
+MCEffects_FFLI1$vrel_m$imp$plot()
+MCEffects_FFLI1$vrel_m$ale$plot()
+
+
 MCEffects_FFBH <- CalculateMCEffects(d_btgb_cev_mc_split[[5]], 
-                                      list(as.formula(absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                      list(as.formula(absCS_Mb ~ cev_aX * cev_KZX * cev_aY * 
+                                                        cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX),
-                                           as.formula(vrel_g ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                           as.formula(vrel_g ~ cev_aX * cev_KZX * cev_aY * 
+                                                        cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX),
-                                           as.formula(vrel_m ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
+                                           as.formula(vrel_m ~ cev_aX * cev_KZX * cev_aY * 
+                                                        cev_bY * cev_KY * 
+                                                        cev_aZ * cev_bZ * cev_KXZ *
                                                         cev_zZ * cev_h * cev_gX)
                                       ),
                                       seed)
+
+# Could not be fit
+summary(MCEffects_FFBH$absCS_Mb$beta_model)
+MCEffects_FFBH$absCS_Mb$beta_model_lrtest
+MCEffects_FFBH$absCS_Mb$shapley
+MCEffects_FFBH$absCS_Mb$lmg
+
+# Poor fit
+(MCEffects_FFBH$absCS_Mb$rf)
+MCEffects_FFBH$absCS_Mb$rf_rmse
+plot(MCEffects_FFBH$absCS_Mb$boruta)
+MCEffects_FFBH$absCS_Mb$interact$plot()
+MCEffects_FFBH$absCS_Mb$imp$plot()
+MCEffects_FFBH$absCS_Mb$ale$plot()
+
+# Could not be fit
+summary(MCEffects_FFBH$vrel_g$beta_model)
+MCEffects_FFBH$vrel_g$beta_model_lrtest
+MCEffects_FFBH$vrel_g$shapley
+MCEffects_FFBH$vrel_g$lmg
+
+# Good fit
+(MCEffects_FFBH$vrel_g$rf)
+MCEffects_FFBH$vrel_g$rf_rmse
+plot(MCEffects_FFBH$vrel_g$boruta)
+
+MCEffects_FFBH$vrel_g$interact$plot()
+MCEffects_FFBH$vrel_g$imp$plot()
+MCEffects_FFBH$vrel_g$ale$plot()
+
+# Could not be fit
+summary(MCEffects_FFBH$vrel_m$beta_model)
+MCEffects_FFBH$vrel_m$beta_model_lrtest
+MCEffects_FFBH$vrel_m$shapley
+MCEffects_FFBH$vrel_m$lmg
+
+# Poor fit
+(MCEffects_FFBH$vrel_m$rf)
+MCEffects_FFBH$vrel_m$rf_rmse
+plot(MCEffects_FFBH$vrel_m$boruta)
+
+MCEffects_FFBH$vrel_m$interact$plot()
+MCEffects_FFBH$vrel_m$imp$plot()
+MCEffects_FFBH$vrel_m$ale$plot()
 
 
 # No clear correlation between conditional evolvabilities and the cosine similarity
 # between M and beta - maybe to be expected?
-lmtest::lrtest(beta.cs.mc.nar)
+# Same with Vrel_m
 
-# Try a randomForest?
-seed <- 18799215
-set.seed(seed)
+# Vrel_g seems to be most consistently predictable by the conditional evolvabilities
+# 
 
-idx <- sample(2, nrow(d_btgb_cev_mc_split[[1]]), replace = T, prob = c(0.7, 0.3))
-train_cs.mc.nar <- d_btgb_cev_mc_split[[1]][idx == 1,]
-test_cs.mc.nar <- d_btgb_cev_mc_split[[1]][idx == 2,]
+# Report three most important components per boruta, use that to fit a beta model?
+# Doesn't really improve things, the data is just too noisy - not good predictors
 
-rf_cs.mc.nar <- randomForest(formula = absCS_Mb ~ cev_aZ * cev_bZ * cev_KZ * cev_KXZ *
-                               cev_zZ * cev_h * cev_gX,
-                                       data = train_cs.mc.nar,
-                                       ntree = 500,
-                                       proximity = T,
-                                       importance = T,
-                                       type = "regression")
-
-plot(rf_cs.mc.nar)
-rf_cs.mc.nar
-# negative R2 -> again, no clear effect
+# Could also just report means of cev for each model, as we know that these evolvabilities
+# are components of G anyway
+# Could also measure cev over a trait
 
 
-p_test_rf_cs.mc.nar <- predict(rf_cs.mc.nar, test_cs.mc.nar)
-p_test_beta_cs.mc.nar <- predict(beta.cs.mc.nar, test_cs.mc.nar)
-
-plot(test_cs.mc.nar$absCS_Mb, p_test_rf_cs.mc.nar, ylab = "Predicted cosine similarity",
-     xlab = "Observed cosine similarity", main = "Random forest prediction", ylim = c(0, 1))
-
-plot(test_cs.mc.nar$absCS_Mb, p_test_beta_cs.mc.nar, ylab = "Predicted cosine similarity",
-     xlab = "Observed cosine similarity", main = "Beta regression prediction", ylim = c(0, 1))
-# Comparable predictions, bad
 
 
-# Shapley value regression to find relative importance of each feature
-sv.cs.mc.nar <- ShapleyValue::shapleyvalue(d_btgb_cev_mc_split[[1]]$absCS_Mb,
-                                           as.data.frame(d_btgb_cev_mc_split[[1]][,15:21]))
-sv.cs.mc.nar
-
-# LMG R2 decomposition
-lmg.cs.mc.nar <- sensitivity::lmg(as.data.frame(d_btgb_cev_mc_split[[1]][,15:21]),
-                                  d_btgb_cev_mc_split[[1]]$absCS_Mb)
-lmg.cs.mc.nar
-
-# Variable importance
-predictor <- iml::Predictor$new(rf_cs.mc.nar, 
-                                data = test_cs.mc.nar[, 15:21], 
-                                y = test_cs.mc.nar$absCS_Mb)
-
-# Need to set the option future globals maxsize
-options(future.globals.maxSize = 3221225472)
-imp <- iml::FeatureImp$new(predictor,
-                           loss = "mae",
-                           n.repetitions = 100)
-
-ggplot(imp$results,
-       aes(x = feature, y = importance)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = importance.05, ymax = importance.95),
-                width = 0.2) +
-  # scale_x_discrete(labels = parse(text = feature_names[4:13]),
-  #                  guide = guide_axis(n.dodge = 2)) +
-  labs(x = "Feature", y = "Permutation Importance") +
-  theme_bw() +
-  theme(text = element_text(size = 12)) -> plt_perm_imp
-plt_perm_imp
-ggsave("plt_perm_feat_imp_cs_nar.png", device = png, width = 9, height = 5, bg = "white")
-
-ale <- FeatureEffects$new(predictor, method = "ale", grid.size = 10)
-ale$plot()
-
-interact <- Interaction$new(predictor, grid.size = 10)
-interact$plot()
-
-shapley <- Shapley$new(predictor, x.interest = test_cs.mc.nar[, 15:21], sample.size = 50)
-shapley$plot()
-
-
-beta.vrelg.mc.nar <- betareg::betareg(vrel_g ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
-                                     cev_zZ + cev_h + cev_gX, 
-                                   d_btgb_cev_mc_split[[1]])
-summary(beta.vrelg.mc.nar)
-
-beta.vrelm.mc.nar <- betareg::betareg(vrel_m ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
-                                        cev_zZ + cev_h + cev_gX, 
-                                      d_btgb_cev_mc_split[[1]])
-summary(beta.vrelm.mc.nar)
-
-
-beta.cs.mc.par <- betareg::betareg(absCS_Mb ~ cev_aZ + cev_bZ + cev_KZ + cev_KXZ +
-                                     cev_zZ + cev_h + cev_gX, 
-                                   d_btgb_cev_mc_split[[2]])
-summary(beta.cs.mc.par)
-plot(beta.cs.mc.par)
-
-beta.cs.mc.fflc1 <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
-                                       cev_aZ + cev_bZ + cev_KY * cev_KXZ *
-                                     cev_zZ * cev_h * cev_gX, 
-                                   d_btgb_cev_mc_split[[3]])
-summary(beta.cs.mc.fflc1)
-plot(beta.cs.mc.fflc1)
-
-beta.cs.mc.ffli1 <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
-                                       cev_aZ + cev_bZ + cev_KY + cev_KXZ +
-                                       cev_zZ + cev_h + cev_gX, 
-                                     d_btgb_cev_mc_split[[4]])
-summary(beta.cs.mc.ffli1)
-plot(beta.cs.mc.ffli1)
-
-beta.cs.mc.ffbh <- betareg::betareg(absCS_Mb ~ cev_aY + cev_bY + 
-                                       cev_aZ + cev_bZ + cev_aX + cev_KZX + 
-                                      cev_KY + cev_KXZ +
-                                       cev_zZ + cev_h + cev_gX, 
-                                     d_btgb_cev_mc_split[[5]])
-summary(beta.cs.mc.ffbh)
-plot(beta.cs.mc.ffbh)
