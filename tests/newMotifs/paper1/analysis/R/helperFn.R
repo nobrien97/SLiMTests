@@ -321,6 +321,20 @@ GetMatrixIDsWithDataset <- function(matList) {
   return(matList)
 }
 
+GetMeanMatrixIDs <- function(matList) {
+  lapply(matList, function(x) {
+    data.frame(model = x$model,
+               dataset = x$dataset)}) -> matList
+  
+  
+  lapply(matList, function(x) {
+    split(x, seq(nrow(x)))
+  }) -> matList
+  # unlist to full form
+  matList <- unlist(matList, recursive = F)
+  return(matList)
+}
+
 
 # Calculate evolvability metrics for trait data (Hansen and Houle 2008)
 CalcECRATrait <- function(matList, id) {
@@ -1690,4 +1704,12 @@ CalculateMCEffects <- function(dataset, formula_list, seed = 123) {
   }
   
   return(out)
+}
+
+AdjMatFromCorMat <- function(m, threshold) {
+  result <- matrix(0, nrow = nrow(m), ncol = ncol(m))
+  
+  result[abs(m)>=threshold] <- 1
+  
+  return(result)
 }

@@ -2738,6 +2738,396 @@ etd_nar <- EigenTensorExperiment(g_mc_nar, id_nar, n = 100)
 ### would need to estimate the strength of selection on each. Unless we do an average
 ### estimate across all selection gradients, mean conditional evolvability?
 
+# Plot mean G matrices for each group
+d_h2_mc_adapt %>%
+  select(!VA_W) %>%  # Remove fitness (since its a different measurement)
+  filter(!if_all(8:19, is.na), timePoint == "End", isAdapted == "Adapted") %>%  # Drop rows with no variance
+  distinct(timePoint, seed, modelindex, dataset, .keep_all = T) %>%
+  group_by(model, dataset) %>%
+  group_map(~ .x %>% 
+              summarise(across(starts_with("VA") | starts_with("CVA"), 
+                               list(mean), .names = "{.col}")) %>%
+              mutate(model = .y$model,
+                     dataset = .y$dataset),
+            .keep = T) -> split_h2_mc_mean
+View(split_h2_mc_mean[[1]])
+
+lapply(split_h2_mc_mean, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_mean_matrices_mc
+
+# Select rows and columns by motif type
+h2_mean_mat <- unlist(cov_mean_matrices_mc, recursive = F)
+
+# get ids from the matrix
+cov_mean_matrix_modelindex <- GetMeanMatrixIDs(split_h2_mc_mean)
+
+h2_mean_mat_motif <- h2_mean_mat
+
+for (i in seq_len(length(h2_mean_mat))) {
+  x <- h2_mean_mat[[i]]
+  id <- cov_mean_matrix_modelindex[[i]]
+  mcs <- unlist(molComp_names[as.character(id$model)])
+  
+  h2_mean_mat_motif[[i]] <- x[mcs,mcs]  
+}
+
+# First convert to nearest positive definite matrix
+h2_mean_pd <- lapply(h2_mean_mat_motif, function(x) {
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
+  return(x)
+})
+
+id_mean <- data.table::rbindlist(cov_mean_matrix_modelindex, 
+                            fill = T)
+id_mean$label <- 1:nrow(id_mean)
+
+# From each covariance matrix, construct an adjacency matrix
+## convert to correlation matrix,
+cor_mean <- lapply(h2_mean_pd, function(x) {
+  cov2cor(x)
+})
+
+
+THRESHOLD <- 0.01
+graph_g_mean <- list()
+
+for (i in seq_along(cor_mean)) {
+  weights <- cor_mean[[i]]
+  # unweighted
+  adj <- AdjMatFromCorMat(weights, THRESHOLD)
+  diag(adj) <- 0
+  rownames(adj) <- rownames(weights)
+  colnames(adj) <- rownames(adj)
+  
+  variances <- diag(h2_mean_pd[[i]])
+  
+  names(variances) <- all_molcomp_features[names(variances)]
+  
+  # Fix floating point issues
+  weights[lower.tri(weights)] <- weights[upper.tri(weights)]
+  
+  
+  # Scale weights from [-1, 1] to [0, 1]
+  weights <- (weights + 1) / 2
+  
+  # set diag to 0
+  diag(weights) <- 0.5
+  
+  
+  graph <- (igraph::graph_from_adjacency_matrix(adj,
+                                                mode = "undirected", 
+                                                weighted = F))
+  
+  # Get nodes and edges
+  d_graph <- igraph::as_data_frame(graph)
+
+  # Add group name
+  d_graph[,c("model", "dataset")] <- cov_mean_matrix_modelindex[[i]]
+  
+  # Reshape into tidy graph
+  graph <- d_graph %>%
+    mutate(model = factor(model, levels = model_names_noquote),
+           dataset = factor(dataset, levels = c("Parallel",
+                                                "Orthogonal",
+                                                "Randomised"))) %>%
+    group_by(model, dataset) %>% 
+    group_map(~tbl_graph(nodes = all_molcomp_features,
+                         edges = tibble(
+                           from = as.integer(
+                             factor(.x$from, levels = names(all_molcomp_features))),
+                           to = as.integer(
+                             factor(.x$to, levels = names(all_molcomp_features)))
+                           #from = .x$from,
+                           #to = .x$to
+                         ),
+                         directed = F) %>%
+                # activate("edges") %>%
+                # mutate(weight = .x$weight) %>%
+                activate("nodes") %>%
+                mutate(degree = centrality_degree(#weights = .x$weight,
+                                                  normalized = T),
+                       betweenness = centrality_betweenness(directed = F,
+                                                            normalized = T),
+                       eigen = centrality_eigen(),
+              variance = variances[nodes]))#weights = .x$weight)))
+  
+  graph_g_mean[[i]] <- (graph)
+}
+
+names(graph_g_mean) <- interaction(id_mean$model, 
+                                   id_mean$dataset)
+
+
+# Create shared layout for everything
+set.seed(seed)
+gr_layout <- create_layout(graph_g_mean[[15]][[1]], layout = "fr")
+xlims <- c(min(gr_layout$x), max(gr_layout$x))
+ylims <- c(min(gr_layout$y), max(gr_layout$y))
+
+#Separate figure for each motif
+mean_graph_figs <- lapply(graph_g_mean, function(x)
+{
+  x <- x[[1]] %>%
+    activate("nodes") %>%
+    filter(degree > 0)
+  
+  # Consistent layout
+  layout_sbst <- gr_layout[gr_layout$nodes %in% igraph::V(x)$nodes,]
+  layout_sbst$degree <- x %>% activate(nodes) %>% pull(degree)
+  layout_sbst$eigen <- x %>% activate(nodes) %>% pull(eigen)
+  layout_sbst$variance <- x %>% activate(nodes) %>% pull(variance)
+  attr(layout_sbst, "graph") <- attr(layout_sbst, "graph") %>%
+    activate(edges) %>%
+    filter(F) %>% # Remove all edges
+    bind_edges(x %>% activate(edges) %>% data.frame(), node_key = "nodes")
+  
+  ggraph(graph = layout_sbst) +
+    geom_edge_link(colour = "black",  start_cap = circle(0.2),
+                       end_cap = circle(0.2)) +
+                       #sep = unit(1, "lines")) +
+    geom_node_point(shape = 21, aes(fill = degree, size = variance)) +
+    geom_node_text(aes(label = nodes), parse = T) +
+    scale_fill_gradient(low = "#8E8FEE", high = "#CD2626",
+                        limits = c(0, 0.8), n.breaks = 4) +
+    expand_limits(x = xlims, y = ylims) +
+    scale_size(range = c(6, 12), limits = c(0, 1)) +
+    #facet_edges(dataset~model, nrow = 3) +
+    labs(fill = "Degree centrality", size = "Genetic variance") +
+    theme_graph() +
+    theme(legend.position = "bottom")
+}) 
+
+leg <- get_legend(mean_graph_figs[[1]])
+
+plt_mean_graphs <- plot_grid(plotlist = lapply(mean_graph_figs, function(x) {x + theme(legend.position = "none")}),
+          nrow = 3,
+          ncol = 5,
+          byrow = F)
+
+plot_grid(plt_mean_graphs,
+          leg, 
+          nrow = 2,
+          rel_heights = c(1, 0.1))
+
+
+# Plot each separate matrix, then combine into a mean plot rather than mean across matrices 
+# first
+cor_pd <- lapply(h2_pd, function(x){
+  cov2cor(x)
+})
+
+graph_g <- list()
+
+# Choose threshold 0.1
+THRESHOLD <- 0.2
+
+pb <- progress::progress_bar$new(
+  format = "[:bar] :current/:total (:percent eta: :eta)", total = length(cor_pd))
+
+for (i in seq_along(cor_pd)) {
+  pb$tick()
+  weights <- cor_pd[[i]]
+  # unweighted
+  adj <- AdjMatFromCorMat(weights, THRESHOLD)
+  diag(adj) <- 0
+  rownames(adj) <- rownames(weights)
+  colnames(adj) <- rownames(adj)
+  
+  variances <- diag(h2_pd[[i]])
+  
+  names(variances) <- all_molcomp_features[names(variances)]
+  
+  # Fix floating point issues
+  weights[lower.tri(weights)] <- weights[upper.tri(weights)]
+  
+  
+  # Scale weights from [-1, 1] to [0, 1]
+  weights <- (weights + 1) / 2
+  
+  # set diag to 0
+  diag(weights) <- 0.5
+  
+  
+  graph <- (igraph::graph_from_adjacency_matrix(adj,
+                                                mode = "undirected", 
+                                                weighted = F))
+  
+  # Get nodes and edges
+  d_graph <- igraph::as_data_frame(graph)
+  
+  if (nrow(d_graph > 0)) {
+    # Add group name
+    #d_graph[,c("timePoint", "model", "dataset", "isAdapted")] <- id[i, c("timePoint", "model", "dataset", "isAdapted")]
+    
+    # Reshape into tidy graph
+    graph <- tbl_graph(nodes = all_molcomp_features,
+                           edges = tibble(
+                             from = as.integer(
+                               factor(d_graph$from, levels = names(all_molcomp_features))),
+                             to = as.integer(
+                               factor(d_graph$to, levels = names(all_molcomp_features)))
+                             #from = .x$from,
+                             #to = .x$to
+                           ),
+                           directed = F) %>%
+                  # activate("edges") %>%
+                  # mutate(weight = .x$weight) %>%
+                  activate("nodes") %>%
+                  mutate(degree = centrality_degree(#weights = .x$weight,
+                    normalized = T),
+                    betweenness = centrality_betweenness(directed = F,
+                                                         normalized = T),
+                    eigen = centrality_eigen(),
+                    variance = variances[nodes])#weights = .x$weight)))
+  } 
+  else
+  {
+    graph <- as_tbl_graph(graph) %>%
+      activate("nodes") %>%
+      mutate(degree = centrality_degree(#weights = .x$weight,
+        normalized = T),
+        betweenness = centrality_betweenness(directed = F,
+                                             normalized = T),
+        eigen = centrality_eigen(),
+        nodes = all_molcomp_features[name],
+        variance = variances[name])
+  }
+  graph_g[[i]] <- graph
+}
+
+# Calculate average graph per group
+# First create table
+all_edges <- purrr::map(seq_along(graph_g), function(i) {
+  x <- graph_g[[i]]
+  x %>%
+    activate(edges) %>%
+    as_tibble() %>%
+    mutate(node1 = pmin(from, to),
+           node2 = pmax(from, to),
+           graph_id = i,
+           model = id[i,]$model,
+           dataset = id[i,]$dataset,
+           isAdapted = id[i,]$isAdapted)
+}, .progress = T) %>%
+  data.table::rbindlist(.)
+
+## Edge weight is the proportion of graphs with the edge (correlation > THRESHOLD)
+## 
+summary_edges <- all_edges %>%
+  filter(isAdapted == "Adapted") %>%
+  group_by(model, dataset) %>%
+  mutate(num_graphs = n_distinct(graph_id)) %>%
+  group_by(node1, node2, model, dataset) %>% # Proportion of edges above threshold vs total in that model
+  summarise(proportion = n_distinct(graph_id) / num_graphs[1],
+            num_graphs = num_graphs[1]) %>%
+  ungroup() %>%
+  rename(from = node1, to = node2) 
+
+all_nodes <- purrr::map(seq_along(graph_g), function(i) {
+  x <- graph_g[[i]]
+  x %>%
+    activate(nodes) %>%
+    as_tibble() %>%
+    mutate(model = id[i,]$model,
+           dataset = id[i,]$dataset,
+           isAdapted = id[i,]$isAdapted,
+           graph_id = i)
+}, .progress = T) %>%
+  data.table::rbindlist(., fill = T)
+
+summary_nodes <- all_nodes %>%
+  filter(isAdapted == "Adapted") %>%
+  mutate(nodes = factor(nodes, levels = all_molcomp_features)) %>%
+  group_by(model, dataset, nodes) %>%
+  summarise(meanVariance = mean(variance, na.rm = T),
+            CIVariance = CI(variance, na.rm = T),
+            meanDegree = mean(degree),
+            CIDegree = CI(degree)) %>%
+  ungroup()
+
+
+# Split edges/nodes by group
+summary_edges <- summary_edges %>%
+  group_by(model, dataset) %>%
+  group_split()
+
+summary_nodes <- summary_nodes %>%
+  group_by(model, dataset) %>%
+  group_split()
+
+# Create graph
+graph_summary <- purrr::map(seq_along(summary_nodes), function(i) {
+  x_n <- summary_nodes[[i]]
+  x_e <- summary_edges[[i]]
+  tbl_graph(
+    nodes = x_n,
+    edges = x_e,
+    directed = F,
+    node_key = "nodes"
+  )
+  })
+
+# Plot average graphs
+# Create shared layout for everything
+set.seed(seed)
+gr_layout <- create_layout(graph_summary[[15]], layout = "fr")
+xlims <- c(min(gr_layout$x), max(gr_layout$x))
+ylims <- c(min(gr_layout$y), max(gr_layout$y))
+
+#Separate figure for each motif
+summary_graph_figs <- purrr::map(seq_along(graph_summary), function(i)
+{
+  x <- graph_summary[[i]] %>%
+    activate("nodes") %>%
+    filter(meanDegree > 0)
+  
+  # Consistent layout
+  layout_sbst <- gr_layout[gr_layout$nodes %in% igraph::V(x)$nodes,]
+  layout_sbst$degree <- x %>% activate(nodes) %>% pull(meanDegree)
+  layout_sbst$variance <- x %>% activate(nodes) %>% pull(meanVariance)
+  attr(layout_sbst, "graph") <- attr(layout_sbst, "graph") %>%
+    activate(edges) %>%
+    filter(F) %>% # Remove all edges, stick on appropriate edges
+    bind_edges(x %>% activate(edges) %>% data.frame(), node_key = "nodes")
+  
+  ggraph(graph = layout_sbst) +
+    geom_edge_link(aes(edge_colour = proportion),  start_cap = circle(0.2),
+                   end_cap = circle(0.2)) +
+    #sep = unit(1, "lines")) +
+    geom_node_point(shape = 21, aes(fill = degree, size = variance)) +
+    geom_node_text(aes(label = nodes), parse = T) +
+    scale_fill_viridis_c(limits = c(0, 1), n.breaks = 5) +
+    # scale_fill_gradient2(low = "#8E8FEE", high = "#CD2626",
+    #                    limits = c(-3, 0), n.breaks = 5) +
+    scale_edge_colour_gradient(low = "#999", high = "#000",
+                               limits = c(0, 1), n.breaks = 5) +
+    expand_limits(x = xlims, y = ylims) +
+    scale_size(range = c(6, 12), limits = c(0, 1)) +
+    #facet_edges(dataset~model, nrow = 3) +
+    labs(fill = "Degree centrality", size = "Mean genetic variance",
+         edge_colour = "Confidence") +
+    theme_graph() +
+    theme(legend.position = "bottom")
+}, .progress = T) 
+
+summary_graph_figs[[15]]
+summary_graph_figs[[1]]
+
+leg <- get_legend(summary_graph_figs[[1]])
+
+plt_sum_graphs <- plot_grid(plotlist = lapply(summary_graph_figs, function(x) {x + theme(legend.position = "none")}),
+                             nrow = 3,
+                             ncol = 5,
+                             byrow = F)
+
+plot_grid(plt_sum_graphs,
+          leg, 
+          nrow = 2,
+          rel_heights = c(1, 0.1))
+
+
+
+
+
 
 
 # Run conditional evolvability
@@ -2861,7 +3251,7 @@ d_coocure <- d_coocure %>%
 d_coocure <- d_mc_cev %>%
   filter(isAdapted == "Adapted") %>%
   select(seed, model, dataset, molComp, aut) %>%
-  mutate(int = (1 - aut),#, breaks = seq(from = 0.0, to = 1.0, by = 0.2)),
+  mutate(int = (1 - aut),
          id = interaction(seed, model, dataset),
          model.dataset = interaction(model, dataset)) %>%
   select(-aut)
@@ -2875,8 +3265,69 @@ co_all <- cooccurrence(d_coocure, group = "model.dataset",
 library(ggraph)
 library(tidygraph)
 co_all_graph <- co_all %>%
-  separate_wider_delim(group, ".", names = c("model", "dataset"))
-co_all_graph <- as_tbl_graph(co_all_graph)
+  separate_wider_delim(group, ".", names = c("model", "dataset")) %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = factor(dataset, levels = c("Parallel",
+                                              "Orthogonal",
+                                              "Randomised"))) %>%
+  group_by(model, dataset) %>% 
+  group_map(~tbl_graph(nodes = all_molcomp_features,
+                        edges = tibble(
+                          from = as.integer(
+                          factor(.x$from, levels = names(all_molcomp_features))),
+                          to = as.integer(
+                            factor(.x$to, levels = names(all_molcomp_features)))
+                          ),
+                       directed = F) %>%
+              activate("edges") %>%
+              mutate(weight = .x$weight) %>%
+              activate("nodes") %>%
+              mutate(degree = centrality_degree(weights = .x$weight,
+                                                normalized = T),
+                     betweenness = centrality_betweenness(directed = F,
+                                                          normalized = T),
+                     eigen = centrality_eigen(weights = .x$weight)))
+
+group_names <- co_all %>%
+  separate_wider_delim(group, ".", names = c("model", "dataset")) %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = factor(dataset, levels = c("Parallel",
+                                              "Orthogonal",
+                                              "Randomised"))) %>%
+  group_by(model, dataset) %>% 
+  group_keys() %>%
+  select(model, dataset)
+  
+names(co_all_graph) <- interaction(group_names$model, group_names$dataset)
+
+
+#Separate figure for each motif
+co_figs <- lapply(co_all_graph, function(x)
+  {
+  x <- x %>%
+    activate("nodes") %>%
+    filter(degree > 0)
+  ggraph(x, layout = "fr") +
+    geom_edge_parallel(aes(colour = weight),  start_cap = circle(0.2),
+                       end_cap = circle(0.2),
+                       
+                       sep = unit(1, "lines")) +
+    geom_node_point(shape = 21, aes(fill = degree, size = ), size = 6) +
+    geom_node_text(aes(label = nodes), parse = T) +
+    scale_fill_gradient(low = "#8E8FEE", high = "#CD2626") +
+    #scale_size(range = c(6, 12)) +
+    scale_edge_colour_gradient(low = "#0066DD", high = "#33BBAA") +
+    #facet_edges(dataset~model, nrow = 3) +
+    labs(fill = "Degree centrality", colour = "Association") +
+    theme_graph() +
+    theme(legend.position = "bottom")
+}) 
+
+plot_grid(plotlist = co_figs,
+          nrow = 3,
+          ncol = 5,
+           byrow = F)
+
 
 
 nodes <- co_all_graph %>% select(5:6)
@@ -2896,7 +3347,8 @@ co_all_graph <- co_all_graph  %>%
   mutate(model = factor(model, levels = model_names_noquote),
          dataset = factor(dataset, levels = c("Parallel",
                                             "Orthogonal",
-                                            "Randomised"))) %>%
+                                            "Randomised")))
+co_all_graph <- co_all_graph %>%
   activate("nodes") %>%
   mutate(name = all_molcomp_features[name],
          degree = centrality_degree(),
