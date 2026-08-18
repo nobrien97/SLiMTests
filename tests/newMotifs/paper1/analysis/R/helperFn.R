@@ -1713,3 +1713,68 @@ AdjMatFromCorMat <- function(m, threshold) {
   
   return(result)
 }
+
+# PCA similarity
+bootKrzCorFn <- function(x, group = "", PCASim = F) {
+  require(evolqg)
+  require(dplyr)
+  
+  fn <- ifelse(PCASim, evolqg::PCAsimilarity, evolqg::KrzCor)
+  
+  if (group != "") {
+    grps <- unique(x[,group])
+    nGrps <- length(grps)
+    
+    
+    # output data frame
+    res <- data.frame(group1 = character(length(grps)^2),
+                      group2 = character(length(grps)^2),
+                      krzCor = numeric(length(grps)^2))
+    
+    # Temporary data frame for filling inner loop
+    res_tmp <- data.frame(group1 = character(length(grps)),
+                          group2 = character(length(grps)),
+                          krzCor = numeric(length(grps)))
+    
+    for (i in seq_along(grps)) {
+      for (j in seq_along(grps)) {
+        # Sample matrices in different groups
+        g_1 <- slice_sample(x[group == grps[i]], n = 1)
+        g_2 <- slice_sample(x[group == grps[j]], n = 1)
+        res_tmp$group1[j] <- as.character(g_1[1,group])
+        res_tmp$group2[j] <- as.character(g_2[1,group])
+        res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
+      }
+      indices <- (nGrps*(i-1) + 1):(nGrps*i)
+      res[indices,] <- res_tmp
+    }
+    return(res)
+  }
+  
+  # If group is "", sample two random matrices and return that
+  g1 <- slice_sample(x, n = 1)
+  g2 <- slice_sample(x, n = 1)
+  return(fn(g1$g[[1]], g2$g[[1]]))
+}
+
+# Split by model comparison
+GetModelComparison <- function(model1, model2, model_names) {
+  result <- character(length(model1))
+  # assign by priority (NAR > PAR > FFLC1 > FFLI1 > FFBH)
+  model1_index <- match(model1, model_names)
+  model2_index <- match(model2, model_names)
+  
+  if (any(is.na(model1_index)) | any(is.na(model2_index))) {
+    return(NA)
+  }
+  
+  # If model2's index is greater than model1,
+  # we put model1 first
+  model1First_idx <- model2_index > model1_index
+  model2First_idx <- model1_index >= model2_index
+  result[model2_index > model1_index] <- paste(model1[model1First_idx], "vs", model2[model1First_idx])
+  # otherwise model2 comes first, if models are the same these are
+  # included here too
+  result[model1_index >= model2_index] <- paste(model2[model2First_idx], "vs", model1[model2First_idx])
+  return(result)
+}

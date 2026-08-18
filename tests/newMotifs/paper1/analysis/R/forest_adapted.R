@@ -3124,9 +3124,336 @@ plot_grid(plt_sum_graphs,
           nrow = 2,
           rel_heights = c(1, 0.1))
 
+# A few randomly sampled examples?
+set.seed(seed)
+random_graph_ids <- all_nodes %>%
+  filter(isAdapted == "Adapted") %>%
+  select(6:9) %>%
+  distinct() %>%
+  group_by(model, dataset) %>%
+  slice_sample(n = 3)
+
+random_graph_ids <- random_graph_ids$graph_id
+
+random_nodes <- all_nodes %>%
+  filter(isAdapted == "Adapted", graph_id %in% random_graph_ids) %>%
+  mutate(nodes = factor(nodes, levels = all_molcomp_features)) %>%
+  group_by(model, dataset, graph_id) %>%
+  group_split()
+
+random_edges <- all_edges %>%
+  filter(isAdapted == "Adapted", graph_id %in% random_graph_ids) %>%
+  group_by(model, dataset, graph_id) %>%
+  group_split()
+
+# Create graph
+graph_random <- purrr::map(seq_along(random_nodes), function(i) {
+  x_n <- random_nodes[[i]]
+  x_e <- random_edges[[i]]
+  tbl_graph(
+    nodes = x_n,
+    edges = x_e,
+    directed = F,
+    node_key = "nodes"
+  )
+})
+
+# Plot average graphs
+# Create shared layout for everything
+set.seed(seed)
+gr_layout <- create_layout(graph_random[[15]], layout = "fr")
+xlims <- c(min(gr_layout$x), max(gr_layout$x))
+ylims <- c(min(gr_layout$y), max(gr_layout$y))
+
+#Separate figure for each motif
+random_graph_figs <- purrr::map(seq_along(graph_random), function(i)
+{
+  x <- graph_random[[i]] %>%
+    activate("nodes") %>%
+    filter(degree > 0)
+  
+  # Consistent layout
+  layout_sbst <- gr_layout[gr_layout$nodes %in% igraph::V(x)$nodes,]
+  layout_sbst$degree <- x %>% activate(nodes) %>% pull(degree)
+  layout_sbst$variance <- x %>% activate(nodes) %>% pull(variance)
+  attr(layout_sbst, "graph") <- attr(layout_sbst, "graph") %>%
+    activate(edges) %>%
+    filter(F) %>% # Remove all edges, stick on appropriate edges
+    bind_edges(x %>% activate(edges) %>% data.frame(), node_key = "nodes")
+  
+  ggraph(graph = layout_sbst) +
+    geom_edge_link(start_cap = circle(0.2),
+                   end_cap = circle(0.2)) +
+    #sep = unit(1, "lines")) +
+    geom_node_point(shape = 21, aes(fill = degree, size = variance)) +
+    geom_node_text(aes(label = nodes), parse = T) +
+    scale_fill_viridis_c(limits = c(0, 1), n.breaks = 5) +
+    # scale_fill_gradient2(low = "#8E8FEE", high = "#CD2626",
+    #                    limits = c(-3, 0), n.breaks = 5) +
+    expand_limits(x = xlims, y = ylims) +
+    scale_size(range = c(6, 12), limits = c(0, 1)) +
+    #facet_edges(dataset~model, nrow = 3) +
+    labs(fill = "Degree centrality", size = "Genetic variance") +
+    theme_graph() +
+    theme(legend.position = "bottom")
+}, .progress = T) 
+
+random_graph_figs[[1]]
+random_graph_figs[[15]]
+
+leg <- get_legend(summary_graph_figs[[1]])
+
+plt_sum_graphs <- plot_grid(plotlist = lapply(summary_graph_figs, function(x) {x + theme(legend.position = "none")}),
+                            nrow = 3,
+                            ncol = 5,
+                            byrow = F)
+
+plot_grid(plt_sum_graphs,
+          leg, 
+          nrow = 2,
+          rel_heights = c(1, 0.1))
+
+# PCA similarity meadow plot
+
+krz_in <- id %>%
+  mutate(g = h2_pd,
+         group = interaction(model, dataset, log10(r)))
+
+# Remove null matrices (no nearest matrix found)
+krz_in <- krz_in[!sapply(krz_in$g,is.null)]
+
+# Save krz_in: run this part on HPC
+saveRDS(krz_in, "pca_in.RDS")
+
+# Bootstrap in ten parts for RAM reasons
+# This is slow: uncomment to run, otherwise read in precalculated data
+# Generate seeds
+# newseed <- sample(1:.Machine$integer.max, 10)
+# [1]  314145285 2009911717  267335506  231424073 1190700402 1189454198  395819651  848071181 1762114410
+# [10] 1739509036
+newseed <- c(314145285L, 2009911717L, 267335506L, 231424073L, 1190700402L, 
+             1189454198L, 395819651L, 848071181L, 1762114410L, 1739509036L)
+bootPCASim <- vector(mode = "list", length = length(newseed))
+
+# Per model inputs
+krz_in_NAR <- krz_in %>% filter(model == "NAR")
+krz_in_PAR <- krz_in %>% filter(model == "PAR")
+krz_in_FFLC1 <- krz_in %>% filter(model == "FFLC1")
+krz_in_FFLI1 <- krz_in %>% filter(model == "FFLI1")
+krz_in_FFBH <- krz_in %>% filter(model == "FFBH")
+
+
+for (i in seq_along(newseed)) {
+  # Set seed
+  set.seed(newseed[i])
+  # Run replicate but only within models
+  res_NAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_NAR, "group", T))
+  res_PAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_PAR, "group", T))
+  res_FFLC1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_FFLC1, "group", T))
+  res_FFLI1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_FFLI1, "group", T))
+  res_FFBH <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_FFBH, "group", T))
+  
+  # To data.frame
+  res_NAR <- unnest(as.data.frame(t(res_NAR)), cols = everything()) %>%
+    mutate(model = "NAR")
+  res_PAR <- unnest(as.data.frame(t(res_PAR)), cols = everything()) %>%
+    mutate(model = "PAR")
+  res_FFLC1 <- unnest(as.data.frame(t(res_FFLC1)), cols = everything()) %>%
+    mutate(model = "FFLC1")
+  res_FFLI1 <- unnest(as.data.frame(t(res_FFLI1)), cols = everything()) %>%
+    mutate(model = "FFLI1")
+  res_FFBH <- unnest(as.data.frame(t(res_FFBH)), cols = everything()) %>%
+    mutate(model = "FFBH")
+  
+  # Combine to output
+  bootPCASim[[i]] <- rbind(res_NAR, res_PAR, res_FFLC1, res_FFLI1, res_FFBH)
+}
+
+# Output list into combined df
+bootPCASim2 <- bind_rows(bootPCASim)
+bootPCASim <- bootPCASim2 %>%
+  separate(group1, c("model1", "dataset1", "r1"), "\\.",
+           extra = "merge") %>%
+  separate(group2, c("model2", "dataset2", "r2"), "\\.",
+           extra = "merge") %>%
+  mutate(r1 = as.numeric(r1),
+         r2 = as.numeric(r2),
+         dataset1 = factor(dataset1, levels = c("Parallel",
+                                                "Orthogonal",
+                                                "Randomised")),
+         dataset2 = factor(dataset2, levels = c("Parallel",
+                                                "Orthogonal",
+                                                "Randomised"))) %>%
+  rename(PCASim = krzCor)
+
+saveRDS(bootPCASim, paste0("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_bootPCASim.RDS"))
+bootPCASim <- readRDS(paste0("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_bootPCASim.RDS"))
+
+# Plot
+
+# Get model comparisons for labelling
+bootPCASim <- bootPCASim %>%
+  mutate(datasetCombo = GetModelComparison(dataset1, dataset2, c("Parallel",
+                                                                 "Orthogonal",
+                                                                 "Randomised")),
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)),
+         model = factor(model, levels = model_names_noquote))
+
+# recomb by modelCombo - we don't have all the recombination levels for the
+# non-randomised datasets
+bootPCASim_sum <- bootPCASim %>%
+  group_by(model, dataset1, dataset2) %>%
+  summarise(meanPCASim = mean(PCASim),
+            ciPCASim = CI(PCASim))
+
+# Facet design
+design <- c(
+  "
+  AABB
+  CCDD
+  #EE#
+  "
+)
+
+
+ggplot(bootPCASim_sum, aes(
+  x = (dataset1), y = (dataset2)
+)) +
+  #facet_nested("Model" + model ~ .) + 
+  facet_manual(.~model, design = design, axes = T) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+  labs(x = "Trait/selection alignment 1", y = "Trait selection alignment 2", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(angle = 90, hjust = 0.5),
+        panel.spacing.x = unit(2, "lines"),
+        legend.position = "bottom") +
+  guides(fill = guide_colorbar(barwidth = 10))
+
+ggsave("PCASim_dataset.png", device = png, width = 8, height = 10)
+
+# Reformat data: rename reciprocals/redundant comparisons
+bootPCASim_mdl <- bootPCASim %>%
+  rowwise() %>%
+  mutate(
+    r_min = min(r1, r2),
+    r_max = max(r1, r2),
+    dataset_min = min(as.integer(dataset1), as.integer(dataset2)),
+    dataset_max = max(as.integer(dataset1), as.integer(dataset2)),
+  ) %>%
+  ungroup() %>%
+  select(
+    model = model,
+    r1 = r_min,
+    r2 = r_max,
+    dataset1 = dataset_min,
+    dataset2 = dataset_max,
+    PCASim = PCASim
+  ) %>%
+  mutate(dataset1 = c("Parallel", "Orthogonal", "Randomised")[as.integer(dataset1)],
+         dataset2 = c("Parallel", "Orthogonal", "Randomised")[as.integer(dataset2)],
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)),
+         # Contains Randomised or not, no difference between orthogonal/parallel
+         datasetRandomised = (dataset1 == "Randomised" | dataset2 == "Randomised")
+  )
+
+# fractional logit: easier than betareg to get confidence intervals in response scale, 
+# similar results to betareg
+fl.pcasim <- glm(PCASim ~ model * datasetRandomised,
+                 data = bootPCASim_mdl %>% filter(PCASim < 1),
+                 family = quasibinomial())
+performance::performance(fl.pcasim)
+summary(fl.pcasim)
+plot(fl.pcasim)
+em.fl.pcasim <- emmeans(fl.pcasim, ~model * datasetRandomised)
+em.fl.pcasim <- regrid(em.fl.pcasim)
+pairs(em.fl.pcasim, simple = "model")
+pairs(em.fl.pcasim, simple = "datasetRandomised")
+pwpp(em.fl.pcasim, by = "model")
+emmip(em.fl.pcasim,  ~ model | datasetRandomised)
+xtable::xtable(em.fl.pcasim)
 
 
 
+
+
+
+
+# Many similar solutions when the trait and selection are aligned in some way
+# What are those solutions?
+
+# Proportion contribution of each component to total genetic variance?
+# Rank top three?
+prop_var_mc <- purrr::map(seq_along(h2_pd), function(i) {
+  vars <- diag(h2_pd[[i]])
+  d_template <- data.frame(matrix(ncol = 13, nrow = 1))
+  names(d_template) <- c(names(all_molcomp_features), "totalVar")
+  d_template[1,names(vars)] <- vars / sum(vars)
+  d_template[1,13] <- sum(vars)
+  return(d_template)
+})
+
+# Attach ID
+d_prop_vars <- data.table::rbindlist(prop_var_mc)
+d_prop_vars <- cbind(d_prop_vars, id)
+
+# Pivot longer
+d_prop_vars <- d_prop_vars %>%
+  pivot_longer(cols = (1:12),
+               names_to = "molComp",
+               values_to = "varExpl")
+
+d_prop_vars <- d_prop_vars %>%
+  drop_na(varExpl) %>%
+  filter(isAdapted == "Adapted") %>%
+  mutate(dataset = factor(dataset, levels = c("Parallel",
+                                              "Orthogonal",
+                                              "Randomised")))
+
+d_prop_vars_sum <- d_prop_vars %>%
+  group_by(model, dataset, molComp) %>%
+  summarise(meanVarExpl = mean(varExpl),
+            CIVarExpl = CI(varExpl),
+            meanVar = mean(totalVar),
+            CIVar = CI(totalVar))
+
+ggplot(d_prop_vars_sum,
+       aes(x = molComp, y = meanVarExpl, fill = model)) +
+  facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
+  geom_col() +
+  geom_text(aes(x = 6.5, y = 0.2, label = 
+                  paste("Total variance =", round(meanVar, digits = 3),
+                        "±", round(CIVar, digits = 3))), size = 4) +
+  scale_x_discrete(labels = function(x) {parse(text = all_molcomp_features[x])}) +
+  scale_y_continuous(labels = scales::percent) +
+  geom_errorbar(aes(ymin = meanVarExpl - CIVarExpl, ymax = meanVarExpl + CIVarExpl), width = 0.2) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                    guide = "none") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                    guide = "none") +
+  labs(x = "Molecular component", y = "Mean genetic variance explained (%)") +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+ggsave("plt_var_expl.png", device = png, width = 13, height = 10)
+
+# {Print most importance features}
+print(xtable::xtable(d_prop_vars_sum %>%
+                       group_by(model, dataset) %>%
+                       slice_max(meanVarExpl, n = 4) %>%
+                       ungroup() %>%
+                       select(-model),
+                     
+                     digits = 3), include.rownames = F)
 
 
 
