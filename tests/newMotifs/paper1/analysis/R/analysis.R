@@ -2263,6 +2263,82 @@ plt_adapt_avg_pres
 ggsave("plt_pAdapted_pres.png", width = 8, height = 6, device = png)
 
 
+# Survival analysis - cumulative curves
+library(survival)
+library(ggsurvfit)
+library(tidycmprsk)
+
+d_qg_surv <- d_qg_tot %>%
+  filter(gen > 50000, log10(r) == -1) %>%
+  select(modelindex, dataset, seed, model, timeToAdapt) %>%
+  group_by(modelindex, dataset, seed) %>%
+  slice_head(n = 1) %>%
+  mutate(status = !is.na(timeToAdapt),
+         status = factor(status, levels = c("FALSE", "TRUE"),
+                         labels = c("Maladapted", "Adapted")))
+
+d_qg_surv$timeToAdapt[is.na(d_qg_surv$timeToAdapt)] <- 10000
+
+  
+test_cuminc <- cuminc(Surv(timeToAdapt, status) ~ model + dataset, d_qg_surv)
+test_cuminc
+
+plt_surv_rand <- cuminc(Surv(timeToAdapt, status) ~ model, 
+                          data = d_qg_surv %>%
+                          filter(dataset == "Randomised")) %>%
+  ggcuminc() +
+  add_confidence_interval() +
+  ggtitle("Randomised") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                      labels = model_names_noquote) +
+  #facet_nested(.~"Trait/selection alignment" + dataset) +
+  labs(x = "Generations post-optimum shift", y = "Proportion adapted")
+plt_surv_rand
+
+plt_surv_para <- cuminc(Surv(timeToAdapt, status) ~ model, 
+                          data = d_qg_surv %>%
+                            filter(dataset == "Parallel")) %>%
+  ggcuminc() +
+  add_confidence_interval() +
+  ggtitle("Parallel") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
+  #facet_nested(.~"Trait/selection alignment" + dataset) +
+  labs(x = "Generations post-optimum shift", y = "Proportion adapted")
+
+plt_surv_orth <- cuminc(Surv(timeToAdapt, status) ~ model, 
+                          data = d_qg_surv %>%
+                            filter(dataset == "Orthogonal")) %>%
+  ggcuminc() +
+  add_confidence_interval() +
+  ggtitle("Orthogonal") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_colour_manual(values = pal,
+                      labels = model_names_noquote) +
+  scale_fill_manual(values = pal,
+                    labels = model_names_noquote) +
+  #facet_nested(.~"Trait/selection alignment" + dataset) +
+  labs(x = "Generations post-optimum shift", y = "Proportion adapted")
+
+leg <- get_legend(plt_surv_para)
+
+plt_surv <- plot_grid(plt_surv_para + theme(legend.position ="none"),
+          plt_surv_orth + theme(legend.position ="none"),
+          plt_surv_rand + theme(legend.position ="none"),
+          labels = 'AUTO',
+          nrow = 3)
+
+plot_grid(plt_surv,
+          leg,
+          nrow = 2,
+          rel_heights = c(1, 0.1))
+ggsave("plt_surv.png", device = png, bg = "white", height = 9, width = 4)
 
 
 
