@@ -4,6 +4,7 @@ library(dplyr)
 library(tibble)
 library(tidyr)
 library(readr)
+library(stringr)
 library(data.table)
 
 # Get command line arguments

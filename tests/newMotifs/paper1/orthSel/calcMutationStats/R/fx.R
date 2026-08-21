@@ -24,8 +24,8 @@ R_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/randomisedStarts/ca
 COMBO_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/"
 
 
-DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/randomisedStarts/"
- R_PATH <- "~/tests/newMotifs/randomisedStarts/calcMutationStats/R/"
+DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/orthSel/"
+ R_PATH <- "~/tests/newMotifs/paper1/orthSel/calcMutationStats/R/"
  COMBO_PATH <- "~/tests/newMotifs/R/"
 source(paste0(R_PATH, "helperFunctionsAndSetup.R"))
 
@@ -235,7 +235,7 @@ xtable(em_numFix)
 # effect sizes
 ########
 
-d_fx <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_fx.csv"), header = F, 
+d_fx <- data.table::fread(paste0(DATA_PATH, "calcMutationStats/d_fx_new.csv"), header = F, 
                           sep = ",", colClasses = c("integer", "factor", "factor",
                                                     "factor", "character", "numeric"), 
                           col.names = c("gen", "seed", "modelindex", 
