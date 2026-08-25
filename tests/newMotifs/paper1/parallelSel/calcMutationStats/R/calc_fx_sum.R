@@ -75,4 +75,15 @@ d_fx_sum <- d_fx %>%
   summarise(meanProp = mean(prop),
             CIProp = CI(prop))
 
+# Distribution across all replicates
+d_fx_dist <- d_fx %>%
+  drop_na(s) %>%
+  group_by(gen, model, isAdapted) %>%
+  reframe(d = list(density(s)),
+  s = d[[1]]$x,
+  dens = d[[1]]$y,
+  n = d[[1]]$n) %>%
+  select(-d)
+
+saveRDS(d_fx_dist, paste0(DATA_PATH, "calcMutationStats/d_fx_density.RDS"))
 saveRDS(d_fx_sum, paste0(DATA_PATH, "calcMutationStats/d_fx_sum.RDS"))
