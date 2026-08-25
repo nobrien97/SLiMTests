@@ -324,7 +324,9 @@ GetMatrixIDsWithDataset <- function(matList) {
 GetMeanMatrixIDs <- function(matList) {
   lapply(matList, function(x) {
     data.frame(model = x$model,
-               dataset = x$dataset)}) -> matList
+               dataset = x$dataset,
+               timePoint = x$timePoint,
+               isAdapted = x$isAdapted)}) -> matList
   
   
   lapply(matList, function(x) {

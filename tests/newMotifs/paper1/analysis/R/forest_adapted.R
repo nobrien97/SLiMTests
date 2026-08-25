@@ -398,6 +398,12 @@ d_h2 <- d_h2 %>%
                 seed = as.factor(seed)) %>%
   drop_na(VA_w) %>% distinct()
 
+saveRDS(d_h2, "d_h2.RDS")
+saveRDS(d_h2_trait, "d_h2_trait.RDS")
+
+d_h2 <- readRDS("d_h2.RDS")
+d_h2_trait <- readRDS("d_h2_trait.RDS")
+
 
 # Join qg together
 d_qg$dataset <- "Randomised"
@@ -407,6 +413,8 @@ d_qg_par$dataset <- "Parallel"
 d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 
 saveRDS(d_qg_tot, "d_qg_tot.RDS")
+
+d_qg_tot <- readRDS("d_qg_tot.RDS")
 
 d_qg_optPerc <- d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted) %>% filter(gen >= 49500)
 
@@ -489,6 +497,9 @@ h2_pd <- lapply(h2_mat, function(x) {
   return(x)
 })
 
+saveRDS(h2_pd, "h2_pd_trait.RDS")
+saveRDS(id, "id_trait")
+
 # Now find cosine similarity between selection vector and leading eigenvector of G
 # Filter selvec to h2_pd matrices
 d_selvec <- d_qg_tot %>%
@@ -502,6 +513,8 @@ d_opt_par$dataset <- "Parallel"
 
 d_opt_tot <- rbind(d_opt, d_opt_orth, d_opt_par)
 #saveRDS(d_opt_tot, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_opt_tot.RDS")
+d_opt_tot <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_opt_tot.RDS")
+
 
 d_selvec <- left_join(d_selvec, d_opt_tot %>% 
                         select(seed, modelindex, dataset, starts_with("o_")) %>%
