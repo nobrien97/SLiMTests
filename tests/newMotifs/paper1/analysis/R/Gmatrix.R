@@ -1,7 +1,10 @@
-library(tidyverse)
-
-
 source("helperFn.R")
+
+COMBO_PATH <- '/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/combos.csv'
+d_combos <- read_delim(COMBO_PATH, 
+                       delim = " ", col_names = F)
+names(d_combos) <- c("model", "r")
+
 
 G_DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
 G_DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/R/"
@@ -138,7 +141,7 @@ d_qg_tot <- rbind(d_qg, d_qg_orth, d_qg_par)
 
 saveRDS(d_qg_tot, "d_qg_tot.RDS")
 
-d_qg_tot <- readRDS("d_qg_tot.RDS")
+d_qg_tot <- readRDS("/mnt/i/SLiMTests/tests/newMotifs/paper1/d_qg_tot.RDS")
 
 d_qg_optPerc <- d_qg_tot %>% select(gen, seed, modelindex, dataset, isAdapted) %>% filter(gen >= 49500)
 
@@ -463,4 +466,189 @@ ggplot(d_pc_mean_mc %>% filter(isAdapted == T),
         panel.spacing = unit(1, "lines"))
 ggsave("plt_gmat_mc.png", device = png, width = 17, height = 9)
 
+
+# Now for M matrices
+m_matrices <- readRDS("m_matrices.RDS")
+m_matrices_orth <- readRDS("m_matrices_orth.RDS")
+m_matrices_par <- readRDS("m_matrices_par.RDS")
+
+m_matrices_tot <- c(m_matrices, m_matrices_orth, m_matrices_par)
+
+
+DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
+
+d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
+                                         paste0("mean_", 1:4),
+                                         paste0("var_", 1:4),
+                                         paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m <- d_m %>%
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex))
+
+
+
+
+DATA_PATH_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
+DATA_PATH_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
+
+
+d_m_orth <- read_csv(DATA_PATH_ORTH, col_names = c("gen", "seed", "modelindex",
+                                                   paste0("mean_", 1:4),
+                                                   paste0("var_", 1:4),
+                                                   paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m_par <- read_csv(DATA_PATH_PAR, col_names = c("gen", "seed", "modelindex",
+                                                 paste0("mean_", 1:4),
+                                                 paste0("var_", 1:4),
+                                                 paste0("cov_", c(12, 13, 14, 23, 24, 34))))
+
+d_m_orth <- d_m_orth %>%
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex))
+
+d_m_par <- d_m_par %>%
+  mutate(model = ModelFromIndexWithR(modelindex),
+         r = RFromIndex(modelindex))
+
+d_m$dataset <- "Randomised"
+d_m_orth$dataset <- "Orthogonal"
+d_m_par$dataset <- "Parallel"
+
+d_m_tot <- rbind(d_m, d_m_orth, d_m_par)
+
+# Average
+d_m_valid <- inner_join(d_m_tot %>%
+                         mutate(model = factor(model, levels = model_names_noquote),
+                                seed = factor(seed),
+                                modelindex = factor(modelindex)),
+                       d_qg_tot %>%
+                         select(gen, seed, modelindex, r, model, dataset, isAdapted, timeToAdapt) %>%
+                         mutate(model = factor(model, levels = model_names,
+                                               labels = model_names_noquote))) %>%
+  filter(log10(r) == -1,
+         isAdapted == T,
+         gen == 50000 | gen == 60000)
+
+d_m_valid %>%
+  distinct(gen, seed, modelindex, dataset, .keep_all = T) %>%
+  mutate(timePoint = factor(if_else(gen == 50000, "Start", "End"))) %>%
+  group_by(gen, timePoint, model, dataset, isAdapted) %>%
+  summarise(across(starts_with("var") | starts_with("cov"), 
+                             list(mean), .names = "{.col}")) -> d_m_mean
+
+m_matrices_valid <- d_m_mean %>%
+  rowwise() %>%
+  group_map(~ row_to_m(.x))
+
+
+id_m_valid <- d_m_mean %>%
+  select(1:5)
+
+
+# First convert to nearest positive definite matrix
+m_matrices_valid_pd <- lapply(m_matrices_valid, function(x) {
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
+  return(x)
+})
+
+
+eig_mean_m_pd <- purrr::map(seq_along(m_matrices_valid_pd), function(i){
+  eig <- eigen(m_matrices_valid_pd[[i]])
+  
+  circle <- cbind(cos(seq(0, 2*pi, length.out = 100)),
+                  sin(seq(0, 2*pi, length.out = 100)))
+  
+  ellipse_pc <- circle %*% diag(sqrt(eig$values[1:2])) %*% t(eig$vectors[,1:2])
+  
+  # Project onto ellipse for the major/minor axes
+  V12 <- eig$vectors[1:2,1:2]
+  
+  Sigma_proj <- V12 %*%
+    diag(eig$values[1:2]) %*%
+    t(V12)
+  
+  eig_proj <- eigen(Sigma_proj)
+  
+  result <- id_m_valid[rep(i, times = 100),]
+  result$label <- i
+  result$pc1 <- ellipse_pc[,1]
+  result$pc2 <- ellipse_pc[,2]
+  result$pc1_exp <- eig$values[1] / sum(eig$values)
+  result$pc2_exp <- eig$values[2] / sum(eig$values)
+  result$a <- sqrt(eig$values[1])
+  result$b <- sqrt(eig$values[2])
+  major <- sqrt(eig_proj$values[1]) * eig_proj$vectors[,1]
+  minor <- sqrt(eig_proj$values[2]) * eig_proj$vectors[,2]
+  
+  result$major_x <- major[1]
+  result$major_y <- major[2]
+  result$minor_x <- minor[1]
+  result$minor_y <- minor[2]
+  
+  result
+}, .progress = T)
+
+d_pc_m_mean <- data.table::rbindlist(eig_mean_m_pd, 
+                                      fill = T)
+
+d_pc_m_mean$dataset <- factor(d_pc_m_mean$dataset,
+                               levels = c("Parallel",
+                                          "Orthogonal",
+                                          "Randomised"))
+
+d_pc_m_mean$timePoint <- factor(d_pc_m_mean$timePoint,
+                                levels = c("Start",
+                                           "End"))
+
+
+d_pc_mean_m_labels <- d_pc_m_mean %>%
+  group_by(model, dataset, timePoint, isAdapted) %>%
+  summarise(pc1_exp = pc1_exp[1],
+            pc2_exp = pc2_exp[2])
+
+d_pc_mean_m_lines <- d_pc_m_mean %>%
+  group_by(model, dataset, timePoint, isAdapted) %>%
+  slice_head(n = 1)
+
+ggplot(d_pc_m_mean %>% filter(isAdapted == T),
+       aes(x = pc1, y = pc2, colour = timePoint,
+           group = label)) +
+  facet_nested("Model" + model ~ 
+                 "Trait/selection alignment / Measurement time" + dataset + timePoint,
+               scales = "free") +
+  geom_path() +
+  geom_segment(data = d_pc_mean_m_lines %>% filter(isAdapted == T), inherit.aes = F,
+               aes(x = -minor_x, xend = minor_x, y = -minor_y, yend = minor_y,
+                   colour = timePoint, group = label)) +
+  geom_segment(data = d_pc_mean_m_lines %>% filter(isAdapted == T), inherit.aes = F,
+               aes(x = -major_x, xend = major_x, y = -major_y, yend = major_y,
+                   colour = timePoint, group = label)) +
+  # geom_label(data = d_pc_mean_m_labels %>% filter(isAdapted == T), inherit.aes = F,
+  #            aes(x = 0, y = 0.5, 
+  #                label = paste0("PC1: ", round(pc1_exp * 100, digits = 2), "%"))) +
+  # geom_label(data = d_pc_mean_m_labels %>% filter(isAdapted == T), inherit.aes = F,
+  #            aes(x = 0, y = -0.5, 
+  #                label = paste0("PC2: ", round(pc2_exp * 100, digits = 2), "%"))) +
+  scale_colour_manual(values = c("#001889FF", "#E98935FF")) +
+  #coord_fixed() +
+  labs(x = "PC1", y = "PC2", colour = "Time") +
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        legend.position = "bottom",
+        panel.spacing = unit(1, "lines"))
+ggsave("plt_mmat.png", device = png, width = 17, height = 9)
+
+
+# Vrel_GT, Vrel_Gc, Vrel_M
+## Measure how isomorphically variation is distributed across traits/components
+
+# bTGb, bTCb, bTMb
+## Measure how much variance is along the selection gradient
+
+# PCASim
+## Measure how similar the covariance within/between components/traits is between replicates
+
+# Total variance explained
+## Measure how similar the total 
 

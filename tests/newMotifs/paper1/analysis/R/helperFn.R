@@ -1,3 +1,9 @@
+library(tidyverse)
+library(latex2exp)
+library(paletteer)
+library(ggh4x)
+
+
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
                  "'FFLI1'", "'FFBH'")
 
