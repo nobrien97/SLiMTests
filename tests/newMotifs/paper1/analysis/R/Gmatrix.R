@@ -200,7 +200,7 @@ id <- data.table::rbindlist(cov_matrix_modelindex,
 id$label <- as.character(1:nrow(id))
 id$modelindex <- as.factor(id$modelindex)
 id <- AddCombosToDF(id)
-id$model <- factor(id$model, levels = model_names)
+id$model <- factor(id$model, levels = model_names, labels = model_names_noquote)
 
 # Resize h2_pd according to n traits
 h2_mat <- purrr::map(seq_along(h2_mat), function(i) {
@@ -219,7 +219,7 @@ h2_pd <- lapply(h2_mat, function(x) {
 })
 
 saveRDS(h2_pd, "h2_pd_trait.RDS")
-saveRDS(id, "id_trait")
+saveRDS(id, "id_trait.RDS")
 
 # Get mean G matrix
 d_h2_trait %>%
@@ -345,6 +345,54 @@ ggsave("plt_gmat_trait.png", device = png, width = 17, height = 9)
 
 #################################################
 # Repeat with mc matrices
+d_h2 %>%
+  select(!VA_w) %>%  # Remove fitness (since its a different measurement)
+  filter(!if_all(6:17, is.na)) %>%  # Drop rows with no variance
+  distinct(gen, seed, modelindex, dataset, .keep_all = T) %>%
+  group_by(timePoint, modelindex, dataset, isAdapted) %>%
+  group_split(.) -> split_h2_mc
+
+lapply(split_h2_mc, function(x) {extractCovarianceMatrices(as.data.frame(x))}) -> cov_matrices_mc
+
+
+# We want to know if certain architectures are more/less important for describing
+# variation between simulations and which components are most important for describing
+# those differences
+
+h2_mat_mc <- unlist(cov_matrices_mc, recursive = F)
+
+# get ids from the matrix
+cov_matrix_modelindex_mc <- GetMatrixIDsWithDataset(split_h2_mc)
+
+id_mc <- data.table::rbindlist(cov_matrix_modelindex_mc, 
+                            fill = T)
+id_mc$label <- as.character(1:nrow(id_mc))
+id_mc$modelindex <- as.factor(id_mc$modelindex)
+id_mc <- AddCombosToDF(id_mc)
+id_mc$model <- factor(id_mc$model, levels = model_names, labels = model_names_noquote)
+
+# Resize h2_pd according to n traits
+h2_mat_mc <- purrr::map(seq_along(h2_mat_mc), function(i) {
+  mat <- h2_mat_mc[[i]]
+  
+  n <- 1:length(molComp_names[[as.character(id_mc$model[i])]])
+  molComp_names
+  mat[n, n]
+})
+
+
+# First convert to nearest positive definite matrix
+h2_pd_mc <- lapply(h2_mat_mc, function(x) {
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
+  return(x)
+})
+
+saveRDS(h2_pd_mc, "h2_pd_mc.RDS")
+saveRDS(id_mc, "id_trait_mc.RDS")
+
+
+
+# Mean matrix
 d_h2 %>%
   select(!VA_w) %>%  # Remove fitness (since its a different measurement)
   filter(!if_all(6:17, is.na)) %>%  # Drop rows with no variance
@@ -475,7 +523,7 @@ m_matrices_par <- readRDS("m_matrices_par.RDS")
 m_matrices_tot <- c(m_matrices, m_matrices_orth, m_matrices_par)
 
 
-DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
+DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/slim_mutvar.csv"
 
 d_m <- read_csv(DATA_PATH, col_names = c("gen", "seed", "modelindex",
                                          paste0("mean_", 1:4),
@@ -489,8 +537,8 @@ d_m <- d_m %>%
 
 
 
-DATA_PATH_ORTH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
-DATA_PATH_PAR <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
+DATA_PATH_ORTH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/orthSel/slim_mutvar.csv"
+DATA_PATH_PAR <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/parallelSel/slim_mutvar.csv"
 
 
 d_m_orth <- read_csv(DATA_PATH_ORTH, col_names = c("gen", "seed", "modelindex",
@@ -537,24 +585,44 @@ d_m_valid %>%
   summarise(across(starts_with("var") | starts_with("cov"), 
                              list(mean), .names = "{.col}")) -> d_m_mean
 
-m_matrices_valid <- d_m_mean %>%
+# Means
+m_matrices_valid_mean <- d_m_mean %>%
   rowwise() %>%
   group_map(~ row_to_m(.x))
 
 
-id_m_valid <- d_m_mean %>%
+id_m_valid_mean <- d_m_mean %>%
   select(1:5)
 
+# Non-means
+m_matrices_valid <- d_m_valid %>%
+  distinct(gen, seed, modelindex, dataset, .keep_all = T) %>%
+  mutate(timePoint = factor(if_else(gen == 50000, "Start", "End"))) %>%
+  rowwise() %>%
+  group_map(~ row_to_m(.x))
 
-# First convert to nearest positive definite matrix
+id_m_valid <- d_m_valid %>%
+  distinct(gen, seed, modelindex, dataset, .keep_all = T) %>%
+  mutate(timePoint = factor(if_else(gen == 50000, "Start", "End"))) %>%
+  select(timePoint, seed, modelindex, isAdapted, dataset, model, r) %>%
+  mutate(label = 1:n())
+
 m_matrices_valid_pd <- lapply(m_matrices_valid, function(x) {
   if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
   return(x)
 })
 
 
-eig_mean_m_pd <- purrr::map(seq_along(m_matrices_valid_pd), function(i){
-  eig <- eigen(m_matrices_valid_pd[[i]])
+
+# First convert to nearest positive definite matrix
+m_matrices_valid_mean_pd <- lapply(m_matrices_valid_mean, function(x) {
+  if (!matrixcalc::is.positive.definite(x)) {return (as.matrix(Matrix::nearPD(x)$mat))}
+  return(x)
+})
+
+
+eig_mean_m_pd <- purrr::map(seq_along(m_matrices_valid_mean_pd), function(i){
+  eig <- eigen(m_matrices_valid_mean_pd[[i]])
   
   circle <- cbind(cos(seq(0, 2*pi, length.out = 100)),
                   sin(seq(0, 2*pi, length.out = 100)))
@@ -570,7 +638,7 @@ eig_mean_m_pd <- purrr::map(seq_along(m_matrices_valid_pd), function(i){
   
   eig_proj <- eigen(Sigma_proj)
   
-  result <- id_m_valid[rep(i, times = 100),]
+  result <- id_m_valid_mean[rep(i, times = 100),]
   result$label <- i
   result$pc1 <- ellipse_pc[,1]
   result$pc2 <- ellipse_pc[,2]
@@ -642,13 +710,327 @@ ggsave("plt_mmat.png", device = png, width = 17, height = 9)
 
 # Vrel_GT, Vrel_Gc, Vrel_M
 ## Measure how isomorphically variation is distributed across traits/components
+vrel_gt <- purrr::map(seq_along(h2_pd), function(i) {
+  g <- h2_pd[[i]]
+  
+  vrel_i <- Vrel(eigen(g)$values)
+  
+  result <- id[i,]
+  
+  result$vrel <- vrel_i
+  return(result)
+})
+
+d_vrel_gt <- data.table::rbindlist(vrel_gt)
+
+vrel_gc <- purrr::map(seq_along(h2_pd_mc), function(i) {
+  g <- h2_pd_mc[[i]]
+  
+  vrel_i <- Vrel(eigen(g)$values)
+  
+  result <- id_mc[i,]
+  
+  result$vrel <- vrel_i
+  return(result)
+})
+d_vrel_gc <- data.table::rbindlist(vrel_gc)
+
+vrel_m <- purrr::map(seq_along(m_matrices_valid_pd), function(i) {
+  g <- m_matrices_valid_pd[[i]]
+  
+  vrel_i <- Vrel(eigen(g)$values)
+  
+  result <- id_m_valid[i,]
+  
+  result$vrel <- vrel_i
+  return(result)
+})
+d_vrel_m <- data.table::rbindlist(vrel_m)
+
+# Combine
+d_vrel_gt$matrix <- TeX("$G_T$", output = "character")
+d_vrel_gc$matrix <- TeX("$G_C$", output = "character")
+d_vrel_m$matrix <- TeX("$M$", output = "character")
+
+d_vrel <- rbind(d_vrel_gt, d_vrel_gc, d_vrel_m)
+d_vrel$dataset <- factor(d_vrel$dataset, levels = c("Parallel",
+                                                    "Orthogonal",
+                                                    "Randomised"))
+
+d_vrel_sum <- d_vrel %>%
+  filter(isAdapted == T, log10(r) == -1) %>%
+  group_by(model, matrix, dataset) %>%
+  summarise(meanVrel = mean(vrel))
+
+ggplot(d_vrel %>% 
+         filter(isAdapted == T, log10(r) == -1),
+       aes(x = model, y = vrel, colour = model)) +
+  facet_nested("Matrix" + matrix ~ "Trait/selection alignment" + dataset, 
+               labeller = labeller(matrix = label_parsed)) +
+  geom_quasirandom(show.legend = F) +
+  geom_point(data = d_vrel_sum, aes(y = meanVrel), colour = "black", 
+             fill = "white", stroke = 1,
+             shape = 21, inherit.aes = T, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  labs(x = "Model", y = TeX("$V_{rel}")) +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+ggsave("plt_vrel.png", device = png, bg = "white", width = 10, height = 8)
+
 
 # bTGb, bTCb, bTMb
 ## Measure how much variance is along the selection gradient
+d_selvec <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
+d_selvec$model <- factor(d_selvec$model, levels = model_names, labels = model_names_noquote)
+
+d_selvec2_gt <- inner_join(id, d_selvec, 
+                        by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
+
+d_cossim_gt <- GetCosineSimilarity(h2_pd, d_selvec2_gt %>% select(ends_with("dir")), id)
+
+d_selvec2_mc <- inner_join(id_mc, d_selvec, 
+                           by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
+
+d_cossim_gc <- GetCosineSimilarity(h2_pd_mc, d_selvec2_mc %>% select(ends_with("dir")), id_mc)
+
+d_selvec2_m <- inner_join(id_m_valid, d_selvec, 
+                           by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
+
+d_cossim_m <- GetCosineSimilarity(m_matrices_valid_pd, d_selvec2_m %>% select(ends_with("dir")), id_m_valid)
+
+# Combine
+d_cossim_gt$matrix <- TeX("$G_T$", output = "character")
+d_cossim_gc$matrix <- TeX("$G_C$", output = "character")
+d_cossim_m$matrix <- TeX("$M$", output = "character")
+
+d_cossim <- rbind(d_cossim_gt, d_cossim_gc, d_cossim_m)
+
+d_cossim <- AddCombosToDF(d_cossim)
+
+d_cossim$model <- factor(d_cossim$model, levels = model_names, labels = model_names_noquote)
+
+d_cossim_sum <- d_cossim %>%
+  filter(isAdapted == T, log10(r) == -1) %>%
+  group_by(model, matrix, dataset) %>%
+  summarise(meanLogbTMb = mean(log10(bTMb)))
+
+
+
+ggplot(d_cossim %>% 
+         filter(isAdapted == T, log10(r) == -1),
+       aes(x = model, y = log10(bTMb), colour = model)) +
+  facet_nested("Matrix" + matrix ~ "Trait/selection alignment" + dataset, 
+               labeller = labeller(matrix = label_parsed)) +
+  geom_quasirandom(show.legend = F) +
+  geom_point(data = d_cossim_sum, aes(y = meanLogbTMb), colour = "black", 
+             fill = "white", stroke = 1,
+             shape = 21, inherit.aes = T, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  labs(x = "Model", y = TeX("$log_{10}(\\beta^T X \\beta)$")) +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+ggsave("plt_btxb.png", device = png, bg = "white", width = 10, height = 8)
 
 # PCASim
 ## Measure how similar the covariance within/between components/traits is between replicates
+krz_in_gt <- id %>%
+  mutate(g = h2_pd,
+         group = interaction(model, dataset, log10(r)))
+
+krz_in_gc <- id_mc %>%
+  mutate(g = h2_pd_mc,
+         group = interaction(model, dataset, log10(r)))
+
+krz_in_m <- id_m_valid %>%
+  mutate(g = m_matrices_valid_pd,
+         group = interaction(model, dataset, log10(r)))
+
+
+# Save krz_in: run this part on HPC
+saveRDS(krz_in_gt, "/mnt/d/SLiMTests/tests/newMotifs/paper1/pca_in_gt.RDS")
+saveRDS(krz_in_gc, "/mnt/d/SLiMTests/tests/newMotifs/paper1/pca_in_gc.RDS")
+saveRDS(krz_in_m, "/mnt/d/SLiMTests/tests/newMotifs/paper1/pca_in_m.RDS")
+
+# Bootstrap in ten parts for RAM reasons
+# This is slow: uncomment to run, otherwise read in precalculated data
+# Generate seeds
+# newseed <- sample(1:.Machine$integer.max, 10)
+# [1]  314145285 2009911717  267335506  231424073 1190700402 1189454198  395819651  848071181 1762114410
+# [10] 1739509036
+newseed <- c(314145285L, 2009911717L, 267335506L, 231424073L, 1190700402L, 
+             1189454198L, 395819651L, 848071181L, 1762114410L, 1739509036L)
+bootPCASim <- vector(mode = "list", length = length(newseed))
+
+# Per model inputs
+krz_in_gc_NAR <- krz_in_gc %>% filter(model == "NAR", log10(r) == -1)
+krz_in_gc_PAR <- krz_in_gc %>% filter(model == "PAR", log10(r) == -1)
+krz_in_gc_FFLC1 <- krz_in_gc %>% filter(model == "FFLC1", log10(r) == -1)
+krz_in_gc_FFLI1 <- krz_in_gc %>% filter(model == "FFLI1", log10(r) == -1)
+krz_in_gc_FFBH <- krz_in_gc %>% filter(model == "FFBH", log10(r) == -1)
+
+
+for (i in seq_along(newseed)) {
+  # Set seed
+  set.seed(newseed[i])
+  # Run replicate but only within models
+  res_NAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_gc_NAR, "group", T))
+  res_PAR <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_gc_PAR, "group", T))
+  res_FFLC1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_gc_FFLC1, "group", T))
+  res_FFLI1 <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_gc_FFLI1, "group", T))
+  res_FFBH <- mcreplicate::mc_replicate(50, bootKrzCorFn(krz_in_gc_FFBH, "group", T))
+  
+  # To data.frame
+  res_NAR <- unnest(as.data.frame(t(res_NAR)), cols = everything()) %>%
+    mutate(model = "NAR")
+  res_PAR <- unnest(as.data.frame(t(res_PAR)), cols = everything()) %>%
+    mutate(model = "PAR")
+  res_FFLC1 <- unnest(as.data.frame(t(res_FFLC1)), cols = everything()) %>%
+    mutate(model = "FFLC1")
+  res_FFLI1 <- unnest(as.data.frame(t(res_FFLI1)), cols = everything()) %>%
+    mutate(model = "FFLI1")
+  res_FFBH <- unnest(as.data.frame(t(res_FFBH)), cols = everything()) %>%
+    mutate(model = "FFBH")
+  
+  # Combine to output
+  bootPCASim[[i]] <- rbind(res_NAR, res_PAR, res_FFLC1, res_FFLI1, res_FFBH)
+}
+
+# Output list into combined df
+bootPCASim2 <- bind_rows(bootPCASim)
+bootPCASim <- bootPCASim2 %>%
+  separate(group1, c("model1", "dataset1", "r1"), "\\.",
+           extra = "merge") %>%
+  separate(group2, c("model2", "dataset2", "r2"), "\\.",
+           extra = "merge") %>%
+  mutate(r1 = as.numeric(r1),
+         r2 = as.numeric(r2),
+         dataset1 = factor(dataset1, levels = c("Parallel",
+                                                "Orthogonal",
+                                                "Randomised")),
+         dataset2 = factor(dataset2, levels = c("Parallel",
+                                                "Orthogonal",
+                                                "Randomised"))) %>%
+  rename(PCASim = krzCor)
+
+saveRDS(bootPCASim, paste0("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_bootPCASim.RDS"))
+bootPCASim <- readRDS(paste0("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_bootPCASim.RDS"))
+
+# Plot
+
+# Get model comparisons for labelling
+bootPCASim <- bootPCASim %>%
+  mutate(datasetCombo = GetModelComparison(dataset1, dataset2, c("Parallel",
+                                                                 "Orthogonal",
+                                                                 "Randomised")),
+         rCombo = ifelse(r1 != r2, 
+                         paste(as.character(r1), 
+                               as.character(r2), sep = "_"), 
+                         as.character(r1)),
+         model = factor(model, levels = model_names_noquote),
+         nMCs = unlist(lapply(molComp_names[as.character(model)], length)))
+
+# recomb by modelCombo - we don't have all the recombination levels for the
+# non-randomised datasets
+bootPCASim_sum <- bootPCASim %>%
+  group_by(model, dataset1, dataset2) %>%
+  summarise(meanPCASim = mean(PCASim),
+            ciPCASim = CI(PCASim),
+            nMCs = length(molComp_names[as.character(model[1])][[1]]))
+
+# Facet design
+design <- c(
+  "
+  AABB
+  CCDD
+  #EE#
+  "
+)
+
+
+ggplot(bootPCASim_sum, aes(
+  x = (dataset1), y = (dataset2)
+)) +
+  #facet_nested("Model" + model ~ .) + 
+  facet_manual(.~model, design = design, axes = T) + 
+  geom_tile(aes(fill = meanPCASim)) +
+  theme_bw() +
+  geom_jitter(data = bootPCASim, mapping = aes(fill = PCASim),
+              shape = 21, size = 1) +
+  scale_fill_viridis_c(breaks = seq(0.25, 1.0, by = 0.25),
+                       labels = seq(0.25, 1.0, by = 0.25),
+                       limits = c(0.25, 1)) +
+  # scale_fill_gradientn(colours = paletteer_c("ggthemes::Blue-Green Sequential", n = 6),
+  #                      values = c(0.0, 0.7, 0.75, 0.8, 0.9, 1.0)) +
+  labs(x = "Trait/selection alignment (Matrix 1)", y = "Trait selection alignment (Matrix 2)", 
+       fill = "PCA Similarity") +
+  theme(text = element_text(size = 12), 
+        axis.text.y = element_text(angle = 90, hjust = 0.5),
+        panel.spacing.x = unit(2, "lines"),
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, "lines"))
+ggsave("PCASim_dataset.png", device = png, width = 8, height = 10)
+
 
 # Total variance explained
-## Measure how similar the total 
+prop_var_mc <- purrr::map(seq_along(h2_pd_mc), function(i) {
+  vars <- diag(h2_pd_mc[[i]])
+  d_template <- data.frame(matrix(ncol = 13, nrow = 1))
+  names(d_template) <- c(names(all_molcomp_features), "totalVar")
+  d_template[1,names(vars)] <- vars / sum(vars)
+  d_template[1,13] <- sum(vars)
+  return(d_template)
+})
+
+# Attach ID
+d_prop_vars <- data.table::rbindlist(prop_var_mc)
+d_prop_vars <- cbind(d_prop_vars, id_mc)
+
+# Pivot longer
+d_prop_vars <- d_prop_vars %>%
+  pivot_longer(cols = (1:12),
+               names_to = "molComp",
+               values_to = "varExpl")
+
+d_prop_vars <- d_prop_vars %>%
+  drop_na(varExpl) %>%
+  filter(isAdapted == "Adapted") %>%
+  mutate(dataset = factor(dataset, levels = c("Parallel",
+                                              "Orthogonal",
+                                              "Randomised")))
+
+d_prop_vars_sum <- d_prop_vars %>%
+  group_by(model, dataset, molComp) %>%
+  summarise(meanVarExpl = mean(varExpl),
+            CIVarExpl = CI(varExpl),
+            meanVar = mean(totalVar),
+            CIVar = CI(totalVar))
+
+ggplot(d_prop_vars_sum,
+       aes(x = molComp, y = meanVarExpl, fill = model)) +
+  facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
+  geom_col() +
+  geom_text(aes(x = 6.5, y = 0.2, label = 
+                  paste("Total variance =", round(meanVar, digits = 3),
+                        "±", round(CIVar, digits = 3))), size = 4) +
+  scale_x_discrete(labels = function(x) {parse(text = all_molcomp_features[x])}) +
+  scale_y_continuous(labels = scales::percent) +
+  geom_errorbar(aes(ymin = meanVarExpl - CIVarExpl, ymax = meanVarExpl + CIVarExpl), width = 0.2) +
+  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                    guide = "none") +
+  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
+                      guide = "none") +
+  labs(x = "Molecular component", y = "Mean genetic variance explained (%)") +
+  theme_bw() +
+  theme(text = element_text(size = 12))
+ggsave("plt_var_expl.png", device = png, width = 13, height = 10)
+
+# {Print most importance features}
+print(xtable::xtable(d_prop_vars_sum %>%
+                       group_by(model, dataset) %>%
+                       slice_max(meanVarExpl, n = 4) %>%
+                       ungroup() %>%
+                       select(-model),
+                     
+                     digits = 3), include.rownames = F)
+
 

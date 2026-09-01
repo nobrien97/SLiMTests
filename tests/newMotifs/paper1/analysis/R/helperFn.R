@@ -2,6 +2,7 @@ library(tidyverse)
 library(latex2exp)
 library(paletteer)
 library(ggh4x)
+library(ggbeeswarm)
 
 
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
@@ -127,25 +128,25 @@ mc_permodel <- list("NAR" = t_mc_combos[(t_mc_combos$Var1 < 8) & !(t_mc_combos$V
 
 h2_colnames <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_aX", "VA_KZX", 
                  "VA_aY", "VA_bY", "VA_KY", "VA_aZ", "VA_bZ", "VA_KZ", "VA_KXZ", 
-                 "VA_base", "VA_n", "VA_XMult", "CVA_aX_KZX", "CVA_aX_aY", 
+                 "VA_zZ", "VA_h", "VA_gX", "CVA_aX_KZX", "CVA_aX_aY", 
                  "CVA_aX_bY", "CVA_aX_KY", "CVA_aX_aZ", "CVA_aX_bZ", "CVA_aX_KZ", 
-                 "CVA_aX_KXZ", "CVA_aX_base", "CVA_aX_n", "CVA_aX_XMult", 
+                 "CVA_aX_KXZ", "CVA_aX_zZ", "CVA_aX_h", "CVA_aX_gX", 
                  "CVA_KZX_aY", "CVA_KZX_bY", "CVA_KZX_KY", "CVA_KZX_aZ", 
-                 "CVA_KZX_bZ", "CVA_KZX_KZ", "CVA_KZX_KXZ", "CVA_KZX_base", 
-                 "CVA_KZX_n", "CVA_KZX_XMult", "CVA_aY_bY", "CVA_aY_KY", 
+                 "CVA_KZX_bZ", "CVA_KZX_KZ", "CVA_KZX_KXZ", "CVA_KZX_zZ", 
+                 "CVA_KZX_h", "CVA_KZX_gX", "CVA_aY_bY", "CVA_aY_KY", 
                  "CVA_aY_aZ", "CVA_aY_bZ", "CVA_aY_KZ", "CVA_aY_KXZ", 
-                 "CVA_aY_base", "CVA_aY_n", "CVA_aY_XMult", "CVA_bY_KY", 
+                 "CVA_aY_zZ", "CVA_aY_h", "CVA_aY_gX", "CVA_bY_KY", 
                  "CVA_bY_aZ", "CVA_bY_bZ", "CVA_bY_KZ", "CVA_bY_KXZ", 
-                 "CVA_bY_base", "CVA_bY_n", "CVA_bY_XMult", "CVA_KY_aZ", 
-                 "CVA_KY_bZ", "CVA_KY_KZ", "CVA_KY_KXZ", "CVA_KY_base", 
-                 "CVA_KY_n", "CVA_KY_XMult", "CVA_aZ_bZ", "CVA_aZ_KZ", 
-                 "CVA_aZ_KXZ", "CVA_aZ_base", "CVA_aZ_n", "CVA_aZ_XMult", 
-                 "CVA_bZ_KZ", "CVA_bZ_KXZ", "CVA_bZ_base", "CVA_bZ_n", 
-                 "CVA_bZ_XMult", "CVA_KZ_KXZ", "CVA_KZ_base", "CVA_KZ_n", 
-                 "CVA_KZ_XMult", "CVA_KXZ_base", "CVA_KXZ_n", "CVA_KXZ_XMult", 
-                 "CVA_base_n", "CVA_base_XMult", "CVA_n_XMult", "h2_aX", "h2_KZX", "h2_aY", "h2_bY", 
-                 "h2_KY", "h2_aZ", "h2_bZ", "h2_KZ", "h2_KXZ", "h2_base", "h2_n", 
-                 "h2_XMult")
+                 "CVA_bY_zZ", "CVA_bY_h", "CVA_bY_gX", "CVA_KY_aZ", 
+                 "CVA_KY_bZ", "CVA_KY_KZ", "CVA_KY_KXZ", "CVA_KY_zZ", 
+                 "CVA_KY_h", "CVA_KY_gX", "CVA_aZ_bZ", "CVA_aZ_KZ", 
+                 "CVA_aZ_KXZ", "CVA_aZ_zZ", "CVA_aZ_h", "CVA_aZ_gX", 
+                 "CVA_bZ_KZ", "CVA_bZ_KXZ", "CVA_bZ_zZ", "CVA_bZ_h", 
+                 "CVA_bZ_gX", "CVA_KZ_KXZ", "CVA_KZ_zZ", "CVA_KZ_h", 
+                 "CVA_KZ_gX", "CVA_KXZ_zZ", "CVA_KXZ_h", "CVA_KXZ_gX", 
+                 "CVA_zZ_h", "CVA_zZ_gX", "CVA_h_gX", "h2_aX", "h2_KZX", "h2_aY", "h2_bY", 
+                 "h2_KY", "h2_aZ", "h2_bZ", "h2_KZ", "h2_KXZ", "h2_zZ", "h2_h", 
+                 "h2_gX")
 
 
 
@@ -457,6 +458,7 @@ GetCosineSimilarity <- function(matList, bFrame, id) {
     mutate(timePoint = id$timePoint,
            seed = id$seed,
            modelindex = id$modelindex,
+           dataset = id$dataset,
            clus = id$clus,
            isAdapted = id$isAdapted)
   
@@ -1747,8 +1749,15 @@ bootKrzCorFn <- function(x, group = "", PCASim = F) {
     for (i in seq_along(grps)) {
       for (j in seq_along(grps)) {
         # Sample matrices in different groups
-        g_1 <- slice_sample(x[group == grps[i]], n = 1)
-        g_2 <- slice_sample(x[group == grps[j]], n = 1)
+        if (i != j) {
+          g_1 <- slice_sample(x[group == grps[i]], n = 1)
+          g_2 <- slice_sample(x[group == grps[j]], n = 1)
+        } else 
+        {
+          g <- slice_sample(x[group == grps[i]], n = 2, replace = F) # Avoid sampling the same matrix
+          g_1 <- g[1,]
+          g_2 <- g[2,]
+        }
         res_tmp$group1[j] <- as.character(g_1[1,group])
         res_tmp$group2[j] <- as.character(g_2[1,group])
         res_tmp$krzCor[j] <- fn(g_1$g[[1]], g_2$g[[1]])
@@ -1760,8 +1769,9 @@ bootKrzCorFn <- function(x, group = "", PCASim = F) {
   }
   
   # If group is "", sample two random matrices and return that
-  g1 <- slice_sample(x, n = 1)
-  g2 <- slice_sample(x, n = 1)
+  g <- slice_sample(x, n = 2)
+  g1 <- g[1,]
+  g2 <- g[2,]
   return(fn(g1$g[[1]], g2$g[[1]]))
 }
 
@@ -1785,4 +1795,53 @@ GetModelComparison <- function(model1, model2, model_names) {
   # included here too
   result[model1_index >= model2_index] <- paste(model2[model2First_idx], "vs", model1[model2First_idx])
   return(result)
+}
+
+
+BootSelResponseDiff <- function(x, group, nSkewers = 100) {
+  require(evolqg)
+  require(dplyr)
+
+  if (group != "") {
+    grps <- unique(x[,group])
+    nGrps <- length(grps)
+    
+    
+    # output data frame
+    res <- data.frame(group1 = character(length(grps)^2),
+                      group2 = character(length(grps)^2),
+                      SRD = numeric(length(grps)^2))
+    
+    # Temporary data frame for filling inner loop
+    res_tmp <- data.frame(group1 = character(length(grps)),
+                          group2 = character(length(grps)),
+                          SRD = numeric(length(grps)))
+    
+    for (i in seq_along(grps)) {
+      for (j in seq_along(grps)) {
+        # Sample matrices in different groups
+        if (i != j) {
+          g_1 <- slice_sample(x[group == grps[i]], n = 1)
+          g_2 <- slice_sample(x[group == grps[j]], n = 1)
+        } else 
+        {
+          g <- slice_sample(x[group == grps[i]], n = 2, replace = F) # Avoid sampling the same matrix
+          g_1 <- g[1,]
+          g_2 <- g[2,]
+        }
+        res_tmp$group1[j] <- as.character(g_1[1,group])
+        res_tmp$group2[j] <- as.character(g_2[1,group])
+        res_tmp$SRD[j] <- evolqg::SRD(g_1$g[[1]], g_2$g[[1]], iterations = nSkewers)
+      }
+      indices <- (nGrps*(i-1) + 1):(nGrps*i)
+      res[indices,] <- res_tmp
+    }
+    return(res)
+  }
+  
+  # If group is "", sample two random matrices and return that
+  g <- slice_sample(x, n = 2)
+  g1 <- g[1,]
+  g2 <- g[2,]
+  return(evolqg::SRD(g1$g[[1]], g2$g[[1]], iterations = nSkewers))
 }
