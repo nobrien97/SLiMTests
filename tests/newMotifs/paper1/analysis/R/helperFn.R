@@ -2,6 +2,7 @@ library(tidyverse)
 library(latex2exp)
 library(paletteer)
 library(ggh4x)
+library(Rcpp)
 library(ggbeeswarm)
 
 
@@ -287,6 +288,23 @@ CI <- function(x, quantile = 0.975, na.rm = F) {
 rad2deg <- function(rad) {(rad * 180) / (pi)}
 deg2rad <- function(deg) {(deg * pi / 180)}
 
+
+ReadH2Data <- function(path, trait_type = "trait", calc_mode = "mkr") {
+  require(readr)
+  x <- read_csv(path)
+  
+  if (trait_type == "trait") {
+    colnames(x) <- c("gen", "seed", "modelindex", "VA_w", "h2_w", "VA_t1",
+                                       "VA_t2", "VA_t3", "VA_t4", "CVA_t1_t2", "CVA_t1_t3",
+                                       "CVA_t1_t4", "CVA_t2_t3", "CVA_t2_t4", "CVA_t3_t4",
+                                       "h2_t1", "h2_t2", "h2_t3", "h2_t4")
+  } else if (trait_type == "mc") {
+    colnames(x) <- h2_colnames
+  }
+  
+  x$calcMode <- calc_mode
+  
+}
 
 
 

@@ -13,3 +13,16 @@ cmd_df <- data.frame(
 )
 
 write.table(cmd_df, "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/PBS/cmds.txt", sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+
+# No scale job
+filename <- "./getH2_noscaleSR.sh"
+
+cmd_df <- data.frame(
+    filename = filename,
+    run = run,
+    chunk = 1
+)
+
+write.table(cmd_df, "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/parallelSel/getH2/PBS/cmds_noscale.txt", sep = " ", row.names = FALSE, col.names = FALSE, quote = FALSE)
+
