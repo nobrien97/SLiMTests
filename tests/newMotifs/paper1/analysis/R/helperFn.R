@@ -4,6 +4,8 @@ library(paletteer)
 library(ggh4x)
 library(Rcpp)
 library(ggbeeswarm)
+library(emmeans)
+library(cowplot)
 
 
 model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
@@ -162,6 +164,11 @@ desc <- dplyr::desc
 arrange <- dplyr::arrange
 
 pal <- paletteer_d("nationalparkcolors::Everglades", 5)
+pal_tol <- c("#D2D1E2", "#C1A7C4", "#AD7BA4",
+             "#93C7EC", "#6DA1D6", "#3E79BD",
+             "#B8D29E", "#7BB47D", "#2C925B",
+             "#F4A937", "#EB7121", "#D9070D")
+
 
 # Adds the parameter combination to a dataframe
 AddCombosToDF <- function(df) {
@@ -1862,4 +1869,20 @@ BootSelResponseDiff <- function(x, group, nSkewers = 100) {
   g1 <- g[1,]
   g2 <- g[2,]
   return(evolqg::SRD(g1$g[[1]], g2$g[[1]], iterations = nSkewers))
+}
+
+
+GetTraces <- function(matlist, id) {
+  result <- purrr::map(seq_along(matlist), function(i) {
+    g <- matlist[[i]]
+    
+    trace_i <- matrixcalc::matrix.trace(g)
+    
+    result <- id[i,]
+    
+    result$trace <- trace_i
+    return(result)
+  })
+  
+  return(data.table::rbindlist(result))
 }

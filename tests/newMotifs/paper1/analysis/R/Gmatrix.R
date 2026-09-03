@@ -1034,7 +1034,7 @@ print(xtable::xtable(d_prop_vars_sum %>%
 
 
 # Repeat with unscaled variance estimates
-G_DATA_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
+G_DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/randomisedStartsM/getH2/"
 
 
 d_h2_noscale_mrr <- read_csv(paste0(G_DATA_PATH, "out_h2_noscale_mrr.csv"), col_names = F)
@@ -1150,8 +1150,8 @@ d_h2_noscale <- d_h2_noscale %>%
                 seed = as.factor(seed)) %>%
   drop_na(VA_w) %>% distinct()
 
-saveRDS(d_h2_noscale, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_h2_noscale.RDS")
-saveRDS(d_h2_noscale_trait, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_h2_noscale_trait.RDS")
+saveRDS(d_h2_noscale, "/mnt/d/SLiMTests/tests/newMotifs/paper1/d_h2_noscale.RDS")
+saveRDS(d_h2_noscale_trait, "/mnt/d/SLiMTests/tests/newMotifs/paper1/d_h2_noscale_trait.RDS")
 
 d_h2_noscale <- left_join(d_h2_noscale, d_qg_optPerc, by = c("gen", "seed", "modelindex", "dataset"))
 
@@ -1200,15 +1200,14 @@ h2_pd_noscale_mc <- lapply(h2_mat_noscale_mc, function(x) {
   return(x)
 })
 
-saveRDS(h2_pd_noscale_mc, "h2_pd_noscale_mc.RDS")
-saveRDS(id_noscale_mc, "id_trait_noscale_mc.RDS")
-
+saveRDS(h2_pd_noscale_mc, "/mnt/d/SLiMTests/tests/newMotifs/paper1/h2_pd_noscale_mc.RDS")
+saveRDS(id_noscale_mc, "/mnt/d/SLiMTests/tests/newMotifs/paper1/id_trait_noscale_mc.RDS")
 
 prop_var_noscale_mc <- purrr::map(seq_along(h2_pd_noscale_mc), function(i) {
   vars <- diag(h2_pd_noscale_mc[[i]])
   d_template <- data.frame(matrix(ncol = 13, nrow = 1))
   names(d_template) <- c(names(all_molcomp_features), "totalVar")
-  d_template[1,names(vars)] <- vars / sum(vars)
+  d_template[1,names(vars)] <- vars
   d_template[1,13] <- sum(vars)
   return(d_template)
 })
@@ -1221,40 +1220,86 @@ d_prop_vars_noscale <- cbind(d_prop_vars_noscale, id_noscale_mc)
 d_prop_vars_noscale <- d_prop_vars_noscale %>%
   pivot_longer(cols = (1:12),
                names_to = "molComp",
-               values_to = "varExpl")
+               values_to = "var")
 
 d_prop_vars_noscale <- d_prop_vars_noscale %>%
-  drop_na(varExpl) %>%
+  drop_na(var) %>%
   filter(isAdapted == T, log10(r) == -1, timePoint == "End") %>%
   mutate(dataset = factor(dataset, levels = c("Parallel",
                                               "Orthogonal",
-                                              "Randomised")))
+                                              "Randomised")),
+         varExpl = var / totalVar)
 
 d_prop_vars_noscale_sum <- d_prop_vars_noscale %>%
   group_by(model, dataset, molComp) %>%
   summarise(meanVarExpl = mean(varExpl),
             CIVarExpl = CI(varExpl),
-            meanVar = mean(totalVar),
-            CIVar = CI(totalVar))
+            meanTotalVar = mean(totalVar),
+            CITotalVar = CI(totalVar),
+            meanVar = mean(var),
+            CIVar = CI(var))
 
-ggplot(d_prop_vars_noscale_sum,
-       aes(x = molComp, y = meanVarExpl, fill = model)) +
-  facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
-  geom_col() +
-  geom_text(aes(x = 6.5, y = 0.85, label = 
-                  paste("Total variance =", round(meanVar, digits = 3),
-                        "±", round(CIVar, digits = 3))), size = 4) +
-  scale_x_discrete(labels = function(x) {parse(text = all_molcomp_features[x])}) +
-  scale_y_continuous(labels = scales::percent) +
-  geom_errorbar(aes(ymin = meanVarExpl - CIVarExpl, ymax = meanVarExpl + CIVarExpl), width = 0.2) +
-  scale_fill_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                    guide = "none") +
-  scale_colour_manual(values = paletteer_d("nationalparkcolors::Everglades", 5),
-                      guide = "none") +
-  labs(x = "Molecular component", y = "Mean genetic variance explained (%)") +
+
+ggplot(d_prop_vars_noscale_sum %>%
+         #filter(meanVarExpl > 1e-2) %>%
+         droplevels(.),
+       aes(x = meanVar, y = model, fill = molComp)) +
+  facet_nested(. ~ "Trait/selection alignment" + dataset, scales = "free") +
+  geom_col(colour = "black") +
+  geom_text(aes(label = if_else(meanVar > meanTotalVar * 0.1 &
+                                  ((dataset == "Randomised") & (meanVar > 1e-5) | 
+                                  ((dataset != "Randomised") & (meanTotalVar > 2))), 
+                                all_molcomp_features[molComp], NA)), 
+            position = position_stack(vjust = 0.5), size = 4, parse = T) +
+  # geom_errorbar(aes(xmin = meanVar - CIVar, xmax = meanVar + CIVar), width = 0.2) +
+  scale_fill_manual(values = pal_tol,
+                    labels = function(x) {parse(text = all_molcomp_features[x])}) +
   theme_bw() +
-  theme(text = element_text(size = 12))
-ggsave("plt_var_expl_noscale.png", device = png, width = 13, height = 10)
+  # ggmagnify::geom_magnify(from = c(
+  #   ymin = 2.8, ymax = 3.2, xmin = 1e-12, xmax = 1e-5),
+  #   to = c(3e-4, 1e-3, 2.6, 3.4),
+  #   ) +
+  scale_y_discrete(limits = rev) +
+  
+  labs(y = "Model", x = "Mean genetic variance", fill = "Molecular component") +
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_meanvar
+plt_meanvar
+ggsave("plt_var_noscale.png", device = png, width = 13, height = 10)
+
+# Proportion
+ggplot(d_prop_vars_noscale_sum %>%
+         #filter(meanVarExpl > 1e-2) %>%
+         droplevels(.),
+       aes(x = meanVarExpl, y = model, fill = molComp)) +
+  facet_nested(. ~ "Trait/selection alignment" + dataset, scales = "free") +
+  geom_col(colour = "black") +
+  geom_text(aes(label = if_else(meanVarExpl > 0.1,
+                                all_molcomp_features[molComp], NA)),
+            position = position_stack(vjust = 0.5), size = 4, parse = T) +
+  # geom_errorbar(aes(xmin = meanVar - CIVar, xmax = meanVar + CIVar), width = 0.2) +
+  scale_fill_manual(values = pal_tol,
+                    labels = function(x) {parse(text = all_molcomp_features[x])}) +
+  theme_bw() +
+  scale_y_discrete(limits = rev) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(y = "Model", x = "Mean genetic variance explained (%)", 
+       fill = "Molecular component") +
+  theme(text = element_text(size = 14), legend.position = "bottom") -> plt_meanvarexpl
+plt_meanvarexpl
+
+leg <- get_legend(plt_meanvarexpl)
+
+# A and B
+plt_var_mc <- plot_grid(plt_meanvar + theme(legend.position = "none"), 
+                        plt_meanvarexpl + theme(legend.position = "none"), 
+                        nrow = 2, labels = "AUTO")
+
+plot_grid(plt_var_mc,
+          leg,
+          nrow = 2, rel_heights = c(1, 0.15))
+ggsave("plt_var_noscale.png", device = png, bg = "white",
+       width = 16, height = 8, dpi = 600)
+
 
 # {Print most importance features}
 print(xtable::xtable(d_prop_vars_noscale_sum %>%
@@ -1324,8 +1369,8 @@ h2_pd_noscale_trait <- lapply(h2_mat_noscale_trait, function(x) {
   return(x)
 })
 
-saveRDS(h2_pd_noscale_trait, "/mnt/i/SLiMTests/tests/newMotifs/paper1/h2_pd_noscale_trait.RDS")
-saveRDS(id_noscale_trait, "/mnt/i/SLiMTests/tests/newMotifs/paper1/id_noscale_trait.RDS")
+saveRDS(h2_pd_noscale_trait, "/mnt/d/SLiMTests/tests/newMotifs/paper1/h2_pd_noscale_trait.RDS")
+saveRDS(id_noscale_trait, "/mnt/d/SLiMTests/tests/newMotifs/paper1/id_noscale_trait.RDS")
 
 
 
@@ -1371,9 +1416,9 @@ vrel_m <- purrr::map(seq_along(m_matrices_valid_pd), function(i) {
 d_vrel_m <- data.table::rbindlist(vrel_m)
 
 # Combine
-d_vrel_noscale_gt$matrix <- TeX("$G_T$", output = "character")
-d_vrel_noscale_gc$matrix <- TeX("$G_C$", output = "character")
-d_vrel_m$matrix <- TeX("$M$", output = "character")
+d_vrel_noscale_gt$matrix <- TeX("$\\bf{G}_T$", output = "character")
+d_vrel_noscale_gc$matrix <- TeX("$\\bf{G}_C$", output = "character")
+d_vrel_m$matrix <- TeX("$\\bf{M}$", output = "character")
 
 d_vrel_noscale <- rbind(d_vrel_noscale_gt, d_vrel_noscale_gc, d_vrel_m)
 d_vrel_noscale$dataset <- factor(d_vrel_noscale$dataset, levels = c("Parallel",
@@ -1397,13 +1442,55 @@ ggplot(d_vrel_noscale %>%
   scale_colour_manual(values = pal) +
   labs(x = "Model", y = TeX("$V_{rel}")) +
   theme_bw() +
-  theme(text = element_text(size = 12))
-ggsave("plt_vrel_noscale.png", device = png, bg = "white", width = 10, height = 8)
+  theme(text = element_text(size = 16))
+ggsave("plt_vrel_noscale.png", device = png, bg = "white", width = 10, height = 8,
+       dpi = 600)
+
+# Trace of the G matrices
+d_traces_m <- GetTraces(m_matrices_valid_pd, id_m_valid)
+d_traces_gt <- GetTraces(h2_pd_noscale_trait, id_noscale_trait)
+d_traces_gc <- GetTraces(h2_pd_noscale_mc, id_noscale_mc)
+
+d_traces_gt$matrix <- TeX("$\\bf{G}_T$", output = "character")
+d_traces_gc$matrix <- TeX("$\\bf{G}_C$", output = "character")
+d_traces_m$matrix <- TeX("$\\bf{M}$", output = "character")
+
+d_traces <- rbind(d_traces_gt, d_traces_gc, d_traces_m)
+d_traces$dataset <- factor(d_traces$dataset, levels = c("Parallel",
+                                                                    "Orthogonal",
+                                                                    "Randomised"))
+
+
+d_traces <- AddCombosToDF(d_traces)
+
+d_traces$model <- factor(d_traces$model, levels = model_names, labels = model_names_noquote)
+
+d_traces_sum <- d_traces %>%
+  filter(isAdapted == T, log10(r) == -1) %>%
+  group_by(model, matrix, dataset) %>%
+  summarise(meanLogTrace = mean(log10(trace)))
+
+ggplot(d_traces %>% 
+         filter(isAdapted == T, log10(r) == -1),
+       aes(x = model, y = log10(trace), colour = model)) +
+  facet_nested("Matrix" + matrix ~ "Trait/selection alignment" + dataset, 
+               labeller = labeller(matrix = label_parsed)) +
+  geom_quasirandom(show.legend = F) +
+  geom_point(data = d_traces_sum, aes(y = meanLogTrace), colour = "black", 
+             fill = "white", stroke = 1,
+             shape = 21, inherit.aes = T, show.legend = F) +
+  scale_colour_manual(values = pal) +
+  labs(x = "Model", y = TeX("Matrix trace ($\\log_{10}$)")) +
+  theme_bw() +
+  theme(text = element_text(size = 16))
+ggsave("plt_trace_noscale.png", device = png, bg = "white", width = 12, height = 4,
+       dpi = 600)
+## Reduction in variance for randomised trials?
 
 
 # bTGb, bTCb, bTMb
 ## Measure how much variance is along the selection gradient
-d_selvec <- readRDS("/mnt/i/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
+d_selvec <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
 d_selvec$model <- factor(d_selvec$model, levels = model_names, labels = model_names_noquote)
 
 d_selvec2_noscale_gt <- inner_join(id_noscale_trait, d_selvec, 
@@ -1424,9 +1511,9 @@ d_selvec2_m <- inner_join(id_m_valid, d_selvec,
 d_cossim_m <- GetCosineSimilarity(m_matrices_valid_pd, d_selvec2_m %>% select(ends_with("dir")), id_m_valid)
 
 # Combine
-d_cossim_noscale_gt$matrix <- TeX("$G_T$", output = "character")
-d_cossim_noscale_gc$matrix <- TeX("$G_C$", output = "character")
-d_cossim_m$matrix <- TeX("$M$", output = "character")
+d_cossim_noscale_gt$matrix <- TeX("$\\bf{G}_T$", output = "character")
+d_cossim_noscale_gc$matrix <- TeX("$\\bf{G}_C$", output = "character")
+d_cossim_m$matrix <- TeX("$\\bf{M}$", output = "character")
 
 d_cossim_noscale <- rbind(d_cossim_noscale_gt, d_cossim_noscale_gc, d_cossim_m)
 
@@ -1438,8 +1525,6 @@ d_cossim_noscale_sum <- d_cossim_noscale %>%
   filter(isAdapted == T, log10(r) == -1) %>%
   group_by(model, matrix, dataset) %>%
   summarise(meanLogbTMb = mean(log10(bTMb)))
-
-
 
 ggplot(d_cossim_noscale %>% 
          filter(isAdapted == T, log10(r) == -1),
@@ -1453,8 +1538,9 @@ ggplot(d_cossim_noscale %>%
   scale_colour_manual(values = pal) +
   labs(x = "Model", y = TeX("$log_{10}(\\beta^T X \\beta)$")) +
   theme_bw() +
-  theme(text = element_text(size = 12))
-ggsave("plt_btxb_noscale.png", device = png, bg = "white", width = 10, height = 8)
+  theme(text = element_text(size = 16))
+ggsave("plt_btxb_noscale.png", device = png, bg = "white", width = 12, height = 4,
+       dpi = 600)
 
 # PCASim
 ## Measure how similar the covariance within/between components/traits is between replicates
@@ -1571,9 +1657,12 @@ ggplot(bootPCASim_noscale_sum, aes(
   theme_bw() +
   geom_jitter(data = bootPCASim_noscale, mapping = aes(fill = PCASim),
               shape = 21, size = 1) +
-  scale_fill_viridis_c(breaks = seq(0.0, 1.0, by = 0.25),
-                       labels = seq(0.0, 1.0, by = 0.25),
-                       limits = c(0.0, 1)) +
+  # scale_fill_viridis_c(breaks = c(seq(0.0, 0.75, by = 0.25), 0.9),
+  #                      labels = c(as.character(seq(0.0, 0.75, by = 0.25)), ">0.9"),
+  #                      limits = c(0.0, 0.9), oob = scales::squish) +
+  scale_fill_viridis_c(breaks = seq(0, 1, by = 0.25),
+                       labels = seq(0, 1, by = 0.25),
+                       limits = c(0.0, 1.0)) + 
   # scale_fill_gradientn(colours = paletteer_c("ggthemes::Blue-Green Sequential", n = 6),
   #                      values = c(0.0, 0.7, 0.75, 0.8, 0.9, 1.0)) +
   labs(x = "Trait/selection alignment (Matrix 1)", y = "Trait selection alignment (Matrix 2)", 
@@ -1584,5 +1673,56 @@ ggplot(bootPCASim_noscale_sum, aes(
         legend.position = "bottom",
         legend.key.width = unit(3.5, "lines"))
 ggsave("PCASim_dataset_noscale.png", device = png, width = 8, height = 10)
+
+# Reformat data: rename reciprocals/redundant comparisons
+bootPCASim_mdl <- bootPCASim_noscale %>%
+  rowwise() %>%
+  mutate(
+    dataset_min = min(as.integer(dataset1), as.integer(dataset2)),
+    dataset_max = max(as.integer(dataset1), as.integer(dataset2)),
+  ) %>%
+  ungroup() %>%
+  select(
+    model = model,
+    dataset1 = dataset_min,
+    dataset2 = dataset_max,
+    PCASim = PCASim
+  ) %>%
+  mutate(dataset1 = c("Parallel", "Orthogonal", "Randomised")[as.integer(dataset1)],
+         dataset2 = c("Parallel", "Orthogonal", "Randomised")[as.integer(dataset2)],
+         datasetCombo = paste(dataset1, "vs", dataset2)
+  )
+
+# fractional logit: easier than betareg to get confidence intervals in response scale, 
+# similar results to betareg
+br.pcasim <- betareg::betareg(PCASim ~ model * datasetCombo,
+                 data = bootPCASim_mdl)
+performance::performance(br.pcasim)
+summary(br.pcasim)
+plot(br.pcasim)
+em.br.pcasim <- emmeans(br.pcasim, ~model * datasetCombo)
+em.br.pcasim <- regrid(em.br.pcasim)
+pairs(em.br.pcasim, simple = "model")
+pairs(em.br.pcasim, simple = "datasetCombo")
+pwpp(em.br.pcasim, by = "model")
+emmip(em.br.pcasim,  ~ model | datasetCombo, CIs = T, linearg = list(linewidth = 0.0))
+
+xtable::xtable(em.br.pcasim)
+
+# Table of means
+bootPCASim_mdl %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         datasetCombo = factor(datasetCombo, 
+                               levels = c("Parallel vs Parallel",
+                                          "Parallel vs Orthogonal",
+                                          "Parallel vs Randomised",
+                                          "Orthogonal vs Orthogonal",
+                                          "Orthogonal vs Randomised",
+                                          "Randomised vs Randomised"))) %>%
+  group_by(model, datasetCombo) %>%
+  summarise(meanPCASim = mean(PCASim),
+            CIPCASim = CI(PCASim)) %>%
+  xtable::xtable(., digits = 3) %>%
+  print(., include.rownames = F)
 
 

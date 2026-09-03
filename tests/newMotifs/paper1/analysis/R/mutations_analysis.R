@@ -100,7 +100,7 @@ d_fx_dens$dataset <- factor(d_fx_dens$dataset, levels = c("Parallel",
                                                 "Randomised"))
 
 # Plot
-ggplot(d_fx_dens %>% filter(isAdapted == T) %>%
+ggplot(d_fx_dens %>% filter(isAdapted == T, gen == 50000 | gen == 55000 | gen == 59000) %>%
          group_by(model, dataset) %>%
          mutate(dens = dens / sum(dens)),
        aes(x = s, y = gen - 50000, height = dens, 
