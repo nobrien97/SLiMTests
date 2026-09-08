@@ -168,7 +168,7 @@ plt_codings <- ggplot(d_codings,
   theme(legend.position = "bottom",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.background = element_rect(fill = paletteer_d("ggprism::viridis"), 1),
+        panel.background = element_rect(fill = "black"),#paletteer_d("ggprism::viridis"), 1),
         legend.key.width = unit(3.5, "lines"))
 plt_codings
 ggsave("plt_landscape_autoencoder.png", width = 9, height = 7, device = png)
