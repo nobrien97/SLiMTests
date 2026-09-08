@@ -1468,10 +1468,10 @@ d_traces$model <- factor(d_traces$model, levels = model_names, labels = model_na
 d_traces_sum <- d_traces %>%
   filter(isAdapted == T, log10(r) == -1) %>%
   group_by(model, matrix, dataset) %>%
-  summarise(meanLogTrace = mean(log10(trace)))
+  summarise(meanLogTrace = mean((log10(trace))))
 
 ggplot(d_traces %>% 
-         filter(isAdapted == T, log10(r) == -1),
+         filter(isAdapted == T, log10(r) == -1, log10(trace) > -10),
        aes(x = model, y = log10(trace), colour = model)) +
   facet_nested("Matrix" + matrix ~ "Trait/selection alignment" + dataset, 
                labeller = labeller(matrix = label_parsed)) +

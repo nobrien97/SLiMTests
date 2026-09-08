@@ -541,7 +541,7 @@ d_selvec <- d_selvec %>%
          timePoint = factor(timePoint, levels = c("Start", "End"))) %>%
   select(-gen)
 
-#saveRDS(d_selvec, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
+saveRDS(d_selvec, "/mnt/i/SLiMTests/tests/newMotifs/paper1/d_selvec.RDS")
 
 d_selvec2 <- inner_join(id, d_selvec, 
                         by = c("timePoint", "seed", "modelindex", "dataset", "model", "r"))
@@ -3237,7 +3237,7 @@ krz_in <- krz_in[!sapply(krz_in$g,is.null)]
 
 # Save krz_in: run this part on HPC
 saveRDS(krz_in, "pca_in.RDS")
-
+krz_in <- readRDS("pca_in.RDS")
 # Bootstrap in ten parts for RAM reasons
 # This is slow: uncomment to run, otherwise read in precalculated data
 # Generate seeds
