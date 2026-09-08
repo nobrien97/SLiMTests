@@ -13,7 +13,7 @@ TESTDIR=$HOME/tests/$JOBNAME
 
 echo "Beginning run modelindex = $MODELINDEX at $(date)"
 
-RSCRIPTNAME=$TESTDIR/R/nosil_permolcomp_parallel.R
+RSCRIPTNAME=$TESTDIR/R/nosil_permolcomp_fullwalk_parallel.R
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."

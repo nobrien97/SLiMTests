@@ -3,9 +3,9 @@ library(deSolve)
 library(mvtnorm)
 library(broom)
 
-DATA_PATH <- "/home/564/nb9894/tests/newMotifs/fitnessLandscape/ruggedness/R/" 
+DATA_PATH <- "/home/564/nb9894/tests/newMotifs/paper1/ruggedness/R/" 
 # DATA_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/fitnessLandscape/R/" 
-SAVE_PATH <- "/scratch/ht96/nb9894/newMotifs/fitnessLandscape/ruggedness/"
+SAVE_PATH <- "/scratch/ht96/nb9894/newMotifs/paper1/ruggedness/"
 
 setwd(DATA_PATH)
 
