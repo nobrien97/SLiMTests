@@ -33,6 +33,9 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
     setwd(path)
     source("./fitnesslandscapefunctions.R")
     
+    comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
+           "aZ", "bZ", "Hilln", "XMult", "base")
+
     nComps <- ncol(g)
     rollingGenotypes <- g[1:(n+1), ]
     rollingFitnesses <- numeric(n+1)
