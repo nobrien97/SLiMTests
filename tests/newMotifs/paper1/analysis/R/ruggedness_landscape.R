@@ -219,7 +219,7 @@ pca_nar <- h2o.prcomp(
   x = 2:8,
   training_frame = features_nar,
   pca_method = "GramSVD",
-  transform = "STANDARDIZE",
+  transform = "NONE",
   impute_missing = T,
   k = 7,
   seed = seed
@@ -230,7 +230,7 @@ pca_par <- h2o.prcomp(
   x = 2:8,
   training_frame = features_par,
   pca_method = "GramSVD",
-  transform = "STANDARDIZE",
+  transform = "NONE",
   impute_missing = T,
   k = 7,
   seed = seed
@@ -241,7 +241,7 @@ pca_fflc1 <- h2o.prcomp(
   x = 2:10,
   training_frame = features_fflc1,
   pca_method = "GramSVD",
-  transform = "STANDARDIZE",
+  transform = "NONE",
   impute_missing = T,
   k = 9,
   seed = seed
@@ -252,7 +252,7 @@ pca_ffli1 <- h2o.prcomp(
   x = 2:10,
   training_frame = features_ffli1,
   pca_method = "GramSVD",
-  transform = "STANDARDIZE",
+  transform = "NONE",
   impute_missing = T,
   k = 9,
   seed = seed
@@ -263,7 +263,7 @@ pca_ffbh <- h2o.prcomp(
   x = 2:12,
   training_frame = features_ffbh,
   pca_method = "GramSVD",
-  transform = "STANDARDIZE",
+  transform = "NONE",
   impute_missing = T,
   k = 11,
   seed = seed
@@ -320,7 +320,7 @@ plt_pca
 ggsave("plt_landscape_pca.png", width = 9, height = 7, device = png)
 
 # Plot as a contour map - downsample
-downsample <- 1/10
+downsample <- 1/20
 d_pca_grid <- d_pca_codings %>% select(model, dataset, PC1, PC2, fitness) %>%
   group_by(model,
            x = downsample * round(PC1 / downsample), 
@@ -394,24 +394,60 @@ plt_pca_contour
 
 ##########################################
 ### HPC
+molComp_names <- list("NAR" = c(
+  # NAR and PAR
+  "aZ",
+  "bZ",
+  "KZ",
+  "KXZ",
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
+),
+
+"FFLC1" = c(
+  # FFLC1 and FFLI1
+  "aY",
+  "bY",
+  "KY",
+  "aZ",
+  "bZ",
+  "KXZ",
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
+),
+"FFBH" = c(
+  # FFBH
+  "aX",
+  "KZX",
+  "aY",
+  "bY",
+  "KY",
+  "aZ",
+  "bZ",
+  "KXZ",
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
+)
+)
+molComp_names[["PAR"]] <- molComp_names[["NAR"]]
+molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
+model_names_noquote <- c("NAR", "PAR", "FFLC1", 
+                         "FFLI1", "FFBH")
+
+
+
 # Try PCA on whole dataset
-PCPerModel <- function(data, z, columns) {
+PCPerModel <- function(data, z, columns, should.scale = T) {
   data <- data %>% select(all_of(columns))
-  pc <- prcomp(data, scale = T)
+  pc <- prcomp(data, scale = should.scale)
   result <- data.frame(PC1 = pc$x[,1],
                        PC2 = pc$x[,2],
                        z = z)
   return(result)
 }
-
-pc_ruggedness <- d_ruggedness %>%
-  filter(fitness >= 0.0) %>%
-  rename(h = Hilln,
-         gX = XMult,
-         zZ = base) %>%
-  mutate(model = factor(model, levels = model_names_noquote)) %>%
-  group_by(model) %>%
-  group_map(~ PCPerModel(.x, .x$fitness, unlist(molComp_names[as.character(.x$model[1])])))
 
 pc_ruggedness <- purrr::map(seq_along(model_names_noquote), function(i) {
   x <- d_ruggedness %>%
@@ -456,18 +492,377 @@ plt_pca_tile <- ggplot(d_pc_ruggedness_ds %>% drop_na() %>%
   geom_raster() +
   scale_fill_gradientn(colours = contour_pal,
                     breaks = c(0, seq(0.1, 1.0, by = 0.3)),
-                    #labels = seq(0, 1, by = 0.25),
                     limits = c(0, 1)) +
-  #scale_fill_gradientn(colours = contour_pal) +
   labs(x = "PC1", y = "PC2", 
        fill = "Fitness") +
   theme_bw() +
   theme(text = element_text(size=12), 
         legend.position = "bottom",
         legend.key.width = unit(3.5, 'line'))
-plt_pca_tile
-ggsave("plt_pca_tile_full.png", plt_pca_tile, device = png, 
+ggsave("plt_pca_tile_full_log10.png", plt_pca_tile, device = png, 
        width = 11, height = 8, dpi = 600, bg = "white")
+
+
+# Do a zoom-in PCA on a smaller part of the space
+# focus on area of maximum fitness
+
+# ds_zoom should be lower resolution than the final downsample, 
+# we want to identify the area of largest average fitness
+ds_zoom <- 1/4
+zoom_coords <- d_pc_ruggedness %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = ds_zoom * round(PC1 / ds_zoom),
+           y = ds_zoom * round(PC2 / ds_zoom)) %>%
+  summarise(z = mean(z)) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  # Identify which areas have greatest fitness and filter around there
+  summarise(bigZ = max(z),
+        bigZCoord = which(z == bigZ),
+         bigPC1 = x[bigZCoord],
+         bigPC2 = y[bigZCoord])
+
+zoom_coords
+  
+# Now filter to area with greatest fitness
+d_pc_ruggedness_zoom_ds <- left_join(d_pc_ruggedness,
+                                     zoom_coords,
+                                     by = "model") %>% 
+  select(model, PC1, PC2, bigPC1, bigPC2, z) %>%
+  group_by(model) %>%
+  filter(between(PC1, bigPC1 - 1, bigPC1 + 1),
+         between(PC2, bigPC2 - 1, bigPC2 + 1)) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+  
+plt_pca_tile_zoom <- ggplot(d_pc_ruggedness_zoom_ds %>% drop_na() %>%
+                         mutate(model = factor(model, 
+                                               levels = model_names_noquote)),
+                       aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design, scales = "free") +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_zoom_log10.png", plt_pca_tile_zoom, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+# This was for the sampling of trait combinations from 0 to log(10)
+# Maybe not realistic for most cases, what about around the starting conditions?
+# Those are sampled log(2), we look at 0 to log(3)
+d_ruggedness_log3 <- data.table::fread(paste0(DATA_PATH, "log3/d_ruggedness_permolcomp.csv"), 
+                                  header = F)
+
+colnames(d_ruggedness_log3) <- c("step", "model", "dataset", "fitness", "startW", 
+                            "endW", "netChangeW", "sumChangeW", "numFitnessHoles", 
+                            "nSteps", "aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
+                            "aZ", "bZ", "Hilln", "XMult", "base",
+                            "molComp", "bkg")
+
+# Filter to only the columns we care about
+d_ruggedness_log3 <- d_ruggedness_log3 %>%
+  select(2:4, 11:22)
+
+pc_ruggedness_log3 <- purrr::map(seq_along(model_names_noquote), function(i) {
+  x <- d_ruggedness_log3 %>%
+    filter(fitness >= 0.0) %>%
+    rename(h = Hilln,
+           gX = XMult,
+           zZ = base) %>%
+    mutate(model = factor(model, levels = model_names_noquote)) %>%
+    filter(model == model_names_noquote[i])
+  
+  z <- x$fitness
+  column_names <- (molComp_names[model_names_noquote[i]])[[1]]
+  result <- PCPerModel(x, z, column_names)
+  result$model <- model_names_noquote[i]
+  return(result)
+  
+}, .progress = T)
+
+d_pc_ruggedness_log3 <- data.table::rbindlist(pc_ruggedness_log3, fill = T)
+
+downsample <- 1/15
+d_pc_ruggedness_log3_ds <- d_pc_ruggedness_log3 %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+nrow(d_pc_ruggedness_log3_ds)
+
+# Plot
+plt_pca_log3_tile <- ggplot(d_pc_ruggedness_log3_ds %>% drop_na() %>%
+                         mutate(model = factor(model, 
+                                               levels = model_names_noquote)),
+                       aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_full_log3.png", plt_pca_log3_tile, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+# ds_zoom should be lower resolution than the final downsample, 
+# we want to identify the area of largest average fitness
+ds_zoom <- 1/4
+zoom_coords_log3 <- d_pc_ruggedness_log3 %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = ds_zoom * round(PC1 / ds_zoom),
+           y = ds_zoom * round(PC2 / ds_zoom)) %>%
+  summarise(z = mean(z)) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  # Identify which areas have greatest fitness and filter around there
+  summarise(bigZ = max(z),
+            bigZCoord = which(z == bigZ),
+            bigPC1 = x[bigZCoord],
+            bigPC2 = y[bigZCoord])
+
+zoom_coords_log3
+
+# Now filter to area with greatest fitness
+d_pc_ruggedness_log3_zoom_ds <- left_join(d_pc_ruggedness_log3,
+                                     zoom_coords_log3,
+                                     by = "model") %>% 
+  select(model, PC1, PC2, bigPC1, bigPC2, z) %>%
+  group_by(model) %>%
+  filter(between(PC1, bigPC1 - 1, bigPC1 + 1),
+         between(PC2, bigPC2 - 1, bigPC2 + 1)) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+plt_pca_log3_tile_zoom <- ggplot(d_pc_ruggedness_log3_zoom_ds %>% drop_na() %>%
+                              mutate(model = factor(model, 
+                                                    levels = model_names_noquote)),
+                            aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design, scales = "free") +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_zoom_log3.png", plt_pca_log3_tile_zoom, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+
+
+
+#####
+# Repeat but with no PC scaling (since the components are all on the same scale anyway)
+pc_ruggedness <- purrr::map(seq_along(model_names_noquote), function(i) {
+  x <- d_ruggedness %>%
+    filter(fitness >= 0.0) %>%
+    rename(h = Hilln,
+           gX = XMult,
+           zZ = base) %>%
+    mutate(model = factor(model, levels = model_names_noquote)) %>%
+    filter(model == model_names_noquote[i])
+  
+  z <- x$fitness
+  column_names <- (molComp_names[model_names_noquote[i]])[[1]]
+  result <- PCPerModel(x, z, column_names, should.scale = F)
+  result$model <- model_names_noquote[i]
+  return(result)
+  
+}, .progress = T)
+
+d_pc_ruggedness <- data.table::rbindlist(pc_ruggedness, fill = T)
+
+d_pc_ruggedness_ds <- d_pc_ruggedness %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+# Plot
+plt_pca_tile <- ggplot(d_pc_ruggedness_ds %>% drop_na() %>%
+                         mutate(model = factor(model, 
+                                               levels = model_names_noquote)),
+                       aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_full_log10_noscale.png", plt_pca_tile, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+
+# Do a zoom-in PCA on a smaller part of the space
+# focus on area of maximum fitness
+
+# ds_zoom should be lower resolution than the final downsample, 
+# we want to identify the area of largest average fitness
+zoom_coords <- d_pc_ruggedness %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = ds_zoom * round(PC1 / ds_zoom),
+           y = ds_zoom * round(PC2 / ds_zoom)) %>%
+  summarise(z = mean(z)) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  # Identify which areas have greatest fitness and filter around there
+  summarise(bigZ = max(z),
+            bigZCoord = which(z == bigZ),
+            bigPC1 = x[bigZCoord],
+            bigPC2 = y[bigZCoord])
+
+# Now filter to area with greatest fitness
+d_pc_ruggedness_zoom_ds <- left_join(d_pc_ruggedness,
+                                     zoom_coords,
+                                     by = "model") %>% 
+  select(model, PC1, PC2, bigPC1, bigPC2, z) %>%
+  group_by(model) %>%
+  filter(between(PC1, bigPC1 - 1, bigPC1 + 1),
+         between(PC2, bigPC2 - 1, bigPC2 + 1)) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+plt_pca_tile_zoom <- ggplot(d_pc_ruggedness_zoom_ds %>% drop_na() %>%
+                              mutate(model = factor(model, 
+                                                    levels = model_names_noquote)),
+                            aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design, scales = "free") +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_zoom_log10_noscale.png", plt_pca_tile_zoom, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+
+pc_ruggedness_log3 <- purrr::map(seq_along(model_names_noquote), function(i) {
+  x <- d_ruggedness_log3 %>%
+    filter(fitness >= 0.0) %>%
+    rename(h = Hilln,
+           gX = XMult,
+           zZ = base) %>%
+    mutate(model = factor(model, levels = model_names_noquote)) %>%
+    filter(model == model_names_noquote[i])
+  
+  z <- x$fitness
+  column_names <- (molComp_names[model_names_noquote[i]])[[1]]
+  result <- PCPerModel(x, z, column_names, should.scale = F)
+  result$model <- model_names_noquote[i]
+  return(result)
+  
+}, .progress = T)
+
+d_pc_ruggedness_log3 <- data.table::rbindlist(pc_ruggedness_log3, fill = T)
+
+downsample <- 1/15
+d_pc_ruggedness_log3_ds <- d_pc_ruggedness_log3 %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+nrow(d_pc_ruggedness_log3_ds)
+
+# Plot
+plt_pca_log3_tile <- ggplot(d_pc_ruggedness_log3_ds %>% drop_na() %>%
+                              mutate(model = factor(model, 
+                                                    levels = model_names_noquote)),
+                            aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_full_log3_noscale.png", plt_pca_log3_tile, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
+# ds_zoom should be lower resolution than the final downsample, 
+# we want to identify the area of largest average fitness
+ds_zoom <- 1/4
+zoom_coords_log3 <- d_pc_ruggedness_log3 %>% select(model, PC1, PC2, z) %>%
+  group_by(model,
+           x = ds_zoom * round(PC1 / ds_zoom),
+           y = ds_zoom * round(PC2 / ds_zoom)) %>%
+  summarise(z = mean(z)) %>%
+  ungroup() %>%
+  group_by(model) %>%
+  # Identify which areas have greatest fitness and filter around there
+  summarise(bigZ = max(z),
+            bigZCoord = which(z == bigZ),
+            bigPC1 = x[bigZCoord],
+            bigPC2 = y[bigZCoord])
+
+zoom_coords_log3
+
+# Now filter to area with greatest fitness
+d_pc_ruggedness_log3_zoom_ds <- left_join(d_pc_ruggedness_log3,
+                                          zoom_coords_log3,
+                                          by = "model") %>% 
+  select(model, PC1, PC2, bigPC1, bigPC2, z) %>%
+  group_by(model) %>%
+  filter(between(PC1, bigPC1 - 1, bigPC1 + 1),
+         between(PC2, bigPC2 - 1, bigPC2 + 1)) %>%
+  group_by(model,
+           x = downsample * round(PC1 / downsample),
+           y = downsample * round(PC2 / downsample)) %>%
+  summarise(z = mean(z))
+
+plt_pca_log3_tile_zoom <- ggplot(d_pc_ruggedness_log3_zoom_ds %>% drop_na() %>%
+                                   mutate(model = factor(model, 
+                                                         levels = model_names_noquote)),
+                                 aes(x = x, y = y, fill = z, z = z, group = z)) +
+  facet_manual(model ~ ., design = design, scales = "free") +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+ggsave("plt_pca_tile_zoom_log3_noscale.png", plt_pca_log3_tile_zoom, device = png, 
+       width = 11, height = 8, dpi = 600, bg = "white")
+
 
 
 
