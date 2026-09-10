@@ -94,7 +94,7 @@ comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
 NUM_BACKGROUNDS <- 10
 NUM_STEPS <- 10
 REPS_PER_RUN <- 10
-MAX_COMP_SIZE <- log(3)
+MAX_COMP_SIZE <- log(10)
 nComps <- length(comps)
 
 # 10 backgrounds evaluated per run

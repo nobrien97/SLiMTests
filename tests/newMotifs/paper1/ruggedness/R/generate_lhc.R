@@ -14,7 +14,7 @@ comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
 nComps <- length(comps)
 NUM_RUNS <- 10000
 NUM_BACKGROUNDS <- 10
-MAX_COMP_SIZE <- log(3)
+MAX_COMP_SIZE <- log(10)
 
 # Generate hypercube of parameters
 # Hypercube is NUM_RUNs per molecular component, per genetic background
