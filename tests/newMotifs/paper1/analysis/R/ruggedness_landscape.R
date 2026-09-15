@@ -690,7 +690,7 @@ pc_ruggedness <- purrr::map(seq_along(model_names_noquote), function(i) {
 }, .progress = T)
 
 d_pc_ruggedness <- data.table::rbindlist(pc_ruggedness, fill = T)
-
+downsample <- 1/30
 d_pc_ruggedness_ds <- d_pc_ruggedness %>% select(model, PC1, PC2, z) %>%
   group_by(model,
            x = downsample * round(PC1 / downsample),
@@ -786,7 +786,7 @@ pc_ruggedness_log3 <- purrr::map(seq_along(model_names_noquote), function(i) {
 
 d_pc_ruggedness_log3 <- data.table::rbindlist(pc_ruggedness_log3, fill = T)
 
-downsample <- 1/15
+downsample <- 1/50
 d_pc_ruggedness_log3_ds <- d_pc_ruggedness_log3 %>% select(model, PC1, PC2, z) %>%
   group_by(model,
            x = downsample * round(PC1 / downsample),
@@ -862,6 +862,8 @@ plt_pca_log3_tile_zoom <- ggplot(d_pc_ruggedness_log3_zoom_ds %>% drop_na() %>%
         legend.key.width = unit(3.5, 'line'))
 ggsave("plt_pca_tile_zoom_log3_noscale.png", plt_pca_log3_tile_zoom, device = png, 
        width = 11, height = 8, dpi = 600, bg = "white")
+
+# Report PCA results
 
 
 
