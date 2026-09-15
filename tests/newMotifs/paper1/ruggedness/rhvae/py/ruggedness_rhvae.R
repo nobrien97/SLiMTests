@@ -6,6 +6,8 @@ DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/"
 d_ruggedness <- data.table::fread(paste0(DATA_PATH, "log3/d_ruggedness_permolcomp.csv"), 
                                        header = F)
 
+setwd(paste0(DATA_PATH, "log3"))
+
 colnames(d_ruggedness) <- c("step", "model", "dataset", "fitness", "startW", 
                                  "endW", "netChangeW", "sumChangeW", "numFitnessHoles", 
                                  "nSteps", "aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",

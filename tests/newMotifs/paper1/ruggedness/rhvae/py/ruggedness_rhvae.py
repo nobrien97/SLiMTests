@@ -1,6 +1,5 @@
 from pythae.pipelines import TrainingPipeline
 from pythae.models import RHVAE, RHVAEConfig
-from pythae.samplers import NormalSampler
 from pythae.trainers import BaseTrainerConfig
 import numpy as np
 import pandas as pd
@@ -23,7 +22,7 @@ rhvae = RHVAE(cfg)
 
 train_cfg = BaseTrainerConfig(
     output_dir = 'test_model_nar',
-    num_epochs = 2,
+    num_epochs = 50,
     learning_rate=1e-3,
     per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
@@ -41,9 +40,8 @@ data = pd.read_csv(DATA_PATH + "d_ruggedness_" + model + ".csv")
 # Remove first column (fitness)
 x = data.to_numpy()[:,1:]
 
-
 # Train on a smaller subset of x
-x_sbst = x[np.random.choice(x.shape[0], 3000, replace = False), :]
+x_sbst = x[np.random.choice(x.shape[0], 30000, replace = False), :]
 
 pipeline(train_data = x_sbst)
 
@@ -59,4 +57,4 @@ data['RH2'] = z[:, 1]
 data['model'] = model
 
 # Save output
-data.to_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/analysis/R/d_ruggedness_nar_rh.csv", header = False, index = False)
+data.to_csv(DATA_PATH + "d_ruggedness_" + model + "_rh.csv", header = False, index = False)

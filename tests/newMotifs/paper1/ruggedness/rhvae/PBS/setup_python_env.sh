@@ -12,7 +12,6 @@ source /g/data/ht96/nb9894/py_libs/virtual/environment/ruggedness_3.12.1/bin/act
 
 python3 -m pip install -v --prefix /g/data/ht96/nb9894/py_libs --no-cache-dir pythae
 python3 -m pip install -v --prefix /g/data/ht96/nb9894/py_libs --no-cache-dir pandas
-python3 -m pip uninstall dataclasses -y
 
 
 deactivate
