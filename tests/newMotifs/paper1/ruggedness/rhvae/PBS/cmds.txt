@@ -1,0 +1,5 @@
+./rhvaeSR.sh NAR
+./rhvaeSR.sh PAR
+./rhvaeSR.sh FFLC1
+./rhvaeSR.sh FFLI1
+./rhvaeSR.sh FFBH
