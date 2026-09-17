@@ -19,7 +19,7 @@ d_ruggedness <- d_ruggedness %>%
   select(2:4, 11:22)
 
 
-d_ruggedness <- readRDS("/mnt/i/SLiMTests/tests/newMotifs/paper1/ruggedness/d_ruggedness_sbst.RDS")
+d_ruggedness <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/ruggedness/d_ruggedness_sbst.RDS")
 d_ruggedness <- d_ruggedness %>%
   rename(zZ = base,
          gX = XMult,
@@ -81,22 +81,29 @@ d_ruggedness_par <- d_ruggedness %>% filter(model == "PAR") %>% ungroup() %>%
 d_ruggedness_fflc1 <- d_ruggedness %>% filter(model == "FFLC1") %>% ungroup() %>%
   select(fitness, molComp_names[["FFLC1"]]) 
 d_ruggedness_ffli1 <- d_ruggedness %>% filter(model == "FFLI1") %>% ungroup() %>%
-  select(fitness, molComp_names[["FFLI1"]]) %>%
-    cluster::clara(., N_CENTROIDS, samples = N_SAMPLES, pamLike = T))$medoids
+  select(fitness, molComp_names[["FFLI1"]]) 
 d_ruggedness_ffbh <- d_ruggedness %>% filter(model == "FFBH") %>% ungroup() %>%
   select(fitness, molComp_names[["FFBH"]]) 
 
+d_nar_centroids <- cluster::clara(d_ruggedness_nar %>% select(-fitness), N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
+                                  metric = "euclidean", keep.data = F, medoids.x = F)$i.med
+d_nar_centroids <- d_ruggedness_nar[d_nar_centroids,]
 
-d_nar_centroids <- cluster::clara(d_ruggedness_nar, N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
-                 metric = "euclidean")$medoids
-d_par_centroids <- cluster::clara(d_ruggedness_par, N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
-                                  metric = "euclidean")$medoids
-d_fflc1_centroids <- cluster::clara(d_ruggedness_fflc1, N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
-                                  metric = "euclidean")$medoids
-d_ffli1_centroids <- cluster::clara(d_ruggedness_ffli1, N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
-                                  metric = "euclidean")$medoids
-d_ffbh_centroids <- cluster::clara(d_ruggedness_ffbh, N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
-                                  metric = "euclidean")$medoids
+d_par_centroids <- cluster::clara(d_ruggedness_par %>% select(-fitness), N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
+                                  metric = "euclidean", keep.data = F, medoids.x = F)$i.med
+d_par_centroids <- d_ruggedness_par[d_par_centroids,]
+
+d_fflc1_centroids <- cluster::clara(d_ruggedness_fflc1 %>% select(-fitness), N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
+                                  metric = "euclidean", keep.data = F, medoids.x = F)$i.med
+d_fflc1_centroids <- d_ruggedness_fflc1[d_fflc1_centroids,]
+
+d_ffli1_centroids <- cluster::clara(d_ruggedness_ffli1 %>% select(-fitness), N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
+                                    metric = "euclidean", keep.data = F, medoids.x = F)$i.med
+d_ffli1_centroids <- d_ruggedness_ffli1[d_ffli1_centroids,]
+
+d_ffbh_centroids <- cluster::clara(d_ruggedness_ffbh %>% select(-fitness), N_CENTROIDS, samples = N_SAMPLES, pamLike = T,
+                                    metric = "euclidean", keep.data = F, medoids.x = F)$i.med
+d_ffbh_centroids <- d_ruggedness_ffbh[d_ffbh_centroids,]
 
 # Centroids
 write_csv(as.data.frame(d_nar_centroids), "d_centroids_NAR.csv")
@@ -104,8 +111,6 @@ write_csv(as.data.frame(d_par_centroids), "d_centroids_PAR.csv")
 write_csv(as.data.frame(d_fflc1_centroids), "d_centroids_FFLC1.csv")
 write_csv(as.data.frame(d_ffli1_centroids), "d_centroids_FFLI1.csv")
 write_csv(as.data.frame(d_ffbh_centroids), "d_centroids_FFBH.csv")
-
-
 
 write_csv(d_ruggedness_nar, "d_ruggedness_NAR.csv")
 write_csv(d_ruggedness_par, "d_ruggedness_PAR.csv")
@@ -117,13 +122,13 @@ write_csv(d_ruggedness_ffbh, "d_ruggedness_FFBH.csv")
 ##
 # See if model properly keeps scale/distance between points relative to PCA and phenotype space
 ##
-d_ruggedness_rh <- read_csv("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/d_ruggedness_NAR_rh.csv")
+d_ruggedness_rh <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/d_ruggedness_NAR_rh.csv")
 
 # Attach dataset
 d_ruggedness_rh$dataset <- d_ruggedness[d_ruggedness$model == "NAR",]$dataset
 
 # Plot RH
-downsample <- 1/60
+downsample <- 1/100
 d_ruggedness_nar_rh_ds <- d_ruggedness_rh %>% select(model, RH1, RH2, fitness) %>%
   group_by(model,
            x = downsample * round(RH1 / downsample),
@@ -159,6 +164,7 @@ plt_rhvae_test
 
 # distance matrix of samples
 SAMPLE_SIZE <- 10000
+sample_space <- 1:nrow(d_ruggedness_rh)
 d_distances <- data.frame(trait_dist = numeric(SAMPLE_SIZE),
                           latent_dist = numeric(SAMPLE_SIZE))
 
@@ -190,6 +196,14 @@ ggplot(d_distances,
   theme_bw() +
   labs(x = "Phenotype space distance", y = "Latent space distance")
 
+PCPerModel <- function(data, z, columns, should.scale = T) {
+  data <- data %>% select(all_of(columns))
+  pc <- prcomp(data, scale = should.scale)
+  result <- data.frame(PC1 = pc$x[,1],
+                       PC2 = pc$x[,2],
+                       z = z)
+  return(result)
+}
 
 
 # compare to PCA
@@ -253,3 +267,275 @@ ggplot(d_distances,
   labs(x = "Phenotype space distance", y = "Latent space distance")
 
 # ALSO BAD
+
+# Load in FFLC1 test
+d_ruggedness_fflc1_rh <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/d_ruggedness_FFLC1_rh.csv")
+
+# Attach dataset
+d_ruggedness_fflc1_rh$dataset <- d_ruggedness[d_ruggedness$model == "FFLC1",]$dataset
+
+# Plot RH
+downsample <- 1/1000
+d_ruggedness_fflc1_rh_ds <- d_ruggedness_fflc1_rh %>% select(model, RH1, RH2, fitness) %>%
+  group_by(model,
+           x = downsample * round(RH1 / downsample),
+           y = downsample * round(RH2 / downsample)) %>%
+  summarise(z = mean(fitness))
+
+
+# Plot
+plt_rhvae_fflc1_test <- ggplot(d_ruggedness_fflc1_rh_ds %>% drop_na() %>%
+                           mutate(model = factor(model, 
+                                                 levels = model_names_noquote)),
+                         aes(x = x, y = y, fill = z, z = z, group = z)) +
+  #facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "RH1", y = "RH2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+plt_rhvae_fflc1_test
+
+# distance matrix of samples
+SAMPLE_SIZE <- 10000
+sample_space <- 1:nrow(d_ruggedness_fflc1_rh)
+d_distances <- data.frame(trait_dist = numeric(SAMPLE_SIZE),
+                          latent_dist = numeric(SAMPLE_SIZE))
+
+set.seed(42)
+samples_i <- sample(sample_space, SAMPLE_SIZE * 2, replace = F)
+samples_j <- samples_i[(SAMPLE_SIZE+1):(SAMPLE_SIZE * 2)]
+samples_i <- samples_i[1:SAMPLE_SIZE]
+
+# Transform to same space
+d_ruggedness_trait_scale <- d_ruggedness_fflc1_rh %>%
+  select(2:8) %>%
+  mutate(across(everything(), scale))
+
+d_ruggedness_rh_scale <- d_ruggedness_fflc1_rh %>%
+  select(9:10) %>%
+  mutate(across(everything(), scale))
+
+
+d_distances$latent_dist <- sqrt(rowSums((d_ruggedness_rh_scale[samples_i, ] - d_ruggedness_rh_scale[samples_j, ])^2))
+d_distances$trait_dist <- sqrt(rowSums((d_ruggedness_trait_scale[samples_i, ] - d_ruggedness_trait_scale[samples_j, ])^2))
+
+# Calculate correlation
+dist_r2 <- cor(d_distances$trait_dist, d_distances$latent_dist, method = "pearson")^2
+
+ggplot(d_distances,
+       aes(x = trait_dist, y = latent_dist)) +
+  geom_point(shape = 21, alpha = 0.3) +
+  ggtitle(paste("RHVAE | R^2 =", dist_r2)) +
+  theme_bw() +
+  labs(x = "Phenotype space distance", y = "Latent space distance")
+
+
+
+
+# Load in FFBH test
+d_ruggedness_ffbh_rh <- read_csv("/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/d_ruggedness_FFBH_rh.csv")
+
+# Attach dataset
+d_ruggedness_ffbh_rh$dataset <- d_ruggedness[d_ruggedness$model == "ffbh",]$dataset
+
+# Plot RH
+downsample <- 1/100
+d_ruggedness_ffbh_rh_ds <- d_ruggedness_ffbh_rh %>% select(model, RH1, RH2, fitness) %>%
+  group_by(model,
+           x = downsample * round(RH1 / downsample),
+           y = downsample * round(RH2 / downsample)) %>%
+  summarise(z = mean(fitness))
+
+
+# Plot
+plt_rhvae_ffbh_test <- ggplot(d_ruggedness_ffbh_rh_ds %>% drop_na() %>%
+                                 mutate(model = factor(model, 
+                                                       levels = model_names_noquote)),
+                               aes(x = x, y = y, fill = z, z = z, group = z)) +
+  #facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "RH1", y = "RH2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+plt_rhvae_ffbh_test
+
+# distance matrix of samples
+SAMPLE_SIZE <- 10000
+sample_space <- 1:nrow(d_ruggedness_ffbh_rh)
+d_distances <- data.frame(trait_dist = numeric(SAMPLE_SIZE),
+                          latent_dist = numeric(SAMPLE_SIZE))
+
+set.seed(42)
+samples_i <- sample(sample_space, SAMPLE_SIZE * 2, replace = F)
+samples_j <- samples_i[(SAMPLE_SIZE+1):(SAMPLE_SIZE * 2)]
+samples_i <- samples_i[1:SAMPLE_SIZE]
+
+# Transform to same space
+d_ruggedness_trait_scale <- d_ruggedness_ffbh_rh %>%
+  select(2:8) %>%
+  mutate(across(everything(), scale))
+
+d_ruggedness_rh_scale <- d_ruggedness_ffbh_rh %>%
+  select(9:10) %>%
+  mutate(across(everything(), scale))
+
+
+d_distances$latent_dist <- sqrt(rowSums((d_ruggedness_rh_scale[samples_i, ] - d_ruggedness_rh_scale[samples_j, ])^2))
+d_distances$trait_dist <- sqrt(rowSums((d_ruggedness_trait_scale[samples_i, ] - d_ruggedness_trait_scale[samples_j, ])^2))
+
+# Calculate correlation
+dist_r2 <- cor(d_distances$trait_dist, d_distances$latent_dist, method = "pearson")^2
+
+ggplot(d_distances,
+       aes(x = trait_dist, y = latent_dist)) +
+  geom_point(shape = 21, alpha = 0.3) +
+  ggtitle(paste("RHVAE | R^2 =", dist_r2)) +
+  theme_bw() +
+  labs(x = "Phenotype space distance", y = "Latent space distance")
+
+# Try umap
+library(uwot)
+
+startTime <- as.numeric(Sys.time())
+umap_nar <- umap2(d_ruggedness_nar %>% select(-fitness))
+endTime <- as.numeric(Sys.time())
+endTime - startTime
+
+# Plot distance
+SAMPLE_SIZE <- 10000
+sample_space <- 1:nrow(umap_nar)
+d_distances <- data.frame(trait_dist = numeric(SAMPLE_SIZE),
+                          latent_dist = numeric(SAMPLE_SIZE))
+
+set.seed(42)
+samples_i <- sample(sample_space, SAMPLE_SIZE * 2, replace = F)
+samples_j <- samples_i[(SAMPLE_SIZE+1):(SAMPLE_SIZE * 2)]
+samples_i <- samples_i[1:SAMPLE_SIZE]
+
+# Transform to same space
+d_ruggedness_trait_scale <- d_ruggedness_nar %>%
+  select(2:8) %>%
+  mutate(across(everything(), scale))
+
+d_ruggedness_rh_scale <- as_tibble(umap_nar) %>%
+  mutate(across(everything(), scale))
+
+
+d_distances$latent_dist <- sqrt(rowSums((d_ruggedness_rh_scale[samples_i, ] - d_ruggedness_rh_scale[samples_j, ])^2))
+d_distances$trait_dist <- sqrt(rowSums((d_ruggedness_trait_scale[samples_i, ] - d_ruggedness_trait_scale[samples_j, ])^2))
+
+# Calculate correlation
+dist_r2 <- cor(d_distances$trait_dist, d_distances$latent_dist, method = "pearson")^2
+
+ggplot(d_distances,
+       aes(x = trait_dist, y = latent_dist)) +
+  geom_point(shape = 21, alpha = 0.3) +
+  ggtitle(paste("UMAP | R^2 =", dist_r2)) +
+  theme_bw() +
+  labs(x = "Phenotype space distance", y = "UMAP distance")
+
+# plot landscape
+downsample <- 1/100
+d_umap_nar <- as_tibble(umap_nar) %>% rename(UMAP1 = V1, UMAP2 = V2) %>%
+  mutate(fitness = d_ruggedness_nar$fitness) %>%
+  group_by(x = downsample * round(UMAP1 / downsample),
+           y = downsample * round(UMAP2 / downsample)) %>%
+  summarise(z = mean(fitness))
+
+
+# Plot
+plt_umap_test <- ggplot(d_umap_nar %>% drop_na(),
+                              aes(x = x, y = y, fill = z, z = z, group = z)) +
+  #facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "UMAP1", y = "UMAP2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+plt_umap_test
+
+# FFBH UMAP
+startTime <- as.numeric(Sys.time())
+umap_ffbh <- umap2(d_ruggedness_ffbh %>% select(-fitness))
+endTime <- as.numeric(Sys.time())
+endTime - startTime
+
+# Plot distance
+SAMPLE_SIZE <- 10000
+sample_space <- 1:nrow(umap_ffbh)
+d_distances <- data.frame(trait_dist = numeric(SAMPLE_SIZE),
+                          latent_dist = numeric(SAMPLE_SIZE))
+
+set.seed(42)
+samples_i <- sample(sample_space, SAMPLE_SIZE * 2, replace = F)
+samples_j <- samples_i[(SAMPLE_SIZE+1):(SAMPLE_SIZE * 2)]
+samples_i <- samples_i[1:SAMPLE_SIZE]
+
+# Transform to same space
+d_ruggedness_trait_scale <- d_ruggedness_ffbh %>%
+  select(2:8) %>%
+  mutate(across(everything(), scale))
+
+d_ruggedness_rh_scale <- as_tibble(umap_ffbh) %>%
+  mutate(across(everything(), scale))
+
+
+d_distances$latent_dist <- sqrt(rowSums((d_ruggedness_rh_scale[samples_i, ] - d_ruggedness_rh_scale[samples_j, ])^2))
+d_distances$trait_dist <- sqrt(rowSums((d_ruggedness_trait_scale[samples_i, ] - d_ruggedness_trait_scale[samples_j, ])^2))
+
+# Calculate correlation
+dist_r2 <- cor(d_distances$trait_dist, d_distances$latent_dist, method = "pearson")^2
+
+ggplot(d_distances,
+       aes(x = trait_dist, y = latent_dist)) +
+  geom_point(shape = 21, alpha = 0.3) +
+  ggtitle(paste("UMAP | R^2 =", dist_r2)) +
+  theme_bw() +
+  labs(x = "Phenotype space distance", y = "UMAP distance")
+
+# plot landscape
+downsample <- 1/20
+d_umap_ffbh <- as_tibble(umap_ffbh) %>% rename(UMAP1 = V1, UMAP2 = V2) %>%
+  mutate(fitness = d_ruggedness_ffbh$fitness) %>%
+  group_by(x = downsample * round(UMAP1 / downsample),
+           y = downsample * round(UMAP2 / downsample)) %>%
+  summarise(z = mean(fitness))
+
+
+# Plot
+plt_umap_ffbh <- ggplot(d_umap_ffbh %>% drop_na(),
+                        aes(x = x, y = y, fill = z, z = z, group = z)) +
+  #facet_manual(model ~ ., design = design) +
+  geom_raster() +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  labs(x = "UMAP1", y = "UMAP2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line'))
+plt_umap_ffbh
+
+# UMAP seems to do better than either
+## Need to do is find parameters for each model which maximise r^2 between
+## latent and trait-scale distance
+## grid search

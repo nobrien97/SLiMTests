@@ -15,7 +15,7 @@ np.random.seed(42)
 model = sys.argv[1]
 
 DATA_PATH = "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/log3/"
-DATA_PATH = "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/"
+DATA_PATH = "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/rhvae/py/"
 
 input_dim = 7
 
