@@ -2,6 +2,9 @@ library(tidyverse)
 library(uwot)
 library(ggh4x)
 library(paletteer)
+library(latex2exp)
+library(h2o)
+library(MBA)
 
 molComp_names <- list("NAR" = c(
   # NAR and PAR
