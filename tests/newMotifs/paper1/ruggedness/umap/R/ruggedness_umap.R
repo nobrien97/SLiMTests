@@ -48,7 +48,10 @@ combos <- combos %>%
          metric = Var3) %>%
   mutate(metric = as.character(metric))
 
-seed <- 42
+# > sample(1:.Machine$integer.max, 1)
+# [1] 1997523188
+seed <- 1997523188
+
 # Fit landscape on small sample so we can get a better idea of parameter differences
 d_ruggedness_sample <- d_ruggedness %>%
   slice_sample(n = 1000)
@@ -74,7 +77,8 @@ print(paste("Seconds to finish UMAP grid search:", round(endTime - startTime, di
 best_i <- which.max(unlist(lapply(umap_result, function(x) {
   return(x$distances$r2)
 })))
-best_i
+
+print(paste0("best umap grid result = row ", best_i))
 
 unlist(lapply(umap_result, function(x) {
   return(x$distances$r2)
@@ -82,13 +86,16 @@ unlist(lapply(umap_result, function(x) {
 
 # Run with best parameter combination on the whole dataset
 umap_big <- vector(mode = "list", length = 1)
-set.seed(42)
+set.seed(seed)
+
+nThreads <- parallel::detectCores()
 
 start_time <- as.numeric(Sys.time())
 umap_model <- umap2(d_ruggedness %>% select(-fitness), 
       n_neighbors = combos[best_i,]$neighbour,
       min_dist = combos[best_i,]$min_dist,
-      metric = combos[best_i,]$metric, ret_model = T)
+      metric = combos[best_i,]$metric, ret_model = T,
+      n_threads = nThreads)
 
 umap_big[[1]]$umap_data <- as_tibble(umap_model$embedding) %>% 
   rename(LV1 = V1,LV2 = V2)
@@ -108,7 +115,7 @@ n_features <- ncol(d_ruggedness) - 1
 ae <- h2o.deeplearning(x = 2:ncol(d_ruggedness),
                        training_frame = features,
                        autoencoder = T,
-                       seed = 42,
+                       seed = seed,
                        hidden = c(n_features, 2, n_features),
                        epochs = 100,
                        activation = "Tanh",
@@ -135,7 +142,7 @@ pca_result <- h2o.prcomp(
   transform = "NONE", # No transformation, all traits on same scale already
   impute_missing = T,
   k = 1 - ncol(d_ruggedness),
-  seed = 42
+  seed = seed
 )
 print("PCA done")
 print(pca_result)
@@ -158,13 +165,13 @@ saveRDS(d_pca_codings, paste0(DATA_PATH, "d_pca_codings", model_name, ".RDS"))
 # Calculate distances to find which best fits data
 d_pca_dist <- CalcDistancesUMAP(d_ruggedness %>% select(-fitness),
                                 d_pca_codings,
-                                n = 100000, seed = 42)
+                                n = 100000, seed = seed)
 d_ae_dist <- CalcDistancesUMAP(d_ruggedness %>% select(-fitness),
                                 d_ae,
-                                n = 100000, seed = 42)
+                                n = 100000, seed = seed)
 d_umap_dist <- CalcDistancesUMAP(d_ruggedness %>% select(-fitness),
                                  umap_big[[1]]$umap_data,
-                                 n = 100000, seed = 42)
+                                 n = 100000, seed = seed)
 d_dr.dist <- rbind(d_pca_dist$dist.frame %>% mutate(id = row_number(), dr.method = "PCA",
                                                     r2 = d_pca_dist$r2),
                    d_ae_dist$dist.frame %>% mutate(id = row_number(), dr.method = "Autoencoder",
@@ -216,16 +223,7 @@ d_landscape <- d_landscape %>%
   rename(x = LV1,
          y = LV2) 
 
-
-# d_landscape <- akima::interp(d_landscape$x, 
-#                               d_landscape$y, 
-#                               d_landscape$z, duplicate = "strip",
-#                              nx = 100, ny = 100)
-# d_landscape <- akima::interp2xyz(d_landscape, data.frame = T) %>%
-#   drop_na() %>%
-#   mutate(z = if_else(z < 0, 0, z))
-
-
+# Fit surface with multilevel B-splines
 mba_landscape <- mba.surf(d_landscape, 
                              no.X = 1000, no.Y = 1000)
 
@@ -261,7 +259,7 @@ ggsave(paste0("plt_landscape_", model_name, ".png"),
 
 
 # Plot without any interpolation by downsampling
-ix <- 
+downsample <- 1/20 
 d_landscape_ds <- umap_big[[1]]$umap_data %>% mutate(fitness = d_ruggedness$fitness) %>%
   group_by(x = downsample * round(LV1 / downsample),
            y = downsample * round(LV2 / downsample)) %>%
@@ -280,7 +278,6 @@ ggplot(d_landscape_ds,
   theme(text = element_text(size=12), 
         legend.position = "bottom",
         legend.key.width = unit(3.5, 'line')) -> plot_landscape_ds
-plot_landscape_ds
 ggsave(paste0("plt_landscape_ds_", model_name, ".png"), 
        plot_landscape_ds, device = png, width = 7, height = 7,
        dpi = 600)

@@ -1,0 +1,5 @@
+./umapSR.sh NAR
+./umapSR.sh PAR
+./umapSR.sh FFLC1
+./umapSR.sh FFLI1
+./umapSR.sh FFBH
