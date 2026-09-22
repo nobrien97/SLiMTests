@@ -5,6 +5,7 @@ library(paletteer)
 library(latex2exp)
 library(h2o)
 library(MBA)
+library(parallel)
 
 molComp_names <- list("NAR" = c(
   # NAR and PAR

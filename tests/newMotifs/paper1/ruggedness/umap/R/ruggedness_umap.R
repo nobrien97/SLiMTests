@@ -1,10 +1,13 @@
 # Use UMAP to plot fitness landscapes
 # Helper functions, libraries etc.
-source("./helperFns.R")
+HELPER_PATH <- "~/tests/newMotifs/paper1/ruggedness/umap/"
+
+source(paste0(HELPER_PATH, "helperFns.R"))
 
 # Read in model for this job
 args <- commandArgs(trailingOnly = T)
 model_name <- args[1]
+ip <- args[2] # IP address of the node for connecting to the h2o java server
 
 DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/"
 setwd(paste0(DATA_PATH, "log3"))
@@ -108,7 +111,9 @@ save_uwot(umap_model, paste0(DATA_PATH, "umap_", model_name))
 
 
 # Now test PCA and autoencoder
-h2o.init()
+h2o.init(ip = ip,
+         port = 12345, 
+         startH2O = FALSE)
 
 features <- as.h2o(d_ruggedness)
 n_features <- ncol(d_ruggedness) - 1

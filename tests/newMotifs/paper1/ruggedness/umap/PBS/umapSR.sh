@@ -11,6 +11,12 @@ FILENAME=${MODEL}
 JOBNAME=newMotifs/paper1/ruggedness/umap
 TESTDIR=$HOME/tests/$JOBNAME
 
+# Start h2o java instance 
+ip=$(hostname -I | awk '{print $1}')
+java -Xmx40g -jar $HOME/R/x86_64-pc-linux-gnu-library/4.0/h2o/java/h2o.jar -ip $ip -port 12345 -quiet > /dev/null 2>&1 &
+h2oid=$!
+sleep 15 # Sleep to let h2o start up
+
 echo "Beginning run model = $MODEL at $(date)"
 
 RSCRIPTNAME=$TESTDIR/R/ruggedness_umap.R
@@ -24,7 +30,7 @@ fi
 echo "Calculating output for modelindex = $MODELINDEX...\n"
 
 # Calculate stats for this model set
-Rscript ${RSCRIPTNAME} ${MODEL}
+Rscript ${RSCRIPTNAME} ${MODEL} ${ip}
 
 DURATION=$SECONDS
 echo "Run modelindex = $MODEL finished at $(date)!"
@@ -32,3 +38,6 @@ echo "$(($DURATION / 3600)) hours, $((($DURATION / 60) % 60)) minutes, and $(($D
 
 # Create file to show what we've already done if we get interrupted
 touch $TESTDIR/done/${FILENAME}
+
+# Close h2o
+kill $h2oid
