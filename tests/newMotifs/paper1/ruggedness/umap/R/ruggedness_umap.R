@@ -1,6 +1,6 @@
 # Use UMAP to plot fitness landscapes
 # Helper functions, libraries etc.
-HELPER_PATH <- "~/tests/newMotifs/paper1/ruggedness/umap/"
+HELPER_PATH <- "~/tests/newMotifs/paper1/ruggedness/umap/R/"
 
 source(paste0(HELPER_PATH, "helperFns.R"))
 
