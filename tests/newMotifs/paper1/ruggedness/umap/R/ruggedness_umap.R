@@ -109,6 +109,13 @@ print(paste("Seconds to run big UMAP =", (end_time - start_time)))
 # Save model so we can project adaptive walks onto it
 save_uwot(umap_model, paste0(DATA_PATH, "umap_", model_name))
 
+# Load model
+umap_model_nar <- load_uwot(paste0(DATA_PATH, "umap_NAR"))
+umap_model_par <- load_uwot(paste0(DATA_PATH, "umap_PAR"))
+umap_model_fflc1 <- load_uwot(paste0(DATA_PATH, "umap_FFLC1"))
+umap_model_ffli1 <- load_uwot(paste0(DATA_PATH, "umap_FFLI1"))
+umap_model_ffbh <- load_uwot(paste0(DATA_PATH, "umap_FFBH"))
+
 
 # Now test PCA and autoencoder
 h2o.init(ip = ip,
@@ -130,7 +137,7 @@ print(ae)
 ae_codings <- h2o.deepfeatures(ae, features, layer = 2)
 
 # Save model so we can project adaptive walks onto it
-saveRDS(ae, paste0(DATA_PATH, "ae_", model_name, ".RDS"))
+h2o.saveModel(ae, paste0(DATA_PATH, "ae_", model_name, ".h2o"))
 
 d_ae <- as.data.frame(ae_codings) 
 # LV for latent variable
@@ -214,14 +221,14 @@ ggsave(paste0("plt_dist_", model_name, ".png"),
        dpi = 600)
 
 # Plot landscape using the method producing the greatest r2
-d_landscape <- rbind(d_pca_codings %>% mutate(dr.method = "PCA"),
+d_landscape_all <- rbind(d_pca_codings %>% mutate(dr.method = "PCA"),
                      d_ae %>% mutate(dr.method = "Autoencoder"),
                      umap_big[[1]]$umap_data %>% mutate(dr.method = "UMAP"))
 
 best_method <- (d_dr.r2 %>% ungroup() %>% filter(r2 == max(r2)))$dr.method[1]
 
 # Plot landscape
-d_landscape <- d_landscape %>%
+d_landscape <- d_landscape_all %>%
   filter(dr.method == best_method) %>%
   select(-dr.method) %>%
   mutate(z = d_ruggedness$fitness) %>%
@@ -261,11 +268,12 @@ ggsave(paste0("plt_landscape_", model_name, ".png"),
        dpi = 600)
 
 
-
-
 # Plot without any interpolation by downsampling
-downsample <- 1/20 
-d_landscape_ds <- umap_big[[1]]$umap_data %>% mutate(fitness = d_ruggedness$fitness) %>%
+downsample <- 1/50 
+d_landscape_ds <- d_landscape_all %>% 
+  filter(dr.method == best_method) %>%
+  select(-dr.method) %>%
+  mutate(fitness = d_ruggedness$fitness) %>%
   group_by(x = downsample * round(LV1 / downsample),
            y = downsample * round(LV2 / downsample)) %>%
   summarise(z = mean(fitness))

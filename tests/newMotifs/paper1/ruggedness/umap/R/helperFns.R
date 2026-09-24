@@ -48,11 +48,29 @@ molComp_names <- list("NAR" = c(
 molComp_names[["PAR"]] <- molComp_names[["NAR"]]
 molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
 
+all_molcomp_features <- c(
+  "aX" = TeX("$\\alpha_X$", output = "character"),
+  "KZX" = TeX("$K_{ZX}$", output = "character"),
+  "aY" = TeX("$\\alpha_Y$", output = "character"),
+  "bY" = TeX("$\\beta_Y$", output = "character"),
+  "KY" = TeX("$K_Y$", output = "character"),
+  "aZ" = TeX("$\\alpha_Z$", output = "character"),
+  "bZ" = TeX("$\\beta_Z$", output = "character"),
+  "KZ" = TeX("$K_{Z}$", output = "character"),
+  "KXZ" = TeX("$K_{XZ}$", output = "character"),
+  "zZ" = TeX("$\\zeta_Z$", output = "character"), # baseline expression
+  "h" = TeX("$h$", output = "character"), # hill coefficient
+  "gX" = TeX("$\\gamma_X$", output = "character") # X multiplier
+)
+
+
 model_names_noquote <- c("NAR", "PAR", "FFLC1", 
                          "FFLI1", "FFBH")
 
 
 contour_pal <- c("#220022", paletteer_d("ggprism::viridis", 6)[-c(1)])
+model_pal <- paletteer_d("nationalparkcolors::Everglades", 5)
+
 design <- "
 AABBCC
 #DDEE#
