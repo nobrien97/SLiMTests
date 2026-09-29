@@ -83,6 +83,26 @@ plt_prop
 ggsave("plt_propFX.png", plt_prop, device = png, bg = "white",
        width = 8, height = 5)
 
+# Tables -> average across everything
+d_fx %>%
+  group_by(mutClass) %>%
+  summarise(mu = mean(meanProp),
+            CIprop = CI(meanProp))
+
+
+print(xtable::xtable(d_fx_sum %>% 
+                       mutate(
+                         #model = as.character(model),
+                          #    dataset = as.character(dataset),
+                              mutClass = as.character(factor(mutClass,
+                                                             levels = c("propBen",
+                                                                        "propDel",
+                                                                        "propNeutral"),
+                                                             labels = c("Beneficial",
+                                                                        "Deleterious",
+                                                                        "Neutral")))), 
+                     summary = F, digits = 3), include.rownames = F)
+
 
 # Distributions
 d_fx_dens_orth <- readRDS(paste0(PATH_FX_ORTH, "d_fx_density.RDS"))
@@ -107,14 +127,14 @@ ggplot(d_fx_dens %>% filter(isAdapted == T, gen == 50000 | gen == 55000 | gen ==
            group = gen - 50000, colour = model, fill = model)) +
   facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
   geom_ridgeline(alpha = 0.2, scale = 10000, show.legend = F) +
-  coord_cartesian(xlim = c(-1, 0.5)) +
-  scale_y_continuous(breaks = seq(0, 10000, by = 2000), labels = scales::comma) +
+  #coord_cartesian(xlim = c(-1, 0.5)) +
+  scale_y_continuous(breaks = c(0, 5000, 9000), labels = scales::comma) +
   scale_colour_manual(values = pal) +
   scale_fill_manual(values = pal) +
   labs(x = "Selection coefficient", y = "Generations post-optimum shift") +
   theme_bw() +
   theme(text = element_text(size = 12))
-ggsave("plt_fx_dist.png", device = png, width = 6, height = 9.5)
+ggsave("plt_fx_dist.png", device = png, width = 8.8, height = 5.6, dpi = 600)
 
 # Peak of each density curve
 print(xtable::xtable(d_fx_dens %>% filter(isAdapted == T, gen == 59000) %>%
@@ -123,4 +143,50 @@ print(xtable::xtable(d_fx_dens %>% filter(isAdapted == T, gen == 59000) %>%
   slice_max(dens, n = 1) %>%
     select(model, dataset, s, dens), digits = 3), include.rownames = F)
 
+# Bootstrap estimate the weighted mean of each model/dataset
+BOOT_SAMPLES <- 10000
 
+d_fx_dens_sum <- vector(mode = "list", length = BOOT_SAMPLES)
+N_ROWS <- nrow(d_fx_dens %>% filter(isAdapted == T, gen == 59000))
+set.seed(42)
+for (i in seq_len(BOOT_SAMPLES)) {
+  result <- d_fx_dens %>% filter(isAdapted == T, gen == 59000) %>%
+    group_by(model, dataset) %>%
+    slice_sample(prop = 1, replace = T, weight_by = dens) %>%
+    mutate(sample = i) %>%
+    summarise(meanS = mean(s), .groups = "drop_last") 
+  
+  d_fx_dens_sum[[i]] <- result
+}
+
+d_fx_dens_sum <- data.table::rbindlist(d_fx_dens_sum)
+ggplot(d_fx_dens_sum, aes(x = meanS)) +
+  facet_nested("Model" + model ~ "Trait/selection alignment" + dataset) +
+  geom_histogram(bins = 30) +
+  theme_bw() +
+  labs(x = "Estimated mean s")
+
+# Average across models/datasets
+d_fx_dens_sum2 <- d_fx_dens_sum %>%
+  group_by(model, dataset) %>%
+  summarise(muS = mean(meanS),
+            CIS = CI(meanS))
+d_fx_dens_sum2
+
+# And the mode?
+d_fx_dens %>% filter(isAdapted == T, gen == 59000) %>%
+  group_by(model, dataset) %>%
+  mutate(dens = dens / sum(dens)) %>%
+  slice_max(dens, n = 1) %>%
+  select(model, dataset, s, dens) %>%
+  rename(modeS = s)
+
+print(xtable::xtable(cbind(d_fx_dens_sum2, 
+      d_fx_dens %>% filter(isAdapted == T, gen == 59000) %>%
+        group_by(model, dataset) %>%
+        mutate(dens = dens / sum(dens)) %>%
+        slice_max(dens, n = 1) %>%
+        ungroup() %>%
+        select(s, dens) %>%
+        rename(modeS = s)
+), digits = 3), include.rownames = F)
