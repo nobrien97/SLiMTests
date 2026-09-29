@@ -2,11 +2,12 @@ library(scattermore)
 
 # Load in relevant data
 HELPER_PATH <- "~/tests/newMotifs/paper1/ruggedness/umap/R/"
+#HELPER_PATH <- "./"
 source(paste0(HELPER_PATH, "helperFns.R"))
 
 # Read landscape data
-DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/"
-d_ruggedness <- data.table::fread(paste0(DATA_PATH, "log3/d_ruggedness_permolcomp.csv"), 
+DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/log10/"
+d_ruggedness <- data.table::fread(paste0(DATA_PATH, "d_ruggedness_permolcomp.csv"), 
                                   header = F,
                                   colClasses = c("integer", "character", "character",
                                                  rep("numeric", times = 5),
@@ -161,6 +162,15 @@ AABBCC
 d_walks <- d_walks %>%
   mutate(model = factor(model, levels = model_names_noquote))
 
+d_walks_plot <- d_walks %>% 
+  filter(gen > 49500) %>%
+  group_by(gen, seed, model) %>%
+  filter(row_number() == 1) %>% # keep only the first row by gen
+  ungroup() %>%
+  mutate(gen = gen - 50000,
+         gen_norm = gen / max(gen))
+
+
 ggplot(d_landscape %>%
          mutate(model = factor(model, levels = model_names_noquote)),
        aes(x = x, y = y, z = z)) +
@@ -169,16 +179,26 @@ ggplot(d_landscape %>%
   scale_fill_gradientn(colours = contour_pal,
                        breaks = c(0, seq(0.1, 1.0, by = 0.3)),
                        limits = c(0, 1)) +
-  scale_colour_manual(values = c("#990000", "#009900")) +
+  #scale_colour_manual(values = c("#990000", "#009900")) +
   # Plot some adaptive walks
-  geom_segment(data = d_walks %>% filter(gen > 49500 & gen < 51000), inherit.aes = F,
-            mapping = aes(x = LV1, xend = lead(LV1),
-                          y = LV2, yend = lead(LV2),
-                          colour = isAdapted, group = seed), 
-            arrow = arrow(length = unit(0.3, "cm"), type = "closed"), linewidth = 0.5) +
+  # geom_segment(data = d_walks %>% filter(gen > 49500 & gen < 51000), inherit.aes = F,
+  #           mapping = aes(x = LV1, xend = lead(LV1),
+  #                         y = LV2, yend = lead(LV2),
+  #                         colour = isAdapted, group = seed), 
+  #           arrow = arrow(length = unit(0.2, "cm"), type = "closed"), linewidth = 0.5) +
+  # geom_point(data = d_walks_plot, inherit.aes = F,
+  #              mapping = aes(x = LV1,
+  #                            y = LV2,
+  #                            colour = isAdapted, size = gen_norm, group = seed),
+  #            shape = 21, show.legend = F) +
+  geom_path(data = d_walks_plot %>% filter(isAdapted == T), inherit.aes = F,
+            mapping = aes(x = LV1,
+                          y = LV2,
+                          colour = gen_norm, group = seed)) +
+  scale_size_continuous(range = c(0.1, 5)) +
   coord_equal() +
   labs(x = "LV1", y = "LV2", 
-       fill = "Fitness", colour = "Population adapted?") +
+       fill = "Fitness", colour = "Walk progress") +
   theme_bw() +
   theme(text = element_text(size=12), 
         legend.position = "bottom",
