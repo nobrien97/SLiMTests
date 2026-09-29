@@ -10,8 +10,8 @@ model_name <- args[1]
 ip <- args[2] # IP address of the node for connecting to the h2o java server
 
 DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/"
-setwd(paste0(DATA_PATH, "log3"))
-d_ruggedness <- data.table::fread(paste0(DATA_PATH, "log3/d_ruggedness_permolcomp.csv"), 
+setwd(paste0(DATA_PATH, "log10"))
+d_ruggedness <- data.table::fread(paste0(DATA_PATH, "log10/d_ruggedness_permolcomp.csv"), 
                                   header = F,
                                   colClasses = c("integer", "character", "character",
                                                  rep("numeric", times = 5),
@@ -32,8 +32,10 @@ d_ruggedness <- d_ruggedness %>%
 d_ruggedness <- d_ruggedness %>%
   select(2:4, 11:22)
 
+d_ruggedness_all <- d_ruggedness
+
 # Filter by model input
-d_ruggedness <- d_ruggedness %>%
+d_ruggedness <- d_ruggedness_all %>%
   ungroup() %>%
   filter(model == model_name) %>%
   select(fitness, molComp_names[[model_name]])
@@ -107,14 +109,14 @@ end_time <- as.numeric(Sys.time())
 print(paste("Seconds to run big UMAP =", (end_time - start_time)))
 
 # Save model so we can project adaptive walks onto it
-save_uwot(umap_model, paste0(DATA_PATH, "umap_", model_name))
+save_uwot(umap_model, paste0(DATA_PATH, "log10/umap_", model_name))
 
 # Load model
-umap_model_nar <- load_uwot(paste0(DATA_PATH, "umap_NAR"))
-umap_model_par <- load_uwot(paste0(DATA_PATH, "umap_PAR"))
-umap_model_fflc1 <- load_uwot(paste0(DATA_PATH, "umap_FFLC1"))
-umap_model_ffli1 <- load_uwot(paste0(DATA_PATH, "umap_FFLI1"))
-umap_model_ffbh <- load_uwot(paste0(DATA_PATH, "umap_FFBH"))
+umap_model_nar <- load_uwot(paste0(DATA_PATH, "log10/umap_NAR"))
+umap_model_par <- load_uwot(paste0(DATA_PATH, "log10/umap_PAR"))
+umap_model_fflc1 <- load_uwot(paste0(DATA_PATH, "log10/umap_FFLC1"))
+umap_model_ffli1 <- load_uwot(paste0(DATA_PATH, "log10/umap_FFLI1"))
+umap_model_ffbh <- load_uwot(paste0(DATA_PATH, "log10/umap_FFBH"))
 
 
 # Now test PCA and autoencoder
@@ -137,13 +139,13 @@ print(ae)
 ae_codings <- h2o.deepfeatures(ae, features, layer = 2)
 
 # Save model so we can project adaptive walks onto it
-h2o.saveModel(ae, paste0(DATA_PATH, "ae_", model_name, ".h2o"))
+h2o.saveModel(ae, paste0(DATA_PATH, "log10/ae_", model_name, ".h2o"))
 
 d_ae <- as.data.frame(ae_codings) 
 # LV for latent variable
 colnames(d_ae) <- c("LV1", "LV2")
 
-saveRDS(d_ae, paste0(DATA_PATH, "d_ae_codings", model_name, ".RDS"))
+saveRDS(d_ae, paste0(DATA_PATH, "log10/d_ae_codings", model_name, ".RDS"))
 
 ######
 # PCA
@@ -162,7 +164,7 @@ print("Eigenvectors:")
 print(pca_result@model$eigenvectors)
 
 # Save model so we can project adaptive walks onto it
-saveRDS(pca_result, paste0(DATA_PATH, "pca_", model_name, ".RDS"))
+saveRDS(pca_result, paste0(DATA_PATH, "log10/pca_", model_name, ".RDS"))
 
 
 pca_codings <- h2o.predict(pca_result, features)
@@ -172,7 +174,7 @@ d_pca_codings <- pca_codings %>%
   rename(LV1 = PC1,
          LV2 = PC2)
 
-saveRDS(d_pca_codings, paste0(DATA_PATH, "d_pca_codings", model_name, ".RDS"))
+saveRDS(d_pca_codings, paste0(DATA_PATH, "log10/d_pca_codings", model_name, ".RDS"))
 
 # Calculate distances to find which best fits data
 d_pca_dist <- CalcDistancesUMAP(d_ruggedness %>% select(-fitness),
@@ -195,7 +197,7 @@ d_dr.dist <- d_dr.dist %>%
   rename(lv_dist = umap_dist)
 
 # Output combined distance data
-saveRDS(d_dr.dist, paste0(DATA_PATH, "d_dr.dist_", model_name, ".RDS"))
+saveRDS(d_dr.dist, paste0(DATA_PATH, "log10/d_dr.dist_", model_name, ".RDS"))
 
 d_dr.r2 <- d_dr.dist %>%
   group_by(dr.method) %>%
@@ -246,7 +248,7 @@ d_landscape$z <- as.vector(mba_landscape$xyz.est$z)
 d_landscape <- d_landscape %>%
   mutate(z = if_else(is.na(z) | z < 0, 0, z))
 
-saveRDS(d_landscape, paste0(DATA_PATH, "d_landscape_", model_name, ".RDS"))
+saveRDS(d_landscape, paste0(DATA_PATH, "log10/d_landscape_", model_name, ".RDS"))
 
 ggplot(d_landscape,
        aes(x = x, y = y, z = z)) +
