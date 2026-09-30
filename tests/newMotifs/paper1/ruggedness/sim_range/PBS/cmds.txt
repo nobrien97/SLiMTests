@@ -1,0 +1,5 @@
+./sim_rangeSR.sh NAR
+./sim_rangeSR.sh PAR
+./sim_rangeSR.sh FFLC1
+./sim_rangeSR.sh FFLI1
+./sim_rangeSR.sh FFBH
