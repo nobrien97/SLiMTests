@@ -36,7 +36,7 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
     comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
            "aZ", "bZ", "Hilln", "XMult", "base")
 
-    nComps <- ncol(g)
+    nComps_total <- ncol(g)
     rollingGenotypes <- g[1:(n+1), ]
     rollingFitnesses <- numeric(n+1)
     
@@ -44,8 +44,8 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
     set.seed(seed[row_index])
     # Sample n steps per genotype per a normal distribution with a given width
     # Assume width is split evenly across the components
-    mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
-    mutations <- rbind(rep(0.0, nComps), mutations)
+    mutations <- rmvnorm(n, sigma = diag(nComps_total) * ( width / nComps_total ))
+    mutations <- rbind(rep(0.0, nComps_total), mutations)
     
     # cumulative sum each column to add it to rollingGenotypes
     mutations <- apply(mutations, 2, cumsum)
@@ -92,21 +92,23 @@ comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
            "aZ", "bZ", "Hilln", "XMult", "base")
 
 NUM_BACKGROUNDS <- 10
-NUM_STEPS <- 10
+NUM_STEPS <- 2
 REPS_PER_RUN <- 10
-MAX_COMP_SIZE <- log(10)
-nComps <- length(comps)
+
+# 95% CI for all mol comp values is 43.8655, use that as the max value
+MAX_COMP_SIZE <- 43.8655
+nComps_total <- length(comps)
 
 # 10 backgrounds evaluated per run
 # 10 replicates per run, each run will return a dataframe with 12 * 10 * 10 = 12000 rows in it
 # for 1000 total files to combine - 120,000,000 rows
-ROWS_PER_RUN <- nComps * NUM_BACKGROUNDS * REPS_PER_RUN 
+ROWS_PER_RUN <- nComps_total * NUM_BACKGROUNDS * REPS_PER_RUN 
 
 # range of input rows to evaluate this run
 par_idx_range <- (ROWS_PER_RUN * (par_idx - 1) + 1):(ROWS_PER_RUN * par_idx)
 
 # Read in parameters:
-# Data frame in blocks of 120 (nComps * NUM_BACKGROUNDS)
+# Data frame in blocks of 120 (nComps_total * NUM_BACKGROUNDS)
 # each block is one replicate mutation applied in 10 backgrounds in 12 different molecular components
 # 10000 total replicates for 1200000 applications of that replicate in the backgrounds and mol comps
 # 
@@ -114,7 +116,7 @@ pars <- readRDS(paste0(DATA_PATH, "pars.RDS"))
 pars <- pars[par_idx_range,]
 
 seeds <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
-seed <- seeds[par_idx_range]
+seed <- as.integer(seeds[par_idx_range])
 
 # Read in parallel/orthogonal/randomised directions
 parallel_opt_dir <- read_csv(paste0(DATA_PATH, "parallel_traitdir.csv"), col_names = F)
@@ -131,12 +133,13 @@ opt_seed <- sample(1:.Machine$integer.max, 1)
 for (model in models) {
   # randomly sample an optimum
   set.seed(opt_seed)
-  parsMasked <- ParsMask(pars, model)
+  parsMasked <- ParsMask(pars, model) 
+  model_comps <- CompsForModel(comps, model)
   optMolComps <- as.data.frame(t(runif(ncol(parsMasked), 0, MAX_COMP_SIZE)))
   colnames(optMolComps) <- colnames(parsMasked)
-  startSolution <- SolveModel(exp(optMolComps), model)
-  startTraits <- GetTraitValues(startSolution, model, exp(optMolComps))  
-  sigma <- CalcSelectionSigmas(startTraits, 0.1, 0.1, 0.1)
+  startSolution <- SolveModel(optMolComps, model)
+  startTraits <- GetTraitValues(startSolution, model, optMolComps)
+  sigma <- CalcSelectionSigmas(startTraits, 0.05, 0.1, 0.1)
   par_dir_model <- unlist(parallel_opt_dir[which(models == model),c(1:length(startTraits), ncol(parallel_opt_dir))])
   orth_dir_model <- unlist(orth_opt_dir[which(models == model),c(1:length(startTraits), ncol(orth_opt_dir))])
 
@@ -145,16 +148,19 @@ for (model in models) {
   opt_orth <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, orth_dir_model)
 
   RugRes_rand <- CalculateRuggednessParallel(parsMasked, model, "Randomised", opt_rand, sigma,
+                                        n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
                                         path = DATA_PATH)
 
   RugRes_par <- CalculateRuggednessParallel(parsMasked, model, "Parallel", opt_par, sigma,
+                                        n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
                                         path = DATA_PATH)
                                       
   RugRes_orth <- CalculateRuggednessParallel(parsMasked, model, "Orthogonal", opt_orth, sigma,
+                                        n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
                                         path = DATA_PATH)
@@ -162,11 +168,11 @@ for (model in models) {
   RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)
   
   # Set identifiers
-  RugRes$molComp <- rep(comps[(par_idx_range - 1) %% nComps + 1], each = NUM_STEPS+1)
-  RugRes$bkg <- rep(c(rep(rep(1:NUM_BACKGROUNDS, each = nComps), times = REPS_PER_RUN)), each = NUM_STEPS+1)
+  RugRes$molComp <- rep(model_comps[(par_idx_range - 1) %% nComps_total + 1], each = NUM_STEPS+1)
+  RugRes$bkg <- rep(c(rep(rep(1:NUM_BACKGROUNDS, each = nComps_total), times = REPS_PER_RUN)), each = NUM_STEPS+1)
   
   output_index <- match(model, models)
-  d_ruggedness[[output_index]] <- RugRes
+  d_ruggedness[[output_index]] <- distinct(RugRes)
 }
 
 d_ruggedness <- data.table::rbindlist(d_ruggedness)

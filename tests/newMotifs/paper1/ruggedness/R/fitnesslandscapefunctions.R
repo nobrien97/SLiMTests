@@ -572,13 +572,25 @@ CalcNewOptimumAlongVector <- function(oldOptimum, sigma, desiredFitnessAtShift, 
 # Only feed in appropriate parameters to the right model
 ParsMask <- function(pars, model) {
   switch (model,
-          "NAR" = { return(pars[c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")]) },
-          "PAR" = { return(pars[c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")]) },
-          "FFLC1" = { return(pars[c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
+          "NAR" = { return(pars[,c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")]) },
+          "PAR" = { return(pars[,c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")]) },
+          "FFLC1" = { return(pars[,c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
                                     "XMult", "base")]) },
-          "FFLI1" = { return(pars[c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
+          "FFLI1" = { return(pars[,c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
                                     "XMult", "base")]) },
           "FFBH" = { return(pars) }
+  )
+}
+
+CompsForModel <- function(comps, model) {
+  switch (model,
+          "NAR" = { return(c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")) },
+          "PAR" = { return(c("aZ", "bZ", "KZ", "KXZ", "Hilln", "XMult", "base")) },
+          "FFLC1" = { return(c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
+                                    "XMult", "base")) },
+          "FFLI1" = { return(c("aY", "bY", "KY", "KXZ", "aZ", "bZ", "Hilln", 
+                                    "XMult", "base")) },
+          "FFBH" = { return(comps) }
   )
 }
 
