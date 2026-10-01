@@ -1,0 +1,5 @@
+./calc_landscapeSR.sh NAR
+./calc_landscapeSR.sh PAR
+./calc_landscapeSR.sh FFLC1
+./calc_landscapeSR.sh FFLI1
+./calc_landscapeSR.sh FFBH

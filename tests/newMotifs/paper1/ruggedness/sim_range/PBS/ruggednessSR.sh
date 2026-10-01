@@ -6,14 +6,14 @@ cd $PBS_JOBFS
 SECONDS=0
 
 # Rename the first and second arguments passed to this single shot script for clarity 
-MODEL=$1
-FILENAME=${MODEL}
+MODELINDEX=$1
+FILENAME=${MODELINDEX}
 JOBNAME=newMotifs/paper1/ruggedness/sim_range
 TESTDIR=$HOME/tests/$JOBNAME
 
-echo "Beginning run model = $MODEL at $(date)"
+echo "Beginning run modelindex = $MODELINDEX at $(date)"
 
-RSCRIPTNAME=$TESTDIR/R/umap_sim_range.R
+RSCRIPTNAME=$TESTDIR/R/nosil_permolcomp_fullwalk_parallel.R
 
 if [ -f $TESTDIR/done/${FILENAME} ]; then
     echo "$FILENAME already done! Moving to next simulation."
@@ -24,12 +24,11 @@ fi
 echo "Calculating output for modelindex = $MODELINDEX...\n"
 
 # Calculate stats for this model set
-Rscript ${RSCRIPTNAME} ${MODEL}
+Rscript ${RSCRIPTNAME} ${MODELINDEX}
 
 DURATION=$SECONDS
-echo "Run modelindex = $MODEL finished at $(date)!"
+echo "Run modelindex = $MODELINDEX finished at $(date)!"
 echo "$(($DURATION / 3600)) hours, $((($DURATION / 60) % 60)) minutes, and $(($DURATION % 60)) seconds elapsed."
 
 # Create file to show what we've already done if we get interrupted
 touch $TESTDIR/done/${FILENAME}
-

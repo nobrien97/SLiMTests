@@ -8,7 +8,7 @@
 #PBS -l storage=scratch/ht96+gdata/ht96
   
 ECHO=/bin/echo
-JOBNAME=newMotifs/paper1/ruggedness/sim_range
+JOBNAME=newMotifs/paper1/ruggedness/sim_range/calculate_landscape
 FULLJOBNAME=$JOBNAME
 #
 # These variables are assumed to be set:
@@ -18,7 +18,7 @@ FULLJOBNAME=$JOBNAME
   
 if [ X$NJOBS == X ]; then
     $ECHO "NJOBS (total number of jobs in sequence) is not set - defaulting to 1"
-    export NJOBS=1
+    export NJOBS==0
 fi
   
 if [ X$NJOB == X ]; then
@@ -78,33 +78,7 @@ CMDS_PATH=$HOME/tests/$FULLJOBNAME/PBS/cmds.txt
 mpirun -np $((PBS_NCPUS/ncores_per_task)) --map-by ppr:$((ncores_per_numanode/ncores_per_task)):NUMA:PE=${ncores_per_task} nci-parallel --input-file ${CMDS_PATH} --timeout 86400
 
 
-$ECHO "UMAP calculated, running landscape calculations..."
 
-# Start h2o java instance 
-ip=$(hostname -I | awk '{print $1}')
-java -Xmx40g -jar $HOME/R/x86_64-pc-linux-gnu-library/4.0/h2o/java/h2o.jar -ip $ip -port 12345 -quiet > /dev/null 2>&1 &
-h2oid=$!
-sleep 15 # Sleep to let h2o start up
-
-# Calculate landscape
-module load R/4.0.0
-RSCRIPTNAME=$TESTDIR/R/landscape_sim_range.R
-Rscript ${RSCRIPTNAME} ${ip}
-
-# Close h2o
-kill $h2oid
-
-$ECHO "All jobs finished, moving output..."
-
-# Output is saved directly into g/data for this run
-# cd /scratch/ht96/nb9894/$FULLJOBNAME/
-
-# cat ./d_ruggedness_* >> $SAVEDIR/d_ruggedness_rh.csv
-
-
-# 
-# Check the exit status
-#
 errstat=$?
 if [ $errstat -ne 0 ]; then
     # A brief nap so PBS kills us in normal termination
@@ -115,16 +89,7 @@ if [ $errstat -ne 0 ]; then
     exit $errstat
 fi
 
-#   
-# Are we in an incomplete job sequence - more jobs to run ?
-#   
-if [ $NJOB -lt $NJOBS ]; then
-# Now increment counter and submit the next job
-# 
-    NJOB=$(($NJOB+1))
-    $ECHO "Submitting job number $NJOB in sequence of $NJOBS jobs"
-    cd $PBS_O_WORKDIR
-    qsub -v NJOBS=$NJOBS,NJOB=$NJOB ./$JOBNAME.sh
-else
-    $ECHO "Finished last job in sequence of $NJOBS jobs"
-fi
+$ECHO "UMAP calculated, queuing landscape job..."
+
+qsub $HOME/tests/$FULLJOBNAME/runh2o_landscape.sh
+
