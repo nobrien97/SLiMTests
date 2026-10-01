@@ -141,7 +141,7 @@ NUM_BACKGROUNDS <- 10
 NUM_STEPS <- 2
 REPS_PER_RUN <- 10
 
-d_molcomp_maxvals <- readRDS("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/R/d_molcomp_maxvals.RDS")
+d_molcomp_maxvals <- readRDS("~/tests/newMotifs/paper1/ruggedness/sim_range/R/d_molcomp_maxvals.RDS")
 # Iterate over models
 for (current_model in models) {
   
@@ -199,7 +199,7 @@ opt_seed <- sample(1:.Machine$integer.max, 1)
   #model_comps <- CompsForModel(comps, model)
   
   optMolComps <- as.data.frame(t(runif(nComps, molcomp_min_values, molcomp_max_values)))
-  colnames(optMolComps) <- colnames(parsMasked)
+  colnames(optMolComps) <- colnames(pars)
   startSolution <- SolveModel(optMolComps, current_model)
   startTraits <- GetTraitValues(startSolution, current_model, optMolComps)
   sigma <- CalcSelectionSigmas(startTraits, 0.05, 0.1, 0.1)
@@ -210,19 +210,19 @@ opt_seed <- sample(1:.Machine$integer.max, 1)
   opt_par <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, par_dir_model)
   opt_orth <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, orth_dir_model)
 
-  RugRes_rand <- CalculateRuggednessParallel(parsMasked, current_model, "Randomised", opt_rand, sigma,
+  RugRes_rand <- CalculateRuggednessParallel(pars, current_model, "Randomised", opt_rand, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
                                         path = DATA_PATH)
 
-  RugRes_par <- CalculateRuggednessParallel(parsMasked, current_model, "Parallel", opt_par, sigma,
+  RugRes_par <- CalculateRuggednessParallel(pars, current_model, "Parallel", opt_par, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
                                         path = DATA_PATH)
                                       
-  RugRes_orth <- CalculateRuggednessParallel(parsMasked, current_model, "Orthogonal", opt_orth, sigma,
+  RugRes_orth <- CalculateRuggednessParallel(pars, current_model, "Orthogonal", opt_orth, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
                                         seed = seed,
