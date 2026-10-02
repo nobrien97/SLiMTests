@@ -12,120 +12,6 @@ setwd(DATA_PATH)
 # Load functions
 source("./fitnesslandscapefunctions.R")
 
-
-molComp_names <- list("NAR" = c(
-  # NAR and PAR
-  "aZ",
-  "bZ",
-  "KZ",
-  "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
-),
-
-"FFLC1" = c(
-  # FFLC1 and FFLI1
-  "aY",
-  "bY",
-  "KY",
-  "aZ",
-  "bZ",
-  "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
-),
-"FFBH" = c(
-  # FFBH
-  "aX",
-  "KZX",
-  "aY",
-  "bY",
-  "KY",
-  "aZ",
-  "bZ",
-  "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
-)
-)
-
-molComp_names[["PAR"]] <- molComp_names[["NAR"]]
-molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
-
-
-
-
-CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10,
-                                        width = 0.004,
-                                        nCores,
-                                        seed,
-                                        path) {
-  # g = genotypes (molecular components). Replicate starting points for the walk
-  # w = fitnesses of the starting points
-  # n = number of steps in the walk
-  # seed = replicate seed for the run
-  
-  cl <- parallel::makeCluster(nCores)
-  doParallel::registerDoParallel(cl)
-  
-  df_result <- foreach (row_index = seq_len(nrow(g)), .combine = rbind) %dopar% {
-    require(tidyverse)
-    require(deSolve)
-    require(mvtnorm)
-    
-    setwd(path)
-    source("./fitnesslandscapefunctions.R")
-    
-    comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
-           "aZ", "bZ", "Hilln", "XMult", "base")
-
-    nComps <- ncol(g)
-    rollingGenotypes <- g[1:(n+1), ]
-    rollingFitnesses <- numeric(n+1)
-    
-    # Set the seed for each walk
-    set.seed(seed[row_index])
-    # Sample n steps per genotype per a normal distribution with a given width
-    # Assume width is split evenly across the components
-    mutations <- rmvnorm(n, sigma = diag(nComps_total) * ( width / nComps ))
-    mutations <- rbind(rep(0.0, nComps), mutations)
-    
-    # cumulative sum each column to add it to rollingGenotypes
-    mutations <- apply(mutations, 2, cumsum)
-    rollingGenotypes <- exp(log(g[rep(row_index, times = n+1),]) + mutations)
-    for (j in seq_len(n+1)) {
-      rollingFitnesses[j] <- CalcTraitAndFitness(rollingGenotypes[j,], 
-                                                 model,
-                                                 optima, 
-                                                 sigma)
-    }
-    # Calculate results - add in original fitness
-    # remove invalid fitnesses from bad solutions
-    changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
-    
-    result <- data.frame(step = 1:(n+1),
-                         model = rep(model, times = n+1),
-                         dataset = rep(dataset, times = n+1),
-                         fitness = rollingFitnesses,
-                         startW = rep(rollingFitnesses[1], times = n+1),
-                         endW = rep(rollingFitnesses[n+1], times = n+1),
-                         netChangeW = rep(changeFitnesses[length(changeFitnesses)] - changeFitnesses[1], times = n+1),
-                         sumChangeW = rep(sum(abs(diff(changeFitnesses))), times = n+1),
-                         numFitnessHoles = rep(sum(rollingFitnesses <= 0.0)), times = n+1)
- 
-    result[,comps] <- rollingGenotypes
-
-    return(result)
-  }
-  
-  stopCluster(cl)
-  return(df_result)
-}
-
-
 # input arguments: index to load parameters
 args <- commandArgs(trailingOnly = T)
 par_idx <- as.numeric(args[1])
@@ -133,18 +19,27 @@ par_idx <- as.numeric(args[1])
 
 # Nosil method
 # Generate Latin hypercube starting points
-models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
-comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
-           "aZ", "bZ", "Hilln", "XMult", "base")
 
 NUM_BACKGROUNDS <- 10
 NUM_STEPS <- 2
 REPS_PER_RUN <- 10
 
+# Load parameter combinations and seeds
+pars_all <- readRDS(paste0(DATA_PATH, "pars.RDS"))
+seeds_all <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
+
+# Read in parallel/orthogonal/randomised directions
+parallel_opt_dir <- read_csv(paste0(DATA_PATH, "parallel_traitdir.csv"), col_names = F)
+orth_opt_dir <- read_csv(paste0(DATA_PATH, "orth_traitdir.csv"), col_names = F)
+
+# output
+d_ruggedness <- list()
+
+# Load in range of values to use for each motif
 d_molcomp_maxvals <- readRDS("~/tests/newMotifs/paper1/ruggedness/sim_range/R/d_molcomp_maxvals.RDS")
+
 # Iterate over models
 for (current_model in models) {
-  
   active_comps <- molComp_names[[current_model]] 
   
   molcomp_min_values <- d_molcomp_maxvals %>% ungroup() %>%
@@ -169,35 +64,23 @@ for (current_model in models) {
 # Data frame in blocks of nComps * NUM_BACKGROUNDS
 # each block is one replicate mutation applied in 10 backgrounds in each different molecular components
 # 10000 total replicates applied in each backgrounds and mol comp
-# 
-pars <- readRDS(paste0(DATA_PATH, "pars.RDS"))
 
-# Filter parameters to the current model
-pars <- pars %>% filter(model == current_model) %>% select(-model) %>%
-  select(all_of(active_comps))
-
-pars <- pars[par_idx_range,]
-
-# Read in seeds and choose the correct model
-seeds <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
-seeds <- seeds[[current_model]]
-seed <- as.integer(seeds[par_idx_range])
-
-# Read in parallel/orthogonal/randomised directions
-parallel_opt_dir <- read_csv(paste0(DATA_PATH, "parallel_traitdir.csv"), col_names = F)
-orth_opt_dir <- read_csv(paste0(DATA_PATH, "orth_traitdir.csv"), col_names = F)
-
-
-d_ruggedness <- list()
-
-# Sample seed for optimum (different between replicates, same between backgrounds)
-opt_seed <- sample(1:.Machine$integer.max, 1)
+  # Filter parameters to the current model
+  pars <- pars_all %>% filter(model == current_model) %>% select(-model) %>%
+    select(all_of(active_comps))
+  
+  pars <- pars[par_idx_range,]
+  
+  # Read in seeds and choose the correct model
+  seeds <- seeds_all[[current_model]]
+  seed <- as.integer(seeds[par_idx_range])
+  
+  # Sample seed for optimum (different between replicates, same between backgrounds)
+  opt_seed <- sample(1:.Machine$integer.max, 1)
 
   # randomly sample an optimum
   set.seed(opt_seed)
-  #parsMasked <- ParsMask(pars, model) 
-  #model_comps <- CompsForModel(comps, model)
-  
+
   optMolComps <- as.data.frame(t(runif(nComps, molcomp_min_values, molcomp_max_values)))
   colnames(optMolComps) <- colnames(pars)
   startSolution <- SolveModel(optMolComps, current_model)
@@ -210,23 +93,21 @@ opt_seed <- sample(1:.Machine$integer.max, 1)
   opt_par <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, par_dir_model)
   opt_orth <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, orth_dir_model)
 
-  RugRes_rand <- CalculateRuggednessParallel(pars, current_model, "Randomised", opt_rand, sigma,
+  
+  RugRes_rand <- CalculateRuggednessLandscaper(pars, current_model, "Randomised", opt_rand, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
-                                        seed = seed,
-                                        path = DATA_PATH)
+                                        seed = seed)
 
-  RugRes_par <- CalculateRuggednessParallel(pars, current_model, "Parallel", opt_par, sigma,
+  RugRes_par <- CalculateRuggednessLandscaper(pars, current_model, "Parallel", opt_par, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
-                                        seed = seed,
-                                        path = DATA_PATH)
+                                        seed = seed)
                                       
-  RugRes_orth <- CalculateRuggednessParallel(pars, current_model, "Orthogonal", opt_orth, sigma,
+  RugRes_orth <- CalculateRuggednessLandscaper(pars, current_model, "Orthogonal", opt_orth, sigma,
                                         n = NUM_STEPS,
                                         nCores = future::availableCores(),
-                                        seed = seed,
-                                        path = DATA_PATH)
+                                        seed = seed)
 
   RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)
   

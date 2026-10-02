@@ -91,5 +91,5 @@ fi
 
 $ECHO "UMAP calculated, queuing landscape job..."
 
-qsub $HOME/tests/$FULLJOBNAME/runh2o_landscape.sh
+qsub -v NJOBS=0 $HOME/tests/$FULLJOBNAME/PBS/runh2o_landscape.sh
 

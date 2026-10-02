@@ -7,10 +7,231 @@ library(future)
 library(doParallel)
 library(foreach)
 
+################################################################################
+# Data
+################################################################################
+molComp_names <- list("NAR" = c(
+  # NAR and PAR
+  "aZ",
+  "bZ",
+  "KZ",
+  "KXZ",
+  "base", # baseline expression
+  "Hilln", # hill coefficient
+  "XMult" # X multiplier
+),
+
+"FFLC1" = c(
+  # FFLC1 and FFLI1
+  "aY",
+  "bY",
+  "KY",
+  "aZ",
+  "bZ",
+  "KXZ",
+  "base", # baseline expression
+  "Hilln", # hill coefficient
+  "XMult" # X multiplier
+),
+"FFBH" = c(
+  # FFBH
+  "aX",
+  "KZX",
+  "aY",
+  "bY",
+  "KY",
+  "aZ",
+  "bZ",
+  "KXZ",
+  "base", # baseline expression
+  "Hilln", # hill coefficient
+  "XMult" # X multiplier
+)
+)
+
+molComp_names[["PAR"]] <- molComp_names[["NAR"]]
+molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
+
+comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
+           "aZ", "bZ", "Hilln", "XMult", "base")
+
+models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
+
+
+PBS_JOBFS <- Sys.getenv("PBS_JOBFS")
+
 
 ################################################################################
 # Function definitions
 ################################################################################
+CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10,
+                                        width = 0.004,
+                                        nCores,
+                                        seed,
+                                        path) {
+  # g = genotypes (molecular components). Replicate starting points for the walk
+  # w = fitnesses of the starting points
+  # n = number of steps in the walk
+  # seed = replicate seed for the run
+  
+  cl <- parallel::makeCluster(nCores)
+  doParallel::registerDoParallel(cl)
+  
+  df_result <- foreach (row_index = seq_len(nrow(g)), .combine = rbind) %dopar% {
+    require(tidyverse)
+    require(deSolve)
+    require(mvtnorm)
+    
+    setwd(path)
+    source("./fitnesslandscapefunctions.R")
+    
+    active_comps <- molComp_names[[model]] 
+
+    nComps <- ncol(g)
+    rollingGenotypes <- g[1:(n+1), ]
+    rollingFitnesses <- numeric(n+1)
+    
+    # Set the seed for each walk
+    set.seed(seed[row_index])
+    # Sample n steps per genotype per a normal distribution with a given width
+    # Assume width is split evenly across the components
+    mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
+    mutations <- rbind(rep(0.0, nComps), mutations)
+    
+    # cumulative sum each column to add it to rollingGenotypes
+    mutations <- apply(mutations, 2, cumsum)
+    rollingGenotypes <- exp(log(g[rep(row_index, times = n+1),]) + mutations)
+    for (j in seq_len(n+1)) {
+      rollingFitnesses[j] <- CalcTraitAndFitness(rollingGenotypes[j,], 
+                                                 model,
+                                                 optima, 
+                                                 sigma)
+    }
+    # Calculate results - add in original fitness
+    # remove invalid fitnesses from bad solutions
+    changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
+    netChange <- 0
+    if (length(changeFitnesses) > 0) {
+      netChange <- rep(changeFitnesses[length(changeFitnesses)] - changeFitnesses[1], times = n+1)
+    }
+    
+    result <- data.frame(step = 1:(n+1),
+                         model = rep(model, times = n+1),
+                         dataset = rep(dataset, times = n+1),
+                         fitness = rollingFitnesses,
+                         startW = rep(rollingFitnesses[1], times = n+1),
+                         endW = rep(rollingFitnesses[n+1], times = n+1),
+                         netChangeW = netChange,
+                         sumChangeW = rep(sum(abs(diff(changeFitnesses))), times = n+1),
+                         numFitnessHoles = sum(rollingFitnesses <= 0.0), 
+                         nSteps = n+1)
+
+ 
+    result[,active_comps] <- rollingGenotypes
+
+    return(result)
+  }
+  
+  stopCluster(cl)
+  return(df_result)
+}
+
+
+runLandscaper <- function(df_path, output, optimum, width, motif, threads, useID = FALSE) {
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o ./%s -O %s -w %s -s %s -t %i"
+  #command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
+  if (useID) {
+    command <- paste(command, "-I")
+  }
+  system(sprintf(command,
+                 df_path, output, optimum, width, motif, threads))
+  result <- read_csv(output, col_names = F, col_types = "d")
+
+  result_names <- c("fitness", "trait1", "trait2")
+
+  # Column names depend on the motif 
+  switch(motif,
+    "NAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "Hilln", "XMult") },
+    "PAR"   = { result_names <- c(result_names, "aZ", "bZ", "KZ", "KXZ", "base", "Hilln", "XMult") },
+    "FFLC1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "Hilln", "XMult") },
+    "FFLI1" = { result_names <- c(result_names, "trait3", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "Hilln", "XMult") },
+    "FFBH"  = { result_names <- c(result_names, "trait3", "trait4", "aX", "KZX", "aY", "bY", "KY", "aZ", "bZ", "KXZ", "base", "Hilln", "XMult") }
+  )
+
+  # Add row id to the names
+  if (useID) {
+    result_names <- c("id", result_names)
+  }
+
+  names(result) <- result_names
+
+  return(result)
+}
+
+
+CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 10,
+                                        width = 0.004,
+                                        nCores,
+                                        seed) {
+  # g = genotypes (molecular components). Replicate starting points for the walk
+  # n = number of steps in the walk
+  # seed = replicate seed for the run
+  
+  # Calculate rolling genotypes w/mutations
+  active_comps <- molComp_names[[model]] 
+  nComps <- ncol(g)
+  rollingFitnesses <- numeric(n+1)
+
+  row_index = seq_len(nrow(g))
+  
+  # Set the seed for each walk
+  set.seed(seed[row_index])
+  # Sample n steps per genotype per a normal distribution with a given width
+  # Assume width is split evenly across the components
+  mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
+  mutations <- rbind(rep(0.0, nComps), mutations)
+    
+  # cumulative sum each column to add it to rollingGenotypes
+  mutations <- apply(mutations, 2, cumsum)
+  rollingGenotypes <- exp(log(g[rep(1:nrow(g), times = n+1),]) + mutations)
+
+  # Write rollingGenotypes as an input file
+  tmpfile <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  tmpout <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  
+  write.table(rollingGenotypes, tmpfile, sep = ",", col.names = F, row.names = F)
+
+
+  df_result <- runLandscaper(tmpfile, tmpout, optima, width, model, nCores, useID = T)
+
+  id <- df_result$id
+
+  rollingFitnesses[id] <- df_result$fitness
+    
+    
+  # Calculate results - add in original fitness
+  # remove invalid fitnesses from bad solutions
+  changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
+  netChange <- 0
+  if (length(changeFitnesses) > 0) {
+    netChange <- rep(changeFitnesses[length(changeFitnesses)] - changeFitnesses[1], times = n+1)
+  }
+  
+  result <- data.frame(step = 1:(n+1),
+                       model = rep(model, times = n+1),
+                       dataset = rep(dataset, times = n+1),
+                       fitness = rollingFitnesses,
+                       startW = rep(rollingFitnesses[1], times = n+1),
+                       endW = rep(rollingFitnesses[n+1], times = n+1),
+                       netChangeW = netChange,
+                       sumChangeW = rep(sum(abs(diff(changeFitnesses))), times = n+1),
+                       numFitnessHoles = sum(rollingFitnesses <= 0.0), 
+                       nSteps = n+1)
+
+  result[,active_comps] <- rollingGenotypes
+  return(result)
+}
+
 # clamp function
 clamp <- function(x, lower=-Inf, upper = Inf) {
   pmax(pmin(x, upper), lower)
@@ -534,7 +755,7 @@ CalcTraitAndFitness <- function(p, model, optima, sigma) {
                        },
                        error = function(e) { 
                          # If we have a lsoda error, return NA
-                         if (as.character(w$call[[1]]) == "lsoda")
+                         if (as.character(e$call[[1]]) == "lsoda")
                            return(NA) 
                        }
   )
