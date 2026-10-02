@@ -180,12 +180,10 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   # Calculate rolling genotypes w/mutations
   active_comps <- molComp_names[[model]] 
   nComps <- ncol(g)
-  rollingFitnesses <- numeric(n+1)
-
-  row_index = seq_len(nrow(g))
+  rollingFitnesses <- numeric((n+1) * nrow(g))
   
   # Set the seed for each walk
-  set.seed(seed[row_index])
+  set.seed(seed[1])
   # Sample n steps per genotype per a normal distribution with a given width
   # Assume width is split evenly across the components
   mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
@@ -195,19 +193,46 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   mutations <- apply(mutations, 2, cumsum)
   rollingGenotypes <- exp(log(g[rep(1:nrow(g), times = n+1),]) + mutations)
 
-  # Write rollingGenotypes as an input file
+  row_index = seq_len(nrow(g))
+  # Group up solutions into sets of 10,000
+  SET_SIZE <- 10000
+  n_sets <- ceiling(nrow(rollingGenotypes) / SET_SIZE)
+
+  # Setup input/output files
   tmpfile <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
   tmpout <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
-  
-  write.table(rollingGenotypes, tmpfile, sep = ",", col.names = F, row.names = F)
 
+  cur_fitnesses <- numeric(SET_SIZE)
+  for (i in seq_len(n_sets)) {
 
-  df_result <- runLandscaper(tmpfile, tmpout, optima, width, model, nCores, useID = T)
+    min_geno <- (1+SET_SIZE*(i-1))
+    max_geno <- (i * SET_SIZE)
 
-  id <- df_result$id
+    if (min_geno > nrow(rollingGenotypes)) {
+      min_geno <- nrow(rollingGenotypes)
+    }
 
-  rollingFitnesses[id] <- df_result$fitness
-    
+    if (max_geno > nrow(rollingGenotypes)) {
+      max_geno <- nrow(rollingGenotypes)
+    }
+
+    index_range <- min_geno:max_geno
+    cur_genotypes <- rollingGenotypes[index_range,]
+
+    # Overwrite input file    
+    write.table(cur_genotypes, tmpfile, sep = ",", col.names = F, row.names = T)
+
+    df_result <- runLandscaper(tmpfile, tmpout, optima, width, model, nCores, useID = T)
+
+    # Set the current fitnesses
+    cur_fitnesses[df_result$id] <- df_result$fitness
+
+    # map those values onto the rollingFitnesses vector
+    # We use 1:nrow(df_result) here to handle edge cases where
+    # there are less than 10,000 cells in the range:
+    # we make sure that we are in the range of proper cur_fitness values
+    rollingFitnesses[index_range] <- cur_fitnesses[1:nrow(df_result)]
+  }
     
   # Calculate results - add in original fitness
   # remove invalid fitnesses from bad solutions

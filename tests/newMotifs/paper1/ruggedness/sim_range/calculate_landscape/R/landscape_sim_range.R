@@ -226,5 +226,4 @@ for (model_name in model_names_noquote) {
   ggsave(paste0("plt_landscape_ds_", model_name, ".png"), 
         plot_landscape_ds, device = png, width = 7, height = 7,
         dpi = 600)
-
 }
