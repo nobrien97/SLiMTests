@@ -96,17 +96,17 @@ for (current_model in models) {
   
   RugRes_rand <- CalculateRuggednessLandscaper(pars, current_model, "Randomised", opt_rand, sigma,
                                         n = NUM_STEPS,
-                                        nCores = future::availableCores(),
+                                        nCores = 1,
                                         seed = seed)
 
   RugRes_par <- CalculateRuggednessLandscaper(pars, current_model, "Parallel", opt_par, sigma,
                                         n = NUM_STEPS,
-                                        nCores = future::availableCores(),
+                                        nCores = 1,
                                         seed = seed)
                                       
   RugRes_orth <- CalculateRuggednessLandscaper(pars, current_model, "Orthogonal", opt_orth, sigma,
                                         n = NUM_STEPS,
-                                        nCores = future::availableCores(),
+                                        nCores = 1,
                                         seed = seed)
 
   RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)

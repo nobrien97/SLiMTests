@@ -136,14 +136,15 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
   return(df_result)
 }
 
-runLandscaper <- function(df_path, output, optimum, width, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -w %s -s %s -t %i"
-  #command <- "/mnt/c/GitHub/odeLandscape/build/ODELandscaper -i %s -o %s -O %s -w %s -s %s -t %i"
+runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
+  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -s %s -t %i"
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o %s -O %s -s %s -t %i"
+  #command <- "/mnt/c/GitHub/odeLandscape/build/ODELandscaper -i %s -o %s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
   system(sprintf(command,
-                 df_path, output, optimum, width, motif, threads))
+                 df_path, output, optimum, motif, threads))
   result <- read_csv(output, col_names = F, col_types = "d")
 
   result_names <- c("fitness", "trait1", "trait2")
@@ -190,7 +191,7 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     
   # cumulative sum each column to add it to rollingGenotypes
   mutations <- apply(mutations, 2, cumsum)
-  rollingGenotypes <- exp(log(g[rep(1:nrow(g), times = n+1),]) + mutations)
+  rollingGenotypes <- exp(log(g[rep(1:nrow(g), each = n+1),]) + mutations)
 
   row_index = seq_len(nrow(g))
   # Group up solutions into sets of 10,000
@@ -229,7 +230,6 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
 
     
     df_result <- runLandscaper(tmpin, tmpout, tmpopt, 
-                               paste(rep(width, times = length(optima)), collapse = ","), 
                                model, nCores, useID = T)
 
     # Set the current fitnesses
@@ -244,21 +244,32 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     
   # Calculate results - add in original fitness
   # remove invalid fitnesses from bad solutions
-  changeFitnesses <- rollingFitnesses[rollingFitnesses >= 0.0]
-  netChange <- 0
-  if (length(changeFitnesses) > 0) {
-    netChange <- rep(changeFitnesses[length(changeFitnesses)] - changeFitnesses[1], times = n+1)
-  }
+  start_seq <- seq(from = 1, to = length(rollingFitnesses),
+                   by = n+1)
+  end_seq <- seq(from = n+1, to = length(rollingFitnesses),
+                 by = n+1)
+  
+  # Get total step length
+  rollingFitnessesMat <- matrix(rollingFitnesses, nrow = n+1)
+  
+  rollingFitnessesHoles <- rollingFitnessesMat
+  rollingFitnessesHoles[rollingFitnessesMat <= 0] <- 1 # Fitness hole
+  rollingFitnessesHoles[rollingFitnessesMat > 0] <- 0 # No fitness hole
+  fitnessHoles <- colSums(rollingFitnessesHoles)
+  
+  rollingFitnessesMat[rollingFitnessesMat < 0.0] <- 0.0 # Invalid calculations don't get added
+  netChange <- colSums(abs(diff(rollingFitnessesMat)))
+  
   
   result <- data.frame(step = 1:(n+1),
                        model = rep(model, times = n+1),
                        dataset = rep(dataset, times = n+1),
                        fitness = rollingFitnesses,
-                       startW = rep(rollingFitnesses[1], times = n+1),
-                       endW = rep(rollingFitnesses[n+1], times = n+1),
-                       netChangeW = netChange,
-                       sumChangeW = rep(sum(abs(diff(changeFitnesses))), times = n+1),
-                       numFitnessHoles = sum(rollingFitnesses <= 0.0), 
+                       startW = rollingFitnesses[start_seq],
+                       endW = rollingFitnesses[end_seq],
+                       netChangeW = rollingFitnesses[end_seq] - rollingFitnesses[start_seq],
+                       sumChangeW = rep(netChange, each = n + 1),
+                       numFitnessHoles = rep(fitnessHoles, each = n + 1), 
                        nSteps = n+1)
 
   result[,active_comps] <- rollingGenotypes
