@@ -136,10 +136,9 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
   return(df_result)
 }
 
-
 runLandscaper <- function(df_path, output, optimum, width, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o ./%s -O %s -w %s -s %s -t %i"
-  #command <- "ODELandscaper -i %s -o ./%s -O %s -s %s -t %i"
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -w %s -s %s -t %i"
+  #command <- "/mnt/c/GitHub/odeLandscape/build/ODELandscaper -i %s -o %s -O %s -w %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
   }
@@ -199,12 +198,14 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   n_sets <- ceiling(nrow(rollingGenotypes) / SET_SIZE)
 
   # Setup input/output files
-  tmpfile <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  tmpin <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
   tmpout <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+
+  # Write optimum output
+  tmpopt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
 
   cur_fitnesses <- numeric(SET_SIZE)
   for (i in seq_len(n_sets)) {
-
     min_geno <- (1+SET_SIZE*(i-1))
     max_geno <- (i * SET_SIZE)
 
@@ -218,11 +219,18 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
 
     index_range <- min_geno:max_geno
     cur_genotypes <- rollingGenotypes[index_range,]
-
+    
     # Overwrite input file    
-    write.table(cur_genotypes, tmpfile, sep = ",", col.names = F, row.names = T)
+    write.table(cur_genotypes, tmpin, sep = ",", col.names = F, row.names = T)
+    
+    optim_row <- as.data.frame(rbind(c(optima, sigma)))
+    cur_optima <- purrr::map_dfr(seq_len(nrow(cur_genotypes)), ~optim_row)
+    write.table(cur_optima, tmpopt, sep = ",", col.names = F, row.names = T)
 
-    df_result <- runLandscaper(tmpfile, tmpout, optima, width, model, nCores, useID = T)
+    
+    df_result <- runLandscaper(tmpin, tmpout, tmpopt, 
+                               paste(rep(width, times = length(optima)), collapse = ","), 
+                               model, nCores, useID = T)
 
     # Set the current fitnesses
     cur_fitnesses[df_result$id] <- df_result$fitness
