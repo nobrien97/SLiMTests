@@ -83,8 +83,22 @@ for (current_model in models) {
 
   optMolComps <- as.data.frame(t(runif(nComps, molcomp_min_values, molcomp_max_values)))
   colnames(optMolComps) <- colnames(pars)
-  startSolution <- SolveModel(optMolComps, current_model)
-  startTraits <- GetTraitValues(startSolution, current_model, optMolComps)
+  
+  # Write molcomps/starting values
+  startInput <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  startOpt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
+  startOut <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
+  
+  write.table(optMolComps, startInput, sep = ",", col.names = F, row.names = F)
+  
+  # Dummy optimum, fitness info doesn't matter here, but we want to feed the correct data
+  # optimum data has per trait optimum values and sigmas combined, hence the * 2
+  write.table(rbind(rep(1, times = NumTraits(current_model) * 2)), 
+              startOpt, sep = ",", col.names = F, row.names = F)
+  
+  startTraits <- runLandscaper(startInput, startOut, startOpt, current_model, 1, useID = FALSE)
+  startTraits <- unlist(startTraits[1,2:(NumTraits(current_model) + 1)])
+  names(startTraits) <- NULL
   sigma <- CalcSelectionSigmas(startTraits, 0.05, 0.1, 0.1)
   par_dir_model <- unlist(parallel_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(parallel_opt_dir))])
   orth_dir_model <- unlist(orth_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(orth_opt_dir))])
@@ -129,3 +143,4 @@ d_ruggedness <- d_ruggedness %>%
   molComp, bkg)
 
 write_csv(d_ruggedness, paste0(SAVE_PATH, "d_ruggedness_", par_idx, ".csv"), col_names = F)
+# 

@@ -137,8 +137,8 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
 }
 
 runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
-  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -s %s -t %i"
-  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o %s -O %s -s %s -t %i"
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -s %s -t %i"
+  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o %s -O %s -s %s -t %i"
   #command <- "/mnt/c/GitHub/odeLandscape/build/ODELandscaper -i %s -o %s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")
@@ -244,10 +244,10 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     
   # Calculate results - add in original fitness
   # remove invalid fitnesses from bad solutions
-  start_seq <- seq(from = 1, to = length(rollingFitnesses),
-                   by = n+1)
-  end_seq <- seq(from = n+1, to = length(rollingFitnesses),
-                 by = n+1)
+  start_seq <- rep(seq(from = 1, to = length(rollingFitnesses),
+                   by = n+1), each = n+1)
+  end_seq <- rep(seq(from = n+1, to = length(rollingFitnesses),
+                 by = n+1), each = n+1)
   
   # Get total step length
   rollingFitnessesMat <- matrix(rollingFitnesses, nrow = n+1)
@@ -258,7 +258,7 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   fitnessHoles <- colSums(rollingFitnessesHoles)
   
   rollingFitnessesMat[rollingFitnessesMat < 0.0] <- 0.0 # Invalid calculations don't get added
-  netChange <- colSums(abs(diff(rollingFitnessesMat)))
+  rollingChanges <- colSums(abs(diff(rollingFitnessesMat)))
   
   
   result <- data.frame(step = 1:(n+1),
@@ -267,9 +267,9 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
                        fitness = rollingFitnesses,
                        startW = rollingFitnesses[start_seq],
                        endW = rollingFitnesses[end_seq],
-                       netChangeW = rollingFitnesses[end_seq] - rollingFitnesses[start_seq],
-                       sumChangeW = rep(netChange, each = n + 1),
-                       numFitnessHoles = rep(fitnessHoles, each = n + 1), 
+                       netChangeW = abs(rollingFitnesses[end_seq] - rollingFitnesses[start_seq]),
+                       sumChangeW = rep(rollingChanges, each = n+1),
+                       numFitnessHoles = rep(fitnessHoles, each = n+1), 
                        nSteps = n+1)
 
   result[,active_comps] <- rollingGenotypes
@@ -740,15 +740,8 @@ GetTraitValues <- function(solution, model, p) {
   }
   
   # Steady state
-  if (model == "NAR") {
+  if (model == "NAR" | model == "PAR") {
     result <- (SteadyState(solution, 1.0, 6.0, 3))[1:2]
-    return(result)
-  }
-  
-  if (model == "PAR") {
-    result <- double(3)
-    result[1:2] <- (SteadyState(solution, 1.0, 6.0, 3)[1:2])
-    result[3] <- DelayTime(solution, 1.0, 6.0, 3, p$base, p$aZ)
     return(result)
   }
   
@@ -1008,4 +1001,19 @@ CalculatePartialInformationContent <- function(x) {
   mu <- sum(!marked)
   return(mu / length(x))
   
+}
+
+# Number of traits
+NumTraits <- function(model) {
+  if (model == "NAR" | model == "PAR") {
+    return(2)
+  }
+  
+  if (model == "FFLC1" | model == "FFLI1") {
+    return(3)
+  }
+  
+  if (model == "FFBH") {
+    return(4)
+  }
 }
