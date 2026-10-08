@@ -50,6 +50,9 @@ for (model_name in model_names_noquote) {
   # [1] 1997523188
   seed <- 1997523188
 
+  features <- as.h2o(d_ruggedness)
+  n_features <- ncol(d_ruggedness) - 1
+
   pca_result <- h2o.prcomp(
     x = 2:ncol(d_ruggedness),
     training_frame = features,
@@ -160,5 +163,5 @@ for (i in seq_along(model_names_noquote)) {
 }
 
 d_walks <- data.table::rbindlist(d_walks, fill = T)
-saveRDS(d_walks, paste0(DATA_PATH, "sim_range/d_walks.RDS"))
+saveRDS(d_walks, paste0(DATA_PATH, "sim_range/pca_landscape/d_walks.RDS"))
 

@@ -94,7 +94,7 @@ for (model_name in model_names_noquote) {
   print(pca_result@model$eigenvectors)
 
   # Save model so we can project adaptive walks onto it
-  saveRDS(pca_result, paste0(DATA_PATH, "sim_range/pca_", model_name, ".RDS"))
+  h2o.saveModel(pca_result, paste0(DATA_PATH, "sim_range/pca_", model_name, ".h2o"))
 
 
   pca_codings <- h2o.predict(pca_result, features)
