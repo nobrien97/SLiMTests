@@ -117,3 +117,6 @@ CalcDistancesUMAP <- function(trait_data, umap_data, n = 10000, seed = 42, shoul
   return(list("dist.frame" = result,
               "r2" = dist_r2))
 }
+
+# https://stackoverflow.com/a/5665644
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}

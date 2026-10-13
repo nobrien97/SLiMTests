@@ -12,9 +12,9 @@ molComp_names <- list("NAR" = c(
   "bZ",
   "KZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 
 "FFLC1" = c(
@@ -25,9 +25,9 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 "FFBH" = c(
   # FFBH
@@ -39,9 +39,9 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 )
 )
 
@@ -105,5 +105,38 @@ d_qg_vals %>%
 nrow(d_molcomp_valuerange)
 print(d_molcomp_valuerange, n = 43)
 
+
+# Exploring the whole space is very hard with 11 components, so we will construct our 
+# fitness landscape along the PC1 and PC2 axes of the real data
+# We can save the principal components and randomly generate points within the range of 
+# PC1 and PC2 values, translate back to trait space, compute the fitness, then convert
+# back to PC space
+d_pc_qg <- d_qg_tot %>% filter(isAdapted == T) %>% 
+  select(model, starts_with("meanMC")) %>%
+  mutate(id = row_number()) %>%
+  pivot_longer(cols = starts_with("meanMC"), names_prefix = "meanMC", names_to = "molComp",
+               values_to = "molComp_value") %>%
+  mutate(model = factor(model, labels = model_names_noquote),
+         molComp = as.integer(molComp)) %>%
+  filter(var(molComp_value) > 0) %>%
+  group_by(model) %>%
+  mutate(molComp_label = molComp_names[[as.character(model[1])]][molComp]) %>%
+  filter(!is.na(molComp_label)) %>%
+  # group_by(model, molComp) %>%
+  # mutate(m = stat.mode(molComp_value),
+  #        max_val = m - min(molComp_value)) %>%
+  # ungroup() %>%
+  # filter(molComp_value <= max_val) %>%
+  # select(-c(molComp, m, max_val)) %>%
+  select(-molComp) %>%
+  group_by(model, id) %>%
+  pivot_wider(names_from = molComp_label, 
+              values_from = molComp_value) %>%
+  select(model, id, names(all_molcomp_features)) %>%
+  group_by(model) %>%
+  filter(across(is.double, ~ if_else(is.na(.x), F, .x <= stat.mode(.x) - min(.x))))
+
+
+filter(molComp_value <= (m + min_to_m)) %>%
 
 saveRDS(d_molcomp_valuerange, "d_molcomp_maxvals.RDS")
