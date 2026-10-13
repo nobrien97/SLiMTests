@@ -32,6 +32,11 @@ d_ruggedness <- d_ruggedness %>%
 
 d_ruggedness_all <- d_ruggedness
 
+
+d_ruggedness_all %>%
+  group_by(model) %>%
+  summarise(across(aX:zZ, max))
+
 # Now test PCA and autoencoder
 h2o.init(ip = ip,
         port = 12345, 
@@ -45,6 +50,11 @@ for (model_name in model_names_noquote) {
     ungroup() %>%
     filter(model == model_name) %>%
     select(fitness, molComp_names[[model_name]])
+
+# Normalise molecular components between 0 and 1
+  d_ruggedness <- d_ruggedness %>%
+    mutate(across(-1, range01))
+
 
   # > sample(1:.Machine$integer.max, 1)
   # [1] 1997523188
@@ -151,7 +161,7 @@ for (i in seq_along(model_names_noquote)) {
   #walk_predictions <- h2o.deepfeatures(ae, newpoints, layer = 2)
   walk_predictions <- h2o.predict(pca, newpoints)
   
-  d_qg_pca[,c("LV1", "LV2")] <- as_tibble(walk_predictions)
+  d_qg_pca[,c("LV1", "LV2")] <- as_tibble(walk_predictions[,1:2])
   
   # Add missing molcomps and rearrange columns to match others
   extra_cols <- names(all_molcomp_features)[!(names(all_molcomp_features) %in% colnames(d_qg_pca))]
