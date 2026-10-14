@@ -1,4 +1,5 @@
 library(tidyverse)
+library(latex2exp)
 
 setwd("/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/sim_range")
 
@@ -51,9 +52,30 @@ molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
 model_names_noquote <- c("NAR", "PAR", "FFLC1", 
                          "FFLI1", "FFBH")
 
+all_molcomp_features <- c(
+  "aX" = TeX("$\\alpha_X$", output = "character"),
+  "KZX" = TeX("$K_{ZX}$", output = "character"),
+  "aY" = TeX("$\\alpha_Y$", output = "character"),
+  "bY" = TeX("$\\beta_Y$", output = "character"),
+  "KY" = TeX("$K_Y$", output = "character"),
+  "aZ" = TeX("$\\alpha_Z$", output = "character"),
+  "bZ" = TeX("$\\beta_Z$", output = "character"),
+  "KZ" = TeX("$K_{Z}$", output = "character"),
+  "KXZ" = TeX("$K_{XZ}$", output = "character"),
+  "zZ" = TeX("$\\zeta_Z$", output = "character"), # baseline expression
+  "h" = TeX("$h$", output = "character"), # hill coefficient
+  "gX" = TeX("$\\gamma_X$", output = "character") # X multiplier
+)
+
 
 stat.mode <- function(x) {
-  d <- density(log10(na.omit(x)))
+  x <- na.omit(x)
+  
+  if (length(x) < 2) {
+    return(NA)
+  }
+  
+  d <- density(log10(x))
   10^(d$x[which.max(d$y)])
 }
 
@@ -111,6 +133,11 @@ print(d_molcomp_valuerange, n = 43)
 # We can save the principal components and randomly generate points within the range of 
 # PC1 and PC2 values, translate back to trait space, compute the fitness, then convert
 # back to PC space
+
+# get the pca for each model
+
+
+# Get the min and max values
 d_pc_qg <- d_qg_tot %>% filter(isAdapted == T) %>% 
   select(model, starts_with("meanMC")) %>%
   mutate(id = row_number()) %>%
@@ -122,21 +149,30 @@ d_pc_qg <- d_qg_tot %>% filter(isAdapted == T) %>%
   group_by(model) %>%
   mutate(molComp_label = molComp_names[[as.character(model[1])]][molComp]) %>%
   filter(!is.na(molComp_label)) %>%
-  # group_by(model, molComp) %>%
-  # mutate(m = stat.mode(molComp_value),
-  #        max_val = m - min(molComp_value)) %>%
-  # ungroup() %>%
-  # filter(molComp_value <= max_val) %>%
-  # select(-c(molComp, m, max_val)) %>%
   select(-molComp) %>%
   group_by(model, id) %>%
   pivot_wider(names_from = molComp_label, 
               values_from = molComp_value) %>%
   select(model, id, names(all_molcomp_features)) %>%
   group_by(model) %>%
-  filter(across(is.double, ~ if_else(is.na(.x), F, .x <= stat.mode(.x) - min(.x))))
+  summarise(
+    across(
+      is.double, 
+      list(maxVal = ~stat.mode(.x) + (stat.mode(.x) - min(.x, na.rm = T)),
+            minVal = ~min(.x, na.rm = T)),
+      .names = "{.col}.{.fn}"
+      )
+    )
 
+d_molcomp_maxvals <- d_pc_qg %>%
+  ungroup() %>%
+  pivot_longer(cols = 2:25,
+               names_to = c("molComp", "stat"),
+               names_sep = "\\.",
+               values_to = "value") %>%
+  pivot_wider(names_from = stat,
+              values_from = value) %>%
+  rename(max_value = maxVal,
+         min_value = minVal)
 
-filter(molComp_value <= (m + min_to_m)) %>%
-
-saveRDS(d_molcomp_valuerange, "d_molcomp_maxvals.RDS")
+saveRDS(d_molcomp_maxvals, "d_molcomp_maxvals.RDS")

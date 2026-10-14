@@ -1,5 +1,5 @@
 library(DoE.wrapper)
-
+library(tidyverse)
 
 # seed <- sample(1:.Machine$integer.max, 1)
 # > seed
@@ -10,7 +10,7 @@ set.seed(seed)
 
 models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
-           "aZ", "bZ", "Hilln", "XMult", "base")
+           "aZ", "bZ", "zZ", "h", "gX")
 
 molComp_names <- list("NAR" = c(
   # NAR and PAR
@@ -18,9 +18,9 @@ molComp_names <- list("NAR" = c(
   "bZ",
   "KZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 
 "FFLC1" = c(
@@ -31,9 +31,9 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 "FFBH" = c(
   # FFBH
@@ -45,22 +45,23 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 )
 )
 
 molComp_names[["PAR"]] <- molComp_names[["NAR"]]
 molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
 
-
 nComps <- length(comps)
-NUM_RUNS <- 10000
-NUM_BACKGROUNDS <- 10
+NUM_RUNS <- 1000000
 
 # Max comp size is set per component and per model via find_landscape_range.R
 d_molcomp_maxvals <- readRDS("/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/R/d_molcomp_maxvals.RDS")
+
+d_molcomp_maxvals <- d_molcomp_maxvals %>%
+  drop_na()
 
 
 output <- vector(mode = "list", length = length(models))
@@ -80,43 +81,10 @@ for (m in seq_along(models)) {
     filter(model == current_model) %>% select(max_value) %>% unlist()
   names(molcomp_max_values) <- active_comps 
   
-  # Generate hypercube of parameters
-  # Hypercube is NUM_RUNs per molecular component, per genetic background
+  # Generate uniform grid
   pars <- lhs.design(NUM_RUNS, 1, type = "random")
-  pars <- pars * MAX_COMP_SIZE
-  
-  # Repeat for each component
-  test_mat <- matrix(rep(pars$X1, times = n_active_comps), ncol = n_active_comps)
-  
-  # rescale each column by min/max vals
-  pars <- sweep(sweep(test_mat, 2, molcomp_max_values - molcomp_min_values, "*"), 
-                      2, molcomp_min_values, "+")
-  
-  # Generate backgrounds
-  parBackgrounds <- matrix(runif(n_active_comps * NUM_BACKGROUNDS), ncol = (n_active_comps))
-  
-  scaled_backgrounds <- sweep(sweep(parBackgrounds, 2, molcomp_max_values - molcomp_min_values, "*"), 
-                              2, molcomp_min_values, "+")
-  
-  # Replicate rows for the number of molecular components
-  parBackgrounds <-  scaled_backgrounds %x% rep(1, n_active_comps)
-  
-  # Replicate rows for the number of replicate values
-  parBackgrounds <-  rep(1, NUM_RUNS) %x% parBackgrounds
-  
-  # replace diagonal components for each component and background
-  for (i in seq_len(NUM_RUNS)) {
-    # Fill NUM_BACKGROUNDS diagonals
-    for (j in seq_len(NUM_BACKGROUNDS)) {
-      k <- (i - 1) * n_active_comps + j
-      offset_start <- ((i - 1) * n_active_comps * NUM_BACKGROUNDS) + ((j - 1) * n_active_comps) + 1 # number of previous runs
-      offset_end <-  offset_start + (n_active_comps - 1)
-      diag(parBackgrounds[offset_start:offset_end,]) <- pars[i]
-    }
-  }
-  
-  colnames(parBackgrounds) <- active_comps
-  pars_df <- as.data.frame(parBackgrounds)
+
+  pars_df <- as.data.frame(pars)
   pars_df$model <- current_model
   output[[m]] <- pars_df
 }
