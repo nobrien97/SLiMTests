@@ -134,11 +134,8 @@ print(d_molcomp_valuerange, n = 43)
 # PC1 and PC2 values, translate back to trait space, compute the fitness, then convert
 # back to PC space
 
-# get the pca for each model
-
-
-# Get the min and max values
-d_pc_qg <- d_qg_tot %>% filter(isAdapted == T) %>% 
+# Rearrange data and filter out very large values
+d_filtered_qg <- d_qg_tot %>% filter(isAdapted == T) %>% 
   select(model, starts_with("meanMC")) %>%
   mutate(id = row_number()) %>%
   pivot_longer(cols = starts_with("meanMC"), names_prefix = "meanMC", names_to = "molComp",
@@ -150,29 +147,25 @@ d_pc_qg <- d_qg_tot %>% filter(isAdapted == T) %>%
   mutate(molComp_label = molComp_names[[as.character(model[1])]][molComp]) %>%
   filter(!is.na(molComp_label)) %>%
   select(-molComp) %>%
+  group_by(model, molComp_label) %>%
+  mutate(m = 2 * stat.mode(molComp_value),
+         min_value = min(molComp_value),
+         max_value = (m - min_value + m)) %>%
+  ungroup() %>%
+  filter(between(molComp_value, min_value, max_value)) %>%
+  select(-c(m, min_value, max_value)) %>%
   group_by(model, id) %>%
   pivot_wider(names_from = molComp_label, 
               values_from = molComp_value) %>%
   select(model, id, names(all_molcomp_features)) %>%
-  group_by(model) %>%
-  summarise(
-    across(
-      is.double, 
-      list(maxVal = ~stat.mode(.x) + (stat.mode(.x) - min(.x, na.rm = T)),
-            minVal = ~min(.x, na.rm = T)),
-      .names = "{.col}.{.fn}"
-      )
-    )
-
-d_molcomp_maxvals <- d_pc_qg %>%
   ungroup() %>%
-  pivot_longer(cols = 2:25,
-               names_to = c("molComp", "stat"),
-               names_sep = "\\.",
-               values_to = "value") %>%
-  pivot_wider(names_from = stat,
-              values_from = value) %>%
-  rename(max_value = maxVal,
-         min_value = minVal)
+  group_by(model) %>%
+  filter(!if_any(all_of(molComp_names[[as.character(cur_group()$model)]]), is.na)) %>%
+  ungroup()
 
-saveRDS(d_molcomp_maxvals, "d_molcomp_maxvals.RDS")
+# get the pca for each model
+d_pc_qg <- d_filtered_qg %>%
+  group_by(model) %>%
+  group_map(~ prcomp(.x[,molComp_names[[as.character(.y$model[1])]]]))
+saveRDS(d_pc_qg, "d_pc_qg.RDS")
+

@@ -16,9 +16,9 @@ molComp_names <- list("NAR" = c(
   "bZ",
   "KZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 
 "FFLC1" = c(
@@ -29,9 +29,9 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 ),
 "FFBH" = c(
   # FFBH
@@ -43,17 +43,14 @@ molComp_names <- list("NAR" = c(
   "aZ",
   "bZ",
   "KXZ",
-  "base", # baseline expression
-  "Hilln", # hill coefficient
-  "XMult" # X multiplier
+  "zZ", # baseline expression
+  "h", # hill coefficient
+  "gX" # X multiplier
 )
 )
 
 molComp_names[["PAR"]] <- molComp_names[["NAR"]]
 molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
-
-comps <- c("aX", "KZX", "aY", "bY", "KY", "KZ", "KXZ",
-           "aZ", "bZ", "Hilln", "XMult", "base")
 
 models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 
@@ -171,32 +168,20 @@ runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALS
 
 CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 10,
                                         width = 0.004,
-                                        nCores,
-                                        seed) {
+                                        nCores) {
   # g = genotypes (molecular components). Replicate starting points for the walk
   # n = number of steps in the walk
-  # seed = replicate seed for the run
-  
+
   # Calculate rolling genotypes w/mutations
   active_comps <- molComp_names[[model]] 
   nComps <- ncol(g)
   rollingFitnesses <- numeric((n+1) * nrow(g))
   
-  # Set the seed for each walk
-  set.seed(seed[1])
-  # Sample n steps per genotype per a normal distribution with a given width
-  # Assume width is split evenly across the components
-  mutations <- rmvnorm(n, sigma = diag(nComps) * ( width / nComps ))
-  mutations <- rbind(rep(0.0, nComps), mutations)
-    
-  # cumulative sum each column to add it to rollingGenotypes
-  mutations <- apply(mutations, 2, cumsum)
-  rollingGenotypes <- exp(log(g[rep(1:nrow(g), each = n+1),]) + mutations)
 
   row_index = seq_len(nrow(g))
   # Group up solutions into sets of 10,000
   SET_SIZE <- 10000
-  n_sets <- ceiling(nrow(rollingGenotypes) / SET_SIZE)
+  n_sets <- ceiling(nrow(g) / SET_SIZE)
 
   # Setup input/output files
   tmpin <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
@@ -210,16 +195,16 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     min_geno <- (1+SET_SIZE*(i-1))
     max_geno <- (i * SET_SIZE)
 
-    if (min_geno > nrow(rollingGenotypes)) {
-      min_geno <- nrow(rollingGenotypes)
+    if (min_geno > nrow(g)) {
+      min_geno <- nrow(g)
     }
 
-    if (max_geno > nrow(rollingGenotypes)) {
-      max_geno <- nrow(rollingGenotypes)
+    if (max_geno > nrow(g)) {
+      max_geno <- nrow(g)
     }
 
     index_range <- min_geno:max_geno
-    cur_genotypes <- rollingGenotypes[index_range,]
+    cur_genotypes <- g[index_range,]
     
     # Overwrite input file    
     write.table(cur_genotypes, tmpin, sep = ",", col.names = F, row.names = T)
@@ -242,37 +227,13 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     rollingFitnesses[index_range] <- cur_fitnesses[1:nrow(df_result)]
   }
     
-  # Calculate results - add in original fitness
-  # remove invalid fitnesses from bad solutions
-  start_seq <- rep(seq(from = 1, to = length(rollingFitnesses),
-                   by = n+1), each = n+1)
-  end_seq <- rep(seq(from = n+1, to = length(rollingFitnesses),
-                 by = n+1), each = n+1)
-  
-  # Get total step length
-  rollingFitnessesMat <- matrix(rollingFitnesses, nrow = n+1)
-  
-  rollingFitnessesHoles <- rollingFitnessesMat
-  rollingFitnessesHoles[rollingFitnessesMat <= 0] <- 1 # Fitness hole
-  rollingFitnessesHoles[rollingFitnessesMat > 0] <- 0 # No fitness hole
-  fitnessHoles <- colSums(rollingFitnessesHoles)
-  
-  rollingFitnessesMat[rollingFitnessesMat < 0.0] <- 0.0 # Invalid calculations don't get added
-  rollingChanges <- colSums(abs(diff(rollingFitnessesMat)))
-  
-  
   result <- data.frame(step = 1:(n+1),
                        model = rep(model, times = n+1),
                        dataset = rep(dataset, times = n+1),
                        fitness = rollingFitnesses,
-                       startW = rollingFitnesses[start_seq],
-                       endW = rollingFitnesses[end_seq],
-                       netChangeW = abs(rollingFitnesses[end_seq] - rollingFitnesses[start_seq]),
-                       sumChangeW = rep(rollingChanges, each = n+1),
-                       numFitnessHoles = rep(fitnessHoles, each = n+1), 
                        nSteps = n+1)
 
-  result[,active_comps] <- rollingGenotypes
+  result[,active_comps] <- g
   return(result)
 }
 

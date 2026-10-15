@@ -16,13 +16,10 @@ source("./fitnesslandscapefunctions.R")
 args <- commandArgs(trailingOnly = T)
 par_idx <- as.numeric(args[1])
 
+REPS_PER_RUN <- 100
+N_BACKGROUNDS <- 10 # Number of different fitness optima
+ROWS_PER_RUN <- REPS_PER_RUN * N_BACKGROUNDS
 
-# Nosil method
-# Generate Latin hypercube starting points
-
-NUM_BACKGROUNDS <- 10
-NUM_STEPS <- 2
-REPS_PER_RUN <- 10
 
 # Load parameter combinations and seeds
 pars_all <- readRDS(paste0(DATA_PATH, "pars.RDS"))
@@ -33,37 +30,16 @@ parallel_opt_dir <- read_csv(paste0(DATA_PATH, "parallel_traitdir.csv"), col_nam
 orth_opt_dir <- read_csv(paste0(DATA_PATH, "orth_traitdir.csv"), col_names = F)
 
 # output
-d_ruggedness <- list()
-
-# Load in range of values to use for each motif
-d_molcomp_maxvals <- readRDS("~/tests/newMotifs/paper1/ruggedness/sim_range/R/d_molcomp_maxvals.RDS")
+d_ruggedness <- vector(mode = "list", length = length(models))
 
 # Iterate over models
 for (current_model in models) {
+  output_index <- match(current_model, models)
   active_comps <- molComp_names[[current_model]] 
-  
-  molcomp_min_values <- d_molcomp_maxvals %>% ungroup() %>%
-    filter(model == current_model) %>% select(min_value) %>% unlist()
-  names(molcomp_min_values) <- active_comps 
-  
-  molcomp_max_values <- d_molcomp_maxvals %>% ungroup() %>%
-    filter(model == current_model) %>% select(max_value) %>% unlist()
-  names(molcomp_max_values) <- active_comps 
-  
   nComps <- length(active_comps)
-
-  # 10 backgrounds evaluated per run
-  # 10 replicates per run, each run will return a dataframe with nComps * 10 * 10 rows in it
-  # for 1000 total files to combine
-  ROWS_PER_RUN <- nComps * NUM_BACKGROUNDS * REPS_PER_RUN 
 
   # range of input rows to evaluate this run
   par_idx_range <- (ROWS_PER_RUN * (par_idx - 1) + 1):(ROWS_PER_RUN * par_idx)
-
-# Read in parameters:
-# Data frame in blocks of nComps * NUM_BACKGROUNDS
-# each block is one replicate mutation applied in 10 backgrounds in each different molecular components
-# 10000 total replicates applied in each backgrounds and mol comp
 
   # Filter parameters to the current model
   pars <- pars_all %>% filter(model == current_model) %>% select(-model) %>%
@@ -72,75 +48,67 @@ for (current_model in models) {
   pars <- pars[par_idx_range,]
   
   # Read in seeds and choose the correct model
-  seeds <- seeds_all[[current_model]]
-  seed <- as.integer(seeds[par_idx_range])
-  
-  # Sample seed for optimum (different between replicates, same between backgrounds)
-  opt_seed <- sample(1:.Machine$integer.max, 1)
+  seeds <- as.integer(seeds_all[[current_model]])
 
-  # randomly sample an optimum
-  set.seed(opt_seed)
+  # get optimum at random from the PC space
+  for (j in seq_len(N_BACKGROUNDS)) {
+    set.seed(seeds[j])
+    optMolComps <- as.data.frame(t(runif(nComps, min(pars), max(pars))))
+    colnames(optMolComps) <- colnames(pars)
+      
+    # Write molcomps/starting values
+    startInput <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+    startOpt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
+    startOut <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
+    
+    write.table(optMolComps, startInput, sep = ",", col.names = F, row.names = F)
+    # Dummy optimum, fitness info doesn't matter here, but we want to feed the correct data
+    # optimum data has per trait optimum values and sigmas combined, hence the * 2
+    write.table(rbind(rep(1, times = NumTraits(current_model) * 2)), 
+                startOpt, sep = ",", col.names = F, row.names = F)
+    
+    startTraits <- runLandscaper(startInput, startOut, startOpt, current_model, 1, useID = FALSE)
+    startTraits <- unlist(startTraits[1,2:(NumTraits(current_model) + 1)])
+    names(startTraits) <- NULL
+    sigma <- CalcSelectionSigmas(startTraits, 0.05, 0.1, 0.1)
+    par_dir_model <- unlist(parallel_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(parallel_opt_dir))])
+    orth_dir_model <- unlist(orth_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(orth_opt_dir))])
+  
+    opt_rand <- CalcOptima(startTraits, sigma, 0.95)
+    opt_par <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, par_dir_model)
+    opt_orth <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, orth_dir_model)
+    
+    RugRes_rand <- CalculateRuggednessLandscaper(pars, current_model, "Randomised", opt_rand, sigma,
+                                          n = 0,
+                                          nCores = 1)
+  
+    RugRes_par <- CalculateRuggednessLandscaper(pars, current_model, "Parallel", opt_par, sigma,
+                                          n = 0,
+                                          nCores = 1)
+                                        
+    RugRes_orth <- CalculateRuggednessLandscaper(pars, current_model, "Orthogonal", opt_orth, sigma,
+                                          n = 0,
+                                          nCores = 1)
+  
+    RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)
+    
+    # Set identifiers
+    RugRes$bkg <- j
+    
+    d_ruggedness[[output_index]][[j]] <- distinct(RugRes)
+  }
 
-  optMolComps <- as.data.frame(t(runif(nComps, molcomp_min_values, molcomp_max_values)))
-  colnames(optMolComps) <- colnames(pars)
-  
-  # Write molcomps/starting values
-  startInput <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
-  startOpt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
-  startOut <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv") 
-  
-  write.table(optMolComps, startInput, sep = ",", col.names = F, row.names = F)
-  
-  # Dummy optimum, fitness info doesn't matter here, but we want to feed the correct data
-  # optimum data has per trait optimum values and sigmas combined, hence the * 2
-  write.table(rbind(rep(1, times = NumTraits(current_model) * 2)), 
-              startOpt, sep = ",", col.names = F, row.names = F)
-  
-  startTraits <- runLandscaper(startInput, startOut, startOpt, current_model, 1, useID = FALSE)
-  startTraits <- unlist(startTraits[1,2:(NumTraits(current_model) + 1)])
-  names(startTraits) <- NULL
-  sigma <- CalcSelectionSigmas(startTraits, 0.05, 0.1, 0.1)
-  par_dir_model <- unlist(parallel_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(parallel_opt_dir))])
-  orth_dir_model <- unlist(orth_opt_dir[which(models == current_model),c(1:length(startTraits), ncol(orth_opt_dir))])
-
-  opt_rand <- CalcOptima(startTraits, sigma, 0.95)
-  opt_par <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, par_dir_model)
-  opt_orth <- CalcNewOptimumAlongVector(startTraits, sigma, 0.95, orth_dir_model)
-
-  
-  RugRes_rand <- CalculateRuggednessLandscaper(pars, current_model, "Randomised", opt_rand, sigma,
-                                        n = NUM_STEPS,
-                                        nCores = 1,
-                                        seed = seed)
-
-  RugRes_par <- CalculateRuggednessLandscaper(pars, current_model, "Parallel", opt_par, sigma,
-                                        n = NUM_STEPS,
-                                        nCores = 1,
-                                        seed = seed)
-                                      
-  RugRes_orth <- CalculateRuggednessLandscaper(pars, current_model, "Orthogonal", opt_orth, sigma,
-                                        n = NUM_STEPS,
-                                        nCores = 1,
-                                        seed = seed)
-
-  RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)
-  
-  # Set identifiers
-  RugRes$molComp <- rep(active_comps[(par_idx_range - 1) %% nComps + 1], each = NUM_STEPS+1)
-  RugRes$bkg <- rep(c(rep(rep(1:NUM_BACKGROUNDS, each = nComps), times = REPS_PER_RUN)), each = NUM_STEPS+1)
-  
-  output_index <- match(current_model, models)
-  d_ruggedness[[output_index]] <- distinct(RugRes)
+  # Combine within models
+  d_ruggedness[[output_index]] <- data.table::rbindlist(d_ruggedness[[output_index]])
 }
 
+# Combine across models
 d_ruggedness <- data.table::rbindlist(d_ruggedness, fill = T)
 
 # Rearrange columns
 d_ruggedness <- d_ruggedness %>%
-  select(step, model, dataset, fitness, startW, endW, netChangeW, sumChangeW, numFitnessHoles, 
-  nSteps, aX, KZX, aY, bY, KY, KZ, KXZ,
-  aZ, bZ, Hilln, XMult, base,
-  molComp, bkg)
+  select(step, model, dataset, fitness,
+  aX, KZX, aY, bY, KY, KZ, KXZ,
+  aZ, bZ, zZ, h, gX, bkg)
 
 write_csv(d_ruggedness, paste0(SAVE_PATH, "d_ruggedness_", par_idx, ".csv"), col_names = F)
-# 
