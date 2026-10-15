@@ -33,45 +33,56 @@ d_pc_qg <- readRDS("/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/sim_range/d_
 
 landscape_list <- vector(mode = "list", length = 5)
 
+# Number of optima sampled - does the fitness landscape differ across these?
+# Should we just choose one?
+N_BACKGROUNDS <- 10
+
 for (i in seq_along(model_names_noquote)) {
   model_name <- model_names_noquote[i]
-  # Filter by model input
-  d_ruggedness <- d_ruggedness_all %>%
-    ungroup() %>%
-    filter(model == model_name) %>%
-    select(fitness, molComp_names[[model_name]])
+  # Iterate over optima
+  for (j in seq_len(N_BACKGROUNDS)) {
+    # Filter by model input
+    d_ruggedness <- d_ruggedness_all %>%
+      ungroup() %>%
+      filter(model == model_name, bkg == j) %>%
+      select(fitness, molComp_names[[model_name]])
+    
+    # Convert to PC space
+    prc <- d_pc_qg[[i]]
+    
+    trait_values <- as.matrix(d_ruggedness %>%
+      select(-fitness))
+    
+    centered <- scale(trait_values, center = prc$center, scale = F)
+    pc_values <- as.data.frame(centered %*% prc$rotation[,1:2])
+    colnames(pc_values) <- c("PC1", "PC2")
+    
+    # Plot landscape
+    d_landscape <- pc_values %>%
+      mutate(z = d_ruggedness$fitness) %>%
+      rename(x = PC1,
+             y = PC2) 
   
-  # Convert to PC space
-  prc <- d_pc_qg[[i]]
+    # Fit surface with multilevel B-splines
+    mba_landscape <- mba.surf(d_landscape, 
+                                no.X = 1000, no.Y = 1000)
   
-  trait_values <- as.matrix(d_ruggedness %>%
-    select(-fitness))
+    d_landscape <- expand.grid(x = mba_landscape$xyz.est$x,
+                              y = mba_landscape$xyz.est$y)
+    d_landscape$z <- as.vector(mba_landscape$xyz.est$z)
   
-  centered <- scale(trait_values, center = prc$center, scale = F)
-  pc_values <- as.data.frame(centered %*% prc$rotation[,1:2])
-  colnames(pc_values) <- c("PC1", "PC2")
+    d_landscape <- d_landscape %>%
+      mutate(z = if_else(is.na(z) | z < 0, 0, z), 
+             model = model_name,
+             bkg = j)
   
-  # Plot landscape
-  d_landscape <- pc_values %>%
-    mutate(z = d_ruggedness$fitness) %>%
-    rename(x = PC1,
-           y = PC2) 
-
-  # Fit surface with multilevel B-splines
-  mba_landscape <- mba.surf(d_landscape, 
-                              no.X = 1000, no.Y = 1000)
-
-  d_landscape <- expand.grid(x = mba_landscape$xyz.est$x,
-                            y = mba_landscape$xyz.est$y)
-  d_landscape$z <- as.vector(mba_landscape$xyz.est$z)
-
-  d_landscape <- d_landscape %>%
-    mutate(z = if_else(is.na(z) | z < 0, 0, z),
-    model = model_name)
-
-  landscape_list[[i]] <- d_landscape
+    landscape_list[[i]][[j]] <- d_landscape
+  }
+  # Collapse across all bkg values
+  landscape_list[[i]] <- data.table::rbindlist(landscape_list[[i]])
 }
 
+# Collapse across all models
 out <- data.table::rbindlist(landscape_list)
 saveRDS(out, paste0(DATA_PATH, "sim_range/d_landscape_pca.RDS"))
 
