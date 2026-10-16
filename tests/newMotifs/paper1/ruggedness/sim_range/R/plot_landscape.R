@@ -197,15 +197,44 @@ d_r2 <- d_dist %>%
   group_by(model, dr.method) %>%
   summarise(r2 = r2[1])
 
+# PCA results for the slimulation data
+d_pc_qg <- readRDS(paste0(DATA_PATH, "d_pc_qg.RDS"))
+
+
+d_new_coords <- vector(mode = "list", length = length(model_names_noquote))
+
+# Recalculate PCs for walks
+for (i in seq_along(model_names_noquote)) {
+  model_name <- model_names_noquote[i]
+  
+  prc <- d_pc_qg[[i]]
+  
+  d_walk_coding <- d_walks %>%
+    filter(model == model_name) %>%
+    select(gen, seed, model, all_of(molComp_names[[model_name]]))
+  
+  d_nc <- as.data.frame(as.matrix(d_walk_coding[,4:ncol(d_walk_coding)]) %*% prc$rotation[,1:2])
+  
+  colnames(d_nc) <- c("PC1", "PC2")
+  d_nc$gen <- d_walk_coding$gen
+  d_nc$seed <- d_walk_coding$seed
+  d_nc$model <- d_walk_coding$model
+  
+  
+  d_new_coords[[i]] <- d_nc
+}
+
+d_new_coords <- data.table::rbindlist(d_new_coords)
+
 design <- "
 AABBCC
 #DDEE#
 "
 
-d_walks <- d_walks %>%
+d_new_coords <- d_new_coords %>%
   mutate(model = factor(model, levels = model_names_noquote))
 
-d_walks_plot <- d_walks %>% 
+d_new_coords_plot <- d_new_coords %>% 
   filter(gen > 49500) %>%
   group_by(gen, seed, model) %>%
   filter(row_number() == 1) %>% # keep only the first row by gen
@@ -219,7 +248,7 @@ d_landscape_norm <- d_landscape %>%
   mutate(z = range01(z))
 
 
-ggplot(d_landscape_norm %>%
+ggplot(d_landscape_norm %>% filter(bkg == 1) %>%
          mutate(model = factor(model, levels = model_names_noquote)),
        aes(x = x, y = y, z = z)) +
   geom_raster(aes(fill = z)) +
@@ -227,13 +256,13 @@ ggplot(d_landscape_norm %>%
   scale_fill_gradientn(colours = contour_pal,
                        breaks = c(0, seq(0.1, 1.0, by = 0.3)),
                        limits = c(0, 1)) +
-  geom_path(data = d_walks_plot %>% filter(isAdapted == T), inherit.aes = F,
-            mapping = aes(x = LV1,
-                          y = LV2,
+  geom_path(data = d_new_coords_plot, inherit.aes = F,
+            mapping = aes(x = PC1,
+                          y = PC2,
                           colour = gen_norm, group = seed)) +
   scale_size_continuous(range = c(0.1, 5)) +
   #coord_equal() +
-  labs(x = "LV1", y = "LV2", 
+  labs(x = "PC1", y = "PC2", 
        fill = "Fitness", colour = "Walk progress") +
   theme_bw() +
   theme(text = element_text(size=12), 

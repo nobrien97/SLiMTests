@@ -54,13 +54,31 @@ molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
 
 models <- c("NAR", "PAR", "FFLC1", "FFLI1", "FFBH")
 
+model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
+                 "'FFLI1'", "'FFBH'")
+model_names_noquote <- c("NAR", "PAR", "FFLC1", 
+                         "FFLI1", "FFBH")
 
 PBS_JOBFS <- Sys.getenv("PBS_JOBFS")
+
+COMBO_PATH <- "~/nb9894/tests/newMotifs/R/combos.csv"
+#COMBO_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/combos.csv"
+
+d_combos <- read_delim(COMBO_PATH, 
+                       delim = " ", col_names = F)
+names(d_combos) <- c("model", "r")
 
 
 ################################################################################
 # Function definitions
 ################################################################################
+AddCombosToDF <- function(df) {
+  df %>% ungroup() %>%
+    mutate(model = d_combos$model[as.numeric(levels(modelindex))[modelindex]],
+           r = d_combos$r[as.numeric(levels(modelindex))[modelindex]])
+}
+
+
 CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10,
                                         width = 0.004,
                                         nCores,
@@ -134,8 +152,8 @@ CalculateRuggednessParallel <- function(g, model, dataset, optima, sigma, n = 10
 }
 
 runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALSE) {
-  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -s %s -t %i"
-  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o %s -O %s -s %s -t %i"
+  #command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNM_NORMALSR -i %s -o %s -O %s -s %s -t %i"
+  command <- "~/Tools/odeLandscapeNewMotifs/ODELandscaperNewMotifs -i %s -o %s -O %s -s %s -t %i"
   #command <- "/mnt/c/GitHub/odeLandscape/build/ODELandscaper -i %s -o %s -O %s -s %s -t %i"
   if (useID) {
     command <- paste(command, "-I")

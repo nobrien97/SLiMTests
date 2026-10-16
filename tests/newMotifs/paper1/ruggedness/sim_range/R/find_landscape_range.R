@@ -79,53 +79,14 @@ stat.mode <- function(x) {
   10^(d$x[which.max(d$y)])
 }
 
-# For each model and molcomp, find the minimum and maximum values
-d_qg_tot %>%
-  pivot_longer(cols = starts_with("meanMC"), names_prefix = "meanMC", names_to = "molComp",
-               values_to = "molComp_value") %>%
-  mutate(model = factor(model, labels = model_names_noquote),
-         molComp = as.integer(molComp)) %>%
-  group_by(model, molComp) %>%
-  filter(var(molComp_value) > 0) %>% # remove invalid molcomps
-  mutate(q2 = quantile(molComp_value, probs = 0.5),
-         m = stat.mode(molComp_value),
-         min_to_m = m - min(molComp_value)) %>% 
-  select(model, molComp, molComp_value, q2, m, min_to_m) -> d_qg_vals
-
-d_qg_vals %>%
-  group_by(model, molComp) %>%
-  summarise(mean = mean(molComp_value),
-            min = min(molComp_value),
-            Q1 = quantile(molComp_value, probs = 0.25),
-            Q2 = quantile(molComp_value, probs = 0.5),
-            Q3 = quantile(molComp_value, probs = 0.75),
-            m = stat.mode(molComp_value),
-            max = max(molComp_value)
-) -> sum_qg_vals
-
-
-print(sum_qg_vals, n = 43)
-
-# Plot distribution
-ggplot(d_qg_vals %>% filter(molComp_value <= (m + min_to_m)), # keep values within half an order of magnitude of the mode
-    aes(x = molComp_value)) +
-    facet_wrap(model ~ molComp, scales = "free") +
-    geom_histogram(bins = 100) + 
-    #scale_x_log10() +
-    theme_bw() +
-    theme(text = element_text(size = 12)) -> plt_dist
-ggsave("/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/sim_range/plt_range_dist.png", plt_dist, device = png,
-        width = 16, height = 16, dpi = 600)
-
-
-d_qg_vals %>%
-  group_by(model, molComp) %>%
-  summarise(molComp_label = molComp_names[[as.character(model[1])]][molComp[1]],
-            m = stat.mode(molComp_value),
-            min_value = min(molComp_value),
-            max_value = m + (m - min_value)) -> d_molcomp_valuerange
-nrow(d_molcomp_valuerange)
-print(d_molcomp_valuerange, n = 43)
+named_group_split <- function(.tbl, ...) {
+  grouped <- group_by(.tbl, ...)
+  names <- rlang::inject(paste(!!!group_keys(grouped), sep = "."))
+  
+  grouped %>% 
+    group_split() %>% 
+    rlang::set_names(names)
+}
 
 
 # Exploring the whole space is very hard with 11 components, so we will construct our 
@@ -133,39 +94,54 @@ print(d_molcomp_valuerange, n = 43)
 # We can save the principal components and randomly generate points within the range of 
 # PC1 and PC2 values, translate back to trait space, compute the fitness, then convert
 # back to PC space
+# This is done on a per simulation basis so we can align our fitness optima with the landscape
+# and plot the individual walks
 
 # Rearrange data and filter out very large values
-d_filtered_qg <- d_qg_tot %>% filter(isAdapted == T) %>% 
-  select(model, starts_with("meanMC")) %>%
+d_filtered_qg <- d_qg_tot %>% filter(isAdapted == T, r == 0.1) %>% 
+  select(model, seed, dataset, starts_with("meanMC")) %>%
   mutate(id = row_number()) %>%
   pivot_longer(cols = starts_with("meanMC"), names_prefix = "meanMC", names_to = "molComp",
                values_to = "molComp_value") %>%
   mutate(model = factor(model, labels = model_names_noquote),
          molComp = as.integer(molComp)) %>%
   filter(var(molComp_value) > 0) %>%
-  group_by(model) %>%
+  group_by(model, seed, dataset) %>%
   mutate(molComp_label = molComp_names[[as.character(model[1])]][molComp]) %>%
   filter(!is.na(molComp_label)) %>%
   select(-molComp) %>%
-  group_by(model, molComp_label) %>%
+  group_by(model, seed, dataset, molComp_label) %>%
   mutate(m = 2 * stat.mode(molComp_value),
          min_value = min(molComp_value),
          max_value = (m - min_value + m)) %>%
   ungroup() %>%
   filter(between(molComp_value, min_value, max_value)) %>%
   select(-c(m, min_value, max_value)) %>%
-  group_by(model, id) %>%
+  group_by(model, seed, dataset, id) %>%
   pivot_wider(names_from = molComp_label, 
               values_from = molComp_value) %>%
-  select(model, id, names(all_molcomp_features)) %>%
+  select(model, seed, dataset, id, names(all_molcomp_features)) %>%
   ungroup() %>%
-  group_by(model) %>%
+  group_by(model, seed, dataset) %>%
   filter(!if_any(all_of(molComp_names[[as.character(cur_group()$model)]]), is.na)) %>%
   ungroup()
 
 # get the pca for each model
-d_pc_qg <- d_filtered_qg %>%
-  group_by(model) %>%
-  group_map(~ prcomp(.x[,molComp_names[[as.character(.y$model[1])]]]))
+d_filtered_split <- d_filtered_qg %>%
+  named_group_split(model, seed, dataset)
+
+d_pc_qg <- list()
+
+for (i in seq_along(d_filtered_split)) {
+  x <- d_filtered_split[[i]]
+  # Group values are in order model, seed, dataset
+  grp <- unlist(strsplit(names(d_filtered_split[i]), "\\."))
+  result <- prcomp(x[,molComp_names[[grp[1]]]])
+  
+  # New group is in order model, dataset, seed
+  d_pc_qg[[grp[1]]][[grp[[3]]]][[grp[2]]] <- result
+}
+
+
 saveRDS(d_pc_qg, "d_pc_qg.RDS")
 

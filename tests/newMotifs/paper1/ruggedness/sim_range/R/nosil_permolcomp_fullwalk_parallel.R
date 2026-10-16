@@ -20,7 +20,6 @@ REPS_PER_RUN <- 100
 N_BACKGROUNDS <- 10 # Number of different fitness optima
 ROWS_PER_RUN <- REPS_PER_RUN * N_BACKGROUNDS
 
-
 # Load parameter combinations and seeds
 pars_all <- readRDS(paste0(DATA_PATH, "pars.RDS"))
 seeds_all <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
@@ -28,6 +27,36 @@ seeds_all <- readRDS(paste0(DATA_PATH, "seeds.RDS"))
 # Read in parallel/orthogonal/randomised directions
 parallel_opt_dir <- read_csv(paste0(DATA_PATH, "parallel_traitdir.csv"), col_names = F)
 orth_opt_dir <- read_csv(paste0(DATA_PATH, "orth_traitdir.csv"), col_names = F)
+
+# Load in phenotypic optima from simulations to use
+SIM_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/"
+rand_opt <- read_csv(paste0(SIM_PATH, "randomisedStartsM/slim_opt.csv"), 
+                     col_types = paste0(c(rep("f", times = 2),
+                                   rep("n", times = 12)), collapse = ""),
+                     col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                   paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+par_opt <- read_csv(paste0(SIM_PATH, "parallelSel/slim_opt.csv"), 
+                    col_types = paste0(c(rep("f", times = 2),
+                                         rep("n", times = 12)), collapse = ""),
+                    col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                  paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+orth_opt <- read_csv(paste0(SIM_PATH, "orthSel/slim_opt.csv"),
+                     col_types = paste0(c(rep("f", times = 2),
+                                          rep("n", times = 12)), collapse = ""),
+                     col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                   paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+
+# Add combos
+rand_opt <- AddCombosToDF(rand_opt)
+# Only use recombination rate = 0.1 to match the parallel/orth sel case (modelindex 11:15)
+rand_opt <- rand_opt %>%
+  mutate(model = factor(model, levels = model_names, 
+                        labels = model_names_noquote),
+         dataset = "Randomised") %>%
+  filter(r == 0.1)
+
+par_opt <- AddCombosToDF(par_opt)
+
 
 # output
 d_ruggedness <- vector(mode = "list", length = length(models))
@@ -80,15 +109,15 @@ for (current_model in models) {
     
     RugRes_rand <- CalculateRuggednessLandscaper(pars, current_model, "Randomised", opt_rand, sigma,
                                           n = 0,
-                                          nCores = 1)
+                                          nCores = 2)
   
     RugRes_par <- CalculateRuggednessLandscaper(pars, current_model, "Parallel", opt_par, sigma,
                                           n = 0,
-                                          nCores = 1)
+                                          nCores = 2)
                                         
     RugRes_orth <- CalculateRuggednessLandscaper(pars, current_model, "Orthogonal", opt_orth, sigma,
                                           n = 0,
-                                          nCores = 1)
+                                          nCores = 2)
   
     RugRes <- rbind(RugRes_rand, RugRes_par, RugRes_orth)
     
