@@ -56,6 +56,19 @@ rand_opt <- rand_opt %>%
   filter(r == 0.1)
 
 par_opt <- AddCombosToDF(par_opt)
+par_opt <- par_opt %>%
+  mutate(model = factor(model, levels = model_names, 
+                        labels = model_names_noquote),
+         dataset = "Parallel")
+  
+orth_opt <- AddCombosToDF(orth_opt)
+orth_opt <- orth_opt %>%
+  mutate(model = factor(model, levels = model_names, 
+                        labels = model_names_noquote),
+         dataset = "Orthogonal")
+
+d_opt <- rbind(par_opt, orth_opt, rand_opt)
+
 
 
 # output

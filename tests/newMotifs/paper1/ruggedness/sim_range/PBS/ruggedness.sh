@@ -1,9 +1,8 @@
 #!/bin/bash -l
 #PBS -P ht96
-#PBS -q normalsr
 #PBS -l walltime=24:00:00
-#PBS -l ncpus=1040
-#PBS -l mem=5000GB
+#PBS -l ncpus=1008
+#PBS -l mem=3990GB
 #PBS -l jobfs=4000GB
 #PBS -l storage=scratch/ht96+gdata/ht96
   
@@ -61,8 +60,8 @@ $ECHO "Running nci-parallel from ${PBS_O_WORKDIR}..."
 # Analogous to UQ Tinaroo embedded Nimrod
 # Use 1 core per SLiM run
 module load nci-parallel/1.0.0a
-export ncores_per_task=1
-export ncores_per_numanode=13           # 13 cores per NUMA node for sapphire rapids nodes
+export ncores_per_task=2
+export ncores_per_numanode=12           # 12 cores per NUMA node 
 
 # Calculate the range of parameter combinations we are exploring this job
 CMDS_PATH=$HOME/tests/$FULLJOBNAME/PBS/cmds_ruggedness.txt

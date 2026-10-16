@@ -118,6 +118,9 @@ for (cur_model in models) {
   d_grid <- data.table::rbindlist(d_grid[[cur_model]])
 }
 
+## TODO: We still get massive values here, might need to get the median individual
+## instead of the mean, will be in the individual data, slim_sampled_moltrait
+
 # Final collapse to combine across models
 d_grid_test <- data.table::rbindlist(d_grid, fill = T)
 
