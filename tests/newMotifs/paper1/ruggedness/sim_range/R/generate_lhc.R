@@ -121,6 +121,15 @@ for (cur_model in models) {
 ## TODO: We still get massive values here, might need to get the median individual
 ## instead of the mean, will be in the individual data, slim_sampled_moltrait
 
+# This is only every 1000 generations though
+# Basically we load the sampled individuals, get the median (needs to be median inclusive
+# of all molcomps, not just the median value per molcomp)
+# then construct the PCA from those values over all timepoints
+# use IQR for range of value range?
+
+
+
+
 # Final collapse to combine across models
 d_grid_test <- data.table::rbindlist(d_grid, fill = T)
 
