@@ -16,7 +16,7 @@ d_ruggedness <- data.table::fread(paste0(DATA_PATH, "sim_range/d_ruggedness_perm
 
 # Filter to only the columns we care about
 d_ruggedness <- d_ruggedness %>%
-  select(2:4, 6:17)
+  select(2:4, 5:17)
 
 d_ruggedness_all <- d_ruggedness
 
