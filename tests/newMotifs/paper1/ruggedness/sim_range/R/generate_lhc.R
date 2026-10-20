@@ -80,7 +80,8 @@ for (model in models) {
 
 # For each model, get the minimum and maximum PC1 and PC2 loadings, generate a grid along those
 # two directions
-d_grid <- list()
+out_pcs <- list()
+temp_list <- list()
 
 # Yucky triple nested loop
 for (cur_model in models) {
@@ -109,24 +110,28 @@ for (cur_model in models) {
       d_traitspace$seed <- cur_seed
       d_traitspace$dataset <- cur_dataset
     
-      d_grid[[cur_model]][[cur_dataset]][[cur_seed]] <- d_traitspace
+      temp_list[[cur_model]][[cur_dataset]][[cur_seed]] <- d_traitspace
     }
     # Collapse the list after we're done with this model/dataset combo
-    d_grid <- data.table::rbindlist(d_grid[[cur_model]][[cur_dataset]])
+    temp_list[[cur_model]][[cur_dataset]] <- data.table::rbindlist(temp_list[[cur_model]][[cur_dataset]])
   }
   # Collapse again after we're done with this model
-  d_grid <- data.table::rbindlist(d_grid[[cur_model]])
+  out_pcs[[cur_model]] <- data.table::rbindlist(temp_list[[cur_model]])
 }
+
+out_pcs <- data.table::rbindlist(out_pcs, fill = T)
 
 ## TODO: We still get massive values here, might need to get the median individual
 ## instead of the mean, will be in the individual data, slim_sampled_moltrait
 
-# This is only every 1000 generations though
-# Basically we load the sampled individuals, get the median (needs to be median inclusive
+# This is only at 25%, 50%, 75%, 100% of the walk
+# Basically we load the sampled individuals, get the median/min/max (needs to be median inclusive
 # of all molcomps, not just the median value per molcomp)
-# then construct the PCA from those values over all timepoints
+# then construct the PCA from those values over all timepoints, then we can create a grid capturing
+# that area, and plot the median as the walk
 # use IQR for range of value range?
 
+# Just do one example seed per model/dataset? 
 
 
 
