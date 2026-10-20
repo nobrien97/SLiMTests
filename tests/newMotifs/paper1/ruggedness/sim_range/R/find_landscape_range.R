@@ -326,4 +326,13 @@ saveRDS(d_pc_inds, "d_pc_molcomp.RDS")
 pc_grid <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/d_pc_grid_molcomp.RDS")
 d_pc_inds <- readRDS("/mnt/d/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/d_pc_molcomp.RDS")
 
+# Get the row IDs for choosing the correct optima in the solving stage
+d_pc_keys <- purrr::map(seq_along(d_pc_inds), function(i) {
+  this_model <- d_pc_inds[[i]]
+  result <- purrr::map(seq_along(this_model), function(j) {
+    this_model[[j]]$id
+  })
+  as_tibble(data.table::rbindlist(result))
+})
 
+d_pc_keys <- data.table::rbindlist(d_pc_keys)
