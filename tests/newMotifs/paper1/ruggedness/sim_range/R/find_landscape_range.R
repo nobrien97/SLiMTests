@@ -4,6 +4,7 @@ library(latex2exp)
 setwd("/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/sim_range")
 
 COMBO_PATH <- "~/tests/newMotifs/R/"
+COMBO_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/"
 d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
                        col.names = c("model", "r"))
 
@@ -56,6 +57,9 @@ molComp_names <- list("NAR" = c(
 
 molComp_names[["PAR"]] <- molComp_names[["NAR"]]
 molComp_names[["FFLI1"]] <- molComp_names[["FFLC1"]]
+
+model_names <- c("'NAR'", "'PAR'", "'FFLC1'", 
+                 "'FFLI1'", "'FFBH'")
 
 model_names_noquote <- c("NAR", "PAR", "FFLC1", 
                          "FFLI1", "FFBH")
@@ -336,3 +340,52 @@ d_pc_keys <- purrr::map(seq_along(d_pc_inds), function(i) {
 })
 
 d_pc_keys <- data.table::rbindlist(d_pc_keys)
+
+# Load optimum files to extract corect optima for each landscape
+SIM_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/"
+rand_opt <- read_csv(paste0(SIM_PATH, "randomisedStartsM/slim_opt.csv"), 
+                     col_types = paste0(c(rep("f", times = 2),
+                                          rep("n", times = 12)), collapse = ""),
+                     col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                   paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+par_opt <- read_csv(paste0(SIM_PATH, "parallelSel/slim_opt.csv"), 
+                    col_types = paste0(c(rep("f", times = 2),
+                                         rep("n", times = 12)), collapse = ""),
+                    col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                  paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+orth_opt <- read_csv(paste0(SIM_PATH, "orthSel/slim_opt.csv"),
+                     col_types = paste0(c(rep("f", times = 2),
+                                          rep("n", times = 12)), collapse = ""),
+                     col_names = c("seed", "modelindex", paste0("opt.", 1:4), 
+                                   paste0("sigma.", 1:4), paste0("traitShiftDir.", 1:4)))
+rand_opt <- AddCombosToDF(rand_opt)
+# Only use recombination rate = 0.1 to match the parallel/orth sel case (modelindex 11:15)
+rand_opt <- rand_opt %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = "Randomised") %>%
+  filter(r == 0.1)
+
+par_opt <- AddCombosToDF(par_opt)
+par_opt <- par_opt %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = "Parallel") %>%
+  select(-X15) # remove eigenvalue
+  
+
+orth_opt <- AddCombosToDF(orth_opt)
+orth_opt <- orth_opt %>%
+  mutate(model = factor(model, levels = model_names_noquote),
+         dataset = "Orthogonal") %>%
+  select(-X15) # remove eigenvalue
+
+
+d_opt <- rbind(par_opt, orth_opt, rand_opt)
+
+# Filter for the combinations in the pc keys
+d_opt <- semi_join(
+  d_opt,
+  d_pc_keys,
+  by = c("seed", "model", "dataset")
+)
+
+saveRDS(d_opt, "d_opt_grid.RDS")
