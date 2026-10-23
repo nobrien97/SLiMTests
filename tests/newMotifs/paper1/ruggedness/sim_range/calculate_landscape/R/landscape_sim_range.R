@@ -9,6 +9,7 @@ args <- commandArgs(trailingOnly = T)
 ip <- args[1] # IP address of the node for connecting to the h2o java server
 
 DATA_PATH <- "/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/"
+DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/R/"
 setwd(paste0(DATA_PATH, "sim_range"))
 d_ruggedness <- data.table::fread(paste0(DATA_PATH, "sim_range/d_ruggedness_permolcomp.csv"), 
                                   header = F,

@@ -181,7 +181,6 @@ saveRDS(d_walks, paste0(DATA_PATH, "sim_range/d_walks.RDS"))
 # Plot locally
 # Plot as arrows on the landscape
 library(tidyverse)
-library(scattermore)
 HELPER_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/calculate_landscape/R/"
 source(paste0(HELPER_PATH, "helperFns.R"))
 DATA_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/ruggedness/sim_range/pca_landscape/"
@@ -245,10 +244,10 @@ d_new_coords_plot <- d_new_coords %>%
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 d_landscape_norm <- d_landscape %>%
-  mutate(z = range01(z))
+  mutate(z = range01(z)) %>% filter(bkg == 1)
 
 
-ggplot(d_landscape_norm %>% filter(bkg == 1) %>%
+ggplot(d_landscape_norm %>%
          mutate(model = factor(model, levels = model_names_noquote)),
        aes(x = x, y = y, z = z)) +
   geom_raster(aes(fill = z)) +
@@ -256,10 +255,10 @@ ggplot(d_landscape_norm %>% filter(bkg == 1) %>%
   scale_fill_gradientn(colours = contour_pal,
                        breaks = c(0, seq(0.1, 1.0, by = 0.3)),
                        limits = c(0, 1)) +
-  geom_path(data = d_new_coords_plot, inherit.aes = F,
-            mapping = aes(x = PC1,
-                          y = PC2,
-                          colour = gen_norm, group = seed)) +
+  # geom_path(data = d_new_coords_plot, inherit.aes = F,
+  #           mapping = aes(x = PC1,
+  #                         y = PC2,
+  #                         colour = gen_norm, group = seed)) +
   scale_size_continuous(range = c(0.1, 5)) +
   #coord_equal() +
   labs(x = "PC1", y = "PC2", 
@@ -323,5 +322,30 @@ ggplot(d_dist,
 plt_dist
 ggsave(paste0("plt_dist.png"), 
        plt_dist, device = png, width = 8, height = 8,
+       dpi = 600)
+
+
+# Plot the simulation-informed landscapes
+DATA_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/paper1/ruggedness/" # TODO: Update this
+d_landscape_sim <- readRDS(paste0(DATA_PATH, "sim_range/d_landscape_pca_sim.RDS"))
+
+ggplot(d_landscape_sim,
+       aes(x = x, y = y, z = z)) +
+  geom_raster(aes(fill = z)) +
+  facet_nested_wrap(model ~ dataset, scales = "free") +
+  scale_fill_gradientn(colours = contour_pal,
+                       breaks = c(0, seq(0.1, 1.0, by = 0.3)),
+                       limits = c(0, 1)) +
+  scale_size_continuous(range = c(0.1, 5)) +
+  #coord_equal() +
+  labs(x = "PC1", y = "PC2", 
+       fill = "Fitness") +
+  theme_bw() +
+  theme(text = element_text(size=12), 
+        legend.position = "bottom",
+        legend.key.width = unit(3.5, 'line')) -> plt_landscape
+plt_landscape
+ggsave(paste0("plt_landscape.png"), 
+       plt_landscape, device = png, width = 8.5, height = 7,
        dpi = 600)
 

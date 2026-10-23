@@ -4,7 +4,7 @@ library(latex2exp)
 setwd("/g/data/ht96/nb9894/newMotifs/paper1/ruggedness/sim_range")
 
 COMBO_PATH <- "~/tests/newMotifs/R/"
-COMBO_PATH <- "/mnt/e/Documents/GitHub/SLiMTests/tests/newMotifs/R/"
+COMBO_PATH <- "/mnt/c/GitHub/SLiMTests/tests/newMotifs/R/"
 d_combos <- read.table(paste0(COMBO_PATH, "combos.csv"), header = F,
                        col.names = c("model", "r"))
 
@@ -342,7 +342,7 @@ d_pc_keys <- purrr::map(seq_along(d_pc_inds), function(i) {
 d_pc_keys <- data.table::rbindlist(d_pc_keys)
 
 # Load optimum files to extract corect optima for each landscape
-SIM_PATH <- "/mnt/i/SLiMTests/tests/newMotifs/paper1/"
+SIM_PATH <- "/mnt/d/SLiMTests/tests/newMotifs/paper1/"
 rand_opt <- read_csv(paste0(SIM_PATH, "randomisedStartsM/slim_opt.csv"), 
                      col_types = paste0(c(rep("f", times = 2),
                                           rep("n", times = 12)), collapse = ""),

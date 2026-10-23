@@ -184,7 +184,7 @@ runLandscaper <- function(df_path, output, optimum, motif, threads, useID = FALS
 }
 
 
-CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 10,
+CalculateRuggednessLandscaper <- function(g, model, dataset, optima, n = 10,
                                         width = 0.004,
                                         nCores) {
   # g = genotypes (molecular components). Replicate starting points for the walk
@@ -192,7 +192,7 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
 
   # Calculate rolling genotypes w/mutations
   active_comps <- molComp_names[[model]] 
-  nComps <- ncol(g)
+  nComps <- ncol(g) - 1 
   rollingFitnesses <- numeric((n+1) * nrow(g))
   
 
@@ -202,11 +202,18 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   n_sets <- ceiling(nrow(g) / SET_SIZE)
 
   # Setup input/output files
-  tmpin <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
-  tmpout <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
-
+  # tmpin <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  # tmpout <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  # 
+  # # Write optimum output
+  # tmpopt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  
+  tmpin <- tempfile(fileext = ".csv")
+  tmpout <- tempfile(fileext = ".csv")
+  
   # Write optimum output
-  tmpopt <- tempfile(tmpdir = PBS_JOBFS, fileext = ".csv")
+  tmpopt <- tempfile(fileext = ".csv")
+  
 
   cur_fitnesses <- numeric(SET_SIZE)
   for (i in seq_len(n_sets)) {
@@ -224,19 +231,20 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
     index_range <- min_geno:max_geno
     cur_genotypes <- g[index_range,]
     
-    # Overwrite input file    
-    write.table(cur_genotypes, tmpin, sep = ",", col.names = F, row.names = T)
+    cur_opt <- optima[index_range,]
     
-    optim_row <- as.data.frame(rbind(c(optima, sigma)))
-    cur_optima <- purrr::map_dfr(seq_len(nrow(cur_genotypes)), ~optim_row)
-    write.table(cur_optima, tmpopt, sep = ",", col.names = F, row.names = T)
+    # Overwrite input file    
+    write.table(cur_genotypes, tmpin, sep = ",", col.names = F, row.names = F)
+    
+    # Optima contains both optimum and sigma
+    write.table(cur_opt, tmpopt, sep = ",", col.names = F, row.names = F)
 
     
     df_result <- runLandscaper(tmpin, tmpout, tmpopt, 
                                model, nCores, useID = T)
 
     # Set the current fitnesses
-    cur_fitnesses[df_result$id] <- df_result$fitness
+    cur_fitnesses <- df_result$fitness
 
     # map those values onto the rollingFitnesses vector
     # We use 1:nrow(df_result) here to handle edge cases where
@@ -248,10 +256,11 @@ CalculateRuggednessLandscaper <- function(g, model, dataset, optima, sigma, n = 
   result <- data.frame(step = 1:(n+1),
                        model = rep(model, times = n+1),
                        dataset = rep(dataset, times = n+1),
+                       rowID = g$rowID,
                        fitness = rollingFitnesses,
                        nSteps = n+1)
 
-  result[,active_comps] <- g
+  result[,active_comps] <- g[,-1]
   return(result)
 }
 
